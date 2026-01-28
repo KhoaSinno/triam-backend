@@ -1,6 +1,6 @@
 from fastapi import APIRouter, UploadFile, File, HTTPException
 from fastapi.responses import StreamingResponse
-from app.services.pdf_service import extract_text_from_pdf
+from app.services.pdf_service import extract_text_from_pdf, extract_chapters_smart
 from app.services.llm_service import normalize_text_for_speech
 from app.services.tts_service import stream_text_to_speech_edge
 
@@ -14,7 +14,11 @@ async def upload_pdf(file: UploadFile = File(...)):
     """
     if not file.filename.endswith(".pdf"):
         raise HTTPException(status_code=400, detail="Chỉ chấp nhận file PDF")
-    return {"filename": file.filename, "status": "uploaded"}
+
+    # return {"filename": file.filename, "status": "uploaded"}
+
+    chapters = await extract_chapters_smart(file.file)
+    return {"filename": file.filename, "chapters": chapters}
 
 
 @router.post("/process-book-intro")
