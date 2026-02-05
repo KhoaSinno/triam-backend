@@ -21,6 +21,10 @@ async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
 
             # 1. REWRITE (Gemini)
             rewritten_text = await normalize_text_for_speech(chapter_data["text"])
+
+            # Print this json rewritten_text
+            print(f"Rewritten text: {rewritten_text}")
+            
             
             # 2. TTS (EdgeTTS)
             # Lưu ý: Đặt tên file theo book_id để quản lý
@@ -29,7 +33,7 @@ async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
             
             # 3. RAG PREPARATION (Pinecone) - QUAN TRỌNG
             # Chúng ta embed text đã rewrite để AI trả lời câu hỏi user chính xác hơn
-            await embed_text_to_pinecone(book_id, index, rewritten_text) 
+            # await embed_text_to_pinecone(book_id, index, rewritten_text) 
 
             # 4. SAVE TO DB (Firebase/Mongo)
             # Cập nhật trạng thái chương này là "DONE" và lưu URL audio

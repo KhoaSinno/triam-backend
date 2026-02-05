@@ -128,3 +128,274 @@ Dựa trên nguyên tắc "không code thuần nếu có thư viện", đây là
 ### **Lời khuyên từ Tech Lead:**
 
 Bạn nên bắt đầu với **OpenAI Assistant API** trước. Nó đã tích hợp sẵn: RAG (File Search), Code Interpreter và quản lý hội thoại. Điều này giúp bạn giảm 50% lượng code backend cần viết, đúng tiêu chí "không thiết kế lại bánh xe". Chỉ cần tập trung tối ưu phần Voice và Prompt Engineering để xử lý việc đọc từ viết tắt cho chuẩn.
+
+======================
+
+# 🚀 How to Run TRIAM Backend
+
+## 📋 Project Overview
+
+**TRIAM Assistant** is an AI-powered Voice-to-Voice educational assistant built with:
+
+- **Backend Framework**: FastAPI (Python)
+- **Package Manager**: uv (ultra-fast Rust-based package manager)
+- **AI Services**: OpenAI (GPT-4, TTS), Pinecone (Vector DB), Tavily (Web Search)
+- **Key Features**: PDF processing, text-to-speech streaming, voice interaction
+
+---
+
+## ✅ Prerequisites
+
+Before running the project, ensure you have:
+
+1. **Python 3.10+** installed (Currently using: Python 3.10.6 ✓)
+2. **uv package manager** installed (Currently using: uv 0.9.26 ✓)
+3. **API Keys** configured in [.env](file:///W:/WorkSpace_IT/_CAPSTON_PROJECT/triam-backend/.env) file (Already configured ✓)
+
+---
+
+## 🔧 Installation Steps
+
+### 1. Navigate to Project Directory
+
+```bash
+cd W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend
+```
+
+### 2. Sync Dependencies
+
+The project uses `uv` for dependency management. All dependencies are defined in [pyproject.toml](file:///W:/WorkSpace_IT/_CAPSTON_PROJECT/triam-backend/pyproject.toml).
+
+```bash
+uv sync
+```
+
+This will:
+
+- Install Python 3.14.2 (as specified in pyproject.toml)
+- Install all 48 required packages including:
+  - `fastapi` - Web framework
+  - `uvicorn` - ASGI server
+  - `openai` - OpenAI API client
+  - `pinecone-client` - Vector database
+  - `pypdf` - PDF processing
+  - `edge-tts` - Microsoft Edge TTS
+  - `tiktoken` - Token counting
+  - And more...
+
+---
+
+## 🏃 Running the Server
+
+### Option 1: Using uv (Recommended)
+
+```bash
+uv run app/main.py
+```
+
+### Option 2: Using Python directly
+
+```bash
+python app/main.py
+```
+
+### Option 3: Using uvicorn
+
+```bash
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
+
+The server will start on **http://localhost:8000** with auto-reload enabled.
+
+---
+
+## 🧪 Testing the API
+
+### 1. Access Interactive API Documentation
+
+Open your browser and navigate to:
+
+- **Swagger UI**: http://localhost:8000/docs
+- **ReDoc**: http://localhost:8000/redoc
+
+### 2. Test Basic Endpoint
+
+```bash
+curl http://localhost:8000/
+```
+
+Expected response:
+
+```json
+{
+  "message": "TRIAM Backend is running fast with uv!"
+}
+```
+
+### 3. Test Voice Streaming (OpenAI TTS)
+
+Open in browser:
+
+```
+http://localhost:8000/test-voice-stream?text=Xin chào, đây là thử nghiệm
+```
+
+Or use curl:
+
+```bash
+curl "http://localhost:8000/test-voice-stream?text=Công nghệ thông tin" --output test.mp3
+```
+
+### 4. Test Voice Streaming (Edge TTS - Free)
+
+```
+http://localhost:8000/test-voice-stream-edge?text=Xin chào TRIAM
+```
+
+### 5. Test PDF Upload
+
+Using the Swagger UI at http://localhost:8000/docs:
+
+1. Navigate to `/api/v1/upload-pdf` endpoint
+2. Click "Try it out"
+3. Upload a PDF file
+4. Execute the request
+
+---
+
+## 📁 Project Structure
+
+```
+triam-backend/
+├── .env                    # API keys and configuration
+├── pyproject.toml          # Dependencies and project metadata
+├── app/
+│   ├── main.py            # FastAPI application entry point
+│   ├── core/              # Configuration
+│   │   └── config.py      # Settings and environment variables
+│   ├── api/               # API routes
+│   │   └── v1/
+│   │       └── endpoints/
+│   │           ├── upload.py   # PDF upload endpoint
+│   │           └── chat.py     # Chat endpoints
+│   ├── services/          # Business logic
+│   │   ├── tts_service.py      # Text-to-Speech streaming
+│   │   ├── llm_service.py      # LLM processing
+│   │   └── pdf_service.py      # PDF processing
+│   └── schemas/           # Pydantic models
+```
+
+---
+
+## 🔑 Environment Variables
+
+The [.env](file:///W:/WorkSpace_IT/_CAPSTON_PROJECT/triam-backend/.env) file contains the following API keys (already configured):
+
+```env
+# OpenAI API
+OPENAI_API_KEY=sk-proj-...
+
+# Pinecone Vector Database
+PINECONE_API_KEY=pcsk_...
+PINECONE_ENV=us-east-1
+
+# Tavily Search API
+TAVILY_API_KEY=tvly-dev-...
+
+# Google Gemini API
+GEMINI_API_KEY=AIzaSy...
+GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai/
+```
+
+> ⚠️ **Security Note**: Never commit the [.env](file:///W:/WorkSpace_IT/_CAPSTON_PROJECT/triam-backend/.env) file to version control!
+
+---
+
+## 🎯 Available Endpoints
+
+| Method | Endpoint                  | Description                    |
+| ------ | ------------------------- | ------------------------------ |
+| GET    | `/`                       | Health check                   |
+| GET    | `/test-voice-stream`      | Test OpenAI TTS streaming      |
+| GET    | `/test-voice-stream-edge` | Test Edge TTS streaming (free) |
+| POST   | `/api/v1/upload-pdf`      | Upload and process PDF files   |
+
+---
+
+## 🐛 Troubleshooting
+
+### Issue: Port 8000 already in use
+
+**Solution**: Change the port in [app/main.py](file:///W:/WorkSpace_IT/_CAPSTON_PROJECT/triam-backend/app/main.py) or kill the process using port 8000:
+
+```bash
+# Windows
+netstat -ano | findstr :8000
+taskkill /PID <PID> /F
+
+# Linux/Mac
+lsof -ti:8000 | xargs kill -9
+```
+
+### Issue: Module not found errors
+
+**Solution**: Re-sync dependencies:
+
+```bash
+uv sync --reinstall
+```
+
+### Issue: API key errors
+
+**Solution**: Verify your [.env](file:///W:/WorkSpace_IT/_CAPSTON_PROJECT/triam-backend/.env) file has valid API keys and is in the project root directory.
+
+### Issue: Python version mismatch
+
+**Solution**: The project requires Python 3.14+ as specified in [pyproject.toml](file:///W:/WorkSpace_IT/_CAPSTON_PROJECT/triam-backend/pyproject.toml). uv will automatically download and use the correct version.
+
+---
+
+## 📚 Next Steps
+
+1. **Test Voice Streaming**: Try the `/test-voice-stream` endpoint
+2. **Upload a PDF**: Use the `/api/v1/upload-pdf` endpoint
+3. **Explore the Code**: Check out the services in `app/services/`
+4. **Read Documentation**: Review `README.md` and `setup.md` for more details
+
+---
+
+## 🛠️ Development Commands
+
+```bash
+# Sync dependencies
+uv sync
+
+# Run the server with auto-reload
+uv run app/main.py
+
+# Run with custom port
+uv run uvicorn app.main:app --port 8080
+
+# Add a new dependency
+uv add <package-name>
+
+# Remove a dependency
+uv remove <package-name>
+
+# Update all dependencies
+uv sync --upgrade
+```
+
+---
+
+## 📞 Support
+
+For issues or questions:
+
+1. Check the `setup.md` file for detailed setup instructions
+2. Review the `README.md` for project specifications
+3. Examine the code in `app/` directory
+
+---
+
+**Happy Coding! 🎉**
