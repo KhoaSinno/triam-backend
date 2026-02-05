@@ -24,10 +24,10 @@ def get_pdf_outline_structure(file_obj):
                     try:
                         # Lấy số trang (pypdf trả về page object, cần lấy index)
                         page_number = reader.get_destination_page_number(item)
-                        # +1 vì pypdf đếm từ 0, còn ta hay tư duy từ 1
+                        # pypdf get đúng page number
                         outline_data.append({
                             "title": item.title,
-                            "page_start": page_number + 1 
+                            "page_start": page_number 
                         })
                     except Exception:
                         pass # Bỏ qua nếu item bị lỗi link
