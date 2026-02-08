@@ -7,6 +7,7 @@ from app.services.tts_service import stream_text_to_speech_edge, generate_audio_
 from app.services.embed import embed_text_to_pinecone
 import os
 import uuid
+import json
 
 router = APIRouter()
 sem = asyncio.Semaphore(3)
@@ -15,21 +16,32 @@ async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
     """
     Worker xử lý toàn diện: Rewrite -> TTS -> Save DB -> Embed Pinecone
     """
-    async with sem: # <--- Kiểm soát luồng vào
+    async with sem: ## 3 workers
         try:
             print(f"--- Đang xử lý chương {index+1}... ---")
 
             # 1. REWRITE (Gemini)
-            rewritten_text = await normalize_text_for_speech(chapter_data["text"])
+            obj_chapter = await normalize_text_for_speech(chapter_data["text"])
 
             # Print this json rewritten_text
-            print(f"Rewritten text: {rewritten_text}")
-            
+            print(f"Rewritten text: {obj_chapter}")
+
+            # save rewritten_text to json file
+            # with open(f"_log_extracted_json/test_logs/{book_id}_chap_{index + 1}.json", "w", encoding="utf-8") as f:
+            #     json.dump(obj_chapter, f, ensure_ascii=False)
             
             # 2. TTS (EdgeTTS)
             # Lưu ý: Đặt tên file theo book_id để quản lý
-            # audio_filename = f"uploads/{book_id}_chap_{index + 1}.mp3"
-            # await generate_audio_file_edge(rewritten_text, audio_filename)
+            main_chunks: list[str] = obj_chapter["main_scripts"]
+            # sub_chunks: list[str] = obj_chapter["sub_scripts"]
+            for i, chunk in enumerate(main_chunks):
+                # audio_filename = f"uploads/{book_id}_chap_{index + 1}_main_{i + 1}.mp3"
+                audio_filename = f"_log_extracted_json/test_audio_main/{book_id}_chap_{index + 1}_main_{i + 1}.mp3"
+                await generate_audio_file_edge(chunk, audio_filename)
+            # for i, chunk in enumerate(sub_chunks):
+            #     # audio_filename = f"uploads/{book_id}_chap_{index + 1}_sub_{i + 1}.mp3"
+            #     audio_filename = f"_log_extracted_json/test_audio_sub/{book_id}_chap_{index + 1}_sub_{i + 1}.mp3"
+            #     await generate_audio_file_edge(chunk, audio_filename)
             
             # 3. RAG PREPARATION (Pinecone) - QUAN TRỌNG
             # Chúng ta embed text đã rewrite để AI trả lời câu hỏi user chính xác hơn
