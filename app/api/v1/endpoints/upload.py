@@ -49,6 +49,7 @@ async def upload_to_supabase(local_path: str, storage_path: str, max_retries: in
 
 async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
     async with sem:
+        chapter_id = None  # Initialize to prevent UnboundLocalError
         try:
             # 1. REWRITE
             obj_chapter = await normalize_text_for_speech(chapter_data["text"])
@@ -112,8 +113,12 @@ async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
             }).eq("id", chapter_id).execute()
 
         except Exception as e:
-            # Rollback: Delete chapter and segments
-            supabase.table("chapters").delete().eq("id", chapter_id).execute()
+            # Rollback: Delete chapter and segments if chapter was created
+            if chapter_id:
+                try:
+                    supabase.table("chapters").delete().eq("id", chapter_id).execute()
+                except Exception as delete_error:
+                    logger.error(f"Failed to rollback chapter {index + 1}: {delete_error}")
             logger.error(f"Error processing chapter {index + 1}: {e}")
             raise
 
@@ -173,7 +178,18 @@ async def upload_pdf(
     chapters = await extract_chapters_smart(file.file)
     
     # 2. Lưu khung sườn (Skeleton) vào DB trước với status="pending"
-    # await db.create_book_record(book_id, chapters)
+    try:
+        supabase.table("books").insert({
+            "id": book_id,
+            "title": file.filename.replace(".pdf", ""),
+            "total_chapters": len(chapters),
+            "status": "processing",
+            "created_at": "now()"
+        }).execute()
+        logger.info(f"Created book record: {book_id} with {len(chapters)} chapters")
+    except Exception as e:
+        logger.error(f"Failed to create book record: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to create book record: {str(e)}")
 
     # 3. Đẩy việc nặng vào Background (User nhận phản hồi NGAY LẬP TỨC)
     # Lưu ý: BackgroundTasks trong FastAPI chạy tuần tự hoặc song song tùy cách gọi.
@@ -189,13 +205,27 @@ async def upload_pdf(
 
 async def run_background_processing(book_id: str, chapters: list):
     """Hàm quản lý việc chạy song song trong background"""
-    tasks = []
-    for i, chapter in enumerate(chapters):
-        tasks.append(process_single_chapter(book_id, chapter, i))
-    
-    # Chạy tất cả, nhưng bị kìm hãm bởi Semaphore(3)
-    await asyncio.gather(*tasks)
-    print(f"=== HOÀN TẤT XỬ LÝ SÁCH {book_id} ===")
+    try:
+        tasks = []
+        for i, chapter in enumerate(chapters):
+            tasks.append(process_single_chapter(book_id, chapter, i))
+        
+        # Chạy tất cả, nhưng bị kìm hãm bởi Semaphore(3)
+        await asyncio.gather(*tasks)
+        
+        # Update book status to completed
+        supabase.table("books").update({
+            "status": "completed"
+        }).eq("id", book_id).execute()
+        
+        logger.info(f"✅ HOÀN TẤT XỬ LÝ SÁCH {book_id}")
+    except Exception as e:
+        # Update book status to error if processing fails
+        supabase.table("books").update({
+            "status": "error",
+            "error_message": str(e)
+        }).eq("id", book_id).execute()
+        logger.error(f"❌ LỖI XỬ LÝ SÁCH {book_id}: {e}")
 
 
 # @router.post("/process-book-intro")
