@@ -8,54 +8,160 @@ from app.services.embed import embed_chunk_to_supbabase
 import os
 import uuid
 import json
+from app.core.supabase import supabase
+import aiofiles
+import logging
+
+logger = logging.getLogger("upload")
 
 router = APIRouter()
 sem = asyncio.Semaphore(3)
 
-async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
-    """
-    Worker xử lý toàn diện: Rewrite -> TTS -> Save DB -> Embed Pinecone
-    """
-    async with sem: ## 3 workers
+async def upload_to_supabase(local_path: str, storage_path: str, max_retries: int = 3):
+    """Hàm hỗ trợ upload file và trả về public URL"""
+    # Validate file
+    file_size = os.path.getsize(local_path)
+    max_size = 20 * 1024 * 1024 # 20MB
+    if file_size > max_size:
+        raise HTTPException(status_code=400, detail=f"File size exceeds maximum limit of {max_size} bytes")
+    # Upload file
+    for attempt in range(max_retries):
         try:
-            print(f"--- Đang xử lý chương {index+1}... ---")
+            async with aiofiles.open(local_path, 'rb') as f:
+                file_bytes = await f.read()
 
-            # 1. REWRITE (Gemini)
-            obj_chapter = await normalize_text_for_speech(chapter_data["text"])
+                supabase.storage.from_("audios").upload(
+                    path=storage_path,
+                    file=file_bytes,
+                    file_options={"content-type": "audio/mpeg"}
+                )
+            # Lấy URL công khai
+            return supabase.storage.from_("audios").get_public_url(storage_path)
 
-            # Print this json rewritten_text
-            print(f"Rewritten text: {obj_chapter}")
-
-            # save rewritten_text to json file
-            # with open(f"_log_extracted_json/test_logs/{book_id}_chap_{index + 1}.json", "w", encoding="utf-8") as f:
-            #     json.dump(obj_chapter, f, ensure_ascii=False)
-            
-            # 2. TTS (EdgeTTS)
-            # Lưu ý: Đặt tên file theo book_id để quản lý
-            main_chunks: list[str] = obj_chapter["main_scripts"]
-            # sub_chunks: list[str] = obj_chapter["sub_scripts"]
-            for i, chunk in enumerate(main_chunks):
-                # audio_filename = f"uploads/{book_id}_chap_{index + 1}_main_{i + 1}.mp3"
-                audio_filename = f"_log_extracted_json/test_audio_main/{book_id}_chap_{index + 1}_main_{i + 1}.mp3"
-                await generate_audio_file_edge(chunk, audio_filename)
-            # for i, chunk in enumerate(sub_chunks):
-            #     # audio_filename = f"uploads/{book_id}_chap_{index + 1}_sub_{i + 1}.mp3"
-            #     audio_filename = f"_log_extracted_json/test_audio_sub/{book_id}_chap_{index + 1}_sub_{i + 1}.mp3"
-            #     await generate_audio_file_edge(chunk, audio_filename)
-            
-            # 3. RAG PREPARATION (Pinecone) - QUAN TRỌNG
-            # Chúng ta embed text đã rewrite để AI trả lời câu hỏi user chính xác hơn
-            await embed_chunk_to_supbabase(book_id, index, main_chunks) 
-
-            # 4. SAVE TO DB (Firebase/Mongo)
-            # Cập nhật trạng thái chương này là "DONE" và lưu URL audio
-            # await db.update_chapter_status(book_id, index, status="ready", audio_url=audio_filename)
-
-            print(f"--- Xong chương {index+1} ---")
-            
         except Exception as e:
-            print(f"Lỗi chương {index + 1}: {e}")
-            # await db.update_chapter_status(book_id, index, status="error", error=str(e))
+            if attempt < max_retries - 1:
+                logger.warning(f"Upload failed, retrying... ({attempt + 1}/{max_retries})")
+                await asyncio.sleep(2 ** attempt) # Exponential backoff
+            else:
+                logger.error(f"Upload failed after {max_retries} attempts: {e}")
+                raise
+
+
+async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
+    async with sem:
+        try:
+            # 1. REWRITE
+            obj_chapter = await normalize_text_for_speech(chapter_data["text"])
+            main_chunks: list[str] = obj_chapter.get("main_scripts", [])
+            review_text: str = obj_chapter.get("sub_scripts", "")
+
+            # Insert tbl "chappters"
+            chapter_id = supabase.table("chapters").insert({
+                "book_id": book_id,
+                "chapter_index": index,
+                "title": chapter_data.get("title", f"Chương {index+1}"),
+                "review_text": review_text
+            }).execute().data[0]['id'] 
+
+            segments_to_insert = []
+            # 2. TTS AND STORAGE TO CLOUD
+            for i, chunk in enumerate(main_chunks):
+                local_filename = f"{uuid.uuid4()}.mp3"
+                await generate_audio_file_edge(chunk, local_filename)
+                logger.info(f"Generated audio file: {local_filename}")
+                storage_path = f"{book_id}/chap_{index + 1}/part_{i + 1}.mp3"
+                # Upload to Supabase Storage
+                public_url = await upload_to_supabase(local_filename, storage_path)
+                logger.info(f"Uploaded audio file: {public_url}")
+                
+                # Delete local file
+                if os.path.exists(local_filename):
+                    os.remove(local_filename)
+                
+                segments_to_insert.append({
+                    "chapter_id": chapter_id,
+                    "segment_index": i,
+                    "audio_url": public_url,
+                    "text_content": chunk,
+                })
+
+            # 3. SAVE PLAYLIST TO DB
+            if segments_to_insert:
+                supabase.table("chapter_segments").insert(segments_to_insert).execute()
+
+            # 4. HANDLE REVIEW SCRIPT
+            if review_text:
+                local_filename = f"{uuid.uuid4()}.mp3"
+                await generate_audio_file_edge(review_text, local_filename)
+                # logger.info(f"Generated review audio file: {local_filename}")
+                storage_path = f"{book_id}/chap_{index + 1}/review.mp3"
+                public_url = await upload_to_supabase(local_filename, storage_path)
+                # logger.info(f"Uploaded review audio file: {public_url}")
+
+                if os.path.exists(local_filename):
+                    os.remove(local_filename)
+
+                supabase.table("chapters").update({ "review_audio_url": public_url }).eq("id", chapter_id).execute()
+
+            # 5. EMBEDDING TO SUPABASE
+            await embed_chunk_to_supbabase(book_id, index, main_chunks)
+
+            # 6. UPDATE STATUS TO READY
+            supabase.table("chapters").update({
+                "status": "ready"
+            }).eq("id", chapter_id).execute()
+
+        except Exception as e:
+            # Rollback: Delete chapter and segments
+            supabase.table("chapters").delete().eq("id", chapter_id).execute()
+            logger.error(f"Error processing chapter {index + 1}: {e}")
+            raise
+
+
+# async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
+#     """
+#     Worker xử lý toàn diện: Rewrite -> TTS -> Save DB -> Embed Pinecone
+#     """
+#     async with sem: ## 3 workers
+#         try:
+#             print(f"--- Đang xử lý chương {index+1}... ---")
+
+#             # 1. REWRITE (Gemini)
+#             obj_chapter = await normalize_text_for_speech(chapter_data["text"])
+
+#             # Print this json rewritten_text
+#             print(f"Rewritten text: {obj_chapter}")
+
+#             # save rewritten_text to json file
+#             # with open(f"_log_extracted_json/test_logs/{book_id}_chap_{index + 1}.json", "w", encoding="utf-8") as f:
+#             #     json.dump(obj_chapter, f, ensure_ascii=False)
+            
+#             # 2. TTS (EdgeTTS)
+#             # Lưu ý: Đặt tên file theo book_id để quản lý
+#             main_chunks: list[str] = obj_chapter["main_scripts"]
+#             # sub_chunks: list[str] = obj_chapter["sub_scripts"]
+#             for i, chunk in enumerate(main_chunks):
+#                 # audio_filename = f"uploads/{book_id}_chap_{index + 1}_main_{i + 1}.mp3"
+#                 audio_filename = f"_log_extracted_json/test_audio_main/{book_id}_chap_{index + 1}_main_{i + 1}.mp3"
+#                 await generate_audio_file_edge(chunk, audio_filename)
+#             # for i, chunk in enumerate(sub_chunks):
+#             #     # audio_filename = f"uploads/{book_id}_chap_{index + 1}_sub_{i + 1}.mp3"
+#             #     audio_filename = f"_log_extracted_json/test_audio_sub/{book_id}_chap_{index + 1}_sub_{i + 1}.mp3"
+#             #     await generate_audio_file_edge(chunk, audio_filename)
+            
+#             # 3. RAG PREPARATION (Pinecone) - QUAN TRỌNG
+#             # Chúng ta embed text đã rewrite để AI trả lời câu hỏi user chính xác hơn
+#             await embed_chunk_to_supbabase(book_id, index, main_chunks) 
+
+#             # 4. SAVE TO DB (Firebase/Mongo)
+#             # Cập nhật trạng thái chương này là "DONE" và lưu URL audio
+#             # await db.update_chapter_status(book_id, index, status="ready", audio_url=audio_filename)
+
+#             print(f"--- Xong chương {index+1} ---")
+            
+#         except Exception as e:
+#             print(f"Lỗi chương {index + 1}: {e}")
+#             # await db.update_chapter_status(book_id, index, status="error", error=str(e))
 
 @router.post("/upload")
 async def upload_pdf(
