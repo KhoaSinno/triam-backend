@@ -2,6 +2,7 @@ import os
 from pinecone import Pinecone
 from openai import AsyncOpenAI
 import uuid
+from app.core.supabase import supabase
 
 # Khởi tạo OpenAI
 aclient = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
@@ -12,7 +13,36 @@ INDEX_NAME = "triam-knowledge-base"  # Tên Index bạn đã tạo trên Web Con
 index = pc.Index(INDEX_NAME)
 
 
+async def embed_chunk_to_supbabase(book_id: str, chapter_index: int, chunks: list[str]):
+    try:
+        response = await aclient.embeddings.create(
+            input=chunks,
+            model="text-embedding-3-small"
+        )
 
+        data_to_insert = []
+        for i, embedding_data in enumerate(response.data):
+            data_to_insert.append({
+                "book_id": book_id,
+                "chapter_index": chapter_index,
+                "chunk_index": i,
+                "content": chunks[i],
+                "embedding": embedding_data.embedding
+            })
+
+        # Insert vào Supabase
+        if data_to_insert:
+            supabase.table("book_knowledge").insert(data_to_insert).execute()
+            print(f"✅ Saved {len(data_to_insert)} vectors into Supabase.")
+            return True
+        
+    except Exception as e:
+        print(f"Error Embed Supabase: {e}")
+        return False
+
+
+
+# ====== OLD CODE ======
 async def embed_text_to_pinecone(book_id: str, chapter_index: int, text: str):
     """
     Hàm xử lý RAG: Cắt nhỏ text -> Embed -> Lưu vào Pinecone.
