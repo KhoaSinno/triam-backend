@@ -12,5 +12,6 @@ class Settings:
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+    SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
 settings = Settings()
