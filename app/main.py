@@ -1,12 +1,13 @@
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from app.services.tts_service import stream_text_to_speech, stream_text_to_speech_edge
-from app.api.v1.endpoints import upload  # Import router upload
+from app.api.v1.endpoints import upload, live  
 
 app = FastAPI(title="TRIAM Assistant API")
 
 # Include Router
 app.include_router(upload.router, prefix="/api/v1", tags=["Upload"])
+app.include_router(live.router, prefix="/api/v1", tags=["Live"])
 
 @app.get("/")
 async def root():
