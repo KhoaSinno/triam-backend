@@ -2,12 +2,11 @@ from app.core.supabase import supabase
 from openai import AsyncOpenAI
 from app.core.config import settings
 
-# Dùng Gemini để embed câu hỏi
-ai_client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY, base_url=settings.GEMINI_BASE_URL)
+ai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 async def search_book_knowledge(query: str, book_id: str):
     # 1. Tạo embedding cho câu hỏi của user
-    res = await ai_client.embeddings.create(model="text-embedding-004", input=query)
+    res = await ai_client.embeddings.create(model="text-embedding-3-small", input=[query])
     query_vector = res.data[0].embedding
 
     # 2. Gọi hàm RPC match_book_knowledge đã tạo ở Supabase
@@ -20,5 +19,5 @@ async def search_book_knowledge(query: str, book_id: str):
 
     if not result.data:
         return "Không tìm thấy thông tin cụ thể trong sách."
-    
+
     return "\n".join([item['content'] for item in result.data])
