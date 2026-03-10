@@ -8,5 +8,11 @@ class Settings:
     PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
     PINECONE_ENV = os.getenv("PINECONE_ENV")
     TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+    GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL")
+    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    SUPABASE_URL = os.getenv("SUPABASE_URL")
+    SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+    SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
 
 settings = Settings()
