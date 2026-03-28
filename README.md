@@ -1,3 +1,13 @@
+---
+title: TRIAM Backend
+emoji: "🎧"
+colorFrom: indigo
+colorTo: teal
+sdk: docker
+app_file: Dockerfile
+pinned: false
+---
+
 # **TÀI LIỆU ĐẶC TẢ KỸ THUẬT (TECHNICAL SPECIFICATION) \- PROJECT TRIAM**
 
 ## **1\. Tổng quan dự án (Project Overview)**
