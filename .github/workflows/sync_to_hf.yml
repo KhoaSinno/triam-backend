@@ -19,6 +19,8 @@ jobs:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           # Cấu hình thông tin git tạm thời để push
-          git remote add hf https://khoasinoo:$HF_TOKEN@huggingface.co/spaces/khoasinoo/tri-am-backend
-          # Push toàn bộ code lên nhánh main của Hugging Face
-          git push --force hf main
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+          HF_URL="https://khoasinoo:${HF_TOKEN}@huggingface.co/spaces/khoasinoo/tri-am-backend"
+          # Push thẳng từ commit hiện hành (HEAD) lên nhánh main của Hugging Face
+          git push --force "$HF_URL" HEAD:main

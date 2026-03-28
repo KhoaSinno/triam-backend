@@ -10,3 +10,10 @@ wheels/
 .venv
 
 .env
+
+# Large files and logs
+uploads/
+*.mp3
+*.pdf
+_log_extracted_json/
+script_ouputs/
