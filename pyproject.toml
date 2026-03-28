@@ -3,7 +3,7 @@ name = "triam-backend"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 dependencies = [
     "aiofiles>=25.1.0",
     "edge-tts>=7.2.7",
@@ -17,8 +17,37 @@ dependencies = [
     "pypdf>=6.6.2",
     "python-dotenv>=1.2.1",
     "python-multipart>=0.0.22",
+    "supabase>=2.15.0",
     "tavily-python>=0.7.21",
     "tiktoken>=0.12.0",
     "uvicorn>=0.40.0",
     "websockets>=15.0.1",
 ]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.15.8",
+]
+
+[tool.ruff]
+# Set the maximum line length to 200.
+line-length = 200
+target-version = "py312"
+
+[tool.ruff.lint]
+# Select rules to run
+select = [
+    "E",  # pycodestyle errors
+    "W",  # pycodestyle warnings
+    "F",  # pyflakes
+    "I",  # isort
+    "C",  # flake8-comprehensions
+    "B",  # flake8-bugbear
+]
+ignore = []
+
+[tool.ruff.format]
+# Like Black, use double quotes for strings.
+quote-style = "double"
+# Like Black, indent with spaces, rather than tabs.
+indent-style = "space"

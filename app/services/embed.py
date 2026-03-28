@@ -1,7 +1,8 @@
 import os
-from pinecone import Pinecone
+
 from openai import AsyncOpenAI
-import uuid
+from pinecone import Pinecone
+
 from app.core.supabase import supabase
 
 # Khởi tạo OpenAI
@@ -35,7 +36,7 @@ async def embed_chunk_to_supbabase(book_id: str, chapter_index: int, chunks: lis
             supabase.table("book_knowledge").insert(data_to_insert).execute()
             print(f"✅ Saved {len(data_to_insert)} vectors into Supabase.")
             return True
-        
+
     except Exception as e:
         print(f"Error Embed Supabase: {e}")
         return False
@@ -52,7 +53,7 @@ async def embed_text_to_pinecone(book_id: str, chapter_index: int, text: str):
         # Tại sao cần cắt? Vì Vector search hoạt động tốt nhất với các đoạn văn ngắn (context).
         # Cách đơn giản: Cắt theo đoạn văn (xuống dòng kép)
         chunks = [c.strip() for c in text.split('\n\n') if len(c.strip()) > 50]
-        
+
         # Nếu text không có xuống dòng, cắt thô mỗi 1000 ký tự (Fallback)
         if not chunks:
             chunk_size = 1000
@@ -73,7 +74,7 @@ async def embed_text_to_pinecone(book_id: str, chapter_index: int, text: str):
         for i, embedding_data in enumerate(response.data):
             chunk_text = chunks[i]
             vector_id = f"{book_id}_chap{chapter_index}_{i}" # ID duy nhất
-            
+
             # Vector Record
             vector_record = {
                 "id": vector_id,
@@ -92,7 +93,7 @@ async def embed_text_to_pinecone(book_id: str, chapter_index: int, text: str):
         # Sử dụng namespace để tách biệt dữ liệu (optional, nhưng recommend)
         # Namespace giúp bạn xóa sách dễ dàng: index.delete(delete_all=True, namespace=book_id)
         index.upsert(vectors=vectors_to_upsert, namespace=book_id)
-        
+
         print(f"-> Pinecone: Đã lưu {len(vectors_to_upsert)} vectors vào namespace '{book_id}'.")
         return True
 

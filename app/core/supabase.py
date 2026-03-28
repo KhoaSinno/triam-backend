@@ -1,7 +1,8 @@
-import os
 from dotenv import load_dotenv
+from supabase import Client, create_client
+
 from app.core.config import settings
-from supabase import create_client, Client
+
 load_dotenv()
 
 url: str = settings.SUPABASE_URL

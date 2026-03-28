@@ -1,16 +1,18 @@
 import asyncio
-from fastapi import APIRouter, UploadFile, File, HTTPException, BackgroundTasks
-from fastapi.responses import StreamingResponse
-from app.services.pdf_service import extract_text_from_pdf, extract_chapters_smart
-from app.services.llm_service import normalize_text_for_speech
-from app.services.tts_service import stream_text_to_speech_edge, generate_audio_file_edge
-from app.services.embed import embed_chunk_to_supbabase
+import logging
 import os
 import uuid
-import json
-from app.core.supabase import supabase
+
 import aiofiles
-import logging
+from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
+
+from app.core.supabase import supabase
+from app.services.embed import embed_chunk_to_supbabase
+from app.services.llm_service import normalize_text_for_speech
+from app.services.pdf_service import extract_chapters_smart
+from app.services.tts_service import (
+    generate_audio_file_edge,
+)
 
 logger = logging.getLogger("upload")
 
@@ -62,7 +64,7 @@ async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
                 "chapter_index": index,
                 "title": chapter_data.get("title", f"Chương {index+1}"),
                 "review_text": review_text
-            }).execute().data[0]['id'] 
+            }).execute().data[0]['id']
 
             segments_to_insert = []
             # 2. TTS AND STORAGE TO CLOUD
@@ -74,11 +76,11 @@ async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
                 # Upload to Supabase Storage
                 public_url = await upload_to_supabase(local_filename, storage_path)
                 logger.info(f"Uploaded audio file: {public_url}")
-                
+
                 # Delete local file
                 if os.path.exists(local_filename):
                     os.remove(local_filename)
-                
+
                 segments_to_insert.append({
                     "chapter_id": chapter_id,
                     "segment_index": i,
@@ -123,51 +125,6 @@ async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
             raise
 
 
-# async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
-#     """
-#     Worker xử lý toàn diện: Rewrite -> TTS -> Save DB -> Embed Pinecone
-#     """
-#     async with sem: ## 3 workers
-#         try:
-#             print(f"--- Đang xử lý chương {index+1}... ---")
-
-#             # 1. REWRITE (Gemini)
-#             obj_chapter = await normalize_text_for_speech(chapter_data["text"])
-
-#             # Print this json rewritten_text
-#             print(f"Rewritten text: {obj_chapter}")
-
-#             # save rewritten_text to json file
-#             # with open(f"_log_extracted_json/test_logs/{book_id}_chap_{index + 1}.json", "w", encoding="utf-8") as f:
-#             #     json.dump(obj_chapter, f, ensure_ascii=False)
-            
-#             # 2. TTS (EdgeTTS)
-#             # Lưu ý: Đặt tên file theo book_id để quản lý
-#             main_chunks: list[str] = obj_chapter["main_scripts"]
-#             # sub_chunks: list[str] = obj_chapter["sub_scripts"]
-#             for i, chunk in enumerate(main_chunks):
-#                 # audio_filename = f"uploads/{book_id}_chap_{index + 1}_main_{i + 1}.mp3"
-#                 audio_filename = f"_log_extracted_json/test_audio_main/{book_id}_chap_{index + 1}_main_{i + 1}.mp3"
-#                 await generate_audio_file_edge(chunk, audio_filename)
-#             # for i, chunk in enumerate(sub_chunks):
-#             #     # audio_filename = f"uploads/{book_id}_chap_{index + 1}_sub_{i + 1}.mp3"
-#             #     audio_filename = f"_log_extracted_json/test_audio_sub/{book_id}_chap_{index + 1}_sub_{i + 1}.mp3"
-#             #     await generate_audio_file_edge(chunk, audio_filename)
-            
-#             # 3. RAG PREPARATION (Pinecone) - QUAN TRỌNG
-#             # Chúng ta embed text đã rewrite để AI trả lời câu hỏi user chính xác hơn
-#             await embed_chunk_to_supbabase(book_id, index, main_chunks) 
-
-#             # 4. SAVE TO DB (Firebase/Mongo)
-#             # Cập nhật trạng thái chương này là "DONE" và lưu URL audio
-#             # await db.update_chapter_status(book_id, index, status="ready", audio_url=audio_filename)
-
-#             print(f"--- Xong chương {index+1} ---")
-            
-#         except Exception as e:
-#             print(f"Lỗi chương {index + 1}: {e}")
-#             # await db.update_chapter_status(book_id, index, status="error", error=str(e))
-
 @router.post("/upload")
 async def upload_pdf(
     background_tasks: BackgroundTasks, # <--- Vũ khí bí mật
@@ -176,7 +133,7 @@ async def upload_pdf(
     # 1. Tạo Book ID & Extract (Vẫn phải chờ bước này để có khung sườn)
     book_id = str(uuid.uuid4())
     chapters = await extract_chapters_smart(file.file)
-    
+
     # 2. Lưu khung sườn (Skeleton) vào DB trước với status="pending"
     try:
         supabase.table("books").insert({
@@ -194,7 +151,7 @@ async def upload_pdf(
     # 3. Đẩy việc nặng vào Background (User nhận phản hồi NGAY LẬP TỨC)
     # Lưu ý: BackgroundTasks trong FastAPI chạy tuần tự hoặc song song tùy cách gọi.
     # Để chạy song song trong background, ta wrap vào 1 hàm async lớn.
-    
+
     background_tasks.add_task(run_background_processing, book_id, chapters)
 
     return {
@@ -209,15 +166,15 @@ async def run_background_processing(book_id: str, chapters: list):
         tasks = []
         for i, chapter in enumerate(chapters):
             tasks.append(process_single_chapter(book_id, chapter, i))
-        
+
         # Chạy tất cả, nhưng bị kìm hãm bởi Semaphore(3)
         await asyncio.gather(*tasks)
-        
+
         # Update book status to completed
         supabase.table("books").update({
             "status": "completed"
         }).eq("id", book_id).execute()
-        
+
         logger.info(f"✅ HOÀN TẤT XỬ LÝ SÁCH {book_id}")
     except Exception as e:
         # Update book status to error if processing fails

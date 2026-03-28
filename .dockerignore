@@ -1,0 +1,16 @@
+.git
+.gitignore
+.venv
+.env
+__pycache__
+*.pyc
+.DS_Store
+
+# Bỏ qua các thư mục chứa dữ liệu tĩnh/log không cần thiết khi deploy
+uploads/
+_log_extracted_json/
+script_ouputs/
+_codebase/
+_docs_implemented/
+implement_docs/
+scripts/
