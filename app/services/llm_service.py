@@ -1,6 +1,7 @@
 import json
-import re
+
 from openai import AsyncOpenAI
+
 from app.core.config import settings
 
 # Sử dụng Gemini qua OpenAI-compatible API
@@ -51,7 +52,7 @@ async def normalize_text_for_speech(raw_text: str) -> dict:
     """
     # Fallback structure nếu AI lỗi
     fallback_result = {
-        "main_scripts": [raw_text], 
+        "main_scripts": [raw_text],
         "review_script": "Không thể tạo tóm tắt cho đoạn này."
     }
 
@@ -64,26 +65,26 @@ async def normalize_text_for_speech(raw_text: str) -> dict:
                 {"role": "user", "content": raw_text}
             ],
             temperature=0.3, # Giảm sáng tạo để format JSON chuẩn
-            response_format={"type": "json_object"} 
-      
+            response_format={"type": "json_object"}
+
         )
-        
+
         content = response.choices[0].message.content.strip()
-        
+
         # Xử lý trường hợp AI trả về markdown ```json ... ```
       #   if content.startswith("```json"):
       #       content = content.replace("```json", "").replace("```", "")
       #   elif content.startswith("```"):
       #       content = content.replace("```", "")
-            
+
         # Parse JSON
         parsed_data = json.loads(content)
-        
+
         # Validate sơ bộ
       #   if "main_scripts" not in parsed_data or not isinstance(parsed_data["main_scripts"], list):
       #       print("Cảnh báo: Output thiếu main_scripts hoặc sai định dạng.")
       #       return fallback_result
-            
+
         return parsed_data
 
     except json.JSONDecodeError:

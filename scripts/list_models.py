@@ -1,19 +1,22 @@
 import asyncio
-import os
+
 # Set default encoding to utf-8 for Windows console
 import sys
+
 if sys.platform == 'win32':
     sys.stdout.reconfigure(encoding='utf-8')
 
 from google import genai
+
 from app.core.config import settings
+
 
 async def list_models():
     client = genai.Client(
         api_key=settings.GEMINI_API_KEY,
         http_options={'api_version': 'v1beta'}
     )
-    
+
     print("Listing models for v1beta:")
     # Try awaiting the list call first
     try:

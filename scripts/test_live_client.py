@@ -15,6 +15,7 @@ Make sure the server is running first:
 """
 import asyncio
 import struct
+
 import websockets
 
 WS_URI = "ws://127.0.0.1:8000/api/v1/ws/live-assistant/test-book-123"

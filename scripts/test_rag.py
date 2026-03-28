@@ -4,6 +4,7 @@ Chạy: uv run python test_rag.py
 """
 import asyncio
 import os
+
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -29,6 +30,7 @@ print("\n" + "=" * 60)
 print("BƯỚC 2: Kiểm tra dữ liệu trong bảng book_knowledge")
 print("=" * 60)
 from supabase import create_client
+
 sb = create_client(SUPABASE_URL, SUPABASE_KEY)
 
 try:
@@ -38,7 +40,7 @@ try:
     sample = count_result.data
     print(f"  Tổng số records: {total}")
     if sample:
-        print(f"  5 records đầu tiên:")
+        print("  5 records đầu tiên:")
         for row in sample:
             print(f"    - book_id={row.get('book_id')} | id={row.get('id')} | content={str(row.get('content',''))[:60]}...")
     else:
@@ -133,7 +135,7 @@ async def test_search():
     try:
         result = await search_book_knowledge("tri thức là gì", TEST_BOOK_ID)
         if result and result != "Không tìm thấy thông tin cụ thể trong sách.":
-            print(f"  ✅ search_book_knowledge hoạt động!")
+            print("  ✅ search_book_knowledge hoạt động!")
             print(f"  Kết quả:\n{result[:300]}...")
         else:
             print(f"  ⚠️  Trả về: '{result}'")

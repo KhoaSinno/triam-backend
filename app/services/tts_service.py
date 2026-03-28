@@ -1,7 +1,8 @@
-from openai import AsyncOpenAI
-from app.core.config import settings
+
 import edge_tts
-import asyncio # Need to install
+from openai import AsyncOpenAI
+
+from app.core.config import settings
 
 client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
@@ -30,7 +31,7 @@ async def stream_text_to_speech_edge(text: str, voice: str = "vi-VN-HoaiMyNeural
     Sử dụng Edge TTS: Hoàn toàn MIỄN PHÍ và chất lượng Neural rất tốt.
     """
     communicate = edge_tts.Communicate(text, voice)
-    
+
     # Streaming response
     async for chunk in communicate.stream():
         if chunk["type"] == "audio":
