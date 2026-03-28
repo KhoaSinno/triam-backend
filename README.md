@@ -2,7 +2,7 @@
 title: TRIAM Backend
 emoji: "🎧"
 colorFrom: indigo
-colorTo: teal
+colorTo: blue
 sdk: docker
 app_file: Dockerfile
 pinned: false
