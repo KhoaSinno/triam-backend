@@ -19,13 +19,15 @@ logger = logging.getLogger("upload")
 router = APIRouter()
 sem = asyncio.Semaphore(3)
 
+
 async def upload_to_supabase(local_path: str, storage_path: str, max_retries: int = 3):
     """Hàm hỗ trợ upload file và trả về public URL"""
     # Validate file
     file_size = os.path.getsize(local_path)
-    max_size = 20 * 1024 * 1024 # 20MB
+    max_size = 20 * 1024 * 1024  # 20MB
     if file_size > max_size:
-        raise HTTPException(status_code=400, detail=f"File size exceeds maximum limit of {max_size} bytes")
+        raise HTTPException(
+            status_code=400, detail=f"File size exceeds maximum limit of {max_size} bytes")
     # Upload file
     for attempt in range(max_retries):
         try:
@@ -42,10 +44,12 @@ async def upload_to_supabase(local_path: str, storage_path: str, max_retries: in
 
         except Exception as e:
             if attempt < max_retries - 1:
-                logger.warning(f"Upload failed, retrying... ({attempt + 1}/{max_retries})")
-                await asyncio.sleep(2 ** attempt) # Exponential backoff
+                logger.warning(
+                    f"Upload failed, retrying... ({attempt + 1}/{max_retries})")
+                await asyncio.sleep(2 ** attempt)  # Exponential backoff
             else:
-                logger.error(f"Upload failed after {max_retries} attempts: {e}")
+                logger.error(
+                    f"Upload failed after {max_retries} attempts: {e}")
                 raise
 
 
@@ -53,6 +57,7 @@ async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
     async with sem:
         chapter_id = None  # Initialize to prevent UnboundLocalError
         try:
+            
             # 1. REWRITE
             obj_chapter = await normalize_text_for_speech(chapter_data["text"])
             main_chunks: list[str] = obj_chapter.get("main_scripts", [])
@@ -67,12 +72,14 @@ async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
             }).execute().data[0]['id']
 
             segments_to_insert = []
+            
             # 2. TTS AND STORAGE TO CLOUD
             for i, chunk in enumerate(main_chunks):
                 local_filename = f"{uuid.uuid4()}.mp3"
                 await generate_audio_file_edge(chunk, local_filename)
                 logger.info(f"Generated audio file: {local_filename}")
                 storage_path = f"{book_id}/chap_{index + 1}/part_{i + 1}.mp3"
+                
                 # Upload to Supabase Storage
                 public_url = await upload_to_supabase(local_filename, storage_path)
                 logger.info(f"Uploaded audio file: {public_url}")
@@ -90,7 +97,8 @@ async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
 
             # 3. SAVE PLAYLIST TO DB
             if segments_to_insert:
-                supabase.table("chapter_segments").insert(segments_to_insert).execute()
+                supabase.table("chapter_segments").insert(
+                    segments_to_insert).execute()
 
             # 4. HANDLE REVIEW SCRIPT
             if review_text:
@@ -104,7 +112,8 @@ async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
                 if os.path.exists(local_filename):
                     os.remove(local_filename)
 
-                supabase.table("chapters").update({ "review_audio_url": public_url }).eq("id", chapter_id).execute()
+                supabase.table("chapters").update(
+                    {"review_audio_url": public_url}).eq("id", chapter_id).execute()
 
             # 5. EMBEDDING TO SUPABASE
             await embed_chunk_to_supbabase(book_id, index, main_chunks)
@@ -118,16 +127,18 @@ async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
             # Rollback: Delete chapter and segments if chapter was created
             if chapter_id:
                 try:
-                    supabase.table("chapters").delete().eq("id", chapter_id).execute()
+                    supabase.table("chapters").delete().eq(
+                        "id", chapter_id).execute()
                 except Exception as delete_error:
-                    logger.error(f"Failed to rollback chapter {index + 1}: {delete_error}")
+                    logger.error(
+                        f"Failed to rollback chapter {index + 1}: {delete_error}")
             logger.error(f"Error processing chapter {index + 1}: {e}")
             raise
 
 
 @router.post("/upload")
 async def upload_pdf(
-    background_tasks: BackgroundTasks, # <--- Vũ khí bí mật
+    background_tasks: BackgroundTasks,  # <--- Vũ khí bí mật
     file: UploadFile = File(...)
 ):
     # 1. Tạo Book ID & Extract (Vẫn phải chờ bước này để có khung sườn)
@@ -143,10 +154,12 @@ async def upload_pdf(
             "status": "processing",
             "created_at": "now()"
         }).execute()
-        logger.info(f"Created book record: {book_id} with {len(chapters)} chapters")
+        logger.info(
+            f"Created book record: {book_id} with {len(chapters)} chapters")
     except Exception as e:
         logger.error(f"Failed to create book record: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create book record: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Failed to create book record: {str(e)}")
 
     # 3. Đẩy việc nặng vào Background (User nhận phản hồi NGAY LẬP TỨC)
     # Lưu ý: BackgroundTasks trong FastAPI chạy tuần tự hoặc song song tùy cách gọi.
@@ -159,6 +172,7 @@ async def upload_pdf(
         "book_id": book_id,
         "total_chapters": len(chapters)
     }
+
 
 async def run_background_processing(book_id: str, chapters: list):
     """Hàm quản lý việc chạy song song trong background"""

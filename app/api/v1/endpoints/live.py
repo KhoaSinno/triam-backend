@@ -12,14 +12,8 @@ tavily_client = AsyncTavilyClient(api_key=settings.TAVILY_API_KEY)
 router = APIRouter()
 
 client = genai.Client(api_key=settings.GEMINI_API_KEY, http_options={"api_version": "v1beta"})
-# =======OLD SYSTEM INSTRUCTION=======
-# SYSTEM_INSTRUCTION = """
-# Bạn là Trợ lý TRIAM, một chuyên gia hỗ trợ học tập qua giọng nói.
-# Nhiệm vụ của bạn:
-# 1. Luôn ưu tiên sử dụng công cụ 'search_book_knowledge' để tìm câu trả lời trong sách của người dùng.
-# 2. Nếu thông tin không có trong sách, hãy dùng kiến thức nền của bạn để trả lời.
-# 3. Trả lời bằng giọng nói thân thiện, ngắn gọn, tập trung vào việc giúp người dùng hiểu bài.
-# """
+
+# =======SYSTEM INSTRUCTION=======
 SYSTEM_INSTRUCTION = """
 Bạn là Trợ lý TRIAM - Người hỗ trợ cho người dùng đọc sách qua giọng nói. Bạn có 2 công cụ hỗ trợ:
 1. 'search_book_knowledge': Dùng để tìm trong sách của người dùng. Luôn ưu tiên cái này trước.
@@ -39,6 +33,7 @@ RECEIVE_SAMPLE_RATE = 24000  # AI output rate
 tools_config = [
     types.Tool(
         function_declarations=[
+            
             # Tool search book knowledge in supabase
             types.FunctionDeclaration(
                 name="search_book_knowledge",
@@ -49,6 +44,7 @@ tools_config = [
                     "required": ["query"],
                 },
             ),
+            
             # Tool Tavily search web input for llm (rag)
             types.FunctionDeclaration(
                 name="search_web",
@@ -68,7 +64,7 @@ tools_config = [
     ),
 ]
 
-
+# === MAIN ROUTE: WebSocket for Gemini Live ===
 @router.websocket("/ws/live-assistant/{book_id}")
 async def live_assistant_endpoint(websocket: WebSocket, book_id: str):
     """
@@ -82,8 +78,10 @@ async def live_assistant_endpoint(websocket: WebSocket, book_id: str):
 
     config = types.LiveConnectConfig(
         tools=tools_config,
-        system_instruction=types.Content(parts=[types.Part(text=SYSTEM_INSTRUCTION)]),
-        generation_config=types.GenerationConfig(response_modalities=["AUDIO"]),
+        system_instruction=types.Content(
+            parts=[types.Part(text=SYSTEM_INSTRUCTION)]),
+        generation_config=types.GenerationConfig(
+            response_modalities=["AUDIO"]),
     )
 
     try:
@@ -133,9 +131,11 @@ async def live_assistant_endpoint(websocket: WebSocket, book_id: str):
                                 tool_name = call.name
                                 if tool_name == "search_book_knowledge":
                                     query = call.args.get("query", "")
-                                    print(f"🔍 RAG search: {query} (call.id={call.id})")
+                                    print(
+                                        f"🔍 RAG search: {query} (call.id={call.id})")
                                     if not call.id:
-                                        print("⚠️ Bỏ qua tool call vì call.id là None")
+                                        print(
+                                            "⚠️ Bỏ qua tool call vì call.id là None")
                                         continue
                                     try:
                                         context = await search_book_knowledge(query, book_id)
@@ -144,20 +144,24 @@ async def live_assistant_endpoint(websocket: WebSocket, book_id: str):
                                         print(f"❌ Lỗi RAG search: {rag_err}")
                                         result_text = "Không thể tra cứu thông tin lúc này."
                                 elif tool_name == "search_web":
-                                    # Gọi Tavily Search
+                                    
+                                    # Call Tavily Search
                                     print("🌐 Đang search Tavily...")
                                     query = call.args.get("query", "")
                                     try:
                                         search_result = await tavily_client.search(
                                             query=query,
-                                            search_depth="basic",  # "advanced" cho chất lượng cao nhất
+                                            search_depth="basic",  # "advanced" for higher quality but slower response
                                             max_results=3,
                                         )
                                     except Exception as tavily_err:
-                                        print(f"❌ Lỗi Tavily search: {tavily_err}")
+                                        print(
+                                            f"❌ Lỗi Tavily search: {tavily_err}")
                                         result_text = "Không thể tra cứu thông tin lúc này."
-                                    # Tóm tắt kết quả cho Gemini đọc
-                                    result_text = "\n".join([f"- {r['content']}" for r in search_result["results"]])
+                                        
+                                    # Bind context for Gemini
+                                    result_text = "\n".join(
+                                        [f"- {r['content']}" for r in search_result["results"]])
                                 try:
                                     await session.send_tool_response(
                                         function_responses=[
@@ -168,9 +172,11 @@ async def live_assistant_endpoint(websocket: WebSocket, book_id: str):
                                             )
                                         ]
                                     )
-                                    print(f"✅ Đã gửi {tool_name} response cho call.id={call.id}")
+                                    print(
+                                        f"✅ Đã gửi {tool_name} response cho call.id={call.id}")
                                 except Exception as send_err:
-                                    print(f"❌ Lỗi gửi tool response: {send_err}")
+                                    print(
+                                        f"❌ Lỗi gửi tool response: {send_err}")
                 except WebSocketDisconnect:
                     print("📴 Client ngắt kết nối (receive loop)")
                 except Exception as e:
