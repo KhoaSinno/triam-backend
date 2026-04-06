@@ -1,4 +1,4 @@
-# Flow upload document (PDF, Word, Ebook)
+# Flow upload document & Generate Reading Plan (PDF, Word, Ebook)
 
 ---
 
@@ -44,7 +44,7 @@
 - **Logic flow:**
   - **Backend (API `/generate-plan`):**
     - Update `books` table: `status='PROCESSING'`.
-    - Setup plan: SaveDB `reading_plans(book_id, mode, pace, ...)`.
+    - Setup plan: SaveDB Json data `reading_plans(book_id, mode, pace, ...)`.
     - Run Background Process with plan config: `process_book_pipeline(book_id, mode)`.
     - Return status 200 OK immediately for Flutter.
   - **Flutter:** Navigate to "Book processing" screen (display progress bar or loading state).
