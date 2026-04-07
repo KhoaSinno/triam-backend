@@ -17,11 +17,13 @@ class Book(SQLModel, table=True):
         nullable=False,
     )
     title: str = Field(sa_column=Column(Text, nullable=False))
-    author: str = Field(sa_column=Column(Text, nullable=False))
+    author: Optional[str] = Field(default=None, sa_column=Column(Text))
     gcs_pdf_url: Optional[str] = Field(default=None, sa_column=Column(Text))
     total_chapters: Optional[int] = Field(default=None, sa_column=Column(Integer))
     status: Optional[str] = Field(default=None, sa_column=Column(Text))
+    error_message: Optional[str] = Field(default=None, sa_column=Column(Text))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
+
 
 
 class Chapter(SQLModel, table=True):

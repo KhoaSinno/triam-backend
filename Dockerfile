@@ -1,26 +1,25 @@
-# Sử dụng Python 3.10 slim
 FROM python:3.12-slim
 
-# Copy uv từ image chính thức của Astral (cách cài uv tốt nhất trong Docker)
+# Copy uv from Astral's official image (best way to install uv in Docker)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Tạo user không phải root (Bắt buộc trên Hugging Face Spaces)
+# Create non-root user (required on Hugging Face Spaces)
 RUN useradd -m -u 1000 user
 USER user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH
 
-# Thiết lập thư mục làm việc
+# Set working directory
 WORKDIR $HOME/app
 
-# Copy các file quản lý thư viện của uv vào trước để cache
+# Copy uv's dependency management files to cache
 COPY --chown=user pyproject.toml uv.lock ./
 
-# Cài đặt dependencies (sử dụng uv sync)
+# Install dependencies (using uv sync)
 RUN uv sync --frozen --no-dev
 
-# Copy toàn bộ mã nguồn dự án vào container
+# Copy all project source code into container
 COPY --chown=user . .
 
-# Chạy ứng dụng FastAPI bằng uvicorn thông qua uv, đổi port sang 7860
+# Run FastAPI application using uvicorn via uv, change port to 7860
 CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
