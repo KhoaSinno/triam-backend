@@ -11,6 +11,7 @@ class Settings:
     TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
     GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL")
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    DATABASE_URL = os.getenv("DATABASE_URL")
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
     SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
