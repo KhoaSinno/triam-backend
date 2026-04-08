@@ -35,9 +35,10 @@
 - **Logic flow:**
   - While (`receive_from_gemini`), if see `tool_call` return, Backend will pause streaming audio and execute the tool function:
     - **Case 1: `search_book_knowledge` (Priority)**
+      - **[Latency UX]** Backend ra lệnh cho AI phát một đoạn audio đệm (Filler text: "Đợi mình một chút, mình đang xem lại tài liệu nha...") để giữ chân người dùng trong lúc đợi delay.
       - Get the User's question (e.g., "Tại sao tác giả nói Quả trứng có trước con gà?").
       - Use the `AsyncOpenAI` library (`text-embedding-3-small`) to convert the question into a vector (Embedding).
-      - Call the RPC `match_book_knowledge` down to Supabase to query vector similarity, scanning text chunks within the current `book_id`.
+      - **[Security CRITICAL]** Call the RPC `match_book_knowledge` down to Supabase. Backend **bắt buộc** truyền cả `book_id` và `user_id` để query vector similarity. Điều này đảm bảo AI chỉ tìm trong sách của user đó, không bị rò rỉ dữ liệu (Row Level Security).
     - **Case 2: `search_web`**
       - Call the Tavily API (`AsyncTavilyClient`) to search for real-time/update information on the web.
   - **Send response back to AI:**
