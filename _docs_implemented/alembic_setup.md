@@ -51,6 +51,9 @@ This command connects to your database, compares it with your current Python `SQ
 uv run alembic revision --autogenerate -m "added error_message to book"
 ```
 
+```bash
+```
+
 _Note: Replace `"added error_message to book"` with a short, descriptive name of what you changed so you can track history easily._
 
 ### Step 4.2: Apply the Migration
