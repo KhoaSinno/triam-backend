@@ -3,8 +3,7 @@ from typing import Optional
 
 from sqlmodel import Session, select
 
-from app.models.db_models import Book, Chapter, ChapterSegment
-
+from app.models.db_models import Book, Chapter, ChapterSegment, ReadingPlan
 
 # ---------------------------------------------------------------------------
 # Book
@@ -80,3 +79,39 @@ def bulk_create_segments(session: Session, segments: list[ChapterSegment]) -> No
     for segment in segments:
         session.add(segment)
     session.commit()
+
+
+# ---------------------------------------------------------------------------
+# ReadingPlan
+# ---------------------------------------------------------------------------
+
+
+def create_reading_plan(session: Session, plan: ReadingPlan) -> ReadingPlan:
+    session.add(plan)
+    session.commit()
+    session.refresh(plan)
+    return plan
+
+
+# ---------------------------------------------------------------------------
+# Chapter (thêm helpers)
+# ---------------------------------------------------------------------------
+
+
+def update_chapter_review_text(session: Session, chapter_id: uuid.UUID, review_text: str) -> None:
+    chapter = session.get(Chapter, chapter_id)
+    if chapter:
+        chapter.review_text = review_text
+        session.add(chapter)
+        session.commit()
+
+
+def get_draft_chapters_by_book(session: Session, book_id: uuid.UUID) -> list[Chapter]:
+    """Lấy danh sách chapters có status='DRAFT' theo book_id, sort theo chapter_index."""
+    statement = (
+        select(Chapter)
+        .where(Chapter.book_id == book_id)
+        .order_by(Chapter.chapter_index)
+    )
+    return list(session.exec(statement).all())
+

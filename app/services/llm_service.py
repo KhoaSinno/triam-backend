@@ -1,4 +1,5 @@
 import json
+import re
 
 from openai import AsyncOpenAI
 
@@ -45,117 +46,86 @@ Input: Văn bản gốc.
 Output: Chỉ trả về JSON thuần.
 """
 
+
+def _chunk_text_fallback(text: str, max_chars: int = 1200) -> list[str]:
+    """Phân chia văn bản thô dài thành các chunk nhỏ nếu LLM thất bại."""
+    paragraphs = re.split(r"\n+", text.strip())
+    chunks = []
+    current_chunk = []
+    current_length = 0
+
+    for p in paragraphs:
+        if len(p) > max_chars:
+            sentences = re.split(r"(?<=[.!?])\s+", p)
+            for s in sentences:
+                if current_length + len(s) > max_chars and current_chunk:
+                    chunks.append(" ".join(current_chunk))
+                    current_chunk = [s]
+                    current_length = len(s)
+                else:
+                    current_chunk.append(s)
+                    current_length += len(s)
+        else:
+            if current_length + len(p) > max_chars and current_chunk:
+                chunks.append("\n".join(current_chunk))
+                current_chunk = [p]
+                current_length = len(p)
+            else:
+                current_chunk.append(p)
+                current_length += len(p)
+
+    if current_chunk:
+        chunks.append("\n".join(current_chunk))
+
+    return chunks
+
+# ---------------------------------------------------------------------------
+# MAIN FUNCTION
+# ---------------------------------------------------------------------------
+
 async def normalize_text_for_speech(raw_text: str) -> dict:
     """
     Gửi text thô cho Gemini/GPT để biên tập và cấu trúc lại dữ liệu.
     Trả về Dictionary: {"main_scripts": [], "review_script": ""}
     """
-    # Fallback structure nếu AI lỗi
-    fallback_result = {
-        "main_scripts": [raw_text],
-        "review_script": "Không thể tạo tóm tắt cho đoạn này."
-    }
+    # Sử dụng fallback phân rã động thay vì ném cả đoạn lớn vào 1 chuỗi.
+    # Ngăn chặn việc LLM lỗi làm file audio bị dài 18+ phút.
+    fallback_result = {"main_scripts": _chunk_text_fallback(raw_text), "review_script": "Không thể tạo tóm tắt do độ dài văn bản gốc quá lớn."}
 
     try:
         response = await client.chat.completions.create(
-            # model="gpt-4o-mini",
-            model="gemini-2.5-flash-lite", # Model này input token lớn, rẻ
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT_REWRITE},
-                {"role": "user", "content": raw_text}
-            ],
-            temperature=0.3, # Giảm sáng tạo để format JSON chuẩn
-            response_format={"type": "json_object"}
-
+            model="gemini-2.5-flash-lite",
+            messages=[{"role": "system", "content": SYSTEM_PROMPT_REWRITE}, {"role": "user", "content": raw_text}],
+            temperature=0.3,  # Giảm sáng tạo để format JSON chuẩn
+            response_format={"type": "json_object"},
         )
 
         content = response.choices[0].message.content.strip()
 
-        # Xử lý trường hợp AI trả về markdown ```json ... ```
-      #   if content.startswith("```json"):
-      #       content = content.replace("```json", "").replace("```", "")
-      #   elif content.startswith("```"):
-      #       content = content.replace("```", "")
-
         # Parse JSON
         parsed_data = json.loads(content)
 
-        # Validate sơ bộ
-      #   if "main_scripts" not in parsed_data or not isinstance(parsed_data["main_scripts"], list):
-      #       print("Cảnh báo: Output thiếu main_scripts hoặc sai định dạng.")
-      #       return fallback_result
+        # Nếu LLM chia chuỗi dài quá, cưỡng chế cắt bằng tay thêm lần nữa
+        # để ngăn chặn issue của Edge TTS (Mặc dù prompt đã yêu cầu 3-5 câu / chunk).
+        final_main_scripts = []
+        for script in parsed_data.get("main_scripts", fallback_result["main_scripts"]):
+            if len(script) > 1800:
+                final_main_scripts.extend(_chunk_text_fallback(script))
+            else:
+                final_main_scripts.append(script)
+
+        parsed_data["main_scripts"] = final_main_scripts
 
         return parsed_data
 
-    except json.JSONDecodeError:
-        print(f"Lỗi Parse JSON từ LLM. Raw content: {content[:100]}...")
-        # Trường hợp này có thể fallback bằng cách trả về raw text vào main_scripts
-        return {
-            "main_scripts": [content], # Cố gắng lấy nội dung dù không đúng format
-            "review_script": "Lỗi định dạng tóm tắt."
-        }
+    except json.JSONDecodeError as de:
+        print(f"Lỗi Parse JSON từ LLM ({de}). Raw content: Length {len(content)}")
+        # Cố gắng lấy vớt lại text nếu có thể
+        try:
+            return {"main_scripts": _chunk_text_fallback(content), "review_script": "Rất tiếc tóm tắt của đoạn văn này bị lỗi do bộ nhớ quá giới hạn."}
+        except:
+            return fallback_result
+
     except Exception as e:
         print(f"Lỗi LLM Service: {e}")
         return fallback_result
-
-# /////////////// code V1 ///////////////
-
-# from openai import AsyncOpenAI
-# from app.core.config import settings
-
-# # client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-# client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY, base_url=settings.GEMINI_BASE_URL)
-
-# # Prompt "thần thánh" để định hình phong cách đọc
-# SYSTEM_PROMPT_REWRITE = """
-# Bạn là một biên tập viên phát thanh chuyên nghiệp (Script Editor).
-# Nhiệm vụ: Chuyển đổi văn bản thô thành kịch bản nói (Spoken Script) để AI TTS đọc tự nhiên nhất.
-
-# QUY TẮC BẮT BUỘC:
-# 1. Mở rộng từ viết tắt: Dựa vào ngữ cảnh, hãy viết đầy đủ các từ viết tắt.
-#    - Ví dụ: "CNTT" -> "Công nghệ thông tin", "DN" -> "Doanh nghiệp", "NS" -> "Nhân sự".
-# 2. Xử lý Tiếng Anh/Thuật ngữ:
-#    - Các từ tiếng Anh phổ biến (AI, CEO, Marketing) -> Giữ nguyên (nếu bộ đọc tốt) hoặc chú thích phiên âm nếu cần.
-#    - Ví dụ đặc biệt: "AI" -> "Ây Ai", "Agile" -> "A-chao".
-# 3. Số liệu & Ký hiệu:
-#    - "5%" -> "Năm phần trăm".
-#    - "Tp.HCM" -> "Thành phố Hồ Chí Minh".
-# 4. Xử lý lỗi PDF & Format (Quan trọng nhất):
-#    - Nối các dòng bị ngắt quãng giữa chừng do lỗi PDF (line break).
-#    - Loại bỏ số trang (ví dụ số "10", "11" nằm trơ trọi cuối đoạn).
-#    - Xóa các ký tự rác do lỗi font (ví dụ: "J", "", các dấu gạch ngang vô nghĩa).
-#    - Tự động sửa lỗi chính tả hiển nhiên (ví dụ: "Qcmenia" -> "Armenia").
-# 5. Tự nhiên hóa số liệu & Thời gian (Văn nói người Việt):
-#    - "1,5 giờ" -> Chuyển thành "một tiếng rưỡi" (KHÔNG dùng "một phẩy năm giờ").
-#    - "0.5" -> "nửa" hoặc "không phẩy năm" tùy ngữ cảnh.
-#    - "30km" -> "ba mươi ki-lô-mét".
-#    - "1990" -> "năm một ngàn chín trăm chín mươi".
-#    - Danh sách "1. 2. 3." -> Chuyển thành "Điều thứ nhất: ... Điều thứ hai: ... Điều thứ ba: ..." (để tạo nhịp điệu).
-
-# 6. Văn phong: Thêm các từ nối nhẹ nhàng để câu văn mượt mà, không bị cụt. Giữ nguyên ý nghĩa gốc, không bịa thêm nội dung sai lệch.
-
-# Input: Văn bản gốc từ sách.
-# Output: Chỉ trả về văn bản đã biên tập, không thêm lời chào hay giải thích gì khác.
-# """
-
-# async def normalize_text_for_speech(raw_text: str) -> str:
-#     """
-#     Gửi text thô cho GPT-4o-mini biên tập lại trước khi đọc.
-#     Dùng model 'gpt-4o-mini' cho rẻ và nhanh (Latency thấp).
-#     """
-#     try:
-#         response = await client.chat.completions.create(
-#             # model="gpt-4o-mini",
-#             model="gemini-2.5-flash-lite",
-#             messages=[
-#                 {"role": "system", "content": SYSTEM_PROMPT_REWRITE},
-#                 {"role": "user", "content": raw_text}
-#             ],
-#             temperature=0.3,  # Giữ cho AI tập trung, ít sáng tạo lung tung
-#             # max_tokens=2000   # Giới hạn output
-#         )
-#         normalized_text = response.choices[0].message.content
-#         return normalized_text
-#     except Exception as e:
-#         print(f"Lỗi Normalization: {e}")
-#         return raw_text  # Fallback: Nếu lỗi thì trả về text gốc đọc tạm

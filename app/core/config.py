@@ -2,7 +2,7 @@ import os
 
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 class Settings:
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -16,5 +16,6 @@ class Settings:
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
     SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+    EDGE_TTS_VOICE = os.getenv("EDGE_TTS_VOICE", "en-US-AvaMultilingualNeural")
 
 settings = Settings()

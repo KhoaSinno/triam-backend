@@ -26,12 +26,9 @@ def get_pdf_outline_structure(file_obj):
                         # Lấy số trang (pypdf trả về page object, cần lấy index)
                         page_number = reader.get_destination_page_number(item)
                         # pypdf get đúng page number
-                        outline_data.append({
-                            "title": item.title,
-                            "page_start": page_number
-                        })
+                        outline_data.append({"title": item.title, "page_start": page_number})
                     except Exception:
-                        pass # Bỏ qua nếu item bị lỗi link
+                        pass  # Bỏ qua nếu item bị lỗi link
 
         _parse_outline(reader.outline)
 
@@ -41,6 +38,7 @@ def get_pdf_outline_structure(file_obj):
     except Exception as e:
         print(f"Lỗi đọc Outline: {e}")
         return []
+
 
 async def extract_chapters_smart(file_obj, pages_per_chunk=10):
     """
@@ -66,13 +64,13 @@ async def extract_chapters_smart(file_obj, pages_per_chunk=10):
 
             for i in range(len(outlines)):
                 current_chap = outlines[i]
-                start_p = current_chap["page_start"] - 1 # index từ 0
+                start_p = current_chap["page_start"] - 1  # index từ 0
 
                 # Xác định trang kết thúc (là trang bắt đầu của chương sau - 1)
                 if i < len(outlines) - 1:
-                    end_p = outlines[i+1]["page_start"] - 1
+                    end_p = outlines[i + 1]["page_start"] - 1
                 else:
-                    end_p = total_pages # Chương cuối thì lấy hết
+                    end_p = total_pages  # Chương cuối thì lấy hết
 
                 # Đảm bảo không vượt quá file
                 end_p = min(end_p, total_pages)
@@ -85,12 +83,7 @@ async def extract_chapters_smart(file_obj, pages_per_chunk=10):
                         chap_text += text + "\n"
 
                 if chap_text.strip():
-                    chapters.append({
-                        "title": current_chap["title"],
-                        "text": chap_text,
-                        "page_start": start_p + 1,
-                        "page_end": end_p
-                    })
+                    chapters.append({"title": current_chap["title"], "text": chap_text, "page_start": start_p + 1, "page_end": end_p})
         return chapters
 
     # --- LEVEL 2: Dùng Regex (Nếu Level 1 thất bại) ---
@@ -99,10 +92,10 @@ async def extract_chapters_smart(file_obj, pages_per_chunk=10):
 
     # Compile regex patterns cho tiêu đề chương
     chapter_patterns = [
-        r'^\s*(?:Chương|CHƯƠNG|Chapter|CHAPTER)\s+(?:[IVX]+|\d+)',  # Chương 1, Chapter I, etc.
-        r'^\s*(?:Phần|PHẦN|Part|PART)\s+(?:[IVX]+|\d+)',  # Phần 1, Part I, etc.
+        r"^\s*(?:Chương|CHƯƠNG|Chapter|CHAPTER)\s+(?:[IVX]+|\d+)",  # Chương 1, Chapter I, etc.
+        r"^\s*(?:Phần|PHẦN|Part|PART)\s+(?:[IVX]+|\d+)",  # Phần 1, Part I, etc.
     ]
-    combined_pattern = re.compile('|'.join(chapter_patterns), re.MULTILINE)
+    combined_pattern = re.compile("|".join(chapter_patterns), re.MULTILINE)
 
     with pdfplumber.open(file_obj) as pdf:
         total_pages = len(pdf.pages)
@@ -115,13 +108,10 @@ async def extract_chapters_smart(file_obj, pages_per_chunk=10):
                 continue
 
             # Tách thành từng dòng và kiểm tra
-            lines = text.split('\n')
+            lines = text.split("\n")
             for line in lines[:10]:  # Chỉ check 10 dòng đầu mỗi trang
                 if combined_pattern.match(line.strip()):
-                    chapter_markers.append({
-                        'title': line.strip(),
-                        'page_idx': page_idx
-                    })
+                    chapter_markers.append({"title": line.strip(), "page_idx": page_idx})
                     break  # Tìm được tiêu đề rồi thì next page
 
         # Nếu tìm được ít nhất 2 chương
@@ -129,11 +119,11 @@ async def extract_chapters_smart(file_obj, pages_per_chunk=10):
             print(f">> Tìm được {len(chapter_markers)} chương bằng Regex.")
 
             for i in range(len(chapter_markers)):
-                start_p = chapter_markers[i]['page_idx']
+                start_p = chapter_markers[i]["page_idx"]
 
                 # Xác định trang kết thúc
                 if i < len(chapter_markers) - 1:
-                    end_p = chapter_markers[i+1]['page_idx']
+                    end_p = chapter_markers[i + 1]["page_idx"]
                 else:
                     end_p = total_pages
 
@@ -143,12 +133,7 @@ async def extract_chapters_smart(file_obj, pages_per_chunk=10):
                     chap_text += (pdf.pages[p_idx].extract_text() or "") + "\n"
 
                 if chap_text.strip():
-                    chapters.append({
-                        "title": chapter_markers[i]['title'],
-                        "text": chap_text,
-                        "page_start": start_p + 1,
-                        "page_end": end_p
-                    })
+                    chapters.append({"title": chapter_markers[i]["title"], "text": chap_text, "page_start": start_p + 1, "page_end": end_p})
 
             return chapters  # Return kết quả Level 2
 
@@ -163,12 +148,7 @@ async def extract_chapters_smart(file_obj, pages_per_chunk=10):
             for p_idx in range(i, end_page):
                 chunk_text += (pdf.pages[p_idx].extract_text() or "") + "\n"
 
-            chapters.append({
-                "title": f"Phần {i//pages_per_chunk + 1} (Trang {i+1}-{end_page})",
-                "text": chunk_text,
-                "page_start": i + 1,
-                "page_end": end_page
-            })
+            chapters.append({"title": f"Phần {i // pages_per_chunk + 1} (Trang {i + 1}-{end_page})", "text": chunk_text, "page_start": i + 1, "page_end": end_page})
 
     return chapters
 
@@ -177,11 +157,11 @@ async def extract_text_from_pdf(file_obj, max_pages=None):
     """
     Helper function: Extract raw text từ PDF (không chia chương).
     Dùng cho demo endpoints như /process-book-intro.
-    
+
     Args:
         file_obj: File object của PDF
         max_pages: Số trang tối đa cần extract (None = all pages)
-    
+
     Returns:
         str: Raw text từ PDF
     """
@@ -197,8 +177,6 @@ async def extract_text_from_pdf(file_obj, max_pages=None):
                 extracted_text += text + "\n"
 
     return extracted_text.strip()
-
-
 
 
 def extract_text_by_page_range(pdf_obj, start_page: int, end_page: int):
@@ -233,11 +211,9 @@ def extract_text_by_page_range(pdf_obj, start_page: int, end_page: int):
             if text:
                 extracted_text += text + "\n"
         except Exception as e:
-            print(f"Lỗi đọc trang {i+1}: {e}")
+            print(f"Lỗi đọc trang {i + 1}: {e}")
 
     return extracted_text
-
-
 
 
 def extract_clean_text(page):
