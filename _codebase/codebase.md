@@ -2,15 +2,18 @@
 
 ## Project Statistics
 
-- Total files: 22
+- Total files: 26
 
 ## Folder Structure
 
 ```
+pyproject.toml
+.python-version
 app
   api
     v1
       endpoints
+        audiobooks.py
         chat.py
         live.py
         upload.py
@@ -21,9 +24,16 @@ app
     config.py
     supabase.py
     __init__.py
+  crud
+    audiobook.py
+    book_knowledge.py
+  db.py
+  helper
+    run_background_processing.py
+    upload2supabase.py
   main.py
-  schemas
-    __init__.py
+  models
+    db_models.py
   services
     embed.py
     llm_service.py
@@ -32,10 +42,65 @@ app
     tts_service.py
     __init__.py
   __init__.py
-.dockerignore
-.python-version
-Dockerfile
-pyproject.toml
+
+```
+
+### pyproject.toml
+
+*(Unsupported file type)*
+
+### .python-version
+
+*(Unsupported file type)*
+
+### app\api\v1\endpoints\audiobooks.py
+
+```py
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
+import uuid
+
+from app.crud import audiobook as crud_book
+from app.db import get_session
+from app.models.db_models import Book, Chapter, ChapterSegment
+
+router = APIRouter()
+
+
+@router.get("/books", response_model=list[Book])
+def read_all_books(session: Session = Depends(get_session)):
+    return crud_book.get_audiobooks(session)
+
+
+@router.post("/books", response_model=Book)
+def add_new_book(book: Book, session: Session = Depends(get_session)):
+    return crud_book.create_audiobook(session, book)
+
+
+@router.get("/books/{book_id}/details")
+def get_book_details(book_id: uuid.UUID, session: Session = Depends(get_session)):
+    book = session.get(Book, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Book not found")
+        
+    chapters = session.exec(select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_index)).all()
+    
+    result = []
+    for chap in chapters:
+        segments = session.exec(select(ChapterSegment).where(ChapterSegment.chapter_id == chap.id).order_by(ChapterSegment.segment_index)).all()
+        result.append({
+            "id": str(chap.id),
+            "title": chap.title,
+            "status": chap.status,
+            "chapter_index": chap.chapter_index,
+            "chapter_segments": [s.model_dump() for s in segments]
+        })
+        
+    return {
+        "book_status": book.status,
+        "total_chapters": book.total_chapters,
+        "chapters": result
+    }
 
 ```
 
@@ -65,6 +130,7 @@ import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from google import genai
 from google.genai import types
+from starlette.websockets import WebSocketState
 from tavily import AsyncTavilyClient
 
 from app.core.config import settings
@@ -73,15 +139,10 @@ from app.services.rag_service import search_book_knowledge
 tavily_client = AsyncTavilyClient(api_key=settings.TAVILY_API_KEY)
 router = APIRouter()
 
-client = genai.Client(api_key=settings.GEMINI_API_KEY, http_options={"api_version": "v1beta"})
-# =======OLD SYSTEM INSTRUCTION=======
-# SYSTEM_INSTRUCTION = """
-# Bạn là Trợ lý TRIAM, một chuyên gia hỗ trợ học tập qua giọng nói.
-# Nhiệm vụ của bạn:
-# 1. Luôn ưu tiên sử dụng công cụ 'search_book_knowledge' để tìm câu trả lời trong sách của người dùng.
-# 2. Nếu thông tin không có trong sách, hãy dùng kiến thức nền của bạn để trả lời.
-# 3. Trả lời bằng giọng nói thân thiện, ngắn gọn, tập trung vào việc giúp người dùng hiểu bài.
-# """
+client = genai.Client(api_key=settings.GEMINI_API_KEY,
+                      http_options={"api_version": "v1beta"})
+
+# =======SYSTEM INSTRUCTION=======
 SYSTEM_INSTRUCTION = """
 Bạn là Trợ lý TRIAM - Người hỗ trợ cho người dùng đọc sách qua giọng nói. Bạn có 2 công cụ hỗ trợ:
 1. 'search_book_knowledge': Dùng để tìm trong sách của người dùng. Luôn ưu tiên cái này trước.
@@ -131,6 +192,30 @@ tools_config = [
 ]
 
 
+# === Helper: safe WebSocket send ===
+async def _safe_send_bytes(websocket: WebSocket, data: bytes) -> bool:
+    """Send bytes only if WebSocket is still connected. Returns False if send failed."""
+    try:
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await websocket.send_bytes(data)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+async def _safe_send_text(websocket: WebSocket, text: str) -> bool:
+    """Send text only if WebSocket is still connected. Returns False if send failed."""
+    try:
+        if websocket.client_state == WebSocketState.CONNECTED:
+            await websocket.send_text(text)
+            return True
+    except Exception:
+        pass
+    return False
+
+
+# === MAIN ROUTE: WebSocket for Gemini Live ===
 @router.websocket("/ws/live-assistant/{book_id}")
 async def live_assistant_endpoint(websocket: WebSocket, book_id: str):
     """
@@ -139,340 +224,357 @@ async def live_assistant_endpoint(websocket: WebSocket, book_id: str):
     Protocol:
     - Client → Server: raw PCM audio bytes (16kHz, 16-bit, mono)
     - Server → Client: raw PCM audio bytes (24kHz, 16-bit, mono) — AI voice response
+    - Server → Client: text control messages (SYSTEM:*)
     """
     await websocket.accept()
 
     config = types.LiveConnectConfig(
         tools=tools_config,
-        system_instruction=types.Content(parts=[types.Part(text=SYSTEM_INSTRUCTION)]),
-        generation_config=types.GenerationConfig(response_modalities=["AUDIO"]),
+        system_instruction=types.Content(
+            parts=[types.Part(text=SYSTEM_INSTRUCTION)]),
+        generation_config=types.GenerationConfig(
+            response_modalities=["AUDIO"]),
     )
+
+    # Shared stop event: when one side exits, the other side will also stop
+    stop_event = asyncio.Event()
 
     try:
         async with client.aio.live.connect(model=MODEL_ID, config=config) as session:
             print("✅ Đã kết nối Gemini Live")
 
+            # ── Task 1: Client → Gemini (Send PCM audio upstream) ──────────────
             async def send_to_gemini():
-                """
-                Reads PCM audio bytes from the WebSocket and streams them
-                to Gemini using send_realtime_input — the correct Live API method.
-                """
                 try:
-                    while True:
-                        data = await websocket.receive_bytes()
-                        await session.send_realtime_input(audio={"data": data, "mime_type": "audio/pcm"})
-                except WebSocketDisconnect:
-                    print("📴 Client ngắt kết nối (send loop)")
-                except Exception as e:
-                    print(f"❌ Lỗi gửi audio: {e}")
+                    while not stop_event.is_set():
+                        try:
+                            # Timeout ensures we check stop_event periodically
+                            data = await asyncio.wait_for(websocket.receive_bytes(), timeout=5.0)
+                            await session.send_realtime_input(audio={"data": data, "mime_type": "audio/pcm"})
+                        except asyncio.TimeoutError:
+                            # No data arrived — check stop_event and loop again
+                            continue
+                        except WebSocketDisconnect:
+                            print("📴 Client ngắt kết nối (send loop)")
+                            break
+                        except Exception as e:
+                            print(f"❌ Lỗi nhận audio từ client: {e}")
+                            break
+                finally:
+                    stop_event.set()
+                    print("🔴 send_to_gemini() đã dừng")
 
+            # ── Task 2: Gemini → Client (Receive audio + handle tool calls) ───
             async def receive_from_gemini():
-                """
-                Receives responses from Gemini using the async-for pattern shown
-                in the reference code. Sends audio chunks to the client immediately.
-                Handles tool calls (RAG search) inline.
-                """
-                result_text = ""
                 try:
-                    # Single async-for loop — the correct pattern from the reference code
                     async for response in session.receive():
+                        if stop_event.is_set():
+                            break
+
                         server_content = response.server_content
 
-                        # ── Audio response ──────────────────────────────────
+                        # ── Audio response ─────────────────────────────────────
                         if server_content and server_content.model_turn:
                             for part in server_content.model_turn.parts:
                                 if part.inline_data and isinstance(part.inline_data.data, bytes):
-                                    # Send audio chunk directly to client (no large buffer)
-                                    await websocket.send_bytes(part.inline_data.data)
+                                    ok = await _safe_send_bytes(websocket, part.inline_data.data)
+                                    if not ok:
+                                        # WebSocket closed — stop this loop
+                                        stop_event.set()
+                                        return
 
-                        # ── Turn complete — AI finished speaking ─────────────
+                        # ── Turn complete — AI finished speaking ───────────────
                         if server_content and server_content.turn_complete:
-                            print("🔔 Gemini turn complete")
+                            print(
+                                "🔔 Gemini turn complete — giữ session, tiếp tục lắng nghe")
+                            await _safe_send_text(websocket, "SYSTEM:LISTENING")
 
-                        # ── Tool call: RAG search ────────────────────────────
+                        # ── Tool call: RAG / Web Search ────────────────────────
                         if response.tool_call:
                             for call in response.tool_call.function_calls:
                                 tool_name = call.name
+                                await _safe_send_text(websocket, f"SYSTEM:TOOL_CALLING_START:{tool_name}")
+
+                                result_text = "Không thể tra cứu thông tin lúc này."
+
                                 if tool_name == "search_book_knowledge":
                                     query = call.args.get("query", "")
-                                    print(f"🔍 RAG search: {query} (call.id={call.id})")
+                                    print(
+                                        f"🔍 RAG search: {query} (call.id={call.id})")
                                     if not call.id:
-                                        print("⚠️ Bỏ qua tool call vì call.id là None")
+                                        print(
+                                            "⚠️ Bỏ qua tool call vì call.id là None")
                                         continue
                                     try:
-                                        context = await search_book_knowledge(query, book_id)
-                                        result_text = context
+                                        result_text = await search_book_knowledge(query, book_id)
                                     except Exception as rag_err:
                                         print(f"❌ Lỗi RAG search: {rag_err}")
-                                        result_text = "Không thể tra cứu thông tin lúc này."
+
                                 elif tool_name == "search_web":
-                                    # Gọi Tavily Search
                                     print("🌐 Đang search Tavily...")
                                     query = call.args.get("query", "")
                                     try:
                                         search_result = await tavily_client.search(
                                             query=query,
-                                            search_depth="basic",  # "advanced" cho chất lượng cao nhất
+                                            search_depth="basic",
                                             max_results=3,
                                         )
+                                        result_text = "\n".join(
+                                            [f"- {r['content']}" for r in search_result["results"]])
                                     except Exception as tavily_err:
-                                        print(f"❌ Lỗi Tavily search: {tavily_err}")
-                                        result_text = "Không thể tra cứu thông tin lúc này."
-                                    # Tóm tắt kết quả cho Gemini đọc
-                                    result_text = "\n".join([f"- {r['content']}" for r in search_result["results"]])
+                                        print(
+                                            f"❌ Lỗi Tavily search: {tavily_err}")
+
+                                # Always send tool response back to Gemini to unblock session
                                 try:
                                     await session.send_tool_response(
                                         function_responses=[
                                             types.FunctionResponse(
                                                 name=tool_name,
                                                 id=call.id,
-                                                response={"result": result_text},
+                                                response={
+                                                    "result": result_text},
                                             )
                                         ]
                                     )
-                                    print(f"✅ Đã gửi {tool_name} response cho call.id={call.id}")
+                                    print(
+                                        f"✅ Đã gửi {tool_name} response cho call.id={call.id}")
                                 except Exception as send_err:
-                                    print(f"❌ Lỗi gửi tool response: {send_err}")
+                                    print(
+                                        f"❌ Lỗi gửi tool response: {send_err}")
+
+                                await _safe_send_text(websocket, f"SYSTEM:TOOL_CALLING_END:{tool_name}")
+
                 except WebSocketDisconnect:
                     print("📴 Client ngắt kết nối (receive loop)")
                 except Exception as e:
-                    print(f"❌ Lỗi nhận audio: {e}")
+                    print(f"❌ Lỗi nhận từ Gemini: {e}")
+                finally:
+                    stop_event.set()
+                    print("🔴 receive_from_gemini() đã dừng")
 
-            # Run both tasks concurrently; cancel the other when one finishes
-            await asyncio.gather(send_to_gemini(), receive_from_gemini())
+            # ── Run both tasks; cancel both when either finishes ───────────────
+            send_task = asyncio.create_task(send_to_gemini())
+            recv_task = asyncio.create_task(receive_from_gemini())
+
+            try:
+                # Wait until EITHER task finishes (e.g. client disconnects)
+                done, pending = await asyncio.wait(
+                    [send_task, recv_task],
+                    return_when=asyncio.FIRST_COMPLETED,
+                )
+            finally:
+                # Cancel whichever task is still running — prevents zombie tasks
+                stop_event.set()
+                for task in [send_task, recv_task]:
+                    if not task.done():
+                        task.cancel()
+                        try:
+                            await task
+                        except (asyncio.CancelledError, Exception):
+                            pass
+
+            print("🏁 Session kết thúc sạch sẽ")
 
     except WebSocketDisconnect:
         print("📴 Client ngắt kết nối trước khi kết nối Gemini")
     except Exception as e:
         print(f"❌ Lỗi kết nối Gemini Live: {e}")
-        try:
-            await websocket.send_text(f"Lỗi kết nối Gemini Live: {e}")
-        except Exception:
-            pass
+        await _safe_send_text(websocket, f"SYSTEM:FATAL_CLOSE:{e}")
 
 ```
 
 ### app\api\v1\endpoints\upload.py
 
 ```py
-import asyncio
 import logging
 import os
 import uuid
 
 import aiofiles
-from fastapi import APIRouter, BackgroundTasks, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, UploadFile
+from pydantic import BaseModel
+from sqlmodel import Session
 
-from app.core.supabase import supabase
-from app.services.embed import embed_chunk_to_supbabase
-from app.services.llm_service import normalize_text_for_speech
-from app.services.pdf_service import extract_chapters_smart
-from app.services.tts_service import (
-    generate_audio_file_edge,
+from app.crud.audiobook import (
+    create_book,
+    create_chapter,
+    create_reading_plan,
+    update_book_status,
 )
+from app.db import engine
+from app.helper.run_background_processing import run_background_processing
+from app.helper.upload2supabase import upload_file_to_supabase
+from app.models.db_models import Book, Chapter, ReadingPlan
+from app.services.pdf_service import extract_chapters_smart
 
 logger = logging.getLogger("upload")
 
 router = APIRouter()
-sem = asyncio.Semaphore(3)
 
-async def upload_to_supabase(local_path: str, storage_path: str, max_retries: int = 3):
-    """Hàm hỗ trợ upload file và trả về public URL"""
-    # Validate file
-    file_size = os.path.getsize(local_path)
-    max_size = 20 * 1024 * 1024 # 20MB
-    if file_size > max_size:
-        raise HTTPException(status_code=400, detail=f"File size exceeds maximum limit of {max_size} bytes")
-    # Upload file
-    for attempt in range(max_retries):
-        try:
-            async with aiofiles.open(local_path, 'rb') as f:
-                file_bytes = await f.read()
+# -----------------------------------------------------------------------
+# Mock User — thay bằng JWT decode sau khi tích hợp Auth
+# -----------------------------------------------------------------------
+MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
 
-                supabase.storage.from_("audios").upload(
-                    path=storage_path,
-                    file=file_bytes,
-                    file_options={"content-type": "audio/mpeg"}
-                )
-            # Lấy URL công khai
-            return supabase.storage.from_("audios").get_public_url(storage_path)
-
-        except Exception as e:
-            if attempt < max_retries - 1:
-                logger.warning(f"Upload failed, retrying... ({attempt + 1}/{max_retries})")
-                await asyncio.sleep(2 ** attempt) # Exponential backoff
-            else:
-                logger.error(f"Upload failed after {max_retries} attempts: {e}")
-                raise
+ALLOWED_MIME_TYPES = {"application/pdf", "application/epub+zip", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
 
 
-async def process_single_chapter(book_id: str, chapter_data: dict, index: int):
-    async with sem:
-        chapter_id = None  # Initialize to prevent UnboundLocalError
-        try:
-            # 1. REWRITE
-            obj_chapter = await normalize_text_for_speech(chapter_data["text"])
-            main_chunks: list[str] = obj_chapter.get("main_scripts", [])
-            review_text: str = obj_chapter.get("sub_scripts", "")
-
-            # Insert tbl "chappters"
-            chapter_id = supabase.table("chapters").insert({
-                "book_id": book_id,
-                "chapter_index": index,
-                "title": chapter_data.get("title", f"Chương {index+1}"),
-                "review_text": review_text
-            }).execute().data[0]['id']
-
-            segments_to_insert = []
-            # 2. TTS AND STORAGE TO CLOUD
-            for i, chunk in enumerate(main_chunks):
-                local_filename = f"{uuid.uuid4()}.mp3"
-                await generate_audio_file_edge(chunk, local_filename)
-                logger.info(f"Generated audio file: {local_filename}")
-                storage_path = f"{book_id}/chap_{index + 1}/part_{i + 1}.mp3"
-                # Upload to Supabase Storage
-                public_url = await upload_to_supabase(local_filename, storage_path)
-                logger.info(f"Uploaded audio file: {public_url}")
-
-                # Delete local file
-                if os.path.exists(local_filename):
-                    os.remove(local_filename)
-
-                segments_to_insert.append({
-                    "chapter_id": chapter_id,
-                    "segment_index": i,
-                    "audio_url": public_url,
-                    "text_content": chunk,
-                })
-
-            # 3. SAVE PLAYLIST TO DB
-            if segments_to_insert:
-                supabase.table("chapter_segments").insert(segments_to_insert).execute()
-
-            # 4. HANDLE REVIEW SCRIPT
-            if review_text:
-                local_filename = f"{uuid.uuid4()}.mp3"
-                await generate_audio_file_edge(review_text, local_filename)
-                # logger.info(f"Generated review audio file: {local_filename}")
-                storage_path = f"{book_id}/chap_{index + 1}/review.mp3"
-                public_url = await upload_to_supabase(local_filename, storage_path)
-                # logger.info(f"Uploaded review audio file: {public_url}")
-
-                if os.path.exists(local_filename):
-                    os.remove(local_filename)
-
-                supabase.table("chapters").update({ "review_audio_url": public_url }).eq("id", chapter_id).execute()
-
-            # 5. EMBEDDING TO SUPABASE
-            await embed_chunk_to_supbabase(book_id, index, main_chunks)
-
-            # 6. UPDATE STATUS TO READY
-            supabase.table("chapters").update({
-                "status": "ready"
-            }).eq("id", chapter_id).execute()
-
-        except Exception as e:
-            # Rollback: Delete chapter and segments if chapter was created
-            if chapter_id:
-                try:
-                    supabase.table("chapters").delete().eq("id", chapter_id).execute()
-                except Exception as delete_error:
-                    logger.error(f"Failed to rollback chapter {index + 1}: {delete_error}")
-            logger.error(f"Error processing chapter {index + 1}: {e}")
-            raise
+# -----------------------------------------------------------------------
+# Pydantic Schema cho /generate-plan
+# -----------------------------------------------------------------------
+class GeneratePlanRequest(BaseModel):
+    book_id: uuid.UUID
+    mode: str  # "FULL_MODE" | "PARETO_MODE"
+    pace: int  # số chương/ngày
+    schedule_config: list[str]  # VD: ["Mon", "Wed", "Fri"]
 
 
+# -----------------------------------------------------------------------
+# ENDPOINT 1: POST /upload
+# -----------------------------------------------------------------------
 @router.post("/upload")
-async def upload_pdf(
-    background_tasks: BackgroundTasks, # <--- Vũ khí bí mật
-    file: UploadFile = File(...)
-):
-    # 1. Tạo Book ID & Extract (Vẫn phải chờ bước này để có khung sườn)
-    book_id = str(uuid.uuid4())
-    chapters = await extract_chapters_smart(file.file)
+async def upload_document(file: UploadFile = File(...)):  # noqa: B008
+    """
+    Bước 1: Nhận file, extract outline, upload PDF lên Supabase Storage,
+    lưu Book + Chapter (DRAFT), trả về outline cho Flutter.
+    Không kích hoạt xử lý AI ở đây.
+    """
+    # 1. Validate MIME Type hoặc đuôi file (vì chọn file từ Google Drive hay trả về application/octet-stream)
+    is_valid_type = file.content_type in ALLOWED_MIME_TYPES
+    filename_lower = (file.filename or "").lower()
 
-    # 2. Lưu khung sườn (Skeleton) vào DB trước với status="pending"
+    if not is_valid_type:
+        # Fallback kiểm tra bằng đuôi file
+        if not (filename_lower.endswith(".pdf") or filename_lower.endswith(".epub") or filename_lower.endswith(".docx")):
+            raise HTTPException(status_code=400, detail=f"Loại file không hỗ trợ ({file.content_type}). Chỉ chấp nhận PDF, EPUB, DOCX.")
+
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE_BYTES:
+        raise HTTPException(status_code=400, detail="File vượt quá giới hạn 50MB.")
+
+    # 2. Lưu file tạm để extract outline
+    book_id = uuid.uuid4()
+    tmp_filename = f"uploads/{book_id}.tmp"
+    os.makedirs("uploads", exist_ok=True)
+    chapters_data = []
     try:
-        supabase.table("books").insert({
-            "id": book_id,
-            "title": file.filename.replace(".pdf", ""),
-            "total_chapters": len(chapters),
-            "status": "processing",
-            "created_at": "now()"
-        }).execute()
-        logger.info(f"Created book record: {book_id} with {len(chapters)} chapters")
+        async with aiofiles.open(tmp_filename, "wb") as f:
+            await f.write(content)
+
+        # 3. Extract outline (danh sách chương)
+        with open(tmp_filename, "rb") as f:
+            chapters_data = await extract_chapters_smart(f)
+
+        if not chapters_data:
+            raise HTTPException(status_code=422, detail="Không thể trích xuất nội dung từ file. File có thể bị lỗi hoặc là scan ảnh.")
+
+        # 4. Upload PDF lên Supabase Storage bucket 'raw_books'
+        storage_path = f"{book_id}/original.pdf"
+        file_url = await upload_file_to_supabase(
+            tmp_filename,
+            storage_path,
+            bucket="raw_books",
+            content_type="application/pdf",
+        )
+        logger.info(f"☁️  PDF uploaded to Storage: {storage_path}")
+
+    finally:
+        # [Dọn Rác] Xóa file tạm dù thành công hay thất bại
+        if os.path.exists(tmp_filename):
+            os.remove(tmp_filename)
+
+    # 5. Lưu DB: Book (DRAFT) + Chapters (DRAFT)
+    title = (file.filename or "unknown").rsplit(".", 1)[0]
+
+    try:
+        with Session(engine) as session:
+            book = Book(
+                id=book_id,
+                user_id=MOCK_USER_ID,
+                title=title,
+                total_chapters=len(chapters_data),
+                status="DRAFT",
+                file_url=file_url,  # URL thật của PDF trên Supabase Storage
+            )
+            create_book(session, book)
+
+            # Lưu Chapter DRAFT ngay để /generate-plan fetch lại được
+            for i, chap in enumerate(chapters_data):
+                chapter = Chapter(
+                    book_id=book_id,
+                    chapter_index=i,
+                    title=chap.get("title", f"Chương {i + 1}"),
+                    status="DRAFT",
+                )
+                create_chapter(session, chapter)
+
+        logger.info(f"📘 Created DRAFT book {book_id} | {len(chapters_data)} chapters | file_url saved")
     except Exception as e:
         logger.error(f"Failed to create book record: {e}")
-        raise HTTPException(status_code=500, detail=f"Failed to create book record: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Lỗi lưu DB: {str(e)}") from e
 
-    # 3. Đẩy việc nặng vào Background (User nhận phản hồi NGAY LẬP TỨC)
-    # Lưu ý: BackgroundTasks trong FastAPI chạy tuần tự hoặc song song tùy cách gọi.
-    # Để chạy song song trong background, ta wrap vào 1 hàm async lớn.
-
-    background_tasks.add_task(run_background_processing, book_id, chapters)
+    # 6. Trả về outline để Flutter hiển thị
+    outline = [{"title": c.get("title", f"Chương {i + 1}"), "page_start": c.get("page_start", 0)} for i, c in enumerate(chapters_data)]
 
     return {
-        "message": "Upload thành công! Chúng tôi đang xử lý sách của bạn.",
-        "book_id": book_id,
-        "total_chapters": len(chapters)
+        "book_id": str(book_id),
+        "total_chapters": len(chapters_data),
+        "outline": outline,
     }
 
-async def run_background_processing(book_id: str, chapters: list):
-    """Hàm quản lý việc chạy song song trong background"""
+
+# -----------------------------------------------------------------------
+# ENDPOINT 2: POST /generate-plan
+# -----------------------------------------------------------------------
+@router.post("/generate-plan")
+async def generate_plan(
+    background_tasks: BackgroundTasks,
+    payload: GeneratePlanRequest = Body(...),  # noqa: B008
+):
+    """
+    Bước 2: Nhận cấu hình kế hoạch học từ Flutter, lưu ReadingPlan,
+    kick-off background processing.
+    """
+    # 1. Validate book tồn tại
+    with Session(engine) as session:
+        book = session.get(Book, payload.book_id)
+        if not book:
+            raise HTTPException(status_code=404, detail="Không tìm thấy sách.")
+        if book.status not in ("DRAFT", "ERROR"):
+            raise HTTPException(status_code=409, detail=f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
+
+    # 2. Validate mode
+    if payload.mode not in ("FULL_MODE", "PARETO_MODE"):
+        raise HTTPException(status_code=400, detail="mode phải là 'FULL_MODE' hoặc 'PARETO_MODE'.")
+
+    # 3. Lưu ReadingPlan + cập nhật Book status
     try:
-        tasks = []
-        for i, chapter in enumerate(chapters):
-            tasks.append(process_single_chapter(book_id, chapter, i))
+        with Session(engine) as session:
+            plan = ReadingPlan(
+                book_id=payload.book_id,
+                mode=payload.mode,
+                pace=payload.pace,
+                schedule_config=payload.schedule_config,
+                status="ACTIVE",
+            )
+            create_reading_plan(session, plan)
+            update_book_status(session, payload.book_id, "PROCESSING")
 
-        # Chạy tất cả, nhưng bị kìm hãm bởi Semaphore(3)
-        await asyncio.gather(*tasks)
-
-        # Update book status to completed
-        supabase.table("books").update({
-            "status": "completed"
-        }).eq("id", book_id).execute()
-
-        logger.info(f"✅ HOÀN TẤT XỬ LÝ SÁCH {book_id}")
+        logger.info(f"📋 ReadingPlan created for book {payload.book_id} | mode={payload.mode}")
     except Exception as e:
-        # Update book status to error if processing fails
-        supabase.table("books").update({
-            "status": "error",
-            "error_message": str(e)
-        }).eq("id", book_id).execute()
-        logger.error(f"❌ LỖI XỬ LÝ SÁCH {book_id}: {e}")
+        logger.error(f"Failed to create reading plan: {e}")
+        raise HTTPException(status_code=500, detail=f"Lỗi lưu ReadingPlan: {str(e)}") from e
 
+    # 4. Kick-off background task — trả 200 OK ngay
+    background_tasks.add_task(run_background_processing, payload.book_id, payload.mode)
 
-# @router.post("/process-book-intro")
-# async def process_book_intro(file: UploadFile = File(...)):
-#     """
-#     Flow Demo:
-#     1. User upload PDF.
-#     2. Server đọc 1-2 trang đầu.
-#     3. LLM sửa lỗi chính tả/viết tắt (CNTT -> Công nghệ thông tin).
-#     4. TTS đọc stream về ngay lập tức.
-#     """
-#     if not file.filename.endswith(".pdf"):
-#         raise HTTPException(status_code=400, detail="Chỉ chấp nhận file PDF")
-
-#     # 1. Extract Text (Lấy 2 trang đầu làm Intro)
-#     raw_text = await extract_text_from_pdf(file, max_pages=2)
-
-#     if not raw_text:
-#         raise HTTPException(status_code=400, detail="Không đọc được nội dung PDF")
-
-#     # 2. Normalize (Biên tập lại - Bước quan trọng nhất!)
-#     # Cắt ngắn bớt nếu quá dài để demo cho nhanh (lấy 1000 ký tự đầu)
-#     short_preview = raw_text[:1000]
-#     script_ready = await normalize_text_for_speech(short_preview)
-
-#     print(f"Original: {short_preview[:100]}...")
-#     print(f"Normalized: {script_ready[:100]}...")
-
-#     # 3. Stream Audio về App (Dùng Edge TTS miễn phí)
-#     return StreamingResponse(
-#         stream_text_to_speech_edge(script_ready),
-#         media_type="audio/mpeg"
-#     )
+    return {
+        "message": "Kế hoạch học tập đã được tạo! Chúng tôi đang xử lý sách của bạn.",
+        "book_id": str(payload.book_id),
+        "mode": payload.mode,
+    }
 
 ```
 
@@ -504,7 +606,7 @@ import os
 
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(override=True)
 
 class Settings:
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
@@ -513,10 +615,12 @@ class Settings:
     TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
     GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL")
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+    DATABASE_URL = os.getenv("DATABASE_URL")
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
     SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
+    EDGE_TTS_VOICE = os.getenv("EDGE_TTS_VOICE", "en-US-AvaMultilingualNeural")
 
 settings = Settings()
 
@@ -548,20 +652,479 @@ supabase: Client = create_client(url, key)
 
 ```
 
+### app\crud\audiobook.py
+
+```py
+import uuid
+from typing import Optional
+
+from sqlmodel import Session, select
+
+from app.models.db_models import Book, Chapter, ChapterSegment, ReadingPlan
+
+# ---------------------------------------------------------------------------
+# Book
+# ---------------------------------------------------------------------------
+
+
+def get_audiobooks(session: Session) -> list[Book]:
+    return session.exec(select(Book)).all()
+
+
+def get_book_by_id(session: Session, book_id: uuid.UUID) -> Optional[Book]:
+    return session.get(Book, book_id)
+
+
+def create_book(session: Session, book: Book) -> Book:
+    session.add(book)
+    session.commit()
+    session.refresh(book)
+    return book
+
+
+def update_book_status(session: Session, book_id: uuid.UUID, status: str, error_message: Optional[str] = None) -> None:
+    book = session.get(Book, book_id)
+    if book:
+        book.status = status
+        if error_message is not None:
+            book.error_message = error_message
+        session.add(book)
+        session.commit()
+
+
+# ---------------------------------------------------------------------------
+# Chapter
+# ---------------------------------------------------------------------------
+
+
+def create_chapter(session: Session, chapter: Chapter) -> Chapter:
+    session.add(chapter)
+    session.commit()
+    session.refresh(chapter)
+    return chapter
+
+
+def update_chapter_review_audio(session: Session, chapter_id: uuid.UUID, review_audio_url: str) -> None:
+    chapter = session.get(Chapter, chapter_id)
+    if chapter:
+        chapter.review_audio_url = review_audio_url
+        session.add(chapter)
+        session.commit()
+
+
+def update_chapter_status(session: Session, chapter_id: uuid.UUID, status: str) -> None:
+    chapter = session.get(Chapter, chapter_id)
+    if chapter:
+        chapter.status = status
+        session.add(chapter)
+        session.commit()
+
+
+def delete_chapter(session: Session, chapter_id: uuid.UUID) -> None:
+    chapter = session.get(Chapter, chapter_id)
+    if chapter:
+        session.delete(chapter)
+        session.commit()
+
+
+# ---------------------------------------------------------------------------
+# ChapterSegment
+# ---------------------------------------------------------------------------
+
+
+def bulk_create_segments(session: Session, segments: list[ChapterSegment]) -> None:
+    for segment in segments:
+        session.add(segment)
+    session.commit()
+
+
+# ---------------------------------------------------------------------------
+# ReadingPlan
+# ---------------------------------------------------------------------------
+
+
+def create_reading_plan(session: Session, plan: ReadingPlan) -> ReadingPlan:
+    session.add(plan)
+    session.commit()
+    session.refresh(plan)
+    return plan
+
+
+# ---------------------------------------------------------------------------
+# Chapter (thêm helpers)
+# ---------------------------------------------------------------------------
+
+
+def update_chapter_review_text(session: Session, chapter_id: uuid.UUID, review_text: str) -> None:
+    chapter = session.get(Chapter, chapter_id)
+    if chapter:
+        chapter.review_text = review_text
+        session.add(chapter)
+        session.commit()
+
+
+def get_draft_chapters_by_book(session: Session, book_id: uuid.UUID) -> list[Chapter]:
+    """Lấy danh sách chapters có status='DRAFT' theo book_id, sort theo chapter_index."""
+    statement = (
+        select(Chapter)
+        .where(Chapter.book_id == book_id)
+        .order_by(Chapter.chapter_index)
+    )
+    return list(session.exec(statement).all())
+
+
+```
+
+### app\crud\book_knowledge.py
+
+```py
+import uuid
+
+from sqlmodel import Session, select
+
+from app.models.db_models import BookKnowledge
+
+
+def bulk_create_knowledge(session: Session, records: list[BookKnowledge]) -> None:
+    """Insert hàng loạt BookKnowledge (vector chunks) vào DB."""
+    for record in records:
+        session.add(record)
+    session.commit()
+
+
+def delete_knowledge_by_chapter(session: Session, chapter_id: uuid.UUID) -> None:
+    """Xóa toàn bộ vector chunks của 1 chapter (dùng khi rollback)."""
+    records = session.exec(
+        select(BookKnowledge).where(BookKnowledge.chapter_id == chapter_id)
+    ).all()
+    for record in records:
+        session.delete(record)
+    session.commit()
+
+
+```
+
+### app\db.py
+
+```py
+from typing import Generator
+
+from dotenv import load_dotenv
+from sqlmodel import Session, SQLModel, create_engine
+
+from app.core.config import settings
+
+load_dotenv()
+
+engine = create_engine(settings.DATABASE_URL, echo=True)
+
+
+def create_db_and_tables():
+    SQLModel.metadata.create_all(engine)
+
+
+def get_session() -> Generator[Session, None, None]:
+    with Session(engine) as session:
+        yield session
+
+```
+
+### app\helper\run_background_processing.py
+
+```py
+import asyncio
+import logging
+import os
+import uuid
+
+from sqlmodel import Session
+
+from app.core.supabase import supabase
+from app.crud.audiobook import (
+    bulk_create_segments,
+    delete_chapter,
+    get_draft_chapters_by_book,
+    update_book_status,
+    update_chapter_review_audio,
+    update_chapter_review_text,
+    update_chapter_status,
+)
+from app.crud.book_knowledge import delete_knowledge_by_chapter
+from app.db import engine
+from app.helper.upload2supabase import upload_file_to_supabase
+from app.models.db_models import Book, ChapterSegment
+from app.services.embed import embed_and_save_chapter
+from app.services.llm_service import normalize_text_for_speech
+from app.services.pdf_service import extract_chapters_smart
+from app.services.tts_service import generate_audio_and_get_duration
+
+logger = logging.getLogger("background")
+
+# Chapter concurrency limiter (tối đa 3 chương xử lý song song)
+sem = asyncio.Semaphore(5)
+
+
+# -----------------------------------------------------------------------
+# BACKGROUND: 2 luồng song song RAG + TTS cho từng chapter
+# -----------------------------------------------------------------------
+async def _thread_1_rag(
+    book_id: uuid.UUID,
+    chapter_id: uuid.UUID,
+    raw_text: str,
+) -> None:
+    """Luồng 1: Cắt chunks → Embed → Lưu vào book_knowledge."""
+    with Session(engine) as session:
+        await embed_and_save_chapter(book_id, chapter_id, raw_text, session)
+
+
+async def _thread_2_tts(
+    book_id: uuid.UUID,
+    chapter_id: uuid.UUID,
+    chapter_index: int,
+    raw_text: str,
+    mode: str,
+) -> None:
+    """Luồng 2: LLM rewrite → TTS → Upload Storage → Lưu chapter_segments."""
+    # Step 1: LLM Rewrite
+    obj_chapter = await normalize_text_for_speech(raw_text)
+    main_scripts: list[str] = obj_chapter.get("main_scripts", [])
+    review_text: str = obj_chapter.get("review_script", "")
+
+    # Lưu review_text vào chapter
+    if review_text:
+        with Session(engine) as session:
+            update_chapter_review_text(session, chapter_id, review_text)
+
+    # Step 2: TTS + Upload từng segment
+    segments: list[ChapterSegment] = []
+    for i, script in enumerate(main_scripts):
+        local_file = f"uploads/{uuid.uuid4()}.mp3"
+        os.makedirs("uploads", exist_ok=True)
+        try:
+            duration_ms = await generate_audio_and_get_duration(script, local_file)
+            storage_path = f"{book_id}/chap_{chapter_index + 1}/part_{i + 1}.mp3"
+            audio_url = await upload_file_to_supabase(local_file, storage_path, "audios", "audio/mpeg")
+            segments.append(
+                ChapterSegment(
+                    chapter_id=chapter_id,
+                    segment_index=i,
+                    audio_url=audio_url,
+                    duration_ms=duration_ms,
+                    text_content=script,
+                )
+            )
+        except Exception as seg_err:
+            # Một segment thất bại — log kèm nội dung text để debug
+            text_preview = script[:80] if script else "(empty)"
+            logger.warning(f"⚠️ Segment {i + 1} chương {chapter_index + 1} lỗi TTS ({len(script)} chars, text='{text_preview}...'): {seg_err}")
+        finally:
+            if os.path.exists(local_file):
+                os.remove(local_file)
+
+    # Step 3: Bulk save segments
+    if segments:
+        with Session(engine) as session:
+            bulk_create_segments(session, segments)
+
+    # Step 4 (optional): Sinh audio review
+    if review_text and review_text.strip():
+        local_review = f"uploads/{uuid.uuid4()}.mp3"
+        try:
+            await generate_audio_and_get_duration(review_text, local_review)
+            storage_path = f"{book_id}/chap_{chapter_index + 1}/review.mp3"
+            review_url = await upload_file_to_supabase(local_review, storage_path, "audios", "audio/mpeg")
+            with Session(engine) as session:
+                update_chapter_review_audio(session, chapter_id, review_url)
+        except Exception as rev_err:
+            logger.warning(f"⚠️ Review audio chương {chapter_index + 1} lỗi, bỏ qua: {rev_err}")
+        finally:
+            if os.path.exists(local_review):
+                os.remove(local_review)
+
+
+async def _process_single_chapter(
+    book_id: uuid.UUID,
+    chapter_id: uuid.UUID,
+    chapter_index: int,
+    raw_text: str,
+    mode: str,
+) -> None:
+    """Xử lý 1 chương: chạy 2 luồng song song, bị giới hạn bởi Semaphore."""
+    async with sem:
+        try:
+            await asyncio.gather(
+                _thread_1_rag(book_id, chapter_id, raw_text),
+                _thread_2_tts(book_id, chapter_id, chapter_index, raw_text, mode),
+            )
+            with Session(engine) as session:
+                update_chapter_status(session, chapter_id, "READY")
+            logger.info(f"✅ Chapter {chapter_index + 1} READY")
+        except Exception as e:
+            logger.error(f"❌ Error processing chapter {chapter_index + 1}: {e}")
+            # [FIX BUG 2] Rollback đúng thứ tự:
+            # Phải xóa book_knowledge (có FK trỏ vào chapter) TRƯỚC khi xóa chapter
+            try:
+                with Session(engine) as session:
+                    delete_knowledge_by_chapter(session, chapter_id)
+                    delete_chapter(session, chapter_id)
+                logger.info(f"🗑️ Rollback chapter {chapter_index + 1} thành công.")
+            except Exception as del_err:
+                logger.error(f"Failed to rollback chapter {chapter_index + 1}: {del_err}")
+            raise
+
+
+async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
+    """
+    Điều phối xử lý tất cả chapters song song.
+    1. Fetch draft chapters từ DB.
+    2. Download PDF từ Supabase Storage (file_url đã lưu lúc /upload).
+    3. Re-extract text per-chapter, ghép với draft chapters theo chapter_index.
+    4. Chạy 2 luồng song song: RAG + TTS cho từng chapter.
+    """
+    import io
+
+    try:
+        # 1. Fetch book + draft chapters từ DB
+        with Session(engine) as session:
+            book = session.get(Book, book_id)
+            draft_chapters = get_draft_chapters_by_book(session, book_id)
+
+        if not book:
+            logger.error(f"Book {book_id} not found")
+            return
+
+        if not draft_chapters:
+            with Session(engine) as session:
+                update_book_status(session, book_id, "ERROR", "Không có chapter nào để xử lý.")
+            return
+
+        if not book.file_url or book.file_url == "pending":
+            with Session(engine) as session:
+                update_book_status(session, book_id, "ERROR", "file_url chưa được lưu — PDF chưa upload lên Storage.")
+            logger.error(f"book.file_url is missing for book {book_id}")
+            return
+
+        # 2. Download PDF từ Supabase Storage
+        storage_path = f"{book_id}/original.pdf"
+        logger.info(f"⬇️  Downloading PDF from Storage: {storage_path}")
+        pdf_bytes: bytes = supabase.storage.from_("raw_books").download(storage_path)
+        pdf_file = io.BytesIO(pdf_bytes)
+
+        # 3. Re-extract chapters (giữ text thật theo từng chapter)
+        chapters_data = await extract_chapters_smart(pdf_file)
+
+        # Ghép chapters_data với draft_chapters theo chapter_index
+        # (draft_chapters đã sort theo chapter_index từ get_draft_chapters_by_book)
+        chapters_map: dict[int, str] = {i: chap.get("text", "") for i, chap in enumerate(chapters_data)}
+
+        # 4. Tạo tasks song song cho từng chapter
+        tasks = []
+        for draft_chap in draft_chapters:
+            raw_text = chapters_map.get(draft_chap.chapter_index, "")
+            if not raw_text.strip():
+                logger.warning(f"⚠️ Chapter {draft_chap.chapter_index + 1} '{draft_chap.title}' không có text — bỏ qua.")
+                continue
+            tasks.append(
+                _process_single_chapter(
+                    book_id,
+                    draft_chap.id,
+                    draft_chap.chapter_index,
+                    raw_text,
+                    mode,
+                )
+            )
+
+        await asyncio.gather(*tasks)
+
+        with Session(engine) as session:
+            update_book_status(session, book_id, "READY")
+        logger.info(f"🎉 Book {book_id} READY — tất cả chapters đã xử lý xong.")
+
+    except Exception as e:
+        with Session(engine) as session:
+            update_book_status(session, book_id, "ERROR", str(e))
+        logger.error(f"❌ LỖI XỬ LÝ SÁCH {book_id}: {e}")
+
+```
+
+### app\helper\upload2supabase.py
+
+```py
+import asyncio
+import logging
+
+import aiofiles
+
+from app.core.supabase import supabase
+
+logger = logging.getLogger("upload")
+
+
+# -----------------------------------------------------------------------
+# Helper: Upload file lên Supabase Storage
+# -----------------------------------------------------------------------
+async def upload_file_to_supabase(
+    local_path: str,
+    storage_path: str,
+    bucket: str,
+    content_type: str,
+    max_retries: int = 3,
+) -> str:
+    """Upload file lên Supabase Storage và trả về public URL."""
+    for attempt in range(max_retries):
+        try:
+            async with aiofiles.open(local_path, "rb") as f:
+                file_bytes = await f.read()
+            supabase.storage.from_(bucket).upload(
+                path=storage_path,
+                file=file_bytes,
+                file_options={"content-type": content_type},
+            )
+            return supabase.storage.from_(bucket).get_public_url(storage_path)
+        except Exception as e:
+            if attempt < max_retries - 1:
+                logger.warning(f"Upload failed (attempt {attempt + 1}), retrying...")
+                await asyncio.sleep(2**attempt)
+            else:
+                logger.error(f"Upload failed after {max_retries} attempts: {e}")
+                raise
+
+```
+
 ### app\main.py
 
 ```py
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
+from sqlmodel import SQLModel
 
-from app.api.v1.endpoints import live, upload
+from app.api.v1.endpoints import audiobooks, live, upload
+from app.db import engine
+from app.models import db_models  # Import db_models để SQLAlchemy nhận diện
 from app.services.tts_service import stream_text_to_speech, stream_text_to_speech_edge
 
-app = FastAPI(title="TRIAM Assistant API")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # --- Chạy khi STARTUP ---
+    print("Đang khởi tạo database...")
+    SQLModel.metadata.create_all(engine)
+
+    yield  # Sau từ khóa yield là lúc ứng dụng đang chạy (đang phục vụ người dùng)
+    # --- Chạy khi SHUTDOWN ---
+    print("Đang dọn dẹp tài nguyên...")
+    # (Ví dụ: đóng kết nối database nếu cần)
+
+
+app = FastAPI(title="TRIAM Assistant API", lifespan=lifespan)
+
 
 # Include Router
 app.include_router(upload.router, prefix="/api/v1", tags=["Upload"])
 app.include_router(live.router, prefix="/api/v1", tags=["Live"])
+app.include_router(audiobooks.router, prefix="/api/v1", tags=["Audiobooks"])
 
 
 @app.get("/")
@@ -599,118 +1162,142 @@ if __name__ == "__main__":
 
 ```
 
-### app\schemas\__init__.py
+### app\models\db_models.py
 
 ```py
-# Schemas module
+import uuid
+from datetime import datetime, timezone
+from typing import Any, Optional
+
+from pgvector.sqlalchemy import Vector
+from sqlalchemy import Column, DateTime, Integer, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlmodel import Field, SQLModel
+
+
+class Book(SQLModel, table=True):
+    __tablename__ = "books"
+
+    id: uuid.UUID = Field(
+        default_factory=uuid.uuid4,
+        primary_key=True,
+        index=True,
+        nullable=False,
+    )
+    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
+    title: str = Field(sa_column=Column(Text, nullable=False))
+    author: Optional[str] = Field(default=None, sa_column=Column(Text))
+    file_url: Optional[str] = Field(default=None, sa_column=Column(Text))
+    total_chapters: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    status: Optional[str] = Field(default=None, sa_column=Column(Text))
+    error_message: Optional[str] = Field(default=None, sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
+
+
+class ReadingPlan(SQLModel, table=True):
+    __tablename__ = "reading_plans"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    book_id: uuid.UUID = Field(foreign_key="books.id")
+    mode: str = Field(sa_column=Column(Text, nullable=False))
+    pace: int = Field(sa_column=Column(Integer, nullable=False))
+    schedule_config: Optional[Any] = Field(default=None, sa_column=Column(JSONB))
+    status: str = Field(sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
+
+
+class Chapter(SQLModel, table=True):
+    __tablename__ = "chapters"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    book_id: uuid.UUID = Field(foreign_key="books.id")
+    chapter_index: int = Field(sa_column=Column(Integer, nullable=False))
+    title: str = Field(sa_column=Column(Text, nullable=False))
+    review_audio_url: Optional[str] = Field(default=None, sa_column=Column(Text))
+    review_text: Optional[str] = Field(default=None, sa_column=Column(Text))
+    status: Optional[str] = Field(default=None, sa_column=Column(Text))
+
+
+class ChapterSegment(SQLModel, table=True):
+    __tablename__ = "chapter_segments"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    chapter_id: uuid.UUID = Field(foreign_key="chapters.id")
+    segment_index: int = Field(sa_column=Column(Integer, nullable=False))
+    audio_url: Optional[str] = Field(default=None, sa_column=Column(Text))
+    text_content: Optional[str] = Field(default=None, sa_column=Column(Text))
+    duration_ms: Optional[int] = Field(default=None, sa_column=Column(Integer))
+
+
+class BookKnowledge(SQLModel, table=True):
+    __tablename__ = "book_knowledge"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    book_id: uuid.UUID = Field(foreign_key="books.id")
+    chapter_id: uuid.UUID = Field(foreign_key="chapters.id")
+    chunk_index: int = Field(sa_column=Column(Integer, nullable=False))
+    content: str = Field(sa_column=Column(Text, nullable=False))
+    # Giả định vector có độ dài 1536 (OpenAI text-embedding-3-small)
+    embedding: Optional[list[float]] = Field(default=None, sa_column=Column(Vector(1536)))
 
 ```
 
 ### app\services\embed.py
 
 ```py
-import os
+import uuid
 
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from openai import AsyncOpenAI
-from pinecone import Pinecone
+from sqlmodel import Session
 
-from app.core.supabase import supabase
+from app.core.config import settings
+from app.crud.book_knowledge import bulk_create_knowledge
+from app.models.db_models import BookKnowledge
 
-# Khởi tạo OpenAI
-aclient = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+aclient = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
-# Khởi tạo Pinecone (Client v3+)
-pc = Pinecone(api_key=os.getenv("PINECONE_API_KEY"))
-INDEX_NAME = "triam-knowledge-base"  # Tên Index bạn đã tạo trên Web Console
-index = pc.Index(INDEX_NAME)
-
-
-async def embed_chunk_to_supbabase(book_id: str, chapter_index: int, chunks: list[str]):
-    try:
-        response = await aclient.embeddings.create(
-            input=chunks,
-            model="text-embedding-3-small"
-        )
-
-        data_to_insert = []
-        for i, embedding_data in enumerate(response.data):
-            data_to_insert.append({
-                "book_id": book_id,
-                "chapter_index": chapter_index,
-                "chunk_index": i,
-                "content": chunks[i],
-                "embedding": embedding_data.embedding
-            })
-
-        # Insert vào Supabase
-        if data_to_insert:
-            supabase.table("book_knowledge").insert(data_to_insert).execute()
-            print(f"✅ Saved {len(data_to_insert)} vectors into Supabase.")
-            return True
-
-    except Exception as e:
-        print(f"Error Embed Supabase: {e}")
-        return False
+_splitter = RecursiveCharacterTextSplitter(
+    chunk_size=1200,
+    chunk_overlap=200,
+    separators=["\n\n", "\n", ".", " ", ""],
+)
 
 
-
-# ====== OLD CODE ======
-async def embed_text_to_pinecone(book_id: str, chapter_index: int, text: str):
+async def embed_and_save_chapter(
+    book_id: uuid.UUID,
+    chapter_id: uuid.UUID,
+    raw_text: str,
+    session: Session,
+) -> None:
     """
-    Hàm xử lý RAG: Cắt nhỏ text -> Embed -> Lưu vào Pinecone.
+    Luồng 1 RAG:
+    1. Cắt raw_text thành chunks bằng RecursiveCharacterTextSplitter.
+    2. Gọi OpenAI Embedding API (batch).
+    3. Lưu vào bảng book_knowledge qua SQLModel session.
     """
-    try:
-        # 1. CHUNKING (Cắt nhỏ văn bản)
-        # Tại sao cần cắt? Vì Vector search hoạt động tốt nhất với các đoạn văn ngắn (context).
-        # Cách đơn giản: Cắt theo đoạn văn (xuống dòng kép)
-        chunks = [c.strip() for c in text.split('\n\n') if len(c.strip()) > 50]
+    chunks = _splitter.split_text(raw_text)
+    if not chunks:
+        return
 
-        # Nếu text không có xuống dòng, cắt thô mỗi 1000 ký tự (Fallback)
-        if not chunks:
-            chunk_size = 1000
-            chunks = [text[i:i+chunk_size] for i in range(0, len(text), chunk_size)]
+    response = await aclient.embeddings.create(
+        input=chunks,
+        model="text-embedding-3-small",
+    )
 
-        print(f"-> Pinecone: Đang xử lý {len(chunks)} chunks cho chương {chapter_index + 1}...")
-
-        vectors_to_upsert = []
-
-        # 2. EMBEDDING (Tạo vector)
-        # OpenAI hỗ trợ batch embedding, ta gửi cả list chunks đi 1 lần cho nhanh
-        response = await aclient.embeddings.create(
-            input=chunks,
-            model="text-embedding-3-small" # Rẻ và nhanh, đủ dùng cho RAG
+    records = [
+        BookKnowledge(
+            book_id=book_id,
+            chapter_id=chapter_id,
+            chunk_index=i,
+            content=chunks[i],
+            embedding=embedding_data.embedding,
         )
+        for i, embedding_data in enumerate(response.data)
+    ]
 
-        # 3. CHUẨN BỊ DATA (Format cho Pinecone)
-        for i, embedding_data in enumerate(response.data):
-            chunk_text = chunks[i]
-            vector_id = f"{book_id}_chap{chapter_index}_{i}" # ID duy nhất
-
-            # Vector Record
-            vector_record = {
-                "id": vector_id,
-                "values": embedding_data.embedding,
-                # Metadata cực quan trọng để AI biết đoạn này là chữ gì
-                "metadata": {
-                    "book_id": book_id,
-                    "chapter_index": chapter_index,
-                    "text": chunk_text, # Lưu text gốc để hồi đáp user
-                    "source": "triam_app"
-                }
-            }
-            vectors_to_upsert.append(vector_record)
-
-        # 4. UPSERT (Đẩy lên Cloud)
-        # Sử dụng namespace để tách biệt dữ liệu (optional, nhưng recommend)
-        # Namespace giúp bạn xóa sách dễ dàng: index.delete(delete_all=True, namespace=book_id)
-        index.upsert(vectors=vectors_to_upsert, namespace=book_id)
-
-        print(f"-> Pinecone: Đã lưu {len(vectors_to_upsert)} vectors vào namespace '{book_id}'.")
-        return True
-
-    except Exception as e:
-        print(f"Lỗi Embed Pinecone: {e}")
-        return False
+    bulk_create_knowledge(session, records)
+    print(f"✅ RAG: Saved {len(records)} vectors for chapter_id={chapter_id}")
 
 ```
 
@@ -718,6 +1305,7 @@ async def embed_text_to_pinecone(book_id: str, chapter_index: int, text: str):
 
 ```py
 import json
+import re
 
 from openai import AsyncOpenAI
 
@@ -764,120 +1352,89 @@ Input: Văn bản gốc.
 Output: Chỉ trả về JSON thuần.
 """
 
+
+def _chunk_text_fallback(text: str, max_chars: int = 1200) -> list[str]:
+    """Phân chia văn bản thô dài thành các chunk nhỏ nếu LLM thất bại."""
+    paragraphs = re.split(r"\n+", text.strip())
+    chunks = []
+    current_chunk = []
+    current_length = 0
+
+    for p in paragraphs:
+        if len(p) > max_chars:
+            sentences = re.split(r"(?<=[.!?])\s+", p)
+            for s in sentences:
+                if current_length + len(s) > max_chars and current_chunk:
+                    chunks.append(" ".join(current_chunk))
+                    current_chunk = [s]
+                    current_length = len(s)
+                else:
+                    current_chunk.append(s)
+                    current_length += len(s)
+        else:
+            if current_length + len(p) > max_chars and current_chunk:
+                chunks.append("\n".join(current_chunk))
+                current_chunk = [p]
+                current_length = len(p)
+            else:
+                current_chunk.append(p)
+                current_length += len(p)
+
+    if current_chunk:
+        chunks.append("\n".join(current_chunk))
+
+    return chunks
+
+# ---------------------------------------------------------------------------
+# MAIN FUNCTION
+# ---------------------------------------------------------------------------
+
 async def normalize_text_for_speech(raw_text: str) -> dict:
     """
     Gửi text thô cho Gemini/GPT để biên tập và cấu trúc lại dữ liệu.
     Trả về Dictionary: {"main_scripts": [], "review_script": ""}
     """
-    # Fallback structure nếu AI lỗi
-    fallback_result = {
-        "main_scripts": [raw_text],
-        "review_script": "Không thể tạo tóm tắt cho đoạn này."
-    }
+    # Sử dụng fallback phân rã động thay vì ném cả đoạn lớn vào 1 chuỗi.
+    # Ngăn chặn việc LLM lỗi làm file audio bị dài 18+ phút.
+    fallback_result = {"main_scripts": _chunk_text_fallback(raw_text), "review_script": "Không thể tạo tóm tắt do độ dài văn bản gốc quá lớn."}
 
     try:
         response = await client.chat.completions.create(
-            # model="gpt-4o-mini",
-            model="gemini-2.5-flash-lite", # Model này input token lớn, rẻ
-            messages=[
-                {"role": "system", "content": SYSTEM_PROMPT_REWRITE},
-                {"role": "user", "content": raw_text}
-            ],
-            temperature=0.3, # Giảm sáng tạo để format JSON chuẩn
-            response_format={"type": "json_object"}
-
+            model="gemini-2.5-flash-lite",
+            messages=[{"role": "system", "content": SYSTEM_PROMPT_REWRITE}, {"role": "user", "content": raw_text}],
+            temperature=0.3,  # Giảm sáng tạo để format JSON chuẩn
+            response_format={"type": "json_object"},
         )
 
         content = response.choices[0].message.content.strip()
 
-        # Xử lý trường hợp AI trả về markdown ```json ... ```
-      #   if content.startswith("```json"):
-      #       content = content.replace("```json", "").replace("```", "")
-      #   elif content.startswith("```"):
-      #       content = content.replace("```", "")
-
         # Parse JSON
         parsed_data = json.loads(content)
 
-        # Validate sơ bộ
-      #   if "main_scripts" not in parsed_data or not isinstance(parsed_data["main_scripts"], list):
-      #       print("Cảnh báo: Output thiếu main_scripts hoặc sai định dạng.")
-      #       return fallback_result
+        # Nếu LLM chia chuỗi dài quá, cưỡng chế cắt bằng tay thêm lần nữa
+        # để ngăn chặn issue của Edge TTS (Mặc dù prompt đã yêu cầu 3-5 câu / chunk).
+        final_main_scripts = []
+        for script in parsed_data.get("main_scripts", fallback_result["main_scripts"]):
+            if len(script) > 1800:
+                final_main_scripts.extend(_chunk_text_fallback(script))
+            else:
+                final_main_scripts.append(script)
+
+        parsed_data["main_scripts"] = final_main_scripts
 
         return parsed_data
 
-    except json.JSONDecodeError:
-        print(f"Lỗi Parse JSON từ LLM. Raw content: {content[:100]}...")
-        # Trường hợp này có thể fallback bằng cách trả về raw text vào main_scripts
-        return {
-            "main_scripts": [content], # Cố gắng lấy nội dung dù không đúng format
-            "review_script": "Lỗi định dạng tóm tắt."
-        }
+    except json.JSONDecodeError as de:
+        print(f"Lỗi Parse JSON từ LLM ({de}). Raw content: Length {len(content)}")
+        # Cố gắng lấy vớt lại text nếu có thể
+        try:
+            return {"main_scripts": _chunk_text_fallback(content), "review_script": "Rất tiếc tóm tắt của đoạn văn này bị lỗi do bộ nhớ quá giới hạn."}
+        except:
+            return fallback_result
+
     except Exception as e:
         print(f"Lỗi LLM Service: {e}")
         return fallback_result
-
-# /////////////// code V1 ///////////////
-
-# from openai import AsyncOpenAI
-# from app.core.config import settings
-
-# # client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-# client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY, base_url=settings.GEMINI_BASE_URL)
-
-# # Prompt "thần thánh" để định hình phong cách đọc
-# SYSTEM_PROMPT_REWRITE = """
-# Bạn là một biên tập viên phát thanh chuyên nghiệp (Script Editor).
-# Nhiệm vụ: Chuyển đổi văn bản thô thành kịch bản nói (Spoken Script) để AI TTS đọc tự nhiên nhất.
-
-# QUY TẮC BẮT BUỘC:
-# 1. Mở rộng từ viết tắt: Dựa vào ngữ cảnh, hãy viết đầy đủ các từ viết tắt.
-#    - Ví dụ: "CNTT" -> "Công nghệ thông tin", "DN" -> "Doanh nghiệp", "NS" -> "Nhân sự".
-# 2. Xử lý Tiếng Anh/Thuật ngữ:
-#    - Các từ tiếng Anh phổ biến (AI, CEO, Marketing) -> Giữ nguyên (nếu bộ đọc tốt) hoặc chú thích phiên âm nếu cần.
-#    - Ví dụ đặc biệt: "AI" -> "Ây Ai", "Agile" -> "A-chao".
-# 3. Số liệu & Ký hiệu:
-#    - "5%" -> "Năm phần trăm".
-#    - "Tp.HCM" -> "Thành phố Hồ Chí Minh".
-# 4. Xử lý lỗi PDF & Format (Quan trọng nhất):
-#    - Nối các dòng bị ngắt quãng giữa chừng do lỗi PDF (line break).
-#    - Loại bỏ số trang (ví dụ số "10", "11" nằm trơ trọi cuối đoạn).
-#    - Xóa các ký tự rác do lỗi font (ví dụ: "J", "", các dấu gạch ngang vô nghĩa).
-#    - Tự động sửa lỗi chính tả hiển nhiên (ví dụ: "Qcmenia" -> "Armenia").
-# 5. Tự nhiên hóa số liệu & Thời gian (Văn nói người Việt):
-#    - "1,5 giờ" -> Chuyển thành "một tiếng rưỡi" (KHÔNG dùng "một phẩy năm giờ").
-#    - "0.5" -> "nửa" hoặc "không phẩy năm" tùy ngữ cảnh.
-#    - "30km" -> "ba mươi ki-lô-mét".
-#    - "1990" -> "năm một ngàn chín trăm chín mươi".
-#    - Danh sách "1. 2. 3." -> Chuyển thành "Điều thứ nhất: ... Điều thứ hai: ... Điều thứ ba: ..." (để tạo nhịp điệu).
-
-# 6. Văn phong: Thêm các từ nối nhẹ nhàng để câu văn mượt mà, không bị cụt. Giữ nguyên ý nghĩa gốc, không bịa thêm nội dung sai lệch.
-
-# Input: Văn bản gốc từ sách.
-# Output: Chỉ trả về văn bản đã biên tập, không thêm lời chào hay giải thích gì khác.
-# """
-
-# async def normalize_text_for_speech(raw_text: str) -> str:
-#     """
-#     Gửi text thô cho GPT-4o-mini biên tập lại trước khi đọc.
-#     Dùng model 'gpt-4o-mini' cho rẻ và nhanh (Latency thấp).
-#     """
-#     try:
-#         response = await client.chat.completions.create(
-#             # model="gpt-4o-mini",
-#             model="gemini-2.5-flash-lite",
-#             messages=[
-#                 {"role": "system", "content": SYSTEM_PROMPT_REWRITE},
-#                 {"role": "user", "content": raw_text}
-#             ],
-#             temperature=0.3,  # Giữ cho AI tập trung, ít sáng tạo lung tung
-#             # max_tokens=2000   # Giới hạn output
-#         )
-#         normalized_text = response.choices[0].message.content
-#         return normalized_text
-#     except Exception as e:
-#         print(f"Lỗi Normalization: {e}")
-#         return raw_text  # Fallback: Nếu lỗi thì trả về text gốc đọc tạm
 
 ```
 
@@ -912,12 +1469,9 @@ def get_pdf_outline_structure(file_obj):
                         # Lấy số trang (pypdf trả về page object, cần lấy index)
                         page_number = reader.get_destination_page_number(item)
                         # pypdf get đúng page number
-                        outline_data.append({
-                            "title": item.title,
-                            "page_start": page_number
-                        })
+                        outline_data.append({"title": item.title, "page_start": page_number})
                     except Exception:
-                        pass # Bỏ qua nếu item bị lỗi link
+                        pass  # Bỏ qua nếu item bị lỗi link
 
         _parse_outline(reader.outline)
 
@@ -927,6 +1481,7 @@ def get_pdf_outline_structure(file_obj):
     except Exception as e:
         print(f"Lỗi đọc Outline: {e}")
         return []
+
 
 async def extract_chapters_smart(file_obj, pages_per_chunk=10):
     """
@@ -952,13 +1507,13 @@ async def extract_chapters_smart(file_obj, pages_per_chunk=10):
 
             for i in range(len(outlines)):
                 current_chap = outlines[i]
-                start_p = current_chap["page_start"] - 1 # index từ 0
+                start_p = current_chap["page_start"] - 1  # index từ 0
 
                 # Xác định trang kết thúc (là trang bắt đầu của chương sau - 1)
                 if i < len(outlines) - 1:
-                    end_p = outlines[i+1]["page_start"] - 1
+                    end_p = outlines[i + 1]["page_start"] - 1
                 else:
-                    end_p = total_pages # Chương cuối thì lấy hết
+                    end_p = total_pages  # Chương cuối thì lấy hết
 
                 # Đảm bảo không vượt quá file
                 end_p = min(end_p, total_pages)
@@ -971,12 +1526,7 @@ async def extract_chapters_smart(file_obj, pages_per_chunk=10):
                         chap_text += text + "\n"
 
                 if chap_text.strip():
-                    chapters.append({
-                        "title": current_chap["title"],
-                        "text": chap_text,
-                        "page_start": start_p + 1,
-                        "page_end": end_p
-                    })
+                    chapters.append({"title": current_chap["title"], "text": chap_text, "page_start": start_p + 1, "page_end": end_p})
         return chapters
 
     # --- LEVEL 2: Dùng Regex (Nếu Level 1 thất bại) ---
@@ -985,10 +1535,10 @@ async def extract_chapters_smart(file_obj, pages_per_chunk=10):
 
     # Compile regex patterns cho tiêu đề chương
     chapter_patterns = [
-        r'^\s*(?:Chương|CHƯƠNG|Chapter|CHAPTER)\s+(?:[IVX]+|\d+)',  # Chương 1, Chapter I, etc.
-        r'^\s*(?:Phần|PHẦN|Part|PART)\s+(?:[IVX]+|\d+)',  # Phần 1, Part I, etc.
+        r"^\s*(?:Chương|CHƯƠNG|Chapter|CHAPTER)\s+(?:[IVX]+|\d+)",  # Chương 1, Chapter I, etc.
+        r"^\s*(?:Phần|PHẦN|Part|PART)\s+(?:[IVX]+|\d+)",  # Phần 1, Part I, etc.
     ]
-    combined_pattern = re.compile('|'.join(chapter_patterns), re.MULTILINE)
+    combined_pattern = re.compile("|".join(chapter_patterns), re.MULTILINE)
 
     with pdfplumber.open(file_obj) as pdf:
         total_pages = len(pdf.pages)
@@ -1001,13 +1551,10 @@ async def extract_chapters_smart(file_obj, pages_per_chunk=10):
                 continue
 
             # Tách thành từng dòng và kiểm tra
-            lines = text.split('\n')
+            lines = text.split("\n")
             for line in lines[:10]:  # Chỉ check 10 dòng đầu mỗi trang
                 if combined_pattern.match(line.strip()):
-                    chapter_markers.append({
-                        'title': line.strip(),
-                        'page_idx': page_idx
-                    })
+                    chapter_markers.append({"title": line.strip(), "page_idx": page_idx})
                     break  # Tìm được tiêu đề rồi thì next page
 
         # Nếu tìm được ít nhất 2 chương
@@ -1015,11 +1562,11 @@ async def extract_chapters_smart(file_obj, pages_per_chunk=10):
             print(f">> Tìm được {len(chapter_markers)} chương bằng Regex.")
 
             for i in range(len(chapter_markers)):
-                start_p = chapter_markers[i]['page_idx']
+                start_p = chapter_markers[i]["page_idx"]
 
                 # Xác định trang kết thúc
                 if i < len(chapter_markers) - 1:
-                    end_p = chapter_markers[i+1]['page_idx']
+                    end_p = chapter_markers[i + 1]["page_idx"]
                 else:
                     end_p = total_pages
 
@@ -1029,12 +1576,7 @@ async def extract_chapters_smart(file_obj, pages_per_chunk=10):
                     chap_text += (pdf.pages[p_idx].extract_text() or "") + "\n"
 
                 if chap_text.strip():
-                    chapters.append({
-                        "title": chapter_markers[i]['title'],
-                        "text": chap_text,
-                        "page_start": start_p + 1,
-                        "page_end": end_p
-                    })
+                    chapters.append({"title": chapter_markers[i]["title"], "text": chap_text, "page_start": start_p + 1, "page_end": end_p})
 
             return chapters  # Return kết quả Level 2
 
@@ -1049,12 +1591,7 @@ async def extract_chapters_smart(file_obj, pages_per_chunk=10):
             for p_idx in range(i, end_page):
                 chunk_text += (pdf.pages[p_idx].extract_text() or "") + "\n"
 
-            chapters.append({
-                "title": f"Phần {i//pages_per_chunk + 1} (Trang {i+1}-{end_page})",
-                "text": chunk_text,
-                "page_start": i + 1,
-                "page_end": end_page
-            })
+            chapters.append({"title": f"Phần {i // pages_per_chunk + 1} (Trang {i + 1}-{end_page})", "text": chunk_text, "page_start": i + 1, "page_end": end_page})
 
     return chapters
 
@@ -1063,11 +1600,11 @@ async def extract_text_from_pdf(file_obj, max_pages=None):
     """
     Helper function: Extract raw text từ PDF (không chia chương).
     Dùng cho demo endpoints như /process-book-intro.
-    
+
     Args:
         file_obj: File object của PDF
         max_pages: Số trang tối đa cần extract (None = all pages)
-    
+
     Returns:
         str: Raw text từ PDF
     """
@@ -1083,8 +1620,6 @@ async def extract_text_from_pdf(file_obj, max_pages=None):
                 extracted_text += text + "\n"
 
     return extracted_text.strip()
-
-
 
 
 def extract_text_by_page_range(pdf_obj, start_page: int, end_page: int):
@@ -1119,11 +1654,9 @@ def extract_text_by_page_range(pdf_obj, start_page: int, end_page: int):
             if text:
                 extracted_text += text + "\n"
         except Exception as e:
-            print(f"Lỗi đọc trang {i+1}: {e}")
+            print(f"Lỗi đọc trang {i + 1}: {e}")
 
     return extracted_text
-
-
 
 
 def extract_clean_text(page):
@@ -1180,6 +1713,8 @@ async def search_book_knowledge(query: str, book_id: str):
 
 ```py
 
+import asyncio
+
 import edge_tts
 from openai import AsyncOpenAI
 
@@ -1187,61 +1722,36 @@ from app.core.config import settings
 
 client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
+
 async def stream_text_to_speech(text: str, voice: str = "alloy"):
     """
     Hàm này nhận text, gọi OpenAI TTS và trả về stream audio ngay lập tức.
     """
     try:
-        # Gọi API OpenAI với response_format để stream
         async with client.audio.speech.with_streaming_response.create(
-            model="tts-1",  # Model nhanh nhất, độ trễ thấp
+            model="tts-1",
             voice=voice,
-            input=text
+            input=text,
         ) as response:
-            # Streaming response (Chunking 4096 bytes để gửi dần xuống client)
             async for chunk in response.iter_bytes(chunk_size=4096):
                 if chunk:
                     yield chunk
 
     except Exception as e:
         print(f"Error in TTS Stream: {e}")
-        # Trong thực tế nên log vào file hoặc Sentry
 
-async def stream_text_to_speech_edge(text: str, voice: str = "vi-VN-HoaiMyNeural"):
+
+async def stream_text_to_speech_edge(text: str, voice: str = settings.EDGE_TTS_VOICE):
     """
     Sử dụng Edge TTS: Hoàn toàn MIỄN PHÍ và chất lượng Neural rất tốt.
     """
     communicate = edge_tts.Communicate(text, voice)
-
-    # Streaming response
     async for chunk in communicate.stream():
         if chunk["type"] == "audio":
             yield chunk["data"]
 
 
-# Production ready
-# async def generate_audio_file(text: str, file_path: str):
-#     """
-#     Tạo audio và lưu xuống ổ cứng (sau này là upload lên Firebase Storage).
-#     """
-#     try:
-#         response = await client.audio.speech.create(
-#             model="tts-1",
-#             voice="alloy",
-#             input=text
-#         )
-#         # Lưu file binary xuống đĩa
-#         response.stream_to_file(file_path)
-#         return True
-#     except Exception as e:
-#         print(f"Lỗi TTS: {e}")
-#         return False
-
-
-# Create audio file wiht edge tts
-
-
-async def generate_audio_file_edge(text: str, filename: str, voice: str = "vi-VN-HoaiMyNeural"):
+async def generate_audio_file_edge(text: str, filename: str, voice: str = settings.EDGE_TTS_VOICE):
     """
     Tạo file audio từ text bằng Edge TTS và lưu vào file.
     """
@@ -1252,8 +1762,69 @@ async def generate_audio_file_edge(text: str, filename: str, voice: str = "vi-VN
     except Exception as e:
         print(f"Error creating audio file: {e}")
 
-# Example usage:
-# asyncio.run(create_audio_file("Xin chào, đây là bài test giọng nói.", "test.mp3"))
+
+# -----------------------------------------------------------------------
+# Giới hạn concurrent TTS calls.
+# Microsoft Edge TTS service đang bị intermittent failure (Apr 2026).
+# Ref: https://github.com/rany2/edge-tts/issues/473
+# Semaphore(5) giúp giảm áp lực lên server, tăng tỉ lệ thành công.
+# -----------------------------------------------------------------------
+_tts_sem = asyncio.Semaphore(5)
+
+
+async def generate_audio_and_get_duration(
+    text: str,
+    filename: str,
+    voice: str = settings.EDGE_TTS_VOICE,
+    max_retries: int = 6,
+) -> int:
+    """
+    Tạo file audio bằng Edge TTS và đo thời lượng (milliseconds).
+
+    - Semaphore(5): giới hạn 5 TTS calls đồng thời (tránh overwhelm server)
+    - 6 retries với backoff dài: 3s, 6s, 12s, 24s, 48s
+    - receive_timeout=300: chờ Microsoft server đủ lâu
+    - KHÔNG dùng voice fallback: giữ giọng đọc nhất quán
+
+    Trả về duration_ms.
+    """
+    from mutagen.mp3 import MP3
+
+    # Clean and Valid text: too short (page numbers, special characters)
+    cleaned = text.strip()
+    if len(cleaned) < 10:
+        raise ValueError(f"Text too short for TTS ({len(cleaned)} chars): '{cleaned}'")
+
+    async with _tts_sem:
+        for attempt in range(max_retries):
+            try:
+                communicate = edge_tts.Communicate(
+                    cleaned,
+                    voice,
+                    receive_timeout=300,
+                )
+                await communicate.save(filename)
+
+                try:
+                    audio = MP3(filename)
+                    duration_ms = int(audio.info.length * 1000)
+                except Exception:
+                    duration_ms = 0
+
+                return duration_ms
+
+            except Exception as e:
+                if attempt < max_retries - 1:
+                    wait = 3 * (2 ** attempt)  # 3s, 6s, 12s, 24s, 48s
+                    print(
+                        f"⚠️ TTS attempt {attempt + 1}/{max_retries} failed "
+                        f"({len(cleaned)} chars): {e}. Retry in {wait}s..."
+                    )
+                    await asyncio.sleep(wait)
+                else:
+                    print(f"❌ TTS failed after {max_retries} attempts ({len(cleaned)} chars): {e}")
+                    raise
+    return 0  # unreachable
 
 ```
 
@@ -1270,63 +1841,3 @@ async def generate_audio_file_edge(text: str, filename: str, voice: str = "vi-VN
 # TRIAM Backend Application
 
 ```
-
-### .dockerignore
-
-```gitignore
-.git
-.gitignore
-.venv
-.env
-__pycache__
-*.pyc
-.DS_Store
-
-# Bỏ qua các thư mục chứa dữ liệu tĩnh/log không cần thiết khi deploy
-uploads/
-_log_extracted_json/
-script_ouputs/
-_codebase/
-_docs_implemented/
-implement_docs/
-scripts/
-```
-
-### .python-version
-
-*(Unsupported file type)*
-
-### Dockerfile
-
-```dockerfile
-# Sử dụng Python 3.10 slim
-FROM python:3.12-slim
-
-# Copy uv từ image chính thức của Astral (cách cài uv tốt nhất trong Docker)
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
-# Tạo user không phải root (Bắt buộc trên Hugging Face Spaces)
-RUN useradd -m -u 1000 user
-USER user
-ENV HOME=/home/user \
-    PATH=/home/user/.local/bin:$PATH
-
-# Thiết lập thư mục làm việc
-WORKDIR $HOME/app
-
-# Copy các file quản lý thư viện của uv vào trước để cache
-COPY --chown=user pyproject.toml uv.lock ./
-
-# Cài đặt dependencies (sử dụng uv sync)
-RUN uv sync --frozen --no-dev
-
-# Copy toàn bộ mã nguồn dự án vào container
-COPY --chown=user . .
-
-# Chạy ứng dụng FastAPI bằng uvicorn thông qua uv, đổi port sang 7860
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
-```
-
-### pyproject.toml
-
-*(Unsupported file type)*

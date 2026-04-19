@@ -34,16 +34,18 @@
 
 - **Logic flow:**
   - While (`receive_from_gemini`), if see `tool_call` return, Backend will pause streaming audio and execute the tool function:
+    - **[WebSocket Keep-Alive]**: Immediately sends `SYSTEM:TOOL_CALLING_START:tool_name` through WebSocket to the Flutter Client. This tells Flutter to **SUSPEND its 10-second silence timeout** and show a loading UI (e.g., "Đang lục lọi tài liệu..."), preventing the Flutter app from disconnecting while waiting for a slow RAG query.
     - **Case 1: `search_book_knowledge` (Priority)**
-      - **[Latency UX]** Backend ra lệnh cho AI phát một đoạn audio đệm (Filler text: "Đợi mình một chút, mình đang xem lại tài liệu nha...") để giữ chân người dùng trong lúc đợi delay.
       - Get the User's question (e.g., "Tại sao tác giả nói Quả trứng có trước con gà?").
       - Use the `AsyncOpenAI` library (`text-embedding-3-small`) to convert the question into a vector (Embedding).
-      - **[Security CRITICAL]** Call the RPC `match_book_knowledge` down to Supabase. Backend **bắt buộc** truyền cả `book_id` và `user_id` để query vector similarity. Điều này đảm bảo AI chỉ tìm trong sách của user đó, không bị rò rỉ dữ liệu (Row Level Security).
+      - **[Advanced RAG System (Future/Planned)]**: Implement Hybrid Search (Keyword + Vector FTS) via `tsvector` and Reciprocal Rank Fusion (RRF), coupled with Cross-Encoder Reranking and Context-Aware query rewriting to radically improve accuracy.
+      - **[Security CRITICAL]** Call the RPC (e.g. `match_book_knowledge`) down to Supabase. Backend **bắt buộc** truyền cả `book_id` để query vector similarity. Điều này đảm bảo AI chỉ tìm trong sách của user đó.
     - **Case 2: `search_web`**
       - Call the Tavily API (`AsyncTavilyClient`) to search for real-time/update information on the web.
   - **Send response back to AI:**
     - Aggregate the retrieved text content.
     - Send the results back to Gemini through `session.send_tool_response`.
+    - **[WebSocket Keep-Alive]**: Sends `SYSTEM:TOOL_CALLING_END:tool_name` through WebSocket, instructing Flutter to resume its 10s silence timeout.
     - Gemini reads this context, understands the issue, and continues generating audio responses for the user (returning to step 2).
 
 ## 4. Graceful Disconnect

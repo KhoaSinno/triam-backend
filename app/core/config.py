@@ -17,5 +17,8 @@ class Settings:
     SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
     TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
     EDGE_TTS_VOICE = os.getenv("EDGE_TTS_VOICE", "en-US-AvaMultilingualNeural")
+    LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
+    LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
+
 
 settings = Settings()

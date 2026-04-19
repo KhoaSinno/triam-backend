@@ -52,9 +52,14 @@ async def upload_document(file: UploadFile = File(...)):  # noqa: B008
     lưu Book + Chapter (DRAFT), trả về outline cho Flutter.
     Không kích hoạt xử lý AI ở đây.
     """
-    # 1. Validate
-    if file.content_type not in ALLOWED_MIME_TYPES:
-        raise HTTPException(status_code=400, detail="Loại file không hỗ trợ. Chỉ chấp nhận PDF, EPUB, DOCX.")
+    # 1. Validate MIME Type hoặc đuôi file (vì chọn file từ Google Drive hay trả về application/octet-stream)
+    is_valid_type = file.content_type in ALLOWED_MIME_TYPES
+    filename_lower = (file.filename or "").lower()
+
+    if not is_valid_type:
+        # Fallback kiểm tra bằng đuôi file
+        if not (filename_lower.endswith(".pdf") or filename_lower.endswith(".epub") or filename_lower.endswith(".docx")):
+            raise HTTPException(status_code=400, detail=f"Loại file không hỗ trợ ({file.content_type}). Chỉ chấp nhận PDF, EPUB, DOCX.")
 
     content = await file.read()
     if len(content) > MAX_FILE_SIZE_BYTES:
