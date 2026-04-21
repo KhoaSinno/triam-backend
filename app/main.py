@@ -7,7 +7,7 @@ from sqlmodel import SQLModel
 from app.api.v1.endpoints import audiobooks, live, upload
 from app.db import engine
 from app.models import db_models  # Import db_models để SQLAlchemy nhận diện
-from app.services.tts_service import stream_text_to_speech, stream_text_to_speech_edge
+from app.services.tts_service import stream_text_to_speech_edge
 
 
 @asynccontextmanager
@@ -34,17 +34,6 @@ app.include_router(audiobooks.router, prefix="/api/v1", tags=["Audiobooks"])
 @app.get("/")
 async def root():
     return {"message": "TRIAM Backend is running fast with uv!"}
-
-
-@app.get("/test-voice-stream")
-async def test_voice_stream(
-    text: str = "Xin chào, đây là thử nghiệm tốc độ đọc của TRIAM.",
-):
-    """
-    Endpoint này demo khả năng stream audio ngay lập tức.
-    """
-    # Trả về StreamingResponse để Client nghe được ngay khi có byte đầu tiên
-    return StreamingResponse(stream_text_to_speech(text), media_type="audio/mpeg")
 
 
 @app.get("/test-voice-stream-edge")

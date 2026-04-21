@@ -13,12 +13,12 @@ async def search_book_knowledge(query: str, book_id: str):
     # 2. Gọi hàm RPC match_book_knowledge đã tạo ở Supabase
     result = supabase.rpc("match_book_knowledge", {
         "query_embedding": query_vector,
-        "match_threshold": 0.2,
-        "match_count": 3,
+        "match_threshold": 0.3,
+        "match_count": 10,
         "filter_book_id": book_id
     }).execute()
 
     if not result.data:
         return "Không tìm thấy thông tin cụ thể trong sách."
 
-    return "\n".join([item['content'] for item in result.data])
+    return result.data

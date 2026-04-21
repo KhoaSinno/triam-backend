@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 
 load_dotenv(override=True)
 
+
 class Settings:
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     PINECONE_API_KEY = os.getenv("PINECONE_API_KEY")
@@ -15,10 +16,17 @@ class Settings:
     SUPABASE_URL = os.getenv("SUPABASE_URL")
     SUPABASE_KEY = os.getenv("SUPABASE_KEY")
     SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-    TAVILY_API_KEY = os.getenv("TAVILY_API_KEY")
     EDGE_TTS_VOICE = os.getenv("EDGE_TTS_VOICE", "en-US-AvaMultilingualNeural")
     LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
     LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
+
+    # Upload file
+    MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
+    ALLOWED_MIME_TYPES = {
+        "application/pdf",
+        "application/epub+zip",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    }
 
 
 settings = Settings()

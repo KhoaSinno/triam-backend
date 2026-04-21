@@ -4,9 +4,9 @@ import uuid
 
 import aiofiles
 from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, UploadFile
-from pydantic import BaseModel
 from sqlmodel import Session
 
+from app.core.config import settings
 from app.crud.audiobook import (
     create_book,
     create_chapter,
@@ -17,6 +17,7 @@ from app.db import engine
 from app.helper.run_background_processing import run_background_processing
 from app.helper.upload2supabase import upload_file_to_supabase
 from app.models.db_models import Book, Chapter, ReadingPlan
+from app.schemas.plan import PlanInput
 from app.services.pdf_service import extract_chapters_smart
 
 logger = logging.getLogger("upload")
@@ -27,19 +28,6 @@ router = APIRouter()
 # Mock User — thay bằng JWT decode sau khi tích hợp Auth
 # -----------------------------------------------------------------------
 MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
-
-ALLOWED_MIME_TYPES = {"application/pdf", "application/epub+zip", "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
-MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
-
-
-# -----------------------------------------------------------------------
-# Pydantic Schema cho /generate-plan
-# -----------------------------------------------------------------------
-class GeneratePlanRequest(BaseModel):
-    book_id: uuid.UUID
-    mode: str  # "FULL_MODE" | "PARETO_MODE"
-    pace: int  # số chương/ngày
-    schedule_config: list[str]  # VD: ["Mon", "Wed", "Fri"]
 
 
 # -----------------------------------------------------------------------
@@ -53,7 +41,7 @@ async def upload_document(file: UploadFile = File(...)):  # noqa: B008
     Không kích hoạt xử lý AI ở đây.
     """
     # 1. Validate MIME Type hoặc đuôi file (vì chọn file từ Google Drive hay trả về application/octet-stream)
-    is_valid_type = file.content_type in ALLOWED_MIME_TYPES
+    is_valid_type = file.content_type in settings.ALLOWED_MIME_TYPES
     filename_lower = (file.filename or "").lower()
 
     if not is_valid_type:
@@ -62,7 +50,7 @@ async def upload_document(file: UploadFile = File(...)):  # noqa: B008
             raise HTTPException(status_code=400, detail=f"Loại file không hỗ trợ ({file.content_type}). Chỉ chấp nhận PDF, EPUB, DOCX.")
 
     content = await file.read()
-    if len(content) > MAX_FILE_SIZE_BYTES:
+    if len(content) > settings.MAX_FILE_SIZE_BYTES:
         raise HTTPException(status_code=400, detail="File vượt quá giới hạn 50MB.")
 
     # 2. Lưu file tạm để extract outline
@@ -74,7 +62,7 @@ async def upload_document(file: UploadFile = File(...)):  # noqa: B008
         async with aiofiles.open(tmp_filename, "wb") as f:
             await f.write(content)
 
-        # 3. Extract outline (danh sách chương)
+        # 3. Extract outline
         with open(tmp_filename, "rb") as f:
             chapters_data = await extract_chapters_smart(f)
 
@@ -142,7 +130,7 @@ async def upload_document(file: UploadFile = File(...)):  # noqa: B008
 @router.post("/generate-plan")
 async def generate_plan(
     background_tasks: BackgroundTasks,
-    payload: GeneratePlanRequest = Body(...),  # noqa: B008
+    payload: PlanInput = Body(...),  # noqa: B008
 ):
     """
     Bước 2: Nhận cấu hình kế hoạch học từ Flutter, lưu ReadingPlan,

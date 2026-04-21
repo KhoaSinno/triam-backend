@@ -1,62 +1,88 @@
-from livekit.plugins import (
-    google,
-    noise_cancellation,
-    silero,
-)
-from livekit.agents import AgentServer, AgentSession, Agent, function_tool, room_io, RunContext
-from livekit import agents, rtc
 import os
-from typing import Any
+from typing import Annotated
 
 from dotenv import load_dotenv
+from livekit import agents, rtc
+from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, function_tool, room_io
+from livekit.plugins import google, noise_cancellation, silero
+from supabase import Client, create_client
+from tavily import TavilyClient
 
-load_dotenv(".env")
-if os.getenv("GEMINI_API_KEY"):
-    os.environ["GOOGLE_API_KEY"] = os.getenv("GEMINI_API_KEY")
-if os.getenv("GOOGLE_API_KEY"):
-    if "GEMINI_API_KEY" in os.environ:
-        del os.environ["GEMINI_API_KEY"]
+from app.core.config import settings
+from app.services.rag_service import search_book_knowledge
 
+# Load environment
+load_dotenv()
 
-# from app.core.config import settings
+tavily_client = TavilyClient(api_key=settings.TAVILY_API_KEY)
 
-# =======SYSTEM INSTRUCTION=======
-SYSTEM_INSTRUCTION = """
-Bạn là Trợ lý TRIAM - Người hỗ trợ cho người dùng đọc sách qua giọng nói. Bạn có 2 công cụ hỗ trợ:
-1. 'search_book_knowledge': Dùng để tìm trong sách của người dùng. Luôn ưu tiên cái này trước.
-2. 'search_web': Dùng để tìm thông tin từ Internet nếu sách không có câu trả lời hoặc câu hỏi là về tin tức/kiến thức chung.
-Hãy trả lời ngắn gọn, súc tích bằng giọng nói thân thiện.
-"""
-AGENT_NAME = os.getenv("LIVEKIT_AGENT_NAME", "my-agent").strip()
+# Agent name phải khớp với LIVEKIT_AGENT_NAME trong .env và live.py
+AGENT_NAME = os.getenv("LIVEKIT_AGENT_NAME", "my-agent").strip() or "my-agent"
 
 
-class Assistant(Agent):
+# Khởi tạo Supabase (Dùng cho RAG)
+supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+
+
+class TriamAssistant(Agent):
     def __init__(self) -> None:
-        super().__init__(instructions=SYSTEM_INSTRUCTION)
+        super().__init__(
+            instructions="""Bạn là Trợ lý TRIAM - Người hỗ trợ đọc sách qua giọng nói.
+            1. Luôn dùng 'search_book_knowledge' trước khi trả lời về nội dung sách.
+            2. Trả lời cực kỳ ngắn gọn (dưới 2 câu), thân thiện.
+            3. Nếu không thấy trong sách, mới dùng 'search_web'."""
+        )
 
-    @function_tool(name="search_book_knowledge", description="Tra cứu nội dung trong sách của người dùng.")
-    async def search_book_knowledge(
-        self,
-        context: RunContext,
-        query: str,
-    ) -> dict[str, Any]:
-        """Look up book knowledge for a given query.
+    @function_tool
+    async def search_book_knowledge(self, query: Annotated[str, "Câu hỏi hoặc từ khóa cần tìm trong sách của người dùng"]) -> str:
+        """Tra cứu nội dung trong cuốn sách hiện tại từ database kiến thức."""
+        try:
+            # Tối ưu RAG: Gọi RPC để thực hiện Vector Search + Metadata Filtering
+            data = await search_book_knowledge(query, "87543419-c71f-4d7e-9e0d-036b4ab9b81e")
 
-        Args:
-            query: The query to search for in the book.
-        """
+            print("/////Data...........")
+            print(data)
 
-        return {"book_knowledge": "Rich Dad Poor Dad is written in the style of a set of parables presented as autobiographical.[1] The titular \"rich dad\" is his best friend's father who accumulated wealth due to entrepreneurship and savvy investing, while the \"poor dad\" is claimed to be Kiyosaki's own father who he says worked hard all his life but never obtained financial security. The book advocates the importance of financial literacy, financial independence and building wealth through investing in assets, real estate investing, starting and owning businesses, as well as increasing one's financial intelligence to improve one's business and financial aptitude. It also encourages readers to overcome obstacles to becoming wealthy, including fear, cynicism, laziness, bad habits, and arrogance."}
+            if not data:
+                return "Không tìm thấy thông tin này trong sách."
+
+            formatted_chunks = []
+            for i, item in enumerate(data):
+                # Format rõ ràng từng đoạn, cung cấp index để LLM biết đây là các đoạn rời rạc
+                chunk_text = f"--- Đoạn {i + 1} (Chương ID: ...{item.get('chapter_id', '')[-6:]}, Index: {item.get('chunk_index', 'N/A')}) ---\n{item.get('content', '')}"
+                formatted_chunks.append(chunk_text)
+
+            context = "\n\n".join(formatted_chunks)
+            print("/////Context...........")
+            print(context)
+            return f"Thông tin từ sách: {context}"
+        except Exception as e:
+            return f"Lỗi truy xuất: {str(e)}"
+
+    @function_tool
+    async def search_web(self, query: Annotated[str, "Nội dung cần tìm kiếm trên internet"]) -> str:
+        """Tìm kiếm thông tin từ Internet."""
+
+        # Tavily Python SDK v0.3+ dùng sync, không có async wrapper
+        import asyncio
+        loop = asyncio.get_event_loop()
+        search_result = await loop.run_in_executor(
+            None,
+            lambda: tavily_client.search(query=query, search_depth="basic", max_results=3),
+        )
+        result_text = "\n".join([f"- {r['content']}" for r in search_result["results"]])
+
+        # Print result_text to console
+        print(result_text)
+
+        return result_text
 
 
-server = AgentServer()
+async def entrypoint(ctx: JobContext):
+    # Bắt buộc với pattern WorkerOptions: phải connect Room trước khi start session
+    await ctx.connect()
 
-
-# Để agent_name rỗng mặc định nhằm auto dispatch (Flutter connect room là agent nhận job).
-# Nếu muốn dispatch cứng theo tên, set env LIVEKIT_AGENT_NAME=my-agent.
-@server.rtc_session(agent_name=AGENT_NAME)
-async def my_agent(ctx: agents.JobContext):
-
+    # Khởi tạo Session
     session = AgentSession(
         llm=google.realtime.RealtimeModel(
             api_key=os.getenv("GOOGLE_API_KEY"),
@@ -66,21 +92,25 @@ async def my_agent(ctx: agents.JobContext):
         vad=silero.VAD.load(),
     )
 
+    # Chạy Agent
     await session.start(
         room=ctx.room,
-        agent=Assistant(),
+        agent=TriamAssistant(),
         room_options=room_io.RoomOptions(
             audio_input=room_io.AudioInputOptions(
-                noise_cancellation=lambda params: noise_cancellation.BVCTelephony(
-                ) if params.participant.kind == rtc.ParticipantKind.PARTICIPANT_KIND_SIP else noise_cancellation.BVC(),
+                noise_cancellation=lambda _: noise_cancellation.BVC(),
             ),
         ),
     )
 
-    await session.generate_reply(
-        instructions="Xin chào! Tôi là trợ lý ảo của bạn. Hãy hỏi tôi bất cứ điều gì bạn muốn biết nhé!",
-    )
+    # FIX LỖI Ở ĐÂY: Thêm 'instructions='
+    await session.generate_reply(instructions="Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi đã sẵn sàng hỗ trợ bạn đọc sách.")
 
 
 if __name__ == "__main__":
-    agents.cli.run_app(server)
+    # Tắt tính năng tự động ngắt khi CPU cao + đăng ký đúng agent_name
+    agents.cli.run_app(WorkerOptions(
+        entrypoint_fnc=entrypoint,
+        load_fnc=lambda: 0.0,
+        agent_name=AGENT_NAME,
+    ))

@@ -24,7 +24,8 @@ COPY --chown=user . .
 # Run FastAPI application using uvicorn via uv, change port to 7860
 # CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
 
-# Cấp quyền thực thi và chạy script start.sh
+# Provide access to execute and run start.sh
 RUN chmod +x ./start.sh
 ENV BACKEND_PORT=7860
+ENV AGENT_MODE=start
 CMD ["./start.sh"]
