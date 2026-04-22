@@ -25,20 +25,21 @@ supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVIC
 
 
 class TriamAssistant(Agent):
-    def __init__(self) -> None:
+    def __init__(self, book_id: str) -> None:
         super().__init__(
             instructions="""Bạn là Trợ lý TRIAM - Người hỗ trợ đọc sách qua giọng nói.
             1. Luôn dùng 'search_book_knowledge' trước khi trả lời về nội dung sách.
             2. Trả lời cực kỳ ngắn gọn (dưới 2 câu), thân thiện.
             3. Nếu không thấy trong sách, mới dùng 'search_web'."""
         )
+        self.book_id = book_id
 
     @function_tool
     async def search_book_knowledge(self, query: Annotated[str, "Câu hỏi hoặc từ khóa cần tìm trong sách của người dùng"]) -> str:
         """Tra cứu nội dung trong cuốn sách hiện tại từ database kiến thức."""
         try:
             # Tối ưu RAG: Gọi RPC để thực hiện Vector Search + Metadata Filtering
-            data = await search_book_knowledge(query, "87543419-c71f-4d7e-9e0d-036b4ab9b81e")
+            data = await search_book_knowledge(query, self.book_id)
 
             print("/////Data...........")
             print(data)
@@ -82,6 +83,10 @@ async def entrypoint(ctx: JobContext):
     # Bắt buộc với pattern WorkerOptions: phải connect Room trước khi start session
     await ctx.connect()
 
+    # Nhận book_id từ thông tin Room (được định nghĩa trong /live-token endpoint)
+    book_id = ctx.room.name
+    print(f"[Agent] Bắt đầu phiên đọc sách cho Book ID: {book_id}")
+
     # Khởi tạo Session
     session = AgentSession(
         llm=google.realtime.RealtimeModel(
@@ -95,7 +100,7 @@ async def entrypoint(ctx: JobContext):
     # Chạy Agent
     await session.start(
         room=ctx.room,
-        agent=TriamAssistant(),
+        agent=TriamAssistant(book_id=book_id),
         room_options=room_io.RoomOptions(
             audio_input=room_io.AudioInputOptions(
                 noise_cancellation=lambda _: noise_cancellation.BVC(),
@@ -103,7 +108,7 @@ async def entrypoint(ctx: JobContext):
         ),
     )
 
-    # FIX LỖI Ở ĐÂY: Thêm 'instructions='
+    # Start session with a message as the first message
     await session.generate_reply(instructions="Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi đã sẵn sàng hỗ trợ bạn đọc sách.")
 
 
