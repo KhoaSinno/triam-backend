@@ -153,3 +153,12 @@ Người chơi đàn ngước lên và nhìn chằm chằm con gái tôi một c
 “Làm thế nào mà cháu biết tên ta?”, người đàn ông nhấn giọng. Con gái tôi nhìn
 ông ta một lát và nói: “Ông đã nói với cháu lần trước mà!”
 ...........Context/////
+{"message": "closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)", "level": "INFO", "name": "livekit.agents", "room": "87543419-c71f-4d7e-9e0d-036b4ab9b81e", "participant": "user_8cf695", "reason": "CLIENT_INITIATED", "timestamp": "2026-04-23T02:46:26.788749+00:00"}
+{"message": "received job request", "level": "INFO", "name": "livekit.agents", "job_id": "AJ_FwFjsaWgSSZk", "dispatch_id": "AD_jobCxyQD9pnt", "room": "87543419-c71f-4d7e-9e0d-036b4ab9b81e", "room_id": "RM_fVGQoJxFuwEo", "agent_name": "triam-voice-agent", "resuming": false, "enable_recording": false, "timestamp": "2026-04-23T02:47:23.522260+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 1276, "timestamp": "2026-04-23T02:47:23.704520+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 1276, "elapsed_time": 0.0, "timestamp": "2026-04-23T02:47:23.706060+00:00"}
+[Agent] Bắt đầu phiên đọc sách cho Book ID: 87543419-c71f-4d7e-9e0d-036b4ab9b81e
+{"message": "Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.", "level": "WARNING", "name": "google_genai._api_client", "timestamp": "2026-04-23T02:47:24.944607+00:00"}
+{"message": "closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)", "level": "INFO", "name": "livekit.agents", "room": "87543419-c71f-4d7e-9e0d-036b4ab9b81e", "participant": "user_f74647", "reason": "CLIENT_INITIATED", "timestamp": "2026-04-23T02:48:10.069021+00:00"}
+{"message": "draining worker", "level": "INFO", "name": "livekit.agents", "id": "AW_SVUmeVZQnges", "timeout": 1800, "timestamp": "2026-04-23T02:52:09.760854+00:00"}
+{"message": "shutting down worker", "level": "INFO", "name": "livekit.agents", "id": "AW_SVUmeVZQnges", "timestamp": "2026-04-23T02:52:09.761861+00:00"}
