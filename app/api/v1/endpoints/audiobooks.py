@@ -25,6 +25,10 @@ def read_book(book_id: uuid.UUID, session: Annotated[Session, Depends(get_sessio
 def add_new_book(book: Book, session: Annotated[Session, Depends(get_session)]):
     return crud_book.create_book(session, book)
 
+@router.delete("/book/{book_id}")
+def delete_book(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
+    crud_book.delete_book(session, book_id)
+    return {"message": "Book deleted"}
 
 @router.get("/books/{book_id}/details")
 def get_book_details(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):

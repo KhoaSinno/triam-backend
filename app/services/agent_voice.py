@@ -1,8 +1,6 @@
-import os
 from typing import Annotated
 
-from dotenv import load_dotenv
-from livekit import agents, rtc
+from livekit import agents
 from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, function_tool, room_io
 from livekit.plugins import google, noise_cancellation, silero
 from supabase import Client, create_client
@@ -11,14 +9,7 @@ from tavily import TavilyClient
 from app.core.config import settings
 from app.services.rag_service import search_book_knowledge
 
-# Load environment
-load_dotenv()
-
 tavily_client = TavilyClient(api_key=settings.TAVILY_API_KEY)
-
-# Agent name phải khớp với LIVEKIT_AGENT_NAME trong .env và live.py
-AGENT_NAME = os.getenv("LIVEKIT_AGENT_NAME", "my-agent").strip() or "my-agent"
-
 
 # Khởi tạo Supabase (Dùng cho RAG)
 supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
@@ -43,6 +34,7 @@ class TriamAssistant(Agent):
 
             print("/////Data...........")
             print(data)
+            print("...........Data/////")
 
             if not data:
                 return "Không tìm thấy thông tin này trong sách."
@@ -56,6 +48,7 @@ class TriamAssistant(Agent):
             context = "\n\n".join(formatted_chunks)
             print("/////Context...........")
             print(context)
+            print("...........Context/////")
             return f"Thông tin từ sách: {context}"
         except Exception as e:
             return f"Lỗi truy xuất: {str(e)}"
@@ -66,6 +59,7 @@ class TriamAssistant(Agent):
 
         # Tavily Python SDK v0.3+ dùng sync, không có async wrapper
         import asyncio
+
         loop = asyncio.get_event_loop()
         search_result = await loop.run_in_executor(
             None,
@@ -90,8 +84,8 @@ async def entrypoint(ctx: JobContext):
     # Khởi tạo Session
     session = AgentSession(
         llm=google.realtime.RealtimeModel(
-            api_key=os.getenv("GOOGLE_API_KEY"),
-            model="models/gemini-2.5-flash-native-audio-latest",
+            api_key=settings.GEMINI_API_KEY,
+            model=settings.GEMINI_MODEL_NATIVE_AUDIO,
             voice="Puck",
         ),
         vad=silero.VAD.load(),
@@ -114,8 +108,10 @@ async def entrypoint(ctx: JobContext):
 
 if __name__ == "__main__":
     # Tắt tính năng tự động ngắt khi CPU cao + đăng ký đúng agent_name
-    agents.cli.run_app(WorkerOptions(
-        entrypoint_fnc=entrypoint,
-        load_fnc=lambda: 0.0,
-        agent_name=AGENT_NAME,
-    ))
+    agents.cli.run_app(
+        WorkerOptions(
+            entrypoint_fnc=entrypoint,
+            load_fnc=lambda: 0.0,
+            agent_name=settings.LIVEKIT_AGENT_NAME,
+        )
+    )

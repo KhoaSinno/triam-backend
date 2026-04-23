@@ -6,16 +6,16 @@ import uuid
 from sqlmodel import Session
 
 from app.core.supabase import supabase
-from app.crud.audiobook import (
-    bulk_create_segments,
+from app.crud.audiobook import update_book_status
+from app.crud.book_knowledge import delete_knowledge_by_chapter
+from app.crud.chapter import (
     delete_chapter,
     get_draft_chapters_by_book,
-    update_book_status,
     update_chapter_review_audio,
     update_chapter_review_text,
     update_chapter_status,
 )
-from app.crud.book_knowledge import delete_knowledge_by_chapter
+from app.crud.chapter_segment import bulk_create_segments
 from app.db import engine
 from app.helper.upload2supabase import upload_file_to_supabase
 from app.models.db_models import Book, ChapterSegment

@@ -7,12 +7,9 @@ from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, Uploa
 from sqlmodel import Session
 
 from app.core.config import settings
-from app.crud.audiobook import (
-    create_book,
-    create_chapter,
-    create_reading_plan,
-    update_book_status,
-)
+from app.crud.audiobook import create_book, update_book_status
+from app.crud.chapter import create_chapter
+from app.crud.plan import create_reading_plan
 from app.db import engine
 from app.helper.run_background_processing import run_background_processing
 from app.helper.upload2supabase import upload_file_to_supabase

@@ -1,23 +1,24 @@
-{"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.5.2", "rtc-version": "1.1.5", "timestamp": "2026-04-21T16:10:46.451783+00:00"}
-{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.google", "version": "1.5.2", "timestamp": "2026-04-21T16:10:46.451783+00:00"}
-{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.silero", "version": "1.5.2", "timestamp": "2026-04-21T16:10:46.451783+00:00"}
-{"message": "HTTP server listening on :8081", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-04-21T16:10:46.453790+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 22240, "timestamp": "2026-04-21T16:10:46.457243+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 23444, "timestamp": "2026-04-21T16:10:46.457243+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 14208, "timestamp": "2026-04-21T16:10:46.457763+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 21208, "timestamp": "2026-04-21T16:10:46.457763+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 22240, "elapsed_time": 0.0, "timestamp": "2026-04-21T16:10:46.458768+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 23444, "elapsed_time": 0.0, "timestamp": "2026-04-21T16:10:46.458768+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 14208, "elapsed_time": 0.0, "timestamp": "2026-04-21T16:10:46.458768+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 21208, "elapsed_time": 0.0, "timestamp": "2026-04-21T16:10:46.459839+00:00"}
-{"message": "registered worker", "level": "INFO", "name": "livekit.agents", "agent_name": "my-agent", "id": "AW_ATP8TDxPSTF9", "url": "wss://tri-am-bmdl413w.livekit.cloud", "region": "Singapore South East", "protocol": 17, "timestamp": "2026-04-21T16:10:46.993407+00:00"}
-{"message": "received job request", "level": "INFO", "name": "livekit.agents", "job_id": "AJ_No3xgjmmukNy", "dispatch_id": "AD_ejtPRv9bdMJK", "room": "87543419-c71f-4d7e-9e0d-036b4ab9b81e", "room_id": "RM_akqehLRHxMfw", "agent_name": "my-agent", "resuming": false, "enable_recording": false, "timestamp": "2026-04-21T16:15:11.979560+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 2856, "timestamp": "2026-04-21T16:15:12.132062+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 2856, "elapsed_time": 0.0, "timestamp": "2026-04-21T16:15:12.132062+00:00"}
+{"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.5.2", "rtc-version": "1.1.5", "timestamp": "2026-04-23T02:44:31.802784+00:00"}
+{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.google", "version": "1.5.2", "timestamp": "2026-04-23T02:44:31.802784+00:00"}
+{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.silero", "version": "1.5.2", "timestamp": "2026-04-23T02:44:31.802784+00:00"}
+{"message": "HTTP server listening on :8081", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-04-23T02:44:31.804569+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 23060, "timestamp": "2026-04-23T02:44:31.807671+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 17080, "timestamp": "2026-04-23T02:44:31.807671+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 21944, "timestamp": "2026-04-23T02:44:31.807671+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 13476, "timestamp": "2026-04-23T02:44:31.807671+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 23060, "elapsed_time": 0.0, "timestamp": "2026-04-23T02:44:31.809185+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 17080, "elapsed_time": 0.0, "timestamp": "2026-04-23T02:44:31.809185+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 21944, "elapsed_time": 0.0, "timestamp": "2026-04-23T02:44:31.810192+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 13476, "elapsed_time": 0.0, "timestamp": "2026-04-23T02:44:31.810697+00:00"}
+{"message": "registered worker", "level": "INFO", "name": "livekit.agents", "agent_name": "triam-voice-agent", "id": "AW_SVUmeVZQnges", "url": "wss://tri-am-bmdl413w.livekit.cloud", "region": "Singapore South East", "protocol": 17, "timestamp": "2026-04-23T02:44:33.026475+00:00"}
+{"message": "received job request", "level": "INFO", "name": "livekit.agents", "job_id": "AJ_BCvsFuuERk5p", "dispatch_id": "AD_QZRG77zm6uvL", "room": "87543419-c71f-4d7e-9e0d-036b4ab9b81e", "room_id": "RM_7PkcR55whgsg", "agent_name": "triam-voice-agent", "resuming": false, "enable_recording": false, "timestamp": "2026-04-23T02:45:01.609833+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 10932, "timestamp": "2026-04-23T02:45:01.797178+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 10932, "elapsed_time": 0.0, "timestamp": "2026-04-23T02:45:01.798182+00:00"}
 [Agent] Bắt đầu phiên đọc sách cho Book ID: 87543419-c71f-4d7e-9e0d-036b4ab9b81e
-{"message": "Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.", "level": "WARNING", "name": "google_genai._api_client", "timestamp": "2026-04-21T16:15:13.904669+00:00"}
+{"message": "Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.", "level": "WARNING", "name": "google_genai._api_client", "timestamp": "2026-04-23T02:45:03.834750+00:00"}
 /////Data...........
-[{'id': 701, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': '46c3dfd6-905f-42eb-870a-783404a3998b', 'chunk_index': 0, 'content': 'Trong các phần tiếp theo của cuốn sách này, tôi sẽ chỉ cho bạn nhiều thứ,\ntrong đó có cách ghi nhớ danh sách đó dễ dàng và nhanh hơn cả thời gian viết\nchúng ra giấy. Hơn nữa, tôi cũng sẽ chứng minh cho bạn thấy bạn sẽ không quên\nnó trong vài ngày sau khi đã mua sắm.\nViệc chúng ta thiếu tin tưởng vào trí nhớ của mình không chỉ liên quan đến\nnhững điều mới mẻ ra muốn nhớ, mà còn rõ ràng đối với trí nhớ hiện tại. Đây là\nmột ví dụ. Hãy suy nghĩ một phú về tấm biển nhường đường mà ta gặp ở cuối\nmột số con đường, trước khi đến chỗ giao nhau. Tấm biển đó có hình dạng thế\nnào? Có phải nó là một hình tam giác có đáy ở phía trên còn đỉnh ở phía dưới?\n“Đó là hình tam giác ngược”, có lẽ ban sẽ hào hứng nói như vậy, đúng\nkhông? Bạn đã nghĩ kỹ chưa? Đó là hình tam giác ngược hay đó chỉ là cách bạn\nnhìn… Và nếu tôi nói rằng đó là một hình tam giác thông thường, bạn có ngạc\nnhiên không?\nTôi sẽ bắt bạn phải chờ đợi lâu. Đó thật sự là một hình tam giác ngược. Phải\nthừa nhận điều này – liệu có phải đôi khi bạn thoáng chút nghi ngờ rằng trí nhớ\ncủa bạn làm cho bạn u mê?\nVấn đề mà tôi muốn nhấn mạnh ở đây là, rất dễ dàng hủy hoại niềm tin vào\ntrí nhớ của chúng ta vì chúng ta không thật sự tin tưởng nó.', 'similarity': 0.433957716931931}, {'id': 691, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e082e7db-b3b6-4f5d-80bb-01090ace5c4f', 'chunk_index': 5, 'content': 'học cách thực hiện các bài tập tăng cường trí nhớ đặc biệt, tôi chọn lọc các\nphương pháp mới, và nhận thấy hiệu quả đáng ngạc nhiên của chúng trong mọi\nlĩnh vực của cuộc sống.\nTrong cuốn sách này, tôi muốn giới thiệu với các bạn những gì mà tôi cho là\ncác ý tưởng, phương pháp và bí quyết thành công nhất để phát triển một trí nhớ\ntuyệt vời.\nCuốn sách này không chỉ hướng dẫn bạn mà còn chứng minh cho bạn thấy\nrằng các phương pháp này có hiệu quả. Do đó, bạn sẽ thấy các bài luyện tập vui\nxuyên suốt các chương được sắp xếp theo thứ tự thời gian và cấp độ tăng dần từ\ndễ đến khó.\nBạn sẽ nhận thấy sự thay đổi khả năng ghi nhớ của mình ngay sau vài chương\nđầu tiên của cuốn sách.\n9', 'similarity': 0.421661153328369}, {'id': 694, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': '893aed8c-fc38-4ff6-b5ed-46966fcf7ee7', 'chunk_index': 2, 'content': 'hiện ngay lập tức những hứa hẹn của tôi. Bạn vừa mua được một sản phẩm mới,\nbạn chờ đợi và háo hức được sử dụng nó là một điều dễ hiểu, nhưng nếu bạn đã\nkiên nhẫn chờ đợi trong một năm thì hãy cố đọc thêm vài chương nữa nhé!\nBây giờ, với cuốn sách của người huấn luyện, việc học một vài nguyên tắc\nhoạt động đơn giản là điều cần thiết. Sau đó, bạn sẽ tiếp tục học những phương\npháp hiệu quả để có thể nhận được những lợi ích từ sản phẩm mới mua được.\n23\nChương 3. Bài đố vui\nMột bài kiểm tra trí nhớ nhỏ\nTôi đảm bảo rằng bạn hoàn toàn có thể tập trung trí nhớ đáng ngạc nhiên\nngay sau khi bạn đọc xong cuốn sách này. Và ở giai đoạn này, có lẽ bạn chưa thật\nsự tin tưởng tôi. Chỉ có một cách duy nhất để biết liệu điều đó có trở thành hiện\nthực trong tương lai hay không là hãy tiếp tục đọc.\nHơn nữa, để tiến bộ của bạn thật sự nổi bật, bạn cần phải so sánh khả năng\nghi nhớ của bạn trước và sau khi đọc cuốn sách này.\nVới lý do này, việc kiểm tra khả năng ghi nhớ và tình trạng hiện tại của nó là\nđiều đáng làm. Đây không phải là một cuộc kiểm tra trí nhớ mang tính khoa học.\nKhi nhận được điểm SAT, bạn không thể vì nó mà không muốn sống nữa. Bạn', 'similarity': 0.417689520008564}, {'id': 696, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': '893aed8c-fc38-4ff6-b5ed-46966fcf7ee7', 'chunk_index': 4, 'content': 'chương. Với từng bước đột phá, sự tự tin vào trí nhớ của bạn sẽ tăng lên, bạn sẽ\ncó thêm động lực để bước tiếp và thành công.\nMột gợi ý khác là không nên lười mà bỏ qua cuộc kiểm tra này và đọc\nchương tiếp theo. Trong cuộc sống, chẳng mấy khi bạn có cơ hội tham gia một\ncuộc kiểm tra khi mà những cảm nhận tích cực về nó đang nhạt nhòa dần. Hơn\nnữa, cuộc kiểm tra này không phải là những chỉ dẫn để bạn nhớ nhiều thứ khác\nnữa. Mục đích của nó là chỉ cho bạn thấy rằng, trí nhớ của bạn về những lĩnh vực\ntrong cuộc sống ít được rèn luyện đến mức độ nào.\nBây giờ bạn hãy lấy một chiếc bút và một chiếc đồng hồ (không cần giấy,\nnhưng nếu bạn đang đọc online thì tất nhiên phải cần rùiJ), ngồi thoải mái ở một\nnơi yên tĩnh và thư giãn.\nBài kiểm tra số 1\n24\nHãy đọc danh sách các mục sau chỉ một lần. Sau đó, viết ra theo trí nhớ các\nmục theo thứ tự được liệt kê. Bài kiểm tra này nhằm 2 mục đích:\nNhớ càng nhiều mục càng tốt.\nNhớ các mục theo thứ tự của chúng.\nBạn có 2 phút để hoàn thành bài kiểm tra này.\nDanh sách bao gồm:\nÔtô, con thỏ, quả bong, chú hề, bể bơi, con voi, cánh cửa, áo sơ mi, cái diều,\ntấm thảm, ti vi, cỏ, Elvis Presley, máy vi tính, cây cối, thực vật, cát, lát bánh, mũ.', 'similarity': 0.411186443900726}, {'id': 686, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e082e7db-b3b6-4f5d-80bb-01090ace5c4f', 'chunk_index': 0, 'content': 'Mục lục\nPhần mở đầu\nChương 1. Sự tự lừa dối\nChương 2. Một hướng tiếp cận mới\nChương 3. Bài đố vui\nChương 4. “Xin chào, Ron… à… Don, ý tôi là John…”\nChương 5. Điều này gợi cho tôi nhớ đến...\nChương 6. “Người phụ nữ đi giày bằng vàng…”\nChương 7. “Cat and gory = Category”\nChương 8. Phương pháp Roman Room\nChương 9. Giấy tờ, nhiệm vụ và những sự sắp xếp khác\nChương 10. Chìa khóa đâu nhỉ…?\nChương 11. Cách nhớ các con số\nChương 12. Cuốn danh bạ điện thoại hoàn hảo của bạn\nChương 13. Từ miền đất Luoisiana đến đế chế Napoleon\nChương 14. Trí nhớ siêu phàm trong học hành và thi cử\nChương 15. Trí nhớ siêu phàm trong thuyết trình\nChương 16. Trí nhớ siêu phàm trong ngôn ngữ và từ vựng\nChương 17. “Chúng ta đã gặp nhau chưa nhỉ? Nhìn bạn quen lắm…”\nChương 18. Một cái tên chứa đựng điều gì?\nChương 19. Áp dụng các phương pháp đỉnh nhất để nhớ tên và nhớ mặt\nChương 20. Ghi nhớ tên từng người trong nhóm ngay những phút đầu gặp gỡ\nChương 21. “Năm năm sau”\nChương 22. Chơi bài\nChương 23. Trò ghi nhớ một dãy số dài\nTóm tắt. Tầm quan trọng của trí nhớ\n7\nPhần mở đầu\nMột buổi tối nọ, khi chúng tôi đang đi dạo trên phố dành cho người đi bộ ở', 'similarity': 0.403762741718179}, {'id': 693, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': '893aed8c-fc38-4ff6-b5ed-46966fcf7ee7', 'chunk_index': 1, 'content': 'này cũng tương tự nhu cầu rèn luyện trí nhớ dần dần.. Đồng thời, quá trình luyện\ntập phải ngày càng nhanh và có hiệu quả, và khi bạn đọc xong cuốn sách này, bạn\ncó thể đạt được kết quả ngay lập tức.\nTôi dám khẳng định với bạn rằng, nếu bạn hợp tác và thực hiện đầy đủ những\nbài luyện tập thú vị trong cuốn sách này, khả năng ghi nhớ của bạn sẽ tăng ít nhất\nlà 50%.\nSự thật đang dần dần được phơi bày. Có phải bạn mua trí nhớ mới này hay\nkhông? Tôi có thể hiểu nếu bạn vẫn còn nghi ngờ và không tin tưởng lắm – điều\nđó thật tồi tện nhưng bạn vẫn còn cơ hội thay đổi sau đó. Nếu bạn thiết tha với ý\ntưởng này và mong muốn tiếp tục tiến lên – con đường đi của bạn chắc chắn sẽ\ndễ dàng hơn. Tôi cần nhấn mạnh rằng cuốn sách này không phải là tiểu thuyết\ncủa John Grisham – sẽ chẳng có ích gì nếu bạn đọc lướt qua những trang cuối\ncùng của quyển sách để tìm ra đoạn kết của câu chuyện. Bạn sẽ không thể tìm ra\nbí mật của trí nhớ siêu phàm ở trang cuối và cũng đừng hy vọng bạn có thể thực\nhiện ngay lập tức những hứa hẹn của tôi. Bạn vừa mua được một sản phẩm mới,\nbạn chờ đợi và háo hức được sử dụng nó là một điều dễ hiểu, nhưng nếu bạn đã', 'similarity': 0.398768588137832}, {'id': 699, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': '893aed8c-fc38-4ff6-b5ed-46966fcf7ee7', 'chunk_index': 7, 'content': 'Đây là bài kiểm tra cuối cùng. Sau đó bạn hãy tạm nghỉ ngơi thư giãn. Bạn\nhãy thưởng thức 1 tách cà phê hay đi du lịch đâu đó 1 tuần, rồi sau đó, quay trở\nlại đọc tiếp cuốn sách này.\nDưới đây là danh sách các ngày tháng quan trọng trong lịch sử. Bạn có 2 phút\nđể ghi nhớ chúng.\n1776..................... Cách mạng Mỹ\n1815..................... Trận Waterloo\n1939..................... Chiến tranh Thế giới thứ 2\n1789..................... Cách mạng Pháp\n1917..................... Cách mạng Nga\n1770..................... năm sinh của Beethoven\n1932..................... năm sinh của Donald Duck\n1977..................... năm Elvis Presley qua đời\n26\n1969..................... con người lần đầu tiên đặt chân lên Mặt trăng\n14-11-1948.......... sinh nhật Thái tử Charles\nKết quả bài kiểm tra trí nhớ\nBài kiểm tra số 1: Hãy cho một điểm với mỗi đồ vật bạn nhớ và thêm một\nđiểm nữa cho mỗi mục bạn nhớ đúng thứ tự. Nếu bạn đảo vị trí của hai thứ mà\nsau đó cả hai đều sai thi có nghĩa bạn mất đi hai điểm. Tổng số điểm của bài\nkiểm tra này là 40.\nBài kiểm tra số 2: Hãy kể tên các mục theo số thứ tự của nó ghi trong danh\nsách. Bạn được một điểm với mỗi mục đúng.', 'similarity': 0.393490111098912}, {'id': 717, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': '46c3dfd6-905f-42eb-870a-783404a3998b', 'chunk_index': 16, 'content': '5. Nếu chúng ta thoát ra khỏi “nắp đậy” và thật sự mong muốn có một trí nhớ\ntuyệt vời – nó sẽ khiến chúng ta kinh ngạc.\nNếu chúng ta coi trí nhớ như một “hàng hóa” thì cho đến lúc này tôi đang cố\ngắng “bán” lại trí nhớ cho bạn. Tôi đã cho bạn biết những đặc điểm, đặc tính,\ncũng như một vài khám phá ngạc nhiên khác. Tôi không muốn bạn chấp nhận nó\nnhư một món quà hay coi nó là hiển nhiên. Tôi muốn bạn mua nó với giá gốc.\nKhi bạn mua một sản phẩm nào đó với giá cao, thông thường bạn sẽ so sánh\ngiá của nó với những sản phẩm tương tự. Tôi vẫn chưa nói đến phần thú vị của\nsự mua bán này: cho bạn biết là hàng bạn mua có gì hơn so với của người khác\nsau khi đọc xong cuốn sách này.\nVới trí nhớ đã được rèn luyện, bạn có thể:\n- Gặp gỡ 50 người tại một bữa tiệc và nhiều năm sau vẫn nhớ tên cũng như\nnhiều thông tin liên quan đến họ.\n- Nhớ hàng trăm số điện thoại mà không cần đến danh bạ điện thoại.\n- Nhớ được phần lớn các tài liệu chỉ sau 1 lần đọc.\n22', 'similarity': 0.373948573765605}, {'id': 697, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': '893aed8c-fc38-4ff6-b5ed-46966fcf7ee7', 'chunk_index': 5, 'content': 'Danh sách bao gồm:\nÔtô, con thỏ, quả bong, chú hề, bể bơi, con voi, cánh cửa, áo sơ mi, cái diều,\ntấm thảm, ti vi, cỏ, Elvis Presley, máy vi tính, cây cối, thực vật, cát, lát bánh, mũ.\n(Hãy cho 1 điểm với mỗi đồ vật bạn nhớ và thêm 1 điểm cho mỗi mục bạn\nnhớ đúng thứ tự. Nếu bạn đảo vị trí của hai thứ mà sau đó cả hai đều sai thì có\nnghĩa bạn mất đi 2 điểm. Tổng số điểm của bài kiểm tra này là 40)\nBài kiểm tra số 2\nDanh sách các mục sau được đánh số từ 1 đến 20. Nhiệm vụ của bạn là nhớ\ndanh sách này dựa vào thuộc tính số học, nghĩa là, biết cách quy mỗi thứ cho con\nsố liệt kê bên cạnh (thứ tự số học của nó). Bạn có 3 phút để thực hiện.\n1. Chăn\n2. Bánh Hamburger\n3. Xe đạp\n4. Thép\n5. Con hà mã\n6. Bánh pizza\n7. Chảo\n8. Mũ\n9. Quả dưa chuột\n10. Xúc xích\n11. Gà\n12. Xúc xích\n13. Rơm\n14. Thuốc lá\n15. Bruce Springteen (một ca sĩ, nhạc sĩ người Mỹ, sinh năm 1949, biệt danh\n“the Boss”. Ông đã dành được vô số giải thưởng, trong đó có 19 giải Grammy, 2\ngiải Quả cầu vàng và 1 giải Oscar.)\n16. Bột nhào\n17. Chuối\n18. Bánh\n19. Mứt\n20. Cá\n(Bạn được 1 điểm cho 1 mục đúng)\n1…… 11……..\n25\n2…… 12……..\n3……. 13……..\n4………. 14……….\n5…….. 15………..\n6………. 16………..\n7………. 17………….\n8………. 18………\n9………. 19………..', 'similarity': 0.361409370440462}, {'id': 673, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e2974ffb-fa59-4be2-b38f-be0605dd7c49', 'chunk_index': 0, 'content': 'Đọc xong cuốn sách này, có thể bạn sẽ thực hiện những bài tập tăng cường trí\nnhớ đặc biệt đễ trong phần đời còn lại bạn sẽ có được sự hiểu biết, kinh nghiệm\nvà bằng chứng về việc bạn có thể tin tưởng vào trí nhớ của bản than và khả năng\nghi nhớ tất cả những gì bạn muốn.\nThân mến! – Eran Katz\n10\nChương 1. Sự tự lừa dối\nVài điều ngạc nhiên về trí nhớ con người\nBạn đang tản bộ trên con đường nhỏ, hàng trăm người lướt qua bạn, rồi đột\nnhiên anh ta xuất hiện…\nTrông anh ta rất quen, rõ ràng bạn biết tên anh ta nhưng lại không thề nhớ ra.\nBạn nheo mắt lại và liếc anh ta với ngụ ý: “Yên tâm đi, trong một giây tôi sẽ nhớ\nra chúng ta đã gặp nhau ở đâu thôi”, nhưng sau đó bạn từ bỏ, rồi nói: “ Có lẽ\nchúng ta đã gặp nhau ở…”, anh ta nhắc bạn: “Trong bữa tiệc của Mike, cách đây\nhai tháng. Anh là David đúng không…?”\n“Ồ! Đúng rồi”, bạn nuốt nước bọt rồi cố gắng vớt vát chút lòng tự trọng của\nmình: “Còn anh là Ron… à Don nhỉ…”\n“Allan”, anh ta nhanh chóng giúp bạn vượt qua tình huống khó khăn.\n“Tôi nhớ là có chữ A”, bạn cố tỏ ra hài hước rồi vội vàng xin lỗi, “Thứ lỗi\ncho tôi nhé, trí nhớ của tôi kém quá.”\nTình huống này có vẻ rất quen thuộc nhỉ? Có phải tất cả chúng ta đều từng', 'similarity': 0.358478829660821}]
+[{'id': 701, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': '46c3dfd6-905f-42eb-870a-783404a3998b', 'chunk_index': 0, 'content': 'Trong các phần tiếp theo của cuốn sách này, tôi sẽ chỉ cho bạn nhiều thứ,\ntrong đó có cách ghi nhớ danh sách đó dễ dàng và nhanh hơn cả thời gian viết\nchúng ra giấy. Hơn nữa, tôi cũng sẽ chứng minh cho bạn thấy bạn sẽ không quên\nnó trong vài ngày sau khi đã mua sắm.\nViệc chúng ta thiếu tin tưởng vào trí nhớ của mình không chỉ liên quan đến\nnhững điều mới mẻ ra muốn nhớ, mà còn rõ ràng đối với trí nhớ hiện tại. Đây là\nmột ví dụ. Hãy suy nghĩ một phú về tấm biển nhường đường mà ta gặp ở cuối\nmột số con đường, trước khi đến chỗ giao nhau. Tấm biển đó có hình dạng thế\nnào? Có phải nó là một hình tam giác có đáy ở phía trên còn đỉnh ở phía dưới?\n“Đó là hình tam giác ngược”, có lẽ ban sẽ hào hứng nói như vậy, đúng\nkhông? Bạn đã nghĩ kỹ chưa? Đó là hình tam giác ngược hay đó chỉ là cách bạn\nnhìn… Và nếu tôi nói rằng đó là một hình tam giác thông thường, bạn có ngạc\nnhiên không?\nTôi sẽ bắt bạn phải chờ đợi lâu. Đó thật sự là một hình tam giác ngược. Phải\nthừa nhận điều này – liệu có phải đôi khi bạn thoáng chút nghi ngờ rằng trí nhớ\ncủa bạn làm cho bạn u mê?\nVấn đề mà tôi muốn nhấn mạnh ở đây là, rất dễ dàng hủy hoại niềm tin vào\ntrí nhớ của chúng ta vì chúng ta không thật sự tin tưởng nó.', 'similarity': 0.347807697710161}, {'id': 686, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e082e7db-b3b6-4f5d-80bb-01090ace5c4f', 'chunk_index': 0, 'content': 'Mục lục\nPhần mở đầu\nChương 1. Sự tự lừa dối\nChương 2. Một hướng tiếp cận mới\nChương 3. Bài đố vui\nChương 4. “Xin chào, Ron… à… Don, ý tôi là John…”\nChương 5. Điều này gợi cho tôi nhớ đến...\nChương 6. “Người phụ nữ đi giày bằng vàng…”\nChương 7. “Cat and gory = Category”\nChương 8. Phương pháp Roman Room\nChương 9. Giấy tờ, nhiệm vụ và những sự sắp xếp khác\nChương 10. Chìa khóa đâu nhỉ…?\nChương 11. Cách nhớ các con số\nChương 12. Cuốn danh bạ điện thoại hoàn hảo của bạn\nChương 13. Từ miền đất Luoisiana đến đế chế Napoleon\nChương 14. Trí nhớ siêu phàm trong học hành và thi cử\nChương 15. Trí nhớ siêu phàm trong thuyết trình\nChương 16. Trí nhớ siêu phàm trong ngôn ngữ và từ vựng\nChương 17. “Chúng ta đã gặp nhau chưa nhỉ? Nhìn bạn quen lắm…”\nChương 18. Một cái tên chứa đựng điều gì?\nChương 19. Áp dụng các phương pháp đỉnh nhất để nhớ tên và nhớ mặt\nChương 20. Ghi nhớ tên từng người trong nhóm ngay những phút đầu gặp gỡ\nChương 21. “Năm năm sau”\nChương 22. Chơi bài\nChương 23. Trò ghi nhớ một dãy số dài\nTóm tắt. Tầm quan trọng của trí nhớ\n7\nPhần mở đầu\nMột buổi tối nọ, khi chúng tôi đang đi dạo trên phố dành cho người đi bộ ở', 'similarity': 0.339941261467886}, {'id': 673, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e2974ffb-fa59-4be2-b38f-be0605dd7c49', 'chunk_index': 0, 'content': 'Đọc xong cuốn sách này, có thể bạn sẽ thực hiện những bài tập tăng cường trí\nnhớ đặc biệt đễ trong phần đời còn lại bạn sẽ có được sự hiểu biết, kinh nghiệm\nvà bằng chứng về việc bạn có thể tin tưởng vào trí nhớ của bản than và khả năng\nghi nhớ tất cả những gì bạn muốn.\nThân mến! – Eran Katz\n10\nChương 1. Sự tự lừa dối\nVài điều ngạc nhiên về trí nhớ con người\nBạn đang tản bộ trên con đường nhỏ, hàng trăm người lướt qua bạn, rồi đột\nnhiên anh ta xuất hiện…\nTrông anh ta rất quen, rõ ràng bạn biết tên anh ta nhưng lại không thề nhớ ra.\nBạn nheo mắt lại và liếc anh ta với ngụ ý: “Yên tâm đi, trong một giây tôi sẽ nhớ\nra chúng ta đã gặp nhau ở đâu thôi”, nhưng sau đó bạn từ bỏ, rồi nói: “ Có lẽ\nchúng ta đã gặp nhau ở…”, anh ta nhắc bạn: “Trong bữa tiệc của Mike, cách đây\nhai tháng. Anh là David đúng không…?”\n“Ồ! Đúng rồi”, bạn nuốt nước bọt rồi cố gắng vớt vát chút lòng tự trọng của\nmình: “Còn anh là Ron… à Don nhỉ…”\n“Allan”, anh ta nhanh chóng giúp bạn vượt qua tình huống khó khăn.\n“Tôi nhớ là có chữ A”, bạn cố tỏ ra hài hước rồi vội vàng xin lỗi, “Thứ lỗi\ncho tôi nhé, trí nhớ của tôi kém quá.”\nTình huống này có vẻ rất quen thuộc nhỉ? Có phải tất cả chúng ta đều từng', 'similarity': 0.338832395361054}, {'id': 693, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': '893aed8c-fc38-4ff6-b5ed-46966fcf7ee7', 'chunk_index': 1, 'content': 'này cũng tương tự nhu cầu rèn luyện trí nhớ dần dần.. Đồng thời, quá trình luyện\ntập phải ngày càng nhanh và có hiệu quả, và khi bạn đọc xong cuốn sách này, bạn\ncó thể đạt được kết quả ngay lập tức.\nTôi dám khẳng định với bạn rằng, nếu bạn hợp tác và thực hiện đầy đủ những\nbài luyện tập thú vị trong cuốn sách này, khả năng ghi nhớ của bạn sẽ tăng ít nhất\nlà 50%.\nSự thật đang dần dần được phơi bày. Có phải bạn mua trí nhớ mới này hay\nkhông? Tôi có thể hiểu nếu bạn vẫn còn nghi ngờ và không tin tưởng lắm – điều\nđó thật tồi tện nhưng bạn vẫn còn cơ hội thay đổi sau đó. Nếu bạn thiết tha với ý\ntưởng này và mong muốn tiếp tục tiến lên – con đường đi của bạn chắc chắn sẽ\ndễ dàng hơn. Tôi cần nhấn mạnh rằng cuốn sách này không phải là tiểu thuyết\ncủa John Grisham – sẽ chẳng có ích gì nếu bạn đọc lướt qua những trang cuối\ncùng của quyển sách để tìm ra đoạn kết của câu chuyện. Bạn sẽ không thể tìm ra\nbí mật của trí nhớ siêu phàm ở trang cuối và cũng đừng hy vọng bạn có thể thực\nhiện ngay lập tức những hứa hẹn của tôi. Bạn vừa mua được một sản phẩm mới,\nbạn chờ đợi và háo hức được sử dụng nó là một điều dễ hiểu, nhưng nếu bạn đã', 'similarity': 0.338609830128611}, {'id': 691, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e082e7db-b3b6-4f5d-80bb-01090ace5c4f', 'chunk_index': 5, 'content': 'học cách thực hiện các bài tập tăng cường trí nhớ đặc biệt, tôi chọn lọc các\nphương pháp mới, và nhận thấy hiệu quả đáng ngạc nhiên của chúng trong mọi\nlĩnh vực của cuộc sống.\nTrong cuốn sách này, tôi muốn giới thiệu với các bạn những gì mà tôi cho là\ncác ý tưởng, phương pháp và bí quyết thành công nhất để phát triển một trí nhớ\ntuyệt vời.\nCuốn sách này không chỉ hướng dẫn bạn mà còn chứng minh cho bạn thấy\nrằng các phương pháp này có hiệu quả. Do đó, bạn sẽ thấy các bài luyện tập vui\nxuyên suốt các chương được sắp xếp theo thứ tự thời gian và cấp độ tăng dần từ\ndễ đến khó.\nBạn sẽ nhận thấy sự thay đổi khả năng ghi nhớ của mình ngay sau vài chương\nđầu tiên của cuốn sách.\n9', 'similarity': 0.332369359400798}, {'id': 687, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e082e7db-b3b6-4f5d-80bb-01090ace5c4f', 'chunk_index': 1, 'content': 'Chương 22. Chơi bài\nChương 23. Trò ghi nhớ một dãy số dài\nTóm tắt. Tầm quan trọng của trí nhớ\n7\nPhần mở đầu\nMột buổi tối nọ, khi chúng tôi đang đi dạo trên phố dành cho người đi bộ ở\nJerusalem thì Gali, cô con gái mới bốn tuổi của tôi đã khiến tôi vô cùng ngạc\nnhiên khi hỏi:\n“Bố ơi, cho con xin 25 xu được không ạ?”\n“Để làm gì vậy, con gái?” tôi hỏi lại.\n“Để con cho Boris”, con bé trả lời.\nTôi không biết người nào tên Boris và chắc chắn không nhìn thấy người nào\nmà con bé quen biết, nên tôi hỏi nó:\n“Ai là Boris vậy con?”\n“À, là người chơi nhạc đó bố”, con bé nói nhỏ.\nNgay lập tức tôi hiểu ra, chắc là con bé nói tới người đang chơi đàn măng-đô-\nlin kia, kiếm sống dựa vào sự tốt bụng và nhân hậu của khách qua đường. Dù\nvậy, tôi vẫn ngạc nhiên về việc con bé biết tên ông ta.\nGali cầm tiền và lại gần người chơi đàn lúc này đang tập trung vào công việc\ncủa mình. Gali đứng trước mặt người đàn ông, nhưng không thể khiến cho ông ta\nchú ý, con bé đã nói nhỏ: “Boris, cho ông này.”\nNgười chơi đàn ngước lên và nhìn chằm chằm con gái tôi một cách sửng sốt:\n“Làm thế nào mà cháu biết tên ta?”, người đàn ông nhấn giọng. Con gái tôi nhìn\nông ta một lát và nói: “Ông đã nói với cháu lần trước mà!”', 'similarity': 0.306813273385626}]
+...........Data/////
 /////Context...........
 --- Đoạn 1 (Chương ID: ...a3998b, Index: 0) ---
 Trong các phần tiếp theo của cuốn sách này, tôi sẽ chỉ cho bạn nhiều thứ,
@@ -39,65 +40,7 @@ của bạn làm cho bạn u mê?
 Vấn đề mà tôi muốn nhấn mạnh ở đây là, rất dễ dàng hủy hoại niềm tin vào
 trí nhớ của chúng ta vì chúng ta không thật sự tin tưởng nó.
 
---- Đoạn 2 (Chương ID: ...ce5c4f, Index: 5) ---
-học cách thực hiện các bài tập tăng cường trí nhớ đặc biệt, tôi chọn lọc các
-phương pháp mới, và nhận thấy hiệu quả đáng ngạc nhiên của chúng trong mọi
-lĩnh vực của cuộc sống.
-Trong cuốn sách này, tôi muốn giới thiệu với các bạn những gì mà tôi cho là
-các ý tưởng, phương pháp và bí quyết thành công nhất để phát triển một trí nhớ
-tuyệt vời.
-Cuốn sách này không chỉ hướng dẫn bạn mà còn chứng minh cho bạn thấy
-rằng các phương pháp này có hiệu quả. Do đó, bạn sẽ thấy các bài luyện tập vui
-xuyên suốt các chương được sắp xếp theo thứ tự thời gian và cấp độ tăng dần từ
-dễ đến khó.
-Bạn sẽ nhận thấy sự thay đổi khả năng ghi nhớ của mình ngay sau vài chương
-đầu tiên của cuốn sách.
-9
-
---- Đoạn 3 (Chương ID: ...cf7ee7, Index: 2) ---
-hiện ngay lập tức những hứa hẹn của tôi. Bạn vừa mua được một sản phẩm mới,
-bạn chờ đợi và háo hức được sử dụng nó là một điều dễ hiểu, nhưng nếu bạn đã
-kiên nhẫn chờ đợi trong một năm thì hãy cố đọc thêm vài chương nữa nhé!
-Bây giờ, với cuốn sách của người huấn luyện, việc học một vài nguyên tắc
-hoạt động đơn giản là điều cần thiết. Sau đó, bạn sẽ tiếp tục học những phương
-pháp hiệu quả để có thể nhận được những lợi ích từ sản phẩm mới mua được.
-23
-Chương 3. Bài đố vui
-Một bài kiểm tra trí nhớ nhỏ
-Tôi đảm bảo rằng bạn hoàn toàn có thể tập trung trí nhớ đáng ngạc nhiên
-ngay sau khi bạn đọc xong cuốn sách này. Và ở giai đoạn này, có lẽ bạn chưa thật
-sự tin tưởng tôi. Chỉ có một cách duy nhất để biết liệu điều đó có trở thành hiện
-thực trong tương lai hay không là hãy tiếp tục đọc.
-Hơn nữa, để tiến bộ của bạn thật sự nổi bật, bạn cần phải so sánh khả năng
-ghi nhớ của bạn trước và sau khi đọc cuốn sách này.
-Với lý do này, việc kiểm tra khả năng ghi nhớ và tình trạng hiện tại của nó là
-điều đáng làm. Đây không phải là một cuộc kiểm tra trí nhớ mang tính khoa học.
-Khi nhận được điểm SAT, bạn không thể vì nó mà không muốn sống nữa. Bạn
-
---- Đoạn 4 (Chương ID: ...cf7ee7, Index: 4) ---
-chương. Với từng bước đột phá, sự tự tin vào trí nhớ của bạn sẽ tăng lên, bạn sẽ
-có thêm động lực để bước tiếp và thành công.
-Một gợi ý khác là không nên lười mà bỏ qua cuộc kiểm tra này và đọc
-chương tiếp theo. Trong cuộc sống, chẳng mấy khi bạn có cơ hội tham gia một
-cuộc kiểm tra khi mà những cảm nhận tích cực về nó đang nhạt nhòa dần. Hơn
-nữa, cuộc kiểm tra này không phải là những chỉ dẫn để bạn nhớ nhiều thứ khác
-nữa. Mục đích của nó là chỉ cho bạn thấy rằng, trí nhớ của bạn về những lĩnh vực
-trong cuộc sống ít được rèn luyện đến mức độ nào.
-Bây giờ bạn hãy lấy một chiếc bút và một chiếc đồng hồ (không cần giấy,
-nhưng nếu bạn đang đọc online thì tất nhiên phải cần rùiJ), ngồi thoải mái ở một
-nơi yên tĩnh và thư giãn.
-Bài kiểm tra số 1
-24
-Hãy đọc danh sách các mục sau chỉ một lần. Sau đó, viết ra theo trí nhớ các
-mục theo thứ tự được liệt kê. Bài kiểm tra này nhằm 2 mục đích:
-Nhớ càng nhiều mục càng tốt.
-Nhớ các mục theo thứ tự của chúng.
-Bạn có 2 phút để hoàn thành bài kiểm tra này.
-Danh sách bao gồm:
-Ôtô, con thỏ, quả bong, chú hề, bể bơi, con voi, cánh cửa, áo sơ mi, cái diều,
-tấm thảm, ti vi, cỏ, Elvis Presley, máy vi tính, cây cối, thực vật, cát, lát bánh, mũ.
-
---- Đoạn 5 (Chương ID: ...ce5c4f, Index: 0) ---
+--- Đoạn 2 (Chương ID: ...ce5c4f, Index: 0) ---
 Mục lục
 Phần mở đầu
 Chương 1. Sự tự lừa dối
@@ -128,156 +71,7 @@ Tóm tắt. Tầm quan trọng của trí nhớ
 Phần mở đầu
 Một buổi tối nọ, khi chúng tôi đang đi dạo trên phố dành cho người đi bộ ở
 
---- Đoạn 6 (Chương ID: ...cf7ee7, Index: 1) ---
-này cũng tương tự nhu cầu rèn luyện trí nhớ dần dần.. Đồng thời, quá trình luyện
-tập phải ngày càng nhanh và có hiệu quả, và khi bạn đọc xong cuốn sách này, bạn
-có thể đạt được kết quả ngay lập tức.
-Tôi dám khẳng định với bạn rằng, nếu bạn hợp tác và thực hiện đầy đủ những
-bài luyện tập thú vị trong cuốn sách này, khả năng ghi nhớ của bạn sẽ tăng ít nhất
-là 50%.
-Sự thật đang dần dần được phơi bày. Có phải bạn mua trí nhớ mới này hay
-không? Tôi có thể hiểu nếu bạn vẫn còn nghi ngờ và không tin tưởng lắm – điều
-đó thật tồi tện nhưng bạn vẫn còn cơ hội thay đổi sau đó. Nếu bạn thiết tha với ý
-tưởng này và mong muốn tiếp tục tiến lên – con đường đi của bạn chắc chắn sẽ
-dễ dàng hơn. Tôi cần nhấn mạnh rằng cuốn sách này không phải là tiểu thuyết
-của John Grisham – sẽ chẳng có ích gì nếu bạn đọc lướt qua những trang cuối
-cùng của quyển sách để tìm ra đoạn kết của câu chuyện. Bạn sẽ không thể tìm ra
-bí mật của trí nhớ siêu phàm ở trang cuối và cũng đừng hy vọng bạn có thể thực
-hiện ngay lập tức những hứa hẹn của tôi. Bạn vừa mua được một sản phẩm mới,
-bạn chờ đợi và háo hức được sử dụng nó là một điều dễ hiểu, nhưng nếu bạn đã
-
---- Đoạn 7 (Chương ID: ...cf7ee7, Index: 7) ---
-Đây là bài kiểm tra cuối cùng. Sau đó bạn hãy tạm nghỉ ngơi thư giãn. Bạn
-hãy thưởng thức 1 tách cà phê hay đi du lịch đâu đó 1 tuần, rồi sau đó, quay trở
-lại đọc tiếp cuốn sách này.
-Dưới đây là danh sách các ngày tháng quan trọng trong lịch sử. Bạn có 2 phút
-để ghi nhớ chúng.
-1776..................... Cách mạng Mỹ
-1815..................... Trận Waterloo
-1939..................... Chiến tranh Thế giới thứ 2
-1789..................... Cách mạng Pháp
-1917..................... Cách mạng Nga
-1770..................... năm sinh của Beethoven
-1932..................... năm sinh của Donald Duck
-1977..................... năm Elvis Presley qua đời
-26
-1969..................... con người lần đầu tiên đặt chân lên Mặt trăng
-14-11-1948.......... sinh nhật Thái tử Charles
-Kết quả bài kiểm tra trí nhớ
-Bài kiểm tra số 1: Hãy cho một điểm với mỗi đồ vật bạn nhớ và thêm một
-điểm nữa cho mỗi mục bạn nhớ đúng thứ tự. Nếu bạn đảo vị trí của hai thứ mà
-sau đó cả hai đều sai thi có nghĩa bạn mất đi hai điểm. Tổng số điểm của bài
-kiểm tra này là 40.
-Bài kiểm tra số 2: Hãy kể tên các mục theo số thứ tự của nó ghi trong danh
-sách. Bạn được một điểm với mỗi mục đúng.
-
---- Đoạn 8 (Chương ID: ...a3998b, Index: 16) ---
-5. Nếu chúng ta thoát ra khỏi “nắp đậy” và thật sự mong muốn có một trí nhớ
-tuyệt vời – nó sẽ khiến chúng ta kinh ngạc.
-Nếu chúng ta coi trí nhớ như một “hàng hóa” thì cho đến lúc này tôi đang cố
-gắng “bán” lại trí nhớ cho bạn. Tôi đã cho bạn biết những đặc điểm, đặc tính,
-cũng như một vài khám phá ngạc nhiên khác. Tôi không muốn bạn chấp nhận nó
-như một món quà hay coi nó là hiển nhiên. Tôi muốn bạn mua nó với giá gốc.
-Khi bạn mua một sản phẩm nào đó với giá cao, thông thường bạn sẽ so sánh
-giá của nó với những sản phẩm tương tự. Tôi vẫn chưa nói đến phần thú vị của
-sự mua bán này: cho bạn biết là hàng bạn mua có gì hơn so với của người khác
-sau khi đọc xong cuốn sách này.
-Với trí nhớ đã được rèn luyện, bạn có thể:
-- Gặp gỡ 50 người tại một bữa tiệc và nhiều năm sau vẫn nhớ tên cũng như
-nhiều thông tin liên quan đến họ.
-- Nhớ hàng trăm số điện thoại mà không cần đến danh bạ điện thoại.
-- Nhớ được phần lớn các tài liệu chỉ sau 1 lần đọc.
-22
-
---- Đoạn 9 (Chương ID: ...cf7ee7, Index: 5) ---
-Danh sách bao gồm:
-Ôtô, con thỏ, quả bong, chú hề, bể bơi, con voi, cánh cửa, áo sơ mi, cái diều,
-tấm thảm, ti vi, cỏ, Elvis Presley, máy vi tính, cây cối, thực vật, cát, lát bánh, mũ.
-(Hãy cho 1 điểm với mỗi đồ vật bạn nhớ và thêm 1 điểm cho mỗi mục bạn
-nhớ đúng thứ tự. Nếu bạn đảo vị trí của hai thứ mà sau đó cả hai đều sai thì có
-nghĩa bạn mất đi 2 điểm. Tổng số điểm của bài kiểm tra này là 40)
-Bài kiểm tra số 2
-Danh sách các mục sau được đánh số từ 1 đến 20. Nhiệm vụ của bạn là nhớ
-danh sách này dựa vào thuộc tính số học, nghĩa là, biết cách quy mỗi thứ cho con
-số liệt kê bên cạnh (thứ tự số học của nó). Bạn có 3 phút để thực hiện.
-1. Chăn
-2. Bánh Hamburger
-3. Xe đạp
-4. Thép
-5. Con hà mã
-6. Bánh pizza
-7. Chảo
-8. Mũ
-9. Quả dưa chuột
-10. Xúc xích
-11. Gà
-12. Xúc xích
-13. Rơm
-14. Thuốc lá
-15. Bruce Springteen (một ca sĩ, nhạc sĩ người Mỹ, sinh năm 1949, biệt danh
-“the Boss”. Ông đã dành được vô số giải thưởng, trong đó có 19 giải Grammy, 2
-giải Quả cầu vàng và 1 giải Oscar.)
-16. Bột nhào
-17. Chuối
-18. Bánh
-19. Mứt
-20. Cá
-(Bạn được 1 điểm cho 1 mục đúng)
-1…… 11……..
-25
-2…… 12……..
-3……. 13……..
-4………. 14……….
-5…….. 15………..
-6………. 16………..
-7………. 17………….
-8………. 18………
-9………. 19………..
-
---- Đoạn 10 (Chương ID: ...dd7c49, Index: 0) ---
-Đọc xong cuốn sách này, có thể bạn sẽ thực hiện những bài tập tăng cường trí
-nhớ đặc biệt đễ trong phần đời còn lại bạn sẽ có được sự hiểu biết, kinh nghiệm
-và bằng chứng về việc bạn có thể tin tưởng vào trí nhớ của bản than và khả năng
-ghi nhớ tất cả những gì bạn muốn.
-Thân mến! – Eran Katz
-10
-Chương 1. Sự tự lừa dối
-Vài điều ngạc nhiên về trí nhớ con người
-Bạn đang tản bộ trên con đường nhỏ, hàng trăm người lướt qua bạn, rồi đột
-nhiên anh ta xuất hiện…
-Trông anh ta rất quen, rõ ràng bạn biết tên anh ta nhưng lại không thề nhớ ra.
-Bạn nheo mắt lại và liếc anh ta với ngụ ý: “Yên tâm đi, trong một giây tôi sẽ nhớ
-ra chúng ta đã gặp nhau ở đâu thôi”, nhưng sau đó bạn từ bỏ, rồi nói: “ Có lẽ
-chúng ta đã gặp nhau ở…”, anh ta nhắc bạn: “Trong bữa tiệc của Mike, cách đây
-hai tháng. Anh là David đúng không…?”
-“Ồ! Đúng rồi”, bạn nuốt nước bọt rồi cố gắng vớt vát chút lòng tự trọng của
-mình: “Còn anh là Ron… à Don nhỉ…”
-“Allan”, anh ta nhanh chóng giúp bạn vượt qua tình huống khó khăn.
-“Tôi nhớ là có chữ A”, bạn cố tỏ ra hài hước rồi vội vàng xin lỗi, “Thứ lỗi
-cho tôi nhé, trí nhớ của tôi kém quá.”
-Tình huống này có vẻ rất quen thuộc nhỉ? Có phải tất cả chúng ta đều từng
-/////Data...........
-[{'id': 693, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': '893aed8c-fc38-4ff6-b5ed-46966fcf7ee7', 'chunk_index': 1, 'content': 'này cũng tương tự nhu cầu rèn luyện trí nhớ dần dần.. Đồng thời, quá trình luyện\ntập phải ngày càng nhanh và có hiệu quả, và khi bạn đọc xong cuốn sách này, bạn\ncó thể đạt được kết quả ngay lập tức.\nTôi dám khẳng định với bạn rằng, nếu bạn hợp tác và thực hiện đầy đủ những\nbài luyện tập thú vị trong cuốn sách này, khả năng ghi nhớ của bạn sẽ tăng ít nhất\nlà 50%.\nSự thật đang dần dần được phơi bày. Có phải bạn mua trí nhớ mới này hay\nkhông? Tôi có thể hiểu nếu bạn vẫn còn nghi ngờ và không tin tưởng lắm – điều\nđó thật tồi tện nhưng bạn vẫn còn cơ hội thay đổi sau đó. Nếu bạn thiết tha với ý\ntưởng này và mong muốn tiếp tục tiến lên – con đường đi của bạn chắc chắn sẽ\ndễ dàng hơn. Tôi cần nhấn mạnh rằng cuốn sách này không phải là tiểu thuyết\ncủa John Grisham – sẽ chẳng có ích gì nếu bạn đọc lướt qua những trang cuối\ncùng của quyển sách để tìm ra đoạn kết của câu chuyện. Bạn sẽ không thể tìm ra\nbí mật của trí nhớ siêu phàm ở trang cuối và cũng đừng hy vọng bạn có thể thực\nhiện ngay lập tức những hứa hẹn của tôi. Bạn vừa mua được một sản phẩm mới,\nbạn chờ đợi và háo hức được sử dụng nó là một điều dễ hiểu, nhưng nếu bạn đã', 'similarity': 0.356927183353543}, {'id': 673, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e2974ffb-fa59-4be2-b38f-be0605dd7c49', 'chunk_index': 0, 'content': 'Đọc xong cuốn sách này, có thể bạn sẽ thực hiện những bài tập tăng cường trí\nnhớ đặc biệt đễ trong phần đời còn lại bạn sẽ có được sự hiểu biết, kinh nghiệm\nvà bằng chứng về việc bạn có thể tin tưởng vào trí nhớ của bản than và khả năng\nghi nhớ tất cả những gì bạn muốn.\nThân mến! – Eran Katz\n10\nChương 1. Sự tự lừa dối\nVài điều ngạc nhiên về trí nhớ con người\nBạn đang tản bộ trên con đường nhỏ, hàng trăm người lướt qua bạn, rồi đột\nnhiên anh ta xuất hiện…\nTrông anh ta rất quen, rõ ràng bạn biết tên anh ta nhưng lại không thề nhớ ra.\nBạn nheo mắt lại và liếc anh ta với ngụ ý: “Yên tâm đi, trong một giây tôi sẽ nhớ\nra chúng ta đã gặp nhau ở đâu thôi”, nhưng sau đó bạn từ bỏ, rồi nói: “ Có lẽ\nchúng ta đã gặp nhau ở…”, anh ta nhắc bạn: “Trong bữa tiệc của Mike, cách đây\nhai tháng. Anh là David đúng không…?”\n“Ồ! Đúng rồi”, bạn nuốt nước bọt rồi cố gắng vớt vát chút lòng tự trọng của\nmình: “Còn anh là Ron… à Don nhỉ…”\n“Allan”, anh ta nhanh chóng giúp bạn vượt qua tình huống khó khăn.\n“Tôi nhớ là có chữ A”, bạn cố tỏ ra hài hước rồi vội vàng xin lỗi, “Thứ lỗi\ncho tôi nhé, trí nhớ của tôi kém quá.”\nTình huống này có vẻ rất quen thuộc nhỉ? Có phải tất cả chúng ta đều từng', 'similarity': 0.348352917794922}, {'id': 701, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': '46c3dfd6-905f-42eb-870a-783404a3998b', 'chunk_index': 0, 'content': 'Trong các phần tiếp theo của cuốn sách này, tôi sẽ chỉ cho bạn nhiều thứ,\ntrong đó có cách ghi nhớ danh sách đó dễ dàng và nhanh hơn cả thời gian viết\nchúng ra giấy. Hơn nữa, tôi cũng sẽ chứng minh cho bạn thấy bạn sẽ không quên\nnó trong vài ngày sau khi đã mua sắm.\nViệc chúng ta thiếu tin tưởng vào trí nhớ của mình không chỉ liên quan đến\nnhững điều mới mẻ ra muốn nhớ, mà còn rõ ràng đối với trí nhớ hiện tại. Đây là\nmột ví dụ. Hãy suy nghĩ một phú về tấm biển nhường đường mà ta gặp ở cuối\nmột số con đường, trước khi đến chỗ giao nhau. Tấm biển đó có hình dạng thế\nnào? Có phải nó là một hình tam giác có đáy ở phía trên còn đỉnh ở phía dưới?\n“Đó là hình tam giác ngược”, có lẽ ban sẽ hào hứng nói như vậy, đúng\nkhông? Bạn đã nghĩ kỹ chưa? Đó là hình tam giác ngược hay đó chỉ là cách bạn\nnhìn… Và nếu tôi nói rằng đó là một hình tam giác thông thường, bạn có ngạc\nnhiên không?\nTôi sẽ bắt bạn phải chờ đợi lâu. Đó thật sự là một hình tam giác ngược. Phải\nthừa nhận điều này – liệu có phải đôi khi bạn thoáng chút nghi ngờ rằng trí nhớ\ncủa bạn làm cho bạn u mê?\nVấn đề mà tôi muốn nhấn mạnh ở đây là, rất dễ dàng hủy hoại niềm tin vào\ntrí nhớ của chúng ta vì chúng ta không thật sự tin tưởng nó.', 'similarity': 0.344747839452703}, {'id': 691, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e082e7db-b3b6-4f5d-80bb-01090ace5c4f', 'chunk_index': 5, 'content': 'học cách thực hiện các bài tập tăng cường trí nhớ đặc biệt, tôi chọn lọc các\nphương pháp mới, và nhận thấy hiệu quả đáng ngạc nhiên của chúng trong mọi\nlĩnh vực của cuộc sống.\nTrong cuốn sách này, tôi muốn giới thiệu với các bạn những gì mà tôi cho là\ncác ý tưởng, phương pháp và bí quyết thành công nhất để phát triển một trí nhớ\ntuyệt vời.\nCuốn sách này không chỉ hướng dẫn bạn mà còn chứng minh cho bạn thấy\nrằng các phương pháp này có hiệu quả. Do đó, bạn sẽ thấy các bài luyện tập vui\nxuyên suốt các chương được sắp xếp theo thứ tự thời gian và cấp độ tăng dần từ\ndễ đến khó.\nBạn sẽ nhận thấy sự thay đổi khả năng ghi nhớ của mình ngay sau vài chương\nđầu tiên của cuốn sách.\n9', 'similarity': 0.329028533592551}, {'id': 689, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e082e7db-b3b6-4f5d-80bb-01090ace5c4f', 'chunk_index': 3, 'content': 'tiên. Cùng lúc đó, Gali bỏ tiền vào cái ống đã han gỉ, ngay lập tức Boris ngừng\nchơi.\n8\nÔng ta quỳ xuống cái ống, nhặt đồng tiền ra và đưa lại cho Gali.\n“Cháu là bạn ta. Với cháu, ta sẽ biểu diễn miễn phí…”, người đàn ông nói với\nnụ cười rạng rỡ.\nBoris lại tiếp tục chơi đàn. Còn tôi theo dõi mọi chuyện đang diễn ra một\ncách thích thú. Đã nhiều năm rồi, tôi dồn hết tâm trí vào việc phát triển và thực\nhiện các cách ghi nhớ, nhận thức được sức mạnh và tầm quan trọng của một trí\nnhớ tốt, cho nên những gì xảy ra ngày hôm đó là một bước ngoặt thật sự; một cô\nbé đi trên đường, tiến lại gần người chơi đàn trên hè phố và gọi tên ông ta. Người\nchơi đàn nghèo sống dựa vào những đồng tiền xu được bỏ vào ống đựng tiền của\nông ta lại sẵn sàng trả lại tiền với tâm trạng vô cùng hạnh phúc. Vì sao vậy?\nBởi vì có người trong số hang nghìn người đi qua ông ta hàng ngày đã nhớ\ntên ông ta. Đó chính là Gali. Con bé đã nhớ tên và còn gọi “Boris”. Còn Boris,\ncảm thấy xúc động và bất ngờ khi có người nhớ tên mình, đã cảm ơn con bé một\ncách tự nhiên – ông thưởng cho con bé một bản nhạc miễn phí. Ông cảm ơn con\nbé vì đã nhớ tên ông – một điều bình thường nhất.', 'similarity': 0.325639335688178}, {'id': 694, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': '893aed8c-fc38-4ff6-b5ed-46966fcf7ee7', 'chunk_index': 2, 'content': 'hiện ngay lập tức những hứa hẹn của tôi. Bạn vừa mua được một sản phẩm mới,\nbạn chờ đợi và háo hức được sử dụng nó là một điều dễ hiểu, nhưng nếu bạn đã\nkiên nhẫn chờ đợi trong một năm thì hãy cố đọc thêm vài chương nữa nhé!\nBây giờ, với cuốn sách của người huấn luyện, việc học một vài nguyên tắc\nhoạt động đơn giản là điều cần thiết. Sau đó, bạn sẽ tiếp tục học những phương\npháp hiệu quả để có thể nhận được những lợi ích từ sản phẩm mới mua được.\n23\nChương 3. Bài đố vui\nMột bài kiểm tra trí nhớ nhỏ\nTôi đảm bảo rằng bạn hoàn toàn có thể tập trung trí nhớ đáng ngạc nhiên\nngay sau khi bạn đọc xong cuốn sách này. Và ở giai đoạn này, có lẽ bạn chưa thật\nsự tin tưởng tôi. Chỉ có một cách duy nhất để biết liệu điều đó có trở thành hiện\nthực trong tương lai hay không là hãy tiếp tục đọc.\nHơn nữa, để tiến bộ của bạn thật sự nổi bật, bạn cần phải so sánh khả năng\nghi nhớ của bạn trước và sau khi đọc cuốn sách này.\nVới lý do này, việc kiểm tra khả năng ghi nhớ và tình trạng hiện tại của nó là\nđiều đáng làm. Đây không phải là một cuộc kiểm tra trí nhớ mang tính khoa học.\nKhi nhận được điểm SAT, bạn không thể vì nó mà không muốn sống nữa. Bạn', 'similarity': 0.316353991887592}, {'id': 696, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': '893aed8c-fc38-4ff6-b5ed-46966fcf7ee7', 'chunk_index': 4, 'content': 'chương. Với từng bước đột phá, sự tự tin vào trí nhớ của bạn sẽ tăng lên, bạn sẽ\ncó thêm động lực để bước tiếp và thành công.\nMột gợi ý khác là không nên lười mà bỏ qua cuộc kiểm tra này và đọc\nchương tiếp theo. Trong cuộc sống, chẳng mấy khi bạn có cơ hội tham gia một\ncuộc kiểm tra khi mà những cảm nhận tích cực về nó đang nhạt nhòa dần. Hơn\nnữa, cuộc kiểm tra này không phải là những chỉ dẫn để bạn nhớ nhiều thứ khác\nnữa. Mục đích của nó là chỉ cho bạn thấy rằng, trí nhớ của bạn về những lĩnh vực\ntrong cuộc sống ít được rèn luyện đến mức độ nào.\nBây giờ bạn hãy lấy một chiếc bút và một chiếc đồng hồ (không cần giấy,\nnhưng nếu bạn đang đọc online thì tất nhiên phải cần rùiJ), ngồi thoải mái ở một\nnơi yên tĩnh và thư giãn.\nBài kiểm tra số 1\n24\nHãy đọc danh sách các mục sau chỉ một lần. Sau đó, viết ra theo trí nhớ các\nmục theo thứ tự được liệt kê. Bài kiểm tra này nhằm 2 mục đích:\nNhớ càng nhiều mục càng tốt.\nNhớ các mục theo thứ tự của chúng.\nBạn có 2 phút để hoàn thành bài kiểm tra này.\nDanh sách bao gồm:\nÔtô, con thỏ, quả bong, chú hề, bể bơi, con voi, cánh cửa, áo sơ mi, cái diều,\ntấm thảm, ti vi, cỏ, Elvis Presley, máy vi tính, cây cối, thực vật, cát, lát bánh, mũ.', 'similarity': 0.315733305371755}, {'id': 682, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e2974ffb-fa59-4be2-b38f-be0605dd7c49', 'chunk_index': 9, 'content': 'giảm sút do các nguyên nhân sinh lý liên quan đến tuổi tác. Nhưng vấn đề ở đây\nlà bạn không phải bác sĩ tâm thần và cũng không biết được mình có thuộc trường\nhợp này không (trừ phi bạn được thông báo cụ thể về điều này).\nTôi đang nói đến những người mà khi về đến nhà sau giờ làm việc lại phát\nhiện ra mình để quên bản báo cáo mà bạn dự định đọc tối nay ở văn phòng, và\nsau đó bạn tuyên bố rằng: “Ôi, tuổi tác đã khiến mình đãng trí rồi…”\nNhững người lấy tuổi tác để bào chữa cho mình nên thực hiện một thí nghiệm\nđơn giản sau. Hãy đến bất kỳ một trường tiểu học nào và đi vào một lớp học vào\ncuối buổi học để thấy rằng tuổi tác không liên quan gì đến trí nhớ: Bạn sẽ tìm\nthấy rất nhiều túi, sách, vở, áo choàng và những đồ vật khác bị bỏ quên.\nĐiều khác biệt duy nhất giữa một đứa trẻ 7 tuổi để quên chiếc bút chì trên\nbàn với một giám đốc điều hành 45 tuổi để quên một bản báo cáo tại văn phòng\nlà đứa trẻ sẽ không về nhà và nói rằng: “Mẹ ơi, làm thế nào bây giờ, trí nhớ của\ncon không còn được như trước nữa…”\nChúng ta cùng đi đến kết luận cho những sự ngạc nhiên này bằng sự ngạc\nnhiên lớn nhất:\nKhông có giới hạn nào cho khả năng nhớ của con người! (Chỉ có giới hạn', 'similarity': 0.314168217858723}, {'id': 688, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e082e7db-b3b6-4f5d-80bb-01090ace5c4f', 'chunk_index': 2, 'content': '“Làm thế nào mà cháu biết tên ta?”, người đàn ông nhấn giọng. Con gái tôi nhìn\nông ta một lát và nói: “Ông đã nói với cháu lần trước mà!”\n“Nhưng làm cách nào mà cháu nhớ được thế?”, ông ta hỏi với tia nhìn ấm áp\nánh lên trong mắt.\nCon gái tôi không trả lời câu hỏi này. Thực tế dường như câu hỏi này chẳng\ncó nghĩa lý gì với nó, cứ như nó đang tự hỏi mình: “Có vấn đề gì vậy?...Ông đã\nnói tên cho cháu và cháu nhớ thôi. Có điều gì đáng ngạc nhiên ở đây sao?”\nTôi đứng sang một bên ngạc nhiên quan sát tình huống này. Tôi hết sức bất\nngờ khi người đàn ông kia, với tôi chỉ là một thành phần không thể thiếu của\ncảnh vật đô thị ở đất nước tôi, thành phần mà bạn thường không chú ý, thì ngược\nlại, với Gali, ông ta chính là Boris! Người đàn ông với một cái tên, giống như tôi\nvà con bé - một người đàn ông thú vị có thể khiến con bé hài lòng qua âm nhạc\ncủa ông ta.\nNhưng những gì xảy ra tiếp theo còn đáng kinh ngạc hơn.\nBoris xếp lại đồ rồi cầm đàn măng-đô-lin bắt đầu gảy những nốt nhạc đầu\ntiên. Cùng lúc đó, Gali bỏ tiền vào cái ống đã han gỉ, ngay lập tức Boris ngừng\nchơi.\n8\nÔng ta quỳ xuống cái ống, nhặt đồng tiền ra và đưa lại cho Gali.', 'similarity': 0.312853123211411}, {'id': 681, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e2974ffb-fa59-4be2-b38f-be0605dd7c49', 'chunk_index': 8, 'content': 'gắng nhớ tên một ai đó, một cuộc hẹn hay một nhiệm vụ trong chừng mực cho\nphép. Đó là sự lãng phí thời gian, vì “bất kỳ khi nào chúng ta không nhớ thì điều\nnày cũng đúng thôi và chúng ta sẽ được tha thứ…”\nCòn thú vị hơn khi phát hiện ra rằng, khi quên mất điều gì đó, hầu hết mọi\nngười đều bào chữa bằng cách đổ lỗi cho sức khỏe. “Tôi vừa bị một trận ốm”.\n“Có quá nhiều thứ trong đầu tôi khiến tôi quên bénG mất nó”, (tương tự câu\n“Não tôi rất nhỏ. Nếu tôi phải ghi nhớ cuộc hẹn với bạn thì việc này cũng đồng\nnghĩa tôi phải quên đi 4 số điện thoại của Nancy, người mà tôi muốn mời đi chơi\ntối nay…”).\nTuy nhiên, một trong những lời biện hộ thường xuyên của tôi là tuổi tác –\n“Trí nhớ của tôi không còn như trước nữa”.\nĐiều ngạc nhiên khác: Tuổi tác chỉ là sự biện hộ\nCó thể có một vài người trong số các bạn sẽ phản ứng lại: Thế còn bệnh\nAlzheimer và mối liên hệ giữa tuổi tác và trí nhớ đã được chứng minh thì sao?!\nĐúng vậy, có mối liên hệ giữa hai yếu tố này, trí nhớ của chúng ta có thể bị\ngiảm sút do các nguyên nhân sinh lý liên quan đến tuổi tác. Nhưng vấn đề ở đây\nlà bạn không phải bác sĩ tâm thần và cũng không biết được mình có thuộc trường', 'similarity': 0.310379720467756}]
-/////Context...........
---- Đoạn 1 (Chương ID: ...cf7ee7, Index: 1) ---
-này cũng tương tự nhu cầu rèn luyện trí nhớ dần dần.. Đồng thời, quá trình luyện
-tập phải ngày càng nhanh và có hiệu quả, và khi bạn đọc xong cuốn sách này, bạn
-có thể đạt được kết quả ngay lập tức.
-Tôi dám khẳng định với bạn rằng, nếu bạn hợp tác và thực hiện đầy đủ những
-bài luyện tập thú vị trong cuốn sách này, khả năng ghi nhớ của bạn sẽ tăng ít nhất
-là 50%.
-Sự thật đang dần dần được phơi bày. Có phải bạn mua trí nhớ mới này hay
-không? Tôi có thể hiểu nếu bạn vẫn còn nghi ngờ và không tin tưởng lắm – điều
-đó thật tồi tện nhưng bạn vẫn còn cơ hội thay đổi sau đó. Nếu bạn thiết tha với ý
-tưởng này và mong muốn tiếp tục tiến lên – con đường đi của bạn chắc chắn sẽ
-dễ dàng hơn. Tôi cần nhấn mạnh rằng cuốn sách này không phải là tiểu thuyết
-của John Grisham – sẽ chẳng có ích gì nếu bạn đọc lướt qua những trang cuối
-cùng của quyển sách để tìm ra đoạn kết của câu chuyện. Bạn sẽ không thể tìm ra
-bí mật của trí nhớ siêu phàm ở trang cuối và cũng đừng hy vọng bạn có thể thực
-hiện ngay lập tức những hứa hẹn của tôi. Bạn vừa mua được một sản phẩm mới,
-bạn chờ đợi và háo hức được sử dụng nó là một điều dễ hiểu, nhưng nếu bạn đã
-
---- Đoạn 2 (Chương ID: ...dd7c49, Index: 0) ---
+--- Đoạn 3 (Chương ID: ...dd7c49, Index: 0) ---
 Đọc xong cuốn sách này, có thể bạn sẽ thực hiện những bài tập tăng cường trí
 nhớ đặc biệt đễ trong phần đời còn lại bạn sẽ có được sự hiểu biết, kinh nghiệm
 và bằng chứng về việc bạn có thể tin tưởng vào trí nhớ của bản than và khả năng
@@ -300,27 +94,25 @@ mình: “Còn anh là Ron… à Don nhỉ…”
 cho tôi nhé, trí nhớ của tôi kém quá.”
 Tình huống này có vẻ rất quen thuộc nhỉ? Có phải tất cả chúng ta đều từng
 
---- Đoạn 3 (Chương ID: ...a3998b, Index: 0) ---
-Trong các phần tiếp theo của cuốn sách này, tôi sẽ chỉ cho bạn nhiều thứ,
-trong đó có cách ghi nhớ danh sách đó dễ dàng và nhanh hơn cả thời gian viết
-chúng ra giấy. Hơn nữa, tôi cũng sẽ chứng minh cho bạn thấy bạn sẽ không quên
-nó trong vài ngày sau khi đã mua sắm.
-Việc chúng ta thiếu tin tưởng vào trí nhớ của mình không chỉ liên quan đến
-những điều mới mẻ ra muốn nhớ, mà còn rõ ràng đối với trí nhớ hiện tại. Đây là
-một ví dụ. Hãy suy nghĩ một phú về tấm biển nhường đường mà ta gặp ở cuối
-một số con đường, trước khi đến chỗ giao nhau. Tấm biển đó có hình dạng thế
-nào? Có phải nó là một hình tam giác có đáy ở phía trên còn đỉnh ở phía dưới?
-“Đó là hình tam giác ngược”, có lẽ ban sẽ hào hứng nói như vậy, đúng
-không? Bạn đã nghĩ kỹ chưa? Đó là hình tam giác ngược hay đó chỉ là cách bạn
-nhìn… Và nếu tôi nói rằng đó là một hình tam giác thông thường, bạn có ngạc
-nhiên không?
-Tôi sẽ bắt bạn phải chờ đợi lâu. Đó thật sự là một hình tam giác ngược. Phải
-thừa nhận điều này – liệu có phải đôi khi bạn thoáng chút nghi ngờ rằng trí nhớ
-của bạn làm cho bạn u mê?
-Vấn đề mà tôi muốn nhấn mạnh ở đây là, rất dễ dàng hủy hoại niềm tin vào
-trí nhớ của chúng ta vì chúng ta không thật sự tin tưởng nó.
+--- Đoạn 4 (Chương ID: ...cf7ee7, Index: 1) ---
+này cũng tương tự nhu cầu rèn luyện trí nhớ dần dần.. Đồng thời, quá trình luyện
+tập phải ngày càng nhanh và có hiệu quả, và khi bạn đọc xong cuốn sách này, bạn
+có thể đạt được kết quả ngay lập tức.
+Tôi dám khẳng định với bạn rằng, nếu bạn hợp tác và thực hiện đầy đủ những
+bài luyện tập thú vị trong cuốn sách này, khả năng ghi nhớ của bạn sẽ tăng ít nhất
+là 50%.
+Sự thật đang dần dần được phơi bày. Có phải bạn mua trí nhớ mới này hay
+không? Tôi có thể hiểu nếu bạn vẫn còn nghi ngờ và không tin tưởng lắm – điều
+đó thật tồi tện nhưng bạn vẫn còn cơ hội thay đổi sau đó. Nếu bạn thiết tha với ý
+tưởng này và mong muốn tiếp tục tiến lên – con đường đi của bạn chắc chắn sẽ
+dễ dàng hơn. Tôi cần nhấn mạnh rằng cuốn sách này không phải là tiểu thuyết
+của John Grisham – sẽ chẳng có ích gì nếu bạn đọc lướt qua những trang cuối
+cùng của quyển sách để tìm ra đoạn kết của câu chuyện. Bạn sẽ không thể tìm ra
+bí mật của trí nhớ siêu phàm ở trang cuối và cũng đừng hy vọng bạn có thể thực
+hiện ngay lập tức những hứa hẹn của tôi. Bạn vừa mua được một sản phẩm mới,
+bạn chờ đợi và háo hức được sử dụng nó là một điều dễ hiểu, nhưng nếu bạn đã
 
---- Đoạn 4 (Chương ID: ...ce5c4f, Index: 5) ---
+--- Đoạn 5 (Chương ID: ...ce5c4f, Index: 5) ---
 học cách thực hiện các bài tập tăng cường trí nhớ đặc biệt, tôi chọn lọc các
 phương pháp mới, và nhận thấy hiệu quả đáng ngạc nhiên của chúng trong mọi
 lĩnh vực của cuộc sống.
@@ -335,131 +127,29 @@ Bạn sẽ nhận thấy sự thay đổi khả năng ghi nhớ của mình ngay
 đầu tiên của cuốn sách.
 9
 
---- Đoạn 5 (Chương ID: ...ce5c4f, Index: 3) ---
-tiên. Cùng lúc đó, Gali bỏ tiền vào cái ống đã han gỉ, ngay lập tức Boris ngừng
-chơi.
-8
-Ông ta quỳ xuống cái ống, nhặt đồng tiền ra và đưa lại cho Gali.
-“Cháu là bạn ta. Với cháu, ta sẽ biểu diễn miễn phí…”, người đàn ông nói với
-nụ cười rạng rỡ.
-Boris lại tiếp tục chơi đàn. Còn tôi theo dõi mọi chuyện đang diễn ra một
-cách thích thú. Đã nhiều năm rồi, tôi dồn hết tâm trí vào việc phát triển và thực
-hiện các cách ghi nhớ, nhận thức được sức mạnh và tầm quan trọng của một trí
-nhớ tốt, cho nên những gì xảy ra ngày hôm đó là một bước ngoặt thật sự; một cô
-bé đi trên đường, tiến lại gần người chơi đàn trên hè phố và gọi tên ông ta. Người
-chơi đàn nghèo sống dựa vào những đồng tiền xu được bỏ vào ống đựng tiền của
-ông ta lại sẵn sàng trả lại tiền với tâm trạng vô cùng hạnh phúc. Vì sao vậy?
-Bởi vì có người trong số hang nghìn người đi qua ông ta hàng ngày đã nhớ
-tên ông ta. Đó chính là Gali. Con bé đã nhớ tên và còn gọi “Boris”. Còn Boris,
-cảm thấy xúc động và bất ngờ khi có người nhớ tên mình, đã cảm ơn con bé một
-cách tự nhiên – ông thưởng cho con bé một bản nhạc miễn phí. Ông cảm ơn con
-bé vì đã nhớ tên ông – một điều bình thường nhất.
-
---- Đoạn 6 (Chương ID: ...cf7ee7, Index: 2) ---
-hiện ngay lập tức những hứa hẹn của tôi. Bạn vừa mua được một sản phẩm mới,
-bạn chờ đợi và háo hức được sử dụng nó là một điều dễ hiểu, nhưng nếu bạn đã
-kiên nhẫn chờ đợi trong một năm thì hãy cố đọc thêm vài chương nữa nhé!
-Bây giờ, với cuốn sách của người huấn luyện, việc học một vài nguyên tắc
-hoạt động đơn giản là điều cần thiết. Sau đó, bạn sẽ tiếp tục học những phương
-pháp hiệu quả để có thể nhận được những lợi ích từ sản phẩm mới mua được.
-23
-Chương 3. Bài đố vui
-Một bài kiểm tra trí nhớ nhỏ
-Tôi đảm bảo rằng bạn hoàn toàn có thể tập trung trí nhớ đáng ngạc nhiên
-ngay sau khi bạn đọc xong cuốn sách này. Và ở giai đoạn này, có lẽ bạn chưa thật
-sự tin tưởng tôi. Chỉ có một cách duy nhất để biết liệu điều đó có trở thành hiện
-thực trong tương lai hay không là hãy tiếp tục đọc.
-Hơn nữa, để tiến bộ của bạn thật sự nổi bật, bạn cần phải so sánh khả năng
-ghi nhớ của bạn trước và sau khi đọc cuốn sách này.
-Với lý do này, việc kiểm tra khả năng ghi nhớ và tình trạng hiện tại của nó là
-điều đáng làm. Đây không phải là một cuộc kiểm tra trí nhớ mang tính khoa học.
-Khi nhận được điểm SAT, bạn không thể vì nó mà không muốn sống nữa. Bạn
-
---- Đoạn 7 (Chương ID: ...cf7ee7, Index: 4) ---
-chương. Với từng bước đột phá, sự tự tin vào trí nhớ của bạn sẽ tăng lên, bạn sẽ
-có thêm động lực để bước tiếp và thành công.
-Một gợi ý khác là không nên lười mà bỏ qua cuộc kiểm tra này và đọc
-chương tiếp theo. Trong cuộc sống, chẳng mấy khi bạn có cơ hội tham gia một
-cuộc kiểm tra khi mà những cảm nhận tích cực về nó đang nhạt nhòa dần. Hơn
-nữa, cuộc kiểm tra này không phải là những chỉ dẫn để bạn nhớ nhiều thứ khác
-nữa. Mục đích của nó là chỉ cho bạn thấy rằng, trí nhớ của bạn về những lĩnh vực
-trong cuộc sống ít được rèn luyện đến mức độ nào.
-Bây giờ bạn hãy lấy một chiếc bút và một chiếc đồng hồ (không cần giấy,
-nhưng nếu bạn đang đọc online thì tất nhiên phải cần rùiJ), ngồi thoải mái ở một
-nơi yên tĩnh và thư giãn.
-Bài kiểm tra số 1
-24
-Hãy đọc danh sách các mục sau chỉ một lần. Sau đó, viết ra theo trí nhớ các
-mục theo thứ tự được liệt kê. Bài kiểm tra này nhằm 2 mục đích:
-Nhớ càng nhiều mục càng tốt.
-Nhớ các mục theo thứ tự của chúng.
-Bạn có 2 phút để hoàn thành bài kiểm tra này.
-Danh sách bao gồm:
-Ôtô, con thỏ, quả bong, chú hề, bể bơi, con voi, cánh cửa, áo sơ mi, cái diều,
-tấm thảm, ti vi, cỏ, Elvis Presley, máy vi tính, cây cối, thực vật, cát, lát bánh, mũ.
-
---- Đoạn 8 (Chương ID: ...dd7c49, Index: 9) ---
-giảm sút do các nguyên nhân sinh lý liên quan đến tuổi tác. Nhưng vấn đề ở đây
-là bạn không phải bác sĩ tâm thần và cũng không biết được mình có thuộc trường
-hợp này không (trừ phi bạn được thông báo cụ thể về điều này).
-Tôi đang nói đến những người mà khi về đến nhà sau giờ làm việc lại phát
-hiện ra mình để quên bản báo cáo mà bạn dự định đọc tối nay ở văn phòng, và
-sau đó bạn tuyên bố rằng: “Ôi, tuổi tác đã khiến mình đãng trí rồi…”
-Những người lấy tuổi tác để bào chữa cho mình nên thực hiện một thí nghiệm
-đơn giản sau. Hãy đến bất kỳ một trường tiểu học nào và đi vào một lớp học vào
-cuối buổi học để thấy rằng tuổi tác không liên quan gì đến trí nhớ: Bạn sẽ tìm
-thấy rất nhiều túi, sách, vở, áo choàng và những đồ vật khác bị bỏ quên.
-Điều khác biệt duy nhất giữa một đứa trẻ 7 tuổi để quên chiếc bút chì trên
-bàn với một giám đốc điều hành 45 tuổi để quên một bản báo cáo tại văn phòng
-là đứa trẻ sẽ không về nhà và nói rằng: “Mẹ ơi, làm thế nào bây giờ, trí nhớ của
-con không còn được như trước nữa…”
-Chúng ta cùng đi đến kết luận cho những sự ngạc nhiên này bằng sự ngạc
-nhiên lớn nhất:
-Không có giới hạn nào cho khả năng nhớ của con người! (Chỉ có giới hạn
-
---- Đoạn 9 (Chương ID: ...ce5c4f, Index: 2) ---
+--- Đoạn 6 (Chương ID: ...ce5c4f, Index: 1) ---
+Chương 22. Chơi bài
+Chương 23. Trò ghi nhớ một dãy số dài
+Tóm tắt. Tầm quan trọng của trí nhớ
+7
+Phần mở đầu
+Một buổi tối nọ, khi chúng tôi đang đi dạo trên phố dành cho người đi bộ ở
+Jerusalem thì Gali, cô con gái mới bốn tuổi của tôi đã khiến tôi vô cùng ngạc
+nhiên khi hỏi:
+“Bố ơi, cho con xin 25 xu được không ạ?”
+“Để làm gì vậy, con gái?” tôi hỏi lại.
+“Để con cho Boris”, con bé trả lời.
+Tôi không biết người nào tên Boris và chắc chắn không nhìn thấy người nào
+mà con bé quen biết, nên tôi hỏi nó:
+“Ai là Boris vậy con?”
+“À, là người chơi nhạc đó bố”, con bé nói nhỏ.
+Ngay lập tức tôi hiểu ra, chắc là con bé nói tới người đang chơi đàn măng-đô-
+lin kia, kiếm sống dựa vào sự tốt bụng và nhân hậu của khách qua đường. Dù
+vậy, tôi vẫn ngạc nhiên về việc con bé biết tên ông ta.
+Gali cầm tiền và lại gần người chơi đàn lúc này đang tập trung vào công việc
+của mình. Gali đứng trước mặt người đàn ông, nhưng không thể khiến cho ông ta
+chú ý, con bé đã nói nhỏ: “Boris, cho ông này.”
+Người chơi đàn ngước lên và nhìn chằm chằm con gái tôi một cách sửng sốt:
 “Làm thế nào mà cháu biết tên ta?”, người đàn ông nhấn giọng. Con gái tôi nhìn
 ông ta một lát và nói: “Ông đã nói với cháu lần trước mà!”
-“Nhưng làm cách nào mà cháu nhớ được thế?”, ông ta hỏi với tia nhìn ấm áp
-ánh lên trong mắt.
-Con gái tôi không trả lời câu hỏi này. Thực tế dường như câu hỏi này chẳng
-có nghĩa lý gì với nó, cứ như nó đang tự hỏi mình: “Có vấn đề gì vậy?...Ông đã
-nói tên cho cháu và cháu nhớ thôi. Có điều gì đáng ngạc nhiên ở đây sao?”
-Tôi đứng sang một bên ngạc nhiên quan sát tình huống này. Tôi hết sức bất
-ngờ khi người đàn ông kia, với tôi chỉ là một thành phần không thể thiếu của
-cảnh vật đô thị ở đất nước tôi, thành phần mà bạn thường không chú ý, thì ngược
-lại, với Gali, ông ta chính là Boris! Người đàn ông với một cái tên, giống như tôi
-và con bé - một người đàn ông thú vị có thể khiến con bé hài lòng qua âm nhạc
-của ông ta.
-Nhưng những gì xảy ra tiếp theo còn đáng kinh ngạc hơn.
-Boris xếp lại đồ rồi cầm đàn măng-đô-lin bắt đầu gảy những nốt nhạc đầu
-tiên. Cùng lúc đó, Gali bỏ tiền vào cái ống đã han gỉ, ngay lập tức Boris ngừng
-chơi.
-8
-Ông ta quỳ xuống cái ống, nhặt đồng tiền ra và đưa lại cho Gali.
-
---- Đoạn 10 (Chương ID: ...dd7c49, Index: 8) ---
-gắng nhớ tên một ai đó, một cuộc hẹn hay một nhiệm vụ trong chừng mực cho
-phép. Đó là sự lãng phí thời gian, vì “bất kỳ khi nào chúng ta không nhớ thì điều
-này cũng đúng thôi và chúng ta sẽ được tha thứ…”
-Còn thú vị hơn khi phát hiện ra rằng, khi quên mất điều gì đó, hầu hết mọi
-người đều bào chữa bằng cách đổ lỗi cho sức khỏe. “Tôi vừa bị một trận ốm”.
-“Có quá nhiều thứ trong đầu tôi khiến tôi quên bénG mất nó”, (tương tự câu
-“Não tôi rất nhỏ. Nếu tôi phải ghi nhớ cuộc hẹn với bạn thì việc này cũng đồng
-nghĩa tôi phải quên đi 4 số điện thoại của Nancy, người mà tôi muốn mời đi chơi
-tối nay…”).
-Tuy nhiên, một trong những lời biện hộ thường xuyên của tôi là tuổi tác –
-“Trí nhớ của tôi không còn như trước nữa”.
-Điều ngạc nhiên khác: Tuổi tác chỉ là sự biện hộ
-Có thể có một vài người trong số các bạn sẽ phản ứng lại: Thế còn bệnh
-Alzheimer và mối liên hệ giữa tuổi tác và trí nhớ đã được chứng minh thì sao?!
-Đúng vậy, có mối liên hệ giữa hai yếu tố này, trí nhớ của chúng ta có thể bị
-giảm sút do các nguyên nhân sinh lý liên quan đến tuổi tác. Nhưng vấn đề ở đây
-là bạn không phải bác sĩ tâm thần và cũng không biết được mình có thuộc trường
-- Eran Katz is a renowned memory trainer who has appeared as a featured guest on television and radio and has presented lectures and trainings to hundreds of leading multinational companies and organizations, including Google, HP, IBM, Oracle, Microsoft, General Electric, Coca-Cola, AT&T, and many more.
-- ERAN KATZ is a leading speaker on memory and Intelligence and a popular guest on TV and radio shows. He has delivered his Lectures and seminars to hundreds.
-- Eran Katz is a leading speaker on memory and intelligence and a popular guest on TV and radio shows. He has delivered his lectures and seminars to hundreds of
-{"message": "closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)", "level": "INFO", "name": "livekit.agents", "room": "87543419-c71f-4d7e-9e0d-036b4ab9b81e", "participant": "user_c9a5a5", "reason": "CLIENT_INITIATED", "timestamp": "2026-04-21T16:17:24.626371+00:00"}
-{"message": "draining worker", "level": "INFO", "name": "livekit.agents", "id": "AW_ATP8TDxPSTF9", "timeout": 1800, "timestamp": "2026-04-21T16:17:46.152449+00:00"}
-{"message": "shutting down worker", "level": "INFO", "name": "livekit.agents", "id": "AW_ATP8TDxPSTF9", "timestamp": "2026-04-21T16:17:47.221689+00:00"}
-{"message": "exiting forcefully", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-21T16:17:49.976265+00:00"}
+...........Context/////

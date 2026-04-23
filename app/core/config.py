@@ -19,6 +19,8 @@ class Settings:
     EDGE_TTS_VOICE = os.getenv("EDGE_TTS_VOICE", "en-US-AvaMultilingualNeural")
     LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY")
     LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET")
+    LIVEKIT_AGENT_NAME = os.getenv("LIVEKIT_AGENT_NAME")
+    GEMINI_MODEL_NATIVE_AUDIO = os.getenv("GEMINI_MODEL_NATIVE_AUDIO", "gemini-2.5-flash-native-audio-latest")
 
     # Upload file
     MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
