@@ -17,8 +17,14 @@ async def upload_file_to_supabase(
     bucket: str,
     content_type: str,
     max_retries: int = 3,
+    upsert: bool = True,
 ) -> str:
-    """Upload file lên Supabase Storage và trả về public URL."""
+    """
+    Upload file lên Supabase Storage và trả về public URL.
+
+    upsert=True (mặc định): Ghi đè nếu file đã tồn tại.
+    Cần thiết để switch-mode hoạt động đúng (tránh 409 Duplicate).
+    """
     for attempt in range(max_retries):
         try:
             async with aiofiles.open(local_path, "rb") as f:
@@ -26,7 +32,10 @@ async def upload_file_to_supabase(
             supabase.storage.from_(bucket).upload(
                 path=storage_path,
                 file=file_bytes,
-                file_options={"content-type": content_type},
+                file_options={
+                    "content-type": content_type,
+                    "upsert": "true" if upsert else "false",
+                },
             )
             return supabase.storage.from_(bucket).get_public_url(storage_path)
         except Exception as e:

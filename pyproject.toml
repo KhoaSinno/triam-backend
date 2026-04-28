@@ -13,12 +13,12 @@ dependencies = [
     "google-genai>=1.63.0",
     "google-generativeai>=0.8.6",
     "langchain-text-splitters>=1.1.1",
-    "livekit-agents>=1.5.2",
-    "livekit-plugins-deepgram>=1.5.2",
-    "livekit-plugins-google>=1.5.2",
+    "livekit-agents==1.5.6",
+    "livekit-plugins-deepgram==1.5.6",
+    "livekit-plugins-google==1.5.6",
     "livekit-plugins-noise-cancellation~=0.2",
-    "livekit-plugins-openai>=1.5.2",
-    "livekit-plugins-silero>=1.5.2",
+    "livekit-plugins-openai==1.5.6",
+    "livekit-plugins-silero==1.5.6",
     "mutagen>=1.47.0",
     "openai>=2.15.0",
     "pdfplumber>=0.11.0",
@@ -41,6 +41,8 @@ dependencies = [
 [dependency-groups]
 dev = [
     "ruff>=0.15.8",
+    "pytest>=8.3.0",
+    "httpx>=0.28.0",
 ]
 
 [tool.ruff]

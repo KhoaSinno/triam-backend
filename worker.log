@@ -1,164 +1,143 @@
-{"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.5.2", "rtc-version": "1.1.5", "timestamp": "2026-04-23T02:44:31.802784+00:00"}
-{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.google", "version": "1.5.2", "timestamp": "2026-04-23T02:44:31.802784+00:00"}
-{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.silero", "version": "1.5.2", "timestamp": "2026-04-23T02:44:31.802784+00:00"}
-{"message": "HTTP server listening on :8081", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-04-23T02:44:31.804569+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 23060, "timestamp": "2026-04-23T02:44:31.807671+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 17080, "timestamp": "2026-04-23T02:44:31.807671+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 21944, "timestamp": "2026-04-23T02:44:31.807671+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 13476, "timestamp": "2026-04-23T02:44:31.807671+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 23060, "elapsed_time": 0.0, "timestamp": "2026-04-23T02:44:31.809185+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 17080, "elapsed_time": 0.0, "timestamp": "2026-04-23T02:44:31.809185+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 21944, "elapsed_time": 0.0, "timestamp": "2026-04-23T02:44:31.810192+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 13476, "elapsed_time": 0.0, "timestamp": "2026-04-23T02:44:31.810697+00:00"}
-{"message": "registered worker", "level": "INFO", "name": "livekit.agents", "agent_name": "triam-voice-agent", "id": "AW_SVUmeVZQnges", "url": "wss://tri-am-bmdl413w.livekit.cloud", "region": "Singapore South East", "protocol": 17, "timestamp": "2026-04-23T02:44:33.026475+00:00"}
-{"message": "received job request", "level": "INFO", "name": "livekit.agents", "job_id": "AJ_BCvsFuuERk5p", "dispatch_id": "AD_QZRG77zm6uvL", "room": "87543419-c71f-4d7e-9e0d-036b4ab9b81e", "room_id": "RM_7PkcR55whgsg", "agent_name": "triam-voice-agent", "resuming": false, "enable_recording": false, "timestamp": "2026-04-23T02:45:01.609833+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 10932, "timestamp": "2026-04-23T02:45:01.797178+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 10932, "elapsed_time": 0.0, "timestamp": "2026-04-23T02:45:01.798182+00:00"}
-[Agent] Bắt đầu phiên đọc sách cho Book ID: 87543419-c71f-4d7e-9e0d-036b4ab9b81e
-{"message": "Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.", "level": "WARNING", "name": "google_genai._api_client", "timestamp": "2026-04-23T02:45:03.834750+00:00"}
-/////Data...........
-[{'id': 701, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': '46c3dfd6-905f-42eb-870a-783404a3998b', 'chunk_index': 0, 'content': 'Trong các phần tiếp theo của cuốn sách này, tôi sẽ chỉ cho bạn nhiều thứ,\ntrong đó có cách ghi nhớ danh sách đó dễ dàng và nhanh hơn cả thời gian viết\nchúng ra giấy. Hơn nữa, tôi cũng sẽ chứng minh cho bạn thấy bạn sẽ không quên\nnó trong vài ngày sau khi đã mua sắm.\nViệc chúng ta thiếu tin tưởng vào trí nhớ của mình không chỉ liên quan đến\nnhững điều mới mẻ ra muốn nhớ, mà còn rõ ràng đối với trí nhớ hiện tại. Đây là\nmột ví dụ. Hãy suy nghĩ một phú về tấm biển nhường đường mà ta gặp ở cuối\nmột số con đường, trước khi đến chỗ giao nhau. Tấm biển đó có hình dạng thế\nnào? Có phải nó là một hình tam giác có đáy ở phía trên còn đỉnh ở phía dưới?\n“Đó là hình tam giác ngược”, có lẽ ban sẽ hào hứng nói như vậy, đúng\nkhông? Bạn đã nghĩ kỹ chưa? Đó là hình tam giác ngược hay đó chỉ là cách bạn\nnhìn… Và nếu tôi nói rằng đó là một hình tam giác thông thường, bạn có ngạc\nnhiên không?\nTôi sẽ bắt bạn phải chờ đợi lâu. Đó thật sự là một hình tam giác ngược. Phải\nthừa nhận điều này – liệu có phải đôi khi bạn thoáng chút nghi ngờ rằng trí nhớ\ncủa bạn làm cho bạn u mê?\nVấn đề mà tôi muốn nhấn mạnh ở đây là, rất dễ dàng hủy hoại niềm tin vào\ntrí nhớ của chúng ta vì chúng ta không thật sự tin tưởng nó.', 'similarity': 0.347807697710161}, {'id': 686, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e082e7db-b3b6-4f5d-80bb-01090ace5c4f', 'chunk_index': 0, 'content': 'Mục lục\nPhần mở đầu\nChương 1. Sự tự lừa dối\nChương 2. Một hướng tiếp cận mới\nChương 3. Bài đố vui\nChương 4. “Xin chào, Ron… à… Don, ý tôi là John…”\nChương 5. Điều này gợi cho tôi nhớ đến...\nChương 6. “Người phụ nữ đi giày bằng vàng…”\nChương 7. “Cat and gory = Category”\nChương 8. Phương pháp Roman Room\nChương 9. Giấy tờ, nhiệm vụ và những sự sắp xếp khác\nChương 10. Chìa khóa đâu nhỉ…?\nChương 11. Cách nhớ các con số\nChương 12. Cuốn danh bạ điện thoại hoàn hảo của bạn\nChương 13. Từ miền đất Luoisiana đến đế chế Napoleon\nChương 14. Trí nhớ siêu phàm trong học hành và thi cử\nChương 15. Trí nhớ siêu phàm trong thuyết trình\nChương 16. Trí nhớ siêu phàm trong ngôn ngữ và từ vựng\nChương 17. “Chúng ta đã gặp nhau chưa nhỉ? Nhìn bạn quen lắm…”\nChương 18. Một cái tên chứa đựng điều gì?\nChương 19. Áp dụng các phương pháp đỉnh nhất để nhớ tên và nhớ mặt\nChương 20. Ghi nhớ tên từng người trong nhóm ngay những phút đầu gặp gỡ\nChương 21. “Năm năm sau”\nChương 22. Chơi bài\nChương 23. Trò ghi nhớ một dãy số dài\nTóm tắt. Tầm quan trọng của trí nhớ\n7\nPhần mở đầu\nMột buổi tối nọ, khi chúng tôi đang đi dạo trên phố dành cho người đi bộ ở', 'similarity': 0.339941261467886}, {'id': 673, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e2974ffb-fa59-4be2-b38f-be0605dd7c49', 'chunk_index': 0, 'content': 'Đọc xong cuốn sách này, có thể bạn sẽ thực hiện những bài tập tăng cường trí\nnhớ đặc biệt đễ trong phần đời còn lại bạn sẽ có được sự hiểu biết, kinh nghiệm\nvà bằng chứng về việc bạn có thể tin tưởng vào trí nhớ của bản than và khả năng\nghi nhớ tất cả những gì bạn muốn.\nThân mến! – Eran Katz\n10\nChương 1. Sự tự lừa dối\nVài điều ngạc nhiên về trí nhớ con người\nBạn đang tản bộ trên con đường nhỏ, hàng trăm người lướt qua bạn, rồi đột\nnhiên anh ta xuất hiện…\nTrông anh ta rất quen, rõ ràng bạn biết tên anh ta nhưng lại không thề nhớ ra.\nBạn nheo mắt lại và liếc anh ta với ngụ ý: “Yên tâm đi, trong một giây tôi sẽ nhớ\nra chúng ta đã gặp nhau ở đâu thôi”, nhưng sau đó bạn từ bỏ, rồi nói: “ Có lẽ\nchúng ta đã gặp nhau ở…”, anh ta nhắc bạn: “Trong bữa tiệc của Mike, cách đây\nhai tháng. Anh là David đúng không…?”\n“Ồ! Đúng rồi”, bạn nuốt nước bọt rồi cố gắng vớt vát chút lòng tự trọng của\nmình: “Còn anh là Ron… à Don nhỉ…”\n“Allan”, anh ta nhanh chóng giúp bạn vượt qua tình huống khó khăn.\n“Tôi nhớ là có chữ A”, bạn cố tỏ ra hài hước rồi vội vàng xin lỗi, “Thứ lỗi\ncho tôi nhé, trí nhớ của tôi kém quá.”\nTình huống này có vẻ rất quen thuộc nhỉ? Có phải tất cả chúng ta đều từng', 'similarity': 0.338832395361054}, {'id': 693, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': '893aed8c-fc38-4ff6-b5ed-46966fcf7ee7', 'chunk_index': 1, 'content': 'này cũng tương tự nhu cầu rèn luyện trí nhớ dần dần.. Đồng thời, quá trình luyện\ntập phải ngày càng nhanh và có hiệu quả, và khi bạn đọc xong cuốn sách này, bạn\ncó thể đạt được kết quả ngay lập tức.\nTôi dám khẳng định với bạn rằng, nếu bạn hợp tác và thực hiện đầy đủ những\nbài luyện tập thú vị trong cuốn sách này, khả năng ghi nhớ của bạn sẽ tăng ít nhất\nlà 50%.\nSự thật đang dần dần được phơi bày. Có phải bạn mua trí nhớ mới này hay\nkhông? Tôi có thể hiểu nếu bạn vẫn còn nghi ngờ và không tin tưởng lắm – điều\nđó thật tồi tện nhưng bạn vẫn còn cơ hội thay đổi sau đó. Nếu bạn thiết tha với ý\ntưởng này và mong muốn tiếp tục tiến lên – con đường đi của bạn chắc chắn sẽ\ndễ dàng hơn. Tôi cần nhấn mạnh rằng cuốn sách này không phải là tiểu thuyết\ncủa John Grisham – sẽ chẳng có ích gì nếu bạn đọc lướt qua những trang cuối\ncùng của quyển sách để tìm ra đoạn kết của câu chuyện. Bạn sẽ không thể tìm ra\nbí mật của trí nhớ siêu phàm ở trang cuối và cũng đừng hy vọng bạn có thể thực\nhiện ngay lập tức những hứa hẹn của tôi. Bạn vừa mua được một sản phẩm mới,\nbạn chờ đợi và háo hức được sử dụng nó là một điều dễ hiểu, nhưng nếu bạn đã', 'similarity': 0.338609830128611}, {'id': 691, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e082e7db-b3b6-4f5d-80bb-01090ace5c4f', 'chunk_index': 5, 'content': 'học cách thực hiện các bài tập tăng cường trí nhớ đặc biệt, tôi chọn lọc các\nphương pháp mới, và nhận thấy hiệu quả đáng ngạc nhiên của chúng trong mọi\nlĩnh vực của cuộc sống.\nTrong cuốn sách này, tôi muốn giới thiệu với các bạn những gì mà tôi cho là\ncác ý tưởng, phương pháp và bí quyết thành công nhất để phát triển một trí nhớ\ntuyệt vời.\nCuốn sách này không chỉ hướng dẫn bạn mà còn chứng minh cho bạn thấy\nrằng các phương pháp này có hiệu quả. Do đó, bạn sẽ thấy các bài luyện tập vui\nxuyên suốt các chương được sắp xếp theo thứ tự thời gian và cấp độ tăng dần từ\ndễ đến khó.\nBạn sẽ nhận thấy sự thay đổi khả năng ghi nhớ của mình ngay sau vài chương\nđầu tiên của cuốn sách.\n9', 'similarity': 0.332369359400798}, {'id': 687, 'book_id': '87543419-c71f-4d7e-9e0d-036b4ab9b81e', 'chapter_id': 'e082e7db-b3b6-4f5d-80bb-01090ace5c4f', 'chunk_index': 1, 'content': 'Chương 22. Chơi bài\nChương 23. Trò ghi nhớ một dãy số dài\nTóm tắt. Tầm quan trọng của trí nhớ\n7\nPhần mở đầu\nMột buổi tối nọ, khi chúng tôi đang đi dạo trên phố dành cho người đi bộ ở\nJerusalem thì Gali, cô con gái mới bốn tuổi của tôi đã khiến tôi vô cùng ngạc\nnhiên khi hỏi:\n“Bố ơi, cho con xin 25 xu được không ạ?”\n“Để làm gì vậy, con gái?” tôi hỏi lại.\n“Để con cho Boris”, con bé trả lời.\nTôi không biết người nào tên Boris và chắc chắn không nhìn thấy người nào\nmà con bé quen biết, nên tôi hỏi nó:\n“Ai là Boris vậy con?”\n“À, là người chơi nhạc đó bố”, con bé nói nhỏ.\nNgay lập tức tôi hiểu ra, chắc là con bé nói tới người đang chơi đàn măng-đô-\nlin kia, kiếm sống dựa vào sự tốt bụng và nhân hậu của khách qua đường. Dù\nvậy, tôi vẫn ngạc nhiên về việc con bé biết tên ông ta.\nGali cầm tiền và lại gần người chơi đàn lúc này đang tập trung vào công việc\ncủa mình. Gali đứng trước mặt người đàn ông, nhưng không thể khiến cho ông ta\nchú ý, con bé đã nói nhỏ: “Boris, cho ông này.”\nNgười chơi đàn ngước lên và nhìn chằm chằm con gái tôi một cách sửng sốt:\n“Làm thế nào mà cháu biết tên ta?”, người đàn ông nhấn giọng. Con gái tôi nhìn\nông ta một lát và nói: “Ông đã nói với cháu lần trước mà!”', 'similarity': 0.306813273385626}]
-...........Data/////
-/////Context...........
---- Đoạn 1 (Chương ID: ...a3998b, Index: 0) ---
-Trong các phần tiếp theo của cuốn sách này, tôi sẽ chỉ cho bạn nhiều thứ,
-trong đó có cách ghi nhớ danh sách đó dễ dàng và nhanh hơn cả thời gian viết
-chúng ra giấy. Hơn nữa, tôi cũng sẽ chứng minh cho bạn thấy bạn sẽ không quên
-nó trong vài ngày sau khi đã mua sắm.
-Việc chúng ta thiếu tin tưởng vào trí nhớ của mình không chỉ liên quan đến
-những điều mới mẻ ra muốn nhớ, mà còn rõ ràng đối với trí nhớ hiện tại. Đây là
-một ví dụ. Hãy suy nghĩ một phú về tấm biển nhường đường mà ta gặp ở cuối
-một số con đường, trước khi đến chỗ giao nhau. Tấm biển đó có hình dạng thế
-nào? Có phải nó là một hình tam giác có đáy ở phía trên còn đỉnh ở phía dưới?
-“Đó là hình tam giác ngược”, có lẽ ban sẽ hào hứng nói như vậy, đúng
-không? Bạn đã nghĩ kỹ chưa? Đó là hình tam giác ngược hay đó chỉ là cách bạn
-nhìn… Và nếu tôi nói rằng đó là một hình tam giác thông thường, bạn có ngạc
-nhiên không?
-Tôi sẽ bắt bạn phải chờ đợi lâu. Đó thật sự là một hình tam giác ngược. Phải
-thừa nhận điều này – liệu có phải đôi khi bạn thoáng chút nghi ngờ rằng trí nhớ
-của bạn làm cho bạn u mê?
-Vấn đề mà tôi muốn nhấn mạnh ở đây là, rất dễ dàng hủy hoại niềm tin vào
-trí nhớ của chúng ta vì chúng ta không thật sự tin tưởng nó.
-
---- Đoạn 2 (Chương ID: ...ce5c4f, Index: 0) ---
-Mục lục
-Phần mở đầu
-Chương 1. Sự tự lừa dối
-Chương 2. Một hướng tiếp cận mới
-Chương 3. Bài đố vui
-Chương 4. “Xin chào, Ron… à… Don, ý tôi là John…”
-Chương 5. Điều này gợi cho tôi nhớ đến...
-Chương 6. “Người phụ nữ đi giày bằng vàng…”
-Chương 7. “Cat and gory = Category”
-Chương 8. Phương pháp Roman Room
-Chương 9. Giấy tờ, nhiệm vụ và những sự sắp xếp khác
-Chương 10. Chìa khóa đâu nhỉ…?
-Chương 11. Cách nhớ các con số
-Chương 12. Cuốn danh bạ điện thoại hoàn hảo của bạn
-Chương 13. Từ miền đất Luoisiana đến đế chế Napoleon
-Chương 14. Trí nhớ siêu phàm trong học hành và thi cử
-Chương 15. Trí nhớ siêu phàm trong thuyết trình
-Chương 16. Trí nhớ siêu phàm trong ngôn ngữ và từ vựng
-Chương 17. “Chúng ta đã gặp nhau chưa nhỉ? Nhìn bạn quen lắm…”
-Chương 18. Một cái tên chứa đựng điều gì?
-Chương 19. Áp dụng các phương pháp đỉnh nhất để nhớ tên và nhớ mặt
-Chương 20. Ghi nhớ tên từng người trong nhóm ngay những phút đầu gặp gỡ
-Chương 21. “Năm năm sau”
-Chương 22. Chơi bài
-Chương 23. Trò ghi nhớ một dãy số dài
-Tóm tắt. Tầm quan trọng của trí nhớ
-7
-Phần mở đầu
-Một buổi tối nọ, khi chúng tôi đang đi dạo trên phố dành cho người đi bộ ở
-
---- Đoạn 3 (Chương ID: ...dd7c49, Index: 0) ---
-Đọc xong cuốn sách này, có thể bạn sẽ thực hiện những bài tập tăng cường trí
-nhớ đặc biệt đễ trong phần đời còn lại bạn sẽ có được sự hiểu biết, kinh nghiệm
-và bằng chứng về việc bạn có thể tin tưởng vào trí nhớ của bản than và khả năng
-ghi nhớ tất cả những gì bạn muốn.
-Thân mến! – Eran Katz
-10
-Chương 1. Sự tự lừa dối
-Vài điều ngạc nhiên về trí nhớ con người
-Bạn đang tản bộ trên con đường nhỏ, hàng trăm người lướt qua bạn, rồi đột
-nhiên anh ta xuất hiện…
-Trông anh ta rất quen, rõ ràng bạn biết tên anh ta nhưng lại không thề nhớ ra.
-Bạn nheo mắt lại và liếc anh ta với ngụ ý: “Yên tâm đi, trong một giây tôi sẽ nhớ
-ra chúng ta đã gặp nhau ở đâu thôi”, nhưng sau đó bạn từ bỏ, rồi nói: “ Có lẽ
-chúng ta đã gặp nhau ở…”, anh ta nhắc bạn: “Trong bữa tiệc của Mike, cách đây
-hai tháng. Anh là David đúng không…?”
-“Ồ! Đúng rồi”, bạn nuốt nước bọt rồi cố gắng vớt vát chút lòng tự trọng của
-mình: “Còn anh là Ron… à Don nhỉ…”
-“Allan”, anh ta nhanh chóng giúp bạn vượt qua tình huống khó khăn.
-“Tôi nhớ là có chữ A”, bạn cố tỏ ra hài hước rồi vội vàng xin lỗi, “Thứ lỗi
-cho tôi nhé, trí nhớ của tôi kém quá.”
-Tình huống này có vẻ rất quen thuộc nhỉ? Có phải tất cả chúng ta đều từng
-
---- Đoạn 4 (Chương ID: ...cf7ee7, Index: 1) ---
-này cũng tương tự nhu cầu rèn luyện trí nhớ dần dần.. Đồng thời, quá trình luyện
-tập phải ngày càng nhanh và có hiệu quả, và khi bạn đọc xong cuốn sách này, bạn
-có thể đạt được kết quả ngay lập tức.
-Tôi dám khẳng định với bạn rằng, nếu bạn hợp tác và thực hiện đầy đủ những
-bài luyện tập thú vị trong cuốn sách này, khả năng ghi nhớ của bạn sẽ tăng ít nhất
-là 50%.
-Sự thật đang dần dần được phơi bày. Có phải bạn mua trí nhớ mới này hay
-không? Tôi có thể hiểu nếu bạn vẫn còn nghi ngờ và không tin tưởng lắm – điều
-đó thật tồi tện nhưng bạn vẫn còn cơ hội thay đổi sau đó. Nếu bạn thiết tha với ý
-tưởng này và mong muốn tiếp tục tiến lên – con đường đi của bạn chắc chắn sẽ
-dễ dàng hơn. Tôi cần nhấn mạnh rằng cuốn sách này không phải là tiểu thuyết
-của John Grisham – sẽ chẳng có ích gì nếu bạn đọc lướt qua những trang cuối
-cùng của quyển sách để tìm ra đoạn kết của câu chuyện. Bạn sẽ không thể tìm ra
-bí mật của trí nhớ siêu phàm ở trang cuối và cũng đừng hy vọng bạn có thể thực
-hiện ngay lập tức những hứa hẹn của tôi. Bạn vừa mua được một sản phẩm mới,
-bạn chờ đợi và háo hức được sử dụng nó là một điều dễ hiểu, nhưng nếu bạn đã
-
---- Đoạn 5 (Chương ID: ...ce5c4f, Index: 5) ---
-học cách thực hiện các bài tập tăng cường trí nhớ đặc biệt, tôi chọn lọc các
-phương pháp mới, và nhận thấy hiệu quả đáng ngạc nhiên của chúng trong mọi
-lĩnh vực của cuộc sống.
-Trong cuốn sách này, tôi muốn giới thiệu với các bạn những gì mà tôi cho là
-các ý tưởng, phương pháp và bí quyết thành công nhất để phát triển một trí nhớ
-tuyệt vời.
-Cuốn sách này không chỉ hướng dẫn bạn mà còn chứng minh cho bạn thấy
-rằng các phương pháp này có hiệu quả. Do đó, bạn sẽ thấy các bài luyện tập vui
-xuyên suốt các chương được sắp xếp theo thứ tự thời gian và cấp độ tăng dần từ
-dễ đến khó.
-Bạn sẽ nhận thấy sự thay đổi khả năng ghi nhớ của mình ngay sau vài chương
-đầu tiên của cuốn sách.
-9
-
---- Đoạn 6 (Chương ID: ...ce5c4f, Index: 1) ---
-Chương 22. Chơi bài
-Chương 23. Trò ghi nhớ một dãy số dài
-Tóm tắt. Tầm quan trọng của trí nhớ
-7
-Phần mở đầu
-Một buổi tối nọ, khi chúng tôi đang đi dạo trên phố dành cho người đi bộ ở
-Jerusalem thì Gali, cô con gái mới bốn tuổi của tôi đã khiến tôi vô cùng ngạc
-nhiên khi hỏi:
-“Bố ơi, cho con xin 25 xu được không ạ?”
-“Để làm gì vậy, con gái?” tôi hỏi lại.
-“Để con cho Boris”, con bé trả lời.
-Tôi không biết người nào tên Boris và chắc chắn không nhìn thấy người nào
-mà con bé quen biết, nên tôi hỏi nó:
-“Ai là Boris vậy con?”
-“À, là người chơi nhạc đó bố”, con bé nói nhỏ.
-Ngay lập tức tôi hiểu ra, chắc là con bé nói tới người đang chơi đàn măng-đô-
-lin kia, kiếm sống dựa vào sự tốt bụng và nhân hậu của khách qua đường. Dù
-vậy, tôi vẫn ngạc nhiên về việc con bé biết tên ông ta.
-Gali cầm tiền và lại gần người chơi đàn lúc này đang tập trung vào công việc
-của mình. Gali đứng trước mặt người đàn ông, nhưng không thể khiến cho ông ta
-chú ý, con bé đã nói nhỏ: “Boris, cho ông này.”
-Người chơi đàn ngước lên và nhìn chằm chằm con gái tôi một cách sửng sốt:
-“Làm thế nào mà cháu biết tên ta?”, người đàn ông nhấn giọng. Con gái tôi nhìn
-ông ta một lát và nói: “Ông đã nói với cháu lần trước mà!”
-...........Context/////
-{"message": "closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)", "level": "INFO", "name": "livekit.agents", "room": "87543419-c71f-4d7e-9e0d-036b4ab9b81e", "participant": "user_8cf695", "reason": "CLIENT_INITIATED", "timestamp": "2026-04-23T02:46:26.788749+00:00"}
-{"message": "received job request", "level": "INFO", "name": "livekit.agents", "job_id": "AJ_FwFjsaWgSSZk", "dispatch_id": "AD_jobCxyQD9pnt", "room": "87543419-c71f-4d7e-9e0d-036b4ab9b81e", "room_id": "RM_fVGQoJxFuwEo", "agent_name": "triam-voice-agent", "resuming": false, "enable_recording": false, "timestamp": "2026-04-23T02:47:23.522260+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 1276, "timestamp": "2026-04-23T02:47:23.704520+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 1276, "elapsed_time": 0.0, "timestamp": "2026-04-23T02:47:23.706060+00:00"}
-[Agent] Bắt đầu phiên đọc sách cho Book ID: 87543419-c71f-4d7e-9e0d-036b4ab9b81e
-{"message": "Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.", "level": "WARNING", "name": "google_genai._api_client", "timestamp": "2026-04-23T02:47:24.944607+00:00"}
-{"message": "closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)", "level": "INFO", "name": "livekit.agents", "room": "87543419-c71f-4d7e-9e0d-036b4ab9b81e", "participant": "user_f74647", "reason": "CLIENT_INITIATED", "timestamp": "2026-04-23T02:48:10.069021+00:00"}
-{"message": "draining worker", "level": "INFO", "name": "livekit.agents", "id": "AW_SVUmeVZQnges", "timeout": 1800, "timestamp": "2026-04-23T02:52:09.760854+00:00"}
-{"message": "shutting down worker", "level": "INFO", "name": "livekit.agents", "id": "AW_SVUmeVZQnges", "timestamp": "2026-04-23T02:52:09.761861+00:00"}
+{"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.5.6", "rtc-version": "1.1.5", "timestamp": "2026-04-28T12:23:30.807588+00:00"}
+{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.google", "version": "1.5.6", "timestamp": "2026-04-28T12:23:30.807588+00:00"}
+{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.silero", "version": "1.5.6", "timestamp": "2026-04-28T12:23:30.807588+00:00"}
+{"message": "HTTP server listening on :8081", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-04-28T12:23:30.808750+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 17700, "timestamp": "2026-04-28T12:23:30.811766+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 19896, "timestamp": "2026-04-28T12:23:30.812766+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 14620, "timestamp": "2026-04-28T12:23:30.812766+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 3704, "timestamp": "2026-04-28T12:23:30.812766+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 17700, "elapsed_time": 0.0, "timestamp": "2026-04-28T12:23:30.813766+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 19896, "elapsed_time": 0.0, "timestamp": "2026-04-28T12:23:30.814926+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 14620, "elapsed_time": 0.0, "timestamp": "2026-04-28T12:23:30.814926+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 3704, "elapsed_time": 0.0, "timestamp": "2026-04-28T12:23:30.815942+00:00"}
+{"message": "registered worker", "level": "INFO", "name": "livekit.agents", "agent_name": "triam-voice-agent", "id": "AW_i5YXW63EYcSV", "url": "wss://tri-am-bmdl413w.livekit.cloud", "region": "Singapore South East", "protocol": 17, "timestamp": "2026-04-28T12:23:32.675844+00:00"}
+{"message": "received job request", "level": "INFO", "name": "livekit.agents", "job_id": "AJ_2m6i38KAyUi9", "dispatch_id": "AD_yF7ibgochU52", "room": "b1ccc22f-584e-41c3-9c8f-30a124f1a572", "room_id": "RM_8mwuYjT9QhxL", "agent_name": "triam-voice-agent", "resuming": false, "enable_recording": false, "timestamp": "2026-04-28T12:24:38.280026+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 18400, "timestamp": "2026-04-28T12:24:38.455185+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 18400, "elapsed_time": 0.0, "timestamp": "2026-04-28T12:24:38.455707+00:00"}
+[Agent] Bat dau phien doc sach cho Book ID: b1ccc22f-584e-41c3-9c8f-30a124f1a572
+[Agent] Data input from user_32b794: alo bạn là ai vậy
+[Agent] Text output (66 chars): Mình là TRIAM, trợ lý giúp bạn đọc và hiểu sách qua giọng nói nè 📚
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'Mình', 'start': 0.09287982, 'end': 0.3095994}, {'word': 'là', 'start': 0.3095994, 'end': 0.41795918}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:24:42.587746+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'TRIAM,', 'start': 0.41795918, 'end': 1.1145579}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:24:42.739361+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'trợ', 'start': 1.7182766, 'end': 1.8575964}, {'word': 'lý', 'start': 1.8575964, 'end': 2.012396}, {'word': 'giúp', 'start': 2.012396, 'end': 2.1671958}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:24:42.934205+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'bạn', 'start': 2.1671958, 'end': 2.2755556}, {'word': 'đọc', 'start': 2.2755556, 'end': 2.585155}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:24:43.049597+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'và', 'start': 2.9102342, 'end': 3.034074}, {'word': 'hiểu', 'start': 3.034074, 'end': 3.2198336}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:24:43.160416+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'sách', 'start': 3.2198336, 'end': 3.4520333}, {'word': 'qua', 'start': 3.4520333, 'end': 3.5139532}, {'word': 'giọng', 'start': 3.5139532, 'end': 3.6997128}, {'word': 'nói', 'start': 3.6997128, 'end': 3.8390324}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:24:43.274032+00:00"}
+[Agent] Data input from user_32b794: ok bạn giúp tôi tra cứu thời tiết hôm nay ở Việt Nam đi
+[Agent] Text output (159 chars): Hôm nay ở Việt Nam nhìn chung có mây, nhiều nơi có mưa rào và dông; nhiệt độ khoảng 23–35°C tùy vùng.  
+Miền Trung và Na...
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'Hôm', 'start': 0.09287982, 'end': 0.3095994}, {'word': 'nay', 'start': 0.3095994, 'end': 0.47987905}, {'word': 'ở', 'start': 0.47987905, 'end': 0.510839}, {'word': 'Việt', 'start': 0.510839, 'end': 0.6656387}, {'word': 'Nam', 'start': 0.6656387, 'end': 0.8204384}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:25:26.301579+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'nhìn', 'start': 0.8204384, 'end': 0.9597581}, {'word': 'chung', 'start': 0.9597581, 'end': 1.1764777}, {'word': 'có', 'start': 1.1764777, 'end': 1.2848375}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:25:26.406280+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'mây,', 'start': 1.2848375, 'end': 1.6563568}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:25:26.527854+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'nhiều', 'start': 1.6563568, 'end': 1.8885564}, {'word': 'nơi', 'start': 1.8885564, 'end': 2.043356}, {'word': 'có', 'start': 2.043356, 'end': 2.1362357}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:25:26.600568+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'mưa', 'start': 2.1362357, 'end': 2.3065155}, {'word': 'rào', 'start': 2.3065155, 'end': 2.523235}, {'word': 'và', 'start': 2.523235, 'end': 2.585155}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:25:26.731572+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'dông;', 'start': 2.585155, 'end': 2.9721541}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:25:26.852216+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'nhiệt', 'start': 3.4210734, 'end': 3.606833}, {'word': 'độ', 'start': 3.606833, 'end': 3.6842327}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:25:26.964200+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'khoảng', 'start': 3.6842327, 'end': 3.8390324}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:25:27.080477+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': '23–35°C', 'start': 3.8390324, 'end': 7.136266}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:25:27.880818+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'tùy', 'start': 7.136266, 'end': 7.2910657}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:25:27.970546+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'vùng.', 'start': 7.2910657, 'end': 7.631625}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:25:28.055434+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'Miền', 'start': 8.4365835, 'end': 8.653303}, {'word': 'Trung', 'start': 8.653303, 'end': 8.854543}, {'word': 'và', 'start': 8.854543, 'end': 8.916463}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:25:28.456788+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'Nam', 'start': 8.916463, 'end': 9.195102}, {'word': 'có', 'start': 9.195102, 'end': 9.303462}, {'word': 'chỗ', 'start': 9.303462, 'end': 9.489222}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:25:28.583966+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'nắng', 'start': 9.489222, 'end': 9.690461}, {'word': 'nóng,', 'start': 9.690461, 'end': 10.03102}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:25:28.701730+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'chiều', 'start': 10.2013, 'end': 10.418019}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:25:28.824141+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'tối', 'start': 10.418019, 'end': 10.681179}, {'word': 'dễ', 'start': 10.681179, 'end': 10.774059}, {'word': 'mưa', 'start': 10.774059, 'end': 11.161058}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:25:28.948200+00:00"}
+[Agent] Data input from user_32b794: ok sách tôi đang đọc có nội dung là j
+[Agent] Text output (184 chars): Sách bạn đang đọc dạy cách rèn luyện và cải thiện trí nhớ qua các phương pháp và bài tập thực hành 🧠  
+Nó giúp bạn nhớ t...
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'Sách', 'start': 0.07739985, 'end': 0.43343917}, {'word': 'bạn', 'start': 0.43343917, 'end': 0.74303854}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:04.553334+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'đang', 'start': 0.9752381, 'end': 1.2538775}, {'word': 'đọc', 'start': 1.2538775, 'end': 1.4241573}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:04.675837+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'dạy', 'start': 1.4241573, 'end': 1.6099168}, {'word': 'cách', 'start': 1.6408768, 'end': 1.8575964}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:04.790238+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'rèn', 'start': 1.8575964, 'end': 2.058836}, {'word': 'luyện', 'start': 2.058836, 'end': 2.445835}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:04.907183+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'và', 'start': 2.445835, 'end': 2.631595}, {'word': 'cải', 'start': 2.631595, 'end': 2.8483145}, {'word': 'thiện', 'start': 2.8483145, 'end': 3.080514}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:05.021700+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'trí', 'start': 3.080514, 'end': 3.2972336}, {'word': 'nhớ', 'start': 3.2972336, 'end': 3.560393}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:05.137187+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'qua', 'start': 3.591353, 'end': 3.7461526}, {'word': 'các', 'start': 3.7461526, 'end': 3.8854723}, {'word': 'phương', 'start': 3.8854723, 'end': 4.071232}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:05.253552+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'pháp', 'start': 4.071232, 'end': 4.2879515}, {'word': 'và', 'start': 4.2879515, 'end': 4.3653517}, {'word': 'bài', 'start': 4.3653517, 'end': 4.520151}, {'word': 'tập', 'start': 4.520151, 'end': 4.7059107}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:05.369449+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'thực', 'start': 4.7059107, 'end': 4.8452306}, {'word': 'hành', 'start': 4.8452306, 'end': 5.18579}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:05.485008+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'Nó', 'start': 5.7275887, 'end': 5.8669086}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:05.734993+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'giúp', 'start': 5.8669086, 'end': 6.021708}, {'word': 'bạn', 'start': 6.021708, 'end': 6.176508}, {'word': 'nhớ', 'start': 6.176508, 'end': 6.3777475}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:05.851218+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'tốt', 'start': 6.3777475, 'end': 6.656387}, {'word': 'hơn', 'start': 6.656387, 'end': 6.826667}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:05.993132+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': '(tên,', 'start': 6.826667, 'end': 7.167226}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:06.122622+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'số,', 'start': 7.167226, 'end': 7.616145}, {'word': 'thông', 'start': 7.709025, 'end': 7.9102645}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:06.258559+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'tin)', 'start': 7.9102645, 'end': 8.157944}, {'word': 'và', 'start': 8.157944, 'end': 8.235344}, {'word': 'tăng', 'start': 8.235344, 'end': 8.513984}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:06.394632+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'tự', 'start': 8.575903, 'end': 8.684263}, {'word': 'tin', 'start': 8.684263, 'end': 8.931943}, {'word': 'vào', 'start': 8.931943, 'end': 9.055782}, {'word': 'trí', 'start': 9.055782, 'end': 9.195102}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:06.532027+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'nhớ', 'start': 9.195102, 'end': 9.380861}, {'word': 'của', 'start': 9.380861, 'end': 9.566622}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:06.741426+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'mình.', 'start': 9.566622, 'end': 9.78334}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:06.876982+00:00"}
+[Agent] Data input from user_32b794: ok chương 1 nói về gì
+[Agent] Text output (180 chars): Chương 1 nói rằng chúng ta hay “tự lừa dối” khi nghĩ mình có trí nhớ kém, nhưng thực ra không phải vậy.  
+Nó nhấn mạnh v...
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'Chương', 'start': 0.43343917, 'end': 0.7585185}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:57.554364+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': '1', 'start': 0.7585185, 'end': 0.85139835}, {'word': 'nói', 'start': 0.85139835, 'end': 1.037158}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:57.660917+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'rằng', 'start': 1.037158, 'end': 1.3931973}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:57.782932+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'chúng', 'start': 1.9349962, 'end': 2.1671958}, {'word': 'ta', 'start': 2.1671958, 'end': 2.2600756}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:57.905889+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'hay', 'start': 2.2600756, 'end': 2.4922752}, {'word': '“tự', 'start': 2.585155, 'end': 2.7399547}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:58.029716+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'lừa', 'start': 2.7399547, 'end': 3.0031142}, {'word': 'dối”', 'start': 3.0031142, 'end': 3.4520333}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:58.152660+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'khi', 'start': 3.7306726, 'end': 3.9009523}, {'word': 'nghĩ', 'start': 3.9009523, 'end': 4.086712}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:58.273967+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'mình', 'start': 4.086712, 'end': 4.2724714}, {'word': 'có', 'start': 4.2724714, 'end': 4.3653517}, {'word': 'trí', 'start': 4.3653517, 'end': 4.535631}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:58.400481+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'nhớ', 'start': 4.535631, 'end': 4.6904306}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:58.530851+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'kém,', 'start': 4.6904306, 'end': 5.10839}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:58.643959+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'nhưng', 'start': 5.4334693, 'end': 5.619229}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:58.774112+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'thực', 'start': 5.619229, 'end': 5.774029}, {'word': 'ra', 'start': 5.774029, 'end': 5.9133487}, {'word': 'không', 'start': 5.9133487, 'end': 6.068148}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:58.926073+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'phải', 'start': 6.068148, 'end': 6.2693877}, {'word': 'vậy.', 'start': 6.2693877, 'end': 6.3777475}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:59.056663+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'Nó', 'start': 7.8019047, 'end': 7.9567046}, {'word': 'nhấn', 'start': 7.9567046, 'end': 8.111505}, {'word': 'mạnh', 'start': 8.111505, 'end': 8.374663}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:26:59.752326+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'việc', 'start': 8.792623, 'end': 8.978382}, {'word': 'cần', 'start': 8.978382, 'end': 9.1177025}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:00.035290+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'tin', 'start': 9.1177025, 'end': 9.334422}, {'word': 'tưởng', 'start': 9.334422, 'end': 9.628541}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:00.206894+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'và', 'start': 9.814301, 'end': 10.00006}, {'word': 'thay', 'start': 10.00006, 'end': 10.10842}, {'word': 'đổi', 'start': 10.10842, 'end': 10.26322}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:00.386941+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'suy', 'start': 10.26322, 'end': 10.418019}, {'word': 'nghĩ', 'start': 10.418019, 'end': 10.5883}, {'word': 'tích', 'start': 10.5883, 'end': 10.774059}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:00.503994+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'cực', 'start': 10.774059, 'end': 11.021738}, {'word': 'về', 'start': 11.068178, 'end': 11.253938}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:00.668922+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'trí', 'start': 11.253938, 'end': 11.439697}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:00.757002+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': '85f326e2-9332-45ef-976e-65b956b9e0f6', 'words': [{'word': 'nhớ', 'start': 11.439697, 'end': 11.718337}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:00.869340+00:00"}
+[Agent] Text output (48 chars): 👍 Nếu cần mình tóm tiếp chương khác cứ nói nhé 📚
+[Agent] Text output (115 chars): Nghe hơi khó hiểu á 😅 bạn đang nói về “hangover” (say rượu) hay tên gì “Weijun” vậy? Bạn nói rõ thêm mình giúp nha.
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'Nghe', 'start': 0.6501587, 'end': 0.88235825}, {'word': 'hơi', 'start': 0.88235825, 'end': 1.0681179}, {'word': 'khó', 'start': 1.1300378, 'end': 1.3312774}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:27.624318+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'hiểu', 'start': 1.3312774, 'end': 1.578957}, {'word': 'á', 'start': 1.578957, 'end': 1.7182766}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:27.717067+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'bạn', 'start': 1.8730763, 'end': 2.058836}, {'word': 'đang', 'start': 2.058836, 'end': 2.1826758}, {'word': 'nói', 'start': 2.1826758, 'end': 2.3529553}, {'word': 'về', 'start': 2.3529553, 'end': 2.445835}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:27.837778+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': '“hangover”', 'start': 2.445835, 'end': 2.8276744}, {'word': '(say', 'start': 2.8276744, 'end': 3.2095137}, {'word': 'rượu)', 'start': 3.2095137, 'end': 3.591353}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:28.075641+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'hay', 'start': 3.591353, 'end': 3.6997128}, {'word': 'tên', 'start': 3.6997128, 'end': 3.8854723}, {'word': 'gì', 'start': 3.8854723, 'end': 4.009312}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:28.195151+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': '“Weijun”', 'start': 4.009312, 'end': 4.3498716}, {'word': 'vậy?', 'start': 4.3498716, 'end': 4.504671}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:28.305712+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'Bạn', 'start': 5.619229, 'end': 5.804989}, {'word': 'nói', 'start': 5.804989, 'end': 5.9907484}, {'word': 'rõ', 'start': 5.9907484, 'end': 6.161028}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:28.854025+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'thêm', 'start': 6.161028, 'end': 6.3777475}, {'word': 'mình', 'start': 6.3777475, 'end': 6.4706273}, {'word': 'giúp', 'start': 6.4706273, 'end': 6.640907}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:28.996442+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'nha.', 'start': 6.640907, 'end': 6.842147}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:29.101179+00:00"}
+[Agent] Text output (173 chars): Chương 2 nói về việc thay đổi cách tiếp cận: cần có **mong muốn và niềm tin** để cải thiện trí nhớ.  
+Nó nhấn mạnh rằng ...
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'Chương', 'start': 0.09287982, 'end': 0.32507935}, {'word': '2', 'start': 0.32507935, 'end': 0.6346788}, {'word': 'nói', 'start': 0.6346788, 'end': 0.83591837}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:48.614376+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'về', 'start': 0.83591837, 'end': 0.89783823}, {'word': 'việc', 'start': 0.89783823, 'end': 1.1764777}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:48.733621+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'thay', 'start': 1.1764777, 'end': 1.3467574}, {'word': 'đổi', 'start': 1.3467574, 'end': 1.5634769}, {'word': 'cách', 'start': 1.6253968, 'end': 1.8575964}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:48.876157+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'tiếp', 'start': 1.8575964, 'end': 2.012396}, {'word': 'cận:', 'start': 2.012396, 'end': 2.2755556}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:49.018519+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'cần', 'start': 3.4210734, 'end': 3.6842327}, {'word': 'có', 'start': 3.6842327, 'end': 3.8080726}, {'word': 'mong', 'start': 3.8080726, 'end': 3.9628723}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:49.441898+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'muốn', 'start': 3.9628723, 'end': 4.3808312}, {'word': 'và', 'start': 4.4427514, 'end': 4.535631}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:49.709179+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'niềm', 'start': 4.535631, 'end': 4.7059107}, {'word': 'tin', 'start': 4.7059107, 'end': 4.9845505}, {'word': 'để', 'start': 4.9845505, 'end': 5.0929103}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:49.850860+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'cải', 'start': 5.0929103, 'end': 5.2477098}, {'word': 'thiện', 'start': 5.2477098, 'end': 5.4334693}, {'word': 'trí', 'start': 5.4334693, 'end': 5.557309}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:50.017806+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'nhớ.', 'start': 5.557309, 'end': 5.8669086}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:50.245181+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'Nó', 'start': 6.826667, 'end': 6.9659863}, {'word': 'nhấn', 'start': 6.9659863, 'end': 7.151746}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:50.710925+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'mạnh', 'start': 7.151746, 'end': 7.3994255}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:50.841877+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'rằng', 'start': 7.3994255, 'end': 7.6625853}, {'word': 'suy', 'start': 7.8173847, 'end': 8.018624}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:50.986998+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'nghĩ', 'start': 8.018624, 'end': 8.142464}, {'word': 'tích', 'start': 8.142464, 'end': 8.297264}, {'word': 'cực', 'start': 8.297264, 'end': 8.4365835}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:51.143050+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'và', 'start': 8.498504, 'end': 8.746182}, {'word': 'tự', 'start': 8.746182, 'end': 8.823583}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:51.298371+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'tin', 'start': 8.823583, 'end': 9.164142}, {'word': 'sẽ', 'start': 9.226062, 'end': 9.396341}, {'word': 'giúp', 'start': 9.396341, 'end': 9.551142}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:51.441406+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'bạn', 'start': 9.551142, 'end': 9.736901}, {'word': 'nhớ', 'start': 9.736901, 'end': 9.876221}, {'word': 'tốt', 'start': 9.876221, 'end': 10.1548605}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:51.580582+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'hơn', 'start': 10.1548605, 'end': 10.433499}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:27:51.714510+00:00"}
+[Agent] Data input from user_32b794: ok chương 3 thì sao
+[Agent] Text output (152 chars): Chương 3 là bài kiểm tra trí nhớ nhỏ để bạn tự đánh giá khả năng hiện tại của mình.  
+Nó giúp bạn so sánh trước–sau khi ...
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'Chương', 'start': 0.12383976, 'end': 0.38699925}, {'word': '3', 'start': 0.38699925, 'end': 0.57275885}, {'word': 'là', 'start': 0.57275885, 'end': 0.69659865}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:14.271425+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'bài', 'start': 0.69659865, 'end': 0.83591837}, {'word': 'kiểm', 'start': 0.86687833, 'end': 1.0526379}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:14.400204+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'tra', 'start': 1.0526379, 'end': 1.2229176}, {'word': 'trí', 'start': 1.2229176, 'end': 1.4705971}, {'word': 'nhớ', 'start': 1.4705971, 'end': 1.6563568}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:14.561168+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'nhỏ', 'start': 1.6563568, 'end': 2.1052759}, {'word': 'để', 'start': 2.3993952, 'end': 2.4922752}, {'word': 'bạn', 'start': 2.4922752, 'end': 2.647075}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:14.828551+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'tự', 'start': 2.647075, 'end': 2.7244747}, {'word': 'đánh', 'start': 2.7244747, 'end': 2.8792744}, {'word': 'giá', 'start': 2.8792744, 'end': 3.034074}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:14.972503+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'khả', 'start': 3.034074, 'end': 3.2972336}, {'word': 'năng', 'start': 3.2972336, 'end': 3.4829931}, {'word': 'hiện', 'start': 3.4829931, 'end': 3.606833}, {'word': 'tại', 'start': 3.606833, 'end': 3.7461526}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:15.102545+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'của', 'start': 3.7461526, 'end': 3.7925925}, {'word': 'mình.', 'start': 3.7925925, 'end': 4.071232}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:15.234133+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'Nó', 'start': 5.0929103, 'end': 5.2477098}, {'word': 'giúp', 'start': 5.2477098, 'end': 5.3870296}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:15.749925+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'bạn', 'start': 5.3870296, 'end': 5.541829}, {'word': 'so', 'start': 5.541829, 'end': 5.696629}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:15.882109+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'sánh', 'start': 5.696629, 'end': 5.8978686}, {'word': 'trước–sau', 'start': 5.8978686, 'end': 6.2693877}, {'word': 'khi', 'start': 6.2693877, 'end': 6.4087076}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:16.017236+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'học', 'start': 6.4087076, 'end': 6.594467}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:16.081817+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'các', 'start': 6.594467, 'end': 6.718307}, {'word': 'phương', 'start': 6.718307, 'end': 6.8576264}, {'word': 'pháp', 'start': 6.8576264, 'end': 7.136266}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:16.208840+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'trong', 'start': 7.136266, 'end': 7.3994255}, {'word': 'sách', 'start': 7.3994255, 'end': 7.647105}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:16.323089+00:00"}
+[Agent] Data input from user_32b794: vậy có mấy chương
+[Agent] Text output (63 chars): Cuốn sách có **23 chương** (chưa tính phần mở đầu và tóm tắt) 📚
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'Cuốn', 'start': 0.09287982, 'end': 0.3095994}, {'word': 'sách', 'start': 0.3095994, 'end': 0.510839}, {'word': 'có', 'start': 0.510839, 'end': 0.6656387}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:30.296393+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': '23', 'start': 0.6656387, 'end': 0.99071807}, {'word': 'chương', 'start': 0.99071807, 'end': 1.2074376}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:30.413506+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': '(chưa', 'start': 1.2074376, 'end': 1.4705971}, {'word': 'tính', 'start': 1.4705971, 'end': 1.7182766}, {'word': 'phần', 'start': 1.7182766, 'end': 1.8885564}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:30.534357+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'mở', 'start': 1.8885564, 'end': 2.043356}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:30.648782+00:00"}
+{"message": "unexpected message {'type': 'output_timestamps', 'session_id': 'a611ca6f-9cf4-4602-8dbe-35826ac243a2', 'words': [{'word': 'đầu', 'start': 2.043356, 'end': 2.6161149}, {'word': 'và', 'start': 2.6161149, 'end': 2.6780348}, {'word': 'tóm', 'start': 2.6780348, 'end': 2.8483145}, {'word': 'tắt)', 'start': 2.8483145, 'end': 3.049554}]}", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-04-28T12:28:30.770228+00:00"}
+{"message": "draining worker", "level": "INFO", "name": "livekit.agents", "id": "AW_i5YXW63EYcSV", "timeout": 1800, "timestamp": "2026-04-28T12:32:22.752693+00:00"}

@@ -7,6 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, Uploa
 from sqlmodel import Session
 
 from app.core.config import settings
+from app.core.constant import PlanMode
 from app.crud.audiobook import create_book, update_book_status
 from app.crud.chapter import create_chapter
 from app.crud.plan import create_reading_plan
@@ -101,7 +102,7 @@ async def upload_document(file: UploadFile = File(...)):  # noqa: B008
                 chapter = Chapter(
                     book_id=book_id,
                     chapter_index=i,
-                    title=chap.get("title", f"Chương {i + 1}"),
+                    title=chap.get("title", "Empty Chapter"),
                     status="DRAFT",
                 )
                 create_chapter(session, chapter)
@@ -141,9 +142,12 @@ async def generate_plan(
         if book.status not in ("DRAFT", "ERROR"):
             raise HTTPException(status_code=409, detail=f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
 
-    # 2. Validate mode
-    if payload.mode not in ("FULL_MODE", "PARETO_MODE"):
-        raise HTTPException(status_code=400, detail="mode phải là 'FULL_MODE' hoặc 'PARETO_MODE'.")
+    # 2. Validate mode (sau khi đã được normalize về lowercase bởi PlanInput validator)
+    if payload.mode not in (PlanMode.FULL, PlanMode.PARETO):
+        raise HTTPException(
+            status_code=400,
+            detail=f"mode không hợp lệ: '{payload.mode}'. Chỉ chấp nhận '{PlanMode.FULL}' hoặc '{PlanMode.PARETO}'.",
+        )
 
     # 3. Lưu ReadingPlan + cập nhật Book status
     try:

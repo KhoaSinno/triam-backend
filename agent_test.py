@@ -1,7 +1,7 @@
 from typing import Annotated
 
 from livekit import agents
-from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, function_tool, room_io
+from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, function_tool, room_io, inference
 from livekit.plugins import google, noise_cancellation, silero
 from supabase import Client, create_client
 from tavily import TavilyClient
@@ -12,7 +12,8 @@ from app.services.rag_service import search_book_knowledge
 tavily_client = TavilyClient(api_key=settings.TAVILY_API_KEY)
 
 # Khởi tạo Supabase (Dùng cho RAG)
-supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+supabase: Client = create_client(
+    settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
 
 
 class TriamAssistant(Agent):
@@ -63,9 +64,11 @@ class TriamAssistant(Agent):
         loop = asyncio.get_event_loop()
         search_result = await loop.run_in_executor(
             None,
-            lambda: tavily_client.search(query=query, search_depth="basic", max_results=3),
+            lambda: tavily_client.search(
+                query=query, search_depth="basic", max_results=3),
         )
-        result_text = "\n".join([f"- {r['content']}" for r in search_result["results"]])
+        result_text = "\n".join(
+            [f"- {r['content']}" for r in search_result["results"]])
 
         # Print result_text to console
         print(result_text)
@@ -82,13 +85,24 @@ async def entrypoint(ctx: JobContext):
     print(f"[Agent] Bắt đầu phiên đọc sách cho Book ID: {book_id}")
 
     # Khởi tạo Session
+    # session = AgentSession(
+    #     llm=google.realtime.RealtimeModel(
+    #         api_key=settings.GEMINI_API_KEY,
+    #         model=settings.GEMINI_MODEL_NATIVE_AUDIO,
+    #         voice="Puck",
+    #     ),
+    #     vad=silero.VAD.load(),
+    # )
+
     session = AgentSession(
-        llm=google.realtime.RealtimeModel(
-            api_key=settings.GEMINI_API_KEY,
-            model=settings.GEMINI_MODEL_NATIVE_AUDIO,
-            voice="Puck",
+        stt=inference.STT(
+            model="deepgram/flux-general",
+            language="en"
         ),
-        vad=silero.VAD.load(),
+        llm=inference.LLM(
+            model="openai/gpt-5.3-chat-latest",
+        ),
+        tts="cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
     )
 
     # Chạy Agent
@@ -99,6 +113,10 @@ async def entrypoint(ctx: JobContext):
             audio_input=room_io.AudioInputOptions(
                 noise_cancellation=lambda _: noise_cancellation.BVC(),
             ),
+            # Allow user to send text chat
+            text_input=room_io.TextInputOptions(),
+            # Allow agent to send text chat
+            text_output=room_io.TextOutputOptions(),
         ),
     )
 

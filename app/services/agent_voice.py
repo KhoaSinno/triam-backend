@@ -1,7 +1,17 @@
+import asyncio
 from typing import Annotated
 
-from livekit import agents
-from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, function_tool, room_io
+from livekit import agents, rtc
+from livekit.agents import (
+    Agent,
+    AgentSession,
+    JobContext,
+    WorkerOptions,
+    function_tool,
+    room_io,
+    inference,
+)
+from livekit.agents.voice import io as voice_io
 from livekit.plugins import google, noise_cancellation, silero
 from supabase import Client, create_client
 from tavily import TavilyClient
@@ -11,87 +21,146 @@ from app.services.rag_service import search_book_knowledge
 
 tavily_client = TavilyClient(api_key=settings.TAVILY_API_KEY)
 
-# Khởi tạo Supabase (Dùng cho RAG)
-supabase: Client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_ROLE_KEY)
+# Supabase (RAG)
+supabase: Client = create_client(
+    settings.SUPABASE_URL,
+    settings.SUPABASE_SERVICE_ROLE_KEY,
+)
+
+
+class ChatTextOutput(voice_io.TextOutput):
+    def __init__(self, room: rtc.Room, topic: str = "lk.chat") -> None:
+        super().__init__(label="ChatTextOutput", next_in_chain=None)
+        self._room = room
+        self._topic = topic
+        self._buffer: list[str] = []
+        self._flush_task: asyncio.Task[None] | None = None
+
+    async def capture_text(self, text: str) -> None:
+        if not text:
+            return
+
+        self._buffer.append(text)
+
+    def flush(self) -> None:
+        if not self._buffer:
+            return
+
+        message = "".join(self._buffer)
+        self._buffer.clear()
+        preview = message if len(message) <= 120 else f"{message[:120]}..."
+        print(f"[Agent] Text output ({len(message)} chars): {preview}")
+
+        async def _publish(text: str) -> None:
+            if not self._room.isconnected():
+                return
+            try:
+                await self._room.local_participant.publish_data(
+                    text,
+                    reliable=True,
+                    topic=self._topic,
+                )
+            except Exception as exc:
+                print(f"[Agent] Text output publish failed: {exc}")
+
+        # Flush is sync; schedule async publish.
+        self._flush_task = asyncio.create_task(_publish(message))
 
 
 class TriamAssistant(Agent):
     def __init__(self, book_id: str) -> None:
         super().__init__(
-            instructions="""Bạn là Trợ lý TRIAM - Người hỗ trợ đọc sách qua giọng nói.
-            1. Luôn dùng 'search_book_knowledge' trước khi trả lời về nội dung sách.
-            2. Trả lời cực kỳ ngắn gọn (dưới 2 câu), thân thiện.
-            3. Nếu không thấy trong sách, mới dùng 'search_web'."""
+            instructions=(
+                "Ban la Tro ly TRIAM - Ho tro doc sach qua giong noi. "
+                "1. Luon dung 'search_book_knowledge' truoc khi tra loi ve noi dung sach. "
+                "2. Tra loi cuc ky ngan gon (duoi 2 cau), than thien. "
+                "3. Neu khong thay trong sach, moi dung 'search_web'."
+            )
         )
         self.book_id = book_id
 
     @function_tool
-    async def search_book_knowledge(self, query: Annotated[str, "Câu hỏi hoặc từ khóa cần tìm trong sách của người dùng"]) -> str:
-        """Tra cứu nội dung trong cuốn sách hiện tại từ database kiến thức."""
+    async def search_book_knowledge(
+        self,
+        query: Annotated[str, "Cau hoi hoac tu khoa can tim trong sach"],
+    ) -> str:
         try:
-            # Tối ưu RAG: Gọi RPC để thực hiện Vector Search + Metadata Filtering
             data = await search_book_knowledge(query, self.book_id)
 
-            print("/////Data...........")
-            print(data)
-            print("...........Data/////")
-
             if not data:
-                return "Không tìm thấy thông tin này trong sách."
+                return "Khong tim thay thong tin nay trong sach."
 
             formatted_chunks = []
             for i, item in enumerate(data):
-                # Format rõ ràng từng đoạn, cung cấp index để LLM biết đây là các đoạn rời rạc
-                chunk_text = f"--- Đoạn {i + 1} (Chương ID: ...{item.get('chapter_id', '')[-6:]}, Index: {item.get('chunk_index', 'N/A')}) ---\n{item.get('content', '')}"
+                chunk_text = (
+                    f"--- Doan {i + 1} (Chuong ID: ...{item.get('chapter_id', '')[-6:]}, "
+                    f"Index: {item.get('chunk_index', 'N/A')}) ---\n"
+                    f"{item.get('content', '')}"
+                )
                 formatted_chunks.append(chunk_text)
 
             context = "\n\n".join(formatted_chunks)
-            print("/////Context...........")
-            print(context)
-            print("...........Context/////")
-            return f"Thông tin từ sách: {context}"
+            return f"Thong tin tu sach: {context}"
         except Exception as e:
-            return f"Lỗi truy xuất: {str(e)}"
+            return f"Loi truy xuat: {str(e)}"
 
     @function_tool
-    async def search_web(self, query: Annotated[str, "Nội dung cần tìm kiếm trên internet"]) -> str:
-        """Tìm kiếm thông tin từ Internet."""
-
-        # Tavily Python SDK v0.3+ dùng sync, không có async wrapper
+    async def search_web(
+        self,
+        query: Annotated[str, "Noi dung can tim kiem tren internet"],
+    ) -> str:
         import asyncio
 
         loop = asyncio.get_event_loop()
         search_result = await loop.run_in_executor(
             None,
-            lambda: tavily_client.search(query=query, search_depth="basic", max_results=3),
+            lambda: tavily_client.search(
+                query=query,
+                search_depth="basic",
+                max_results=3,
+            ),
         )
-        result_text = "\n".join([f"- {r['content']}" for r in search_result["results"]])
-
-        # Print result_text to console
-        print(result_text)
-
+        result_text = "\n".join(
+            [f"- {r['content']}" for r in search_result["results"]])
         return result_text
 
 
 async def entrypoint(ctx: JobContext):
-    # Bắt buộc với pattern WorkerOptions: phải connect Room trước khi start session
+    # Bat buoc: connect Room truoc khi start session
     await ctx.connect()
 
-    # Nhận book_id từ thông tin Room (được định nghĩa trong /live-token endpoint)
     book_id = ctx.room.name
-    print(f"[Agent] Bắt đầu phiên đọc sách cho Book ID: {book_id}")
+    print(f"[Agent] Bat dau phien doc sach cho Book ID: {book_id}")
 
-    # Khởi tạo Session
     session = AgentSession(
-        llm=google.realtime.RealtimeModel(
-            api_key=settings.GEMINI_API_KEY,
-            model=settings.GEMINI_MODEL_NATIVE_AUDIO,
-            voice="Puck",
+        stt=inference.STT(
+            model="deepgram/flux-general",
+            language="en",
         ),
-        vad=silero.VAD.load(),
+        llm=inference.LLM(
+            model="openai/gpt-5.3-chat-latest",
+        ),
+        tts=inference.TTS(
+            model="cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
+            extra_kwargs={
+                "add_timestamps": False,
+                "add_phoneme_timestamps": False,
+                "use_normalized_timestamps": False,
+            },
+        ),
     )
 
-    # Chạy Agent
+    async def handle_text_input(sess: AgentSession, ev: room_io.TextInputEvent) -> None:
+        participant_id = ev.participant.identity if ev.participant else "unknown"
+        print(f"[Agent] Text input from {participant_id}: {ev.text}")
+        await sess.interrupt()
+        sess.generate_reply(user_input=ev.text)
+
+    async def handle_data_input(text: str, participant_id: str | None) -> None:
+        print(f"[Agent] Data input from {participant_id or 'unknown'}: {text}")
+        await session.interrupt()
+        session.generate_reply(user_input=text)
+
     await session.start(
         room=ctx.room,
         agent=TriamAssistant(book_id=book_id),
@@ -99,15 +168,40 @@ async def entrypoint(ctx: JobContext):
             audio_input=room_io.AudioInputOptions(
                 noise_cancellation=lambda _: noise_cancellation.BVC(),
             ),
+            text_input=room_io.TextInputOptions(
+                text_input_cb=handle_text_input),
+            text_output=room_io.TextOutputOptions(
+                sync_transcription=False,
+                next_in_chain=ChatTextOutput(ctx.room),
+            ),
+            close_on_disconnect=False,
         ),
     )
 
-    # Start session with a message as the first message
-    await session.generate_reply(instructions="Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi đã sẵn sàng hỗ trợ bạn đọc sách.")
+    def on_data_received(packet: rtc.DataPacket) -> None:
+        if packet.topic != "lk.chat":
+            return
+
+        try:
+            text = packet.data.decode("utf-8")
+        except Exception as exc:
+            print(f"[Agent] Data input decode failed: {exc}")
+            return
+
+        participant_id = packet.participant.identity if packet.participant else None
+        asyncio.create_task(handle_data_input(text, participant_id))
+
+    ctx.room.on("data_received", on_data_received)
+
+    await session.generate_reply(
+        instructions=(
+            "Chao ban! Toi la tro ly ao TRIAM. "
+            "Toi da san sang ho tro ban doc sach."
+        ),
+    )
 
 
 if __name__ == "__main__":
-    # Tắt tính năng tự động ngắt khi CPU cao + đăng ký đúng agent_name
     agents.cli.run_app(
         WorkerOptions(
             entrypoint_fnc=entrypoint,

@@ -3,19 +3,20 @@ import logging
 import os
 import uuid
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.core.supabase import supabase
 from app.crud.audiobook import update_book_status
 from app.crud.book_knowledge import delete_knowledge_by_chapter
 from app.crud.chapter import (
+    Chapter,
     delete_chapter,
     get_draft_chapters_by_book,
     update_chapter_review_audio,
     update_chapter_review_text,
     update_chapter_status,
 )
-from app.crud.chapter_segment import bulk_create_segments
+from app.crud.chapter_segment import bulk_create_segments, delete_segments_by_chapter_and_mode
 from app.db import engine
 from app.helper.upload2supabase import upload_file_to_supabase
 from app.models.db_models import Book, ChapterSegment
@@ -52,14 +53,14 @@ async def _thread_2_tts(
 ) -> None:
     """Luồng 2: LLM rewrite → TTS → Upload Storage → Lưu chapter_segments."""
     # Step 1: LLM Rewrite
-    obj_chapter = await normalize_text_for_speech(raw_text)
+    obj_chapter = await normalize_text_for_speech(raw_text, mode)
     main_scripts: list[str] = obj_chapter.get("main_scripts", [])
     review_text: str = obj_chapter.get("review_script", "")
 
     # Lưu review_text vào chapter
     if review_text:
         with Session(engine) as session:
-            update_chapter_review_text(session, chapter_id, review_text)
+            update_chapter_review_text(session, chapter_id, review_text, mode)
 
     # Step 2: TTS + Upload từng segment
     segments: list[ChapterSegment] = []
@@ -68,7 +69,7 @@ async def _thread_2_tts(
         os.makedirs("uploads", exist_ok=True)
         try:
             duration_ms = await generate_audio_and_get_duration(script, local_file)
-            storage_path = f"{book_id}/chap_{chapter_index + 1}/part_{i + 1}.mp3"
+            storage_path = f"{book_id}/chap_{chapter_index + 1}/{mode}/part_{i + 1}.mp3"
             audio_url = await upload_file_to_supabase(local_file, storage_path, "audios", "audio/mpeg")
             segments.append(
                 ChapterSegment(
@@ -77,6 +78,7 @@ async def _thread_2_tts(
                     audio_url=audio_url,
                     duration_ms=duration_ms,
                     text_content=script,
+                    mode=mode,
                 )
             )
         except Exception as seg_err:
@@ -97,10 +99,10 @@ async def _thread_2_tts(
         local_review = f"uploads/{uuid.uuid4()}.mp3"
         try:
             await generate_audio_and_get_duration(review_text, local_review)
-            storage_path = f"{book_id}/chap_{chapter_index + 1}/review.mp3"
+            storage_path = f"{book_id}/chap_{chapter_index + 1}/{mode}/review.mp3"
             review_url = await upload_file_to_supabase(local_review, storage_path, "audios", "audio/mpeg")
             with Session(engine) as session:
-                update_chapter_review_audio(session, chapter_id, review_url)
+                update_chapter_review_audio(session, chapter_id, review_url, mode)
         except Exception as rev_err:
             logger.warning(f"⚠️ Review audio chương {chapter_index + 1} lỗi, bỏ qua: {rev_err}")
         finally:
@@ -210,3 +212,64 @@ async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
         with Session(engine) as session:
             update_book_status(session, book_id, "ERROR", str(e))
         logger.error(f"❌ LỖI XỬ LÝ SÁCH {book_id}: {e}")
+
+
+async def _process_switch_mode_chapter(
+    book_id: uuid.UUID,
+    chapter_id: uuid.UUID,
+    chapter_index: int,
+    raw_text: str,
+    new_mode: str,
+) -> None:
+    """Xử lý switch mode 1 chương: chỉ chạy TTS, xóa segments cũ của mode này trước khi tạo."""
+    async with sem:
+        try:
+            # 1. Xoá audio cũ của mode chuẩn bị gen (để ko bị trùng)
+            with Session(engine) as session:
+                delete_segments_by_chapter_and_mode(session, chapter_id, new_mode)
+
+            # 2. Sinh Audio TTS mới
+            await _thread_2_tts(book_id, chapter_id, chapter_index, raw_text, new_mode)
+
+            logger.info(f"✅ Chapter {chapter_index + 1} SWITCH MODE {new_mode} READY")
+        except Exception as e:
+            logger.error(f"❌ Error switching mode chapter {chapter_index + 1}: {e}")
+            raise
+
+
+async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str) -> None:
+    """
+    Luồng sinh audio riêng khi User switch mode:
+    Bỏ qua RAG, lấy lại text từ PDF, gen audio TTS.
+    """
+    import io
+
+    try:
+        with Session(engine) as session:
+            book = session.get(Book, book_id)
+            chapters = session.exec(select(Chapter).where(Chapter.book_id == book_id)).all()
+
+        if not book or not book.file_url or book.file_url == "pending":
+            logger.error(f"Cannot switch mode for book {book_id}: Invalid book or file_url")
+            return
+
+        # Tải PDF và lấy text gốc
+        storage_path = f"{book_id}/original.pdf"
+        logger.info(f"⬇️  Downloading PDF for Switch Mode: {storage_path}")
+        pdf_bytes = supabase.storage.from_("raw_books").download(storage_path)
+        pdf_file = io.BytesIO(pdf_bytes)
+        chapters_data = await extract_chapters_smart(pdf_file)
+        chapters_map = {i: chap.get("text", "") for i, chap in enumerate(chapters_data)}
+
+        # Chạy task song song cho các chapter
+        tasks = []
+        for chap in chapters:
+            raw_text = chapters_map.get(chap.chapter_index, "")
+            if raw_text.strip():
+                tasks.append(_process_switch_mode_chapter(book_id, chap.id, chap.chapter_index, raw_text, new_mode))
+
+        await asyncio.gather(*tasks)
+        logger.info(f"🎉 Sách {book_id} đã gen xong audio cho mode: {new_mode}.")
+
+    except Exception as e:
+        logger.error(f"❌ LỖI SWITCH MODE SÁCH {book_id}: {e}")
