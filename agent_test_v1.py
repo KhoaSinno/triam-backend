@@ -41,9 +41,16 @@ class TriamAssistant(Agent):
                 return "Không tìm thấy thông tin này trong sách."
 
             formatted_chunks = []
+            if not isinstance(data, list):
+                return "Định dạng dữ liệu trả về không hợp lệ."
             for i, item in enumerate(data):
+                if not isinstance(item, dict):
+                    continue  # Bỏ qua item không phải dict
+                # Cast type
+                chapter_id = str(item.get("chapter_id", ""))
+                chunk_index = str(item.get("chunk_index", "N/A"))
                 # Format rõ ràng từng đoạn, cung cấp index để LLM biết đây là các đoạn rời rạc
-                chunk_text = f"--- Đoạn {i + 1} (Chương ID: ...{item.get('chapter_id', '')[-6:]}, Index: {item.get('chunk_index', 'N/A')}) ---\n{item.get('content', '')}"
+                chunk_text = f"--- Đoạn {i + 1} (Chương ID: ...{chapter_id[-6:]}, Index: {chunk_index}) ---\n{item.get('content', '')}"
                 formatted_chunks.append(chunk_text)
 
             context = "\n\n".join(formatted_chunks)
@@ -85,25 +92,25 @@ async def entrypoint(ctx: JobContext):
     print(f"[Agent] Bắt đầu phiên đọc sách cho Book ID: {book_id}")
 
     # Khởi tạo Session
-    # session = AgentSession(
-    #     llm=google.realtime.RealtimeModel(
-    #         api_key=settings.GEMINI_API_KEY,
-    #         model=settings.GEMINI_MODEL_NATIVE_AUDIO,
-    #         voice="Puck",
-    #     ),
-    #     vad=silero.VAD.load(),
-    # )
-
     session = AgentSession(
-        stt=inference.STT(
-            model="deepgram/flux-general",
-            language="en"
+        llm=google.realtime.RealtimeModel(
+            api_key=settings.GEMINI_API_KEY,
+            model=settings.GEMINI_MODEL_NATIVE_AUDIO,
+            voice="Puck",
         ),
-        llm=inference.LLM(
-            model="openai/gpt-5.3-chat-latest",
-        ),
-        tts="cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
+        vad=silero.VAD.load(),
     )
+
+    # session = AgentSession(
+    #     stt=inference.STT(
+    #         model="deepgram/flux-general",
+    #         language="en"
+    #     ),
+    #     llm=inference.LLM(
+    #         model="openai/gpt-5.3-chat-latest",
+    #     ),
+    #     tts="cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
+    # )
 
     # Chạy Agent
     await session.start(

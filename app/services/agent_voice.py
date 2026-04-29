@@ -88,14 +88,23 @@ class TriamAssistant(Agent):
             data = await search_book_knowledge(query, self.book_id)
 
             if not data:
-                return "Khong tim thay thong tin nay trong sach."
+                return "RAG don't have data"
+
+            if not isinstance(data, list):
+                return "RAG invalid RAG data format"
 
             formatted_chunks = []
             for i, item in enumerate(data):
+                if not isinstance(item, dict):
+                    continue
+                chapter_id = str(item.get('chapter_id', ''))
+                chunk_index = item.get('chunk_index', 'N/A')
+                content = item.get('content', '')
+
                 chunk_text = (
-                    f"--- Doan {i + 1} (Chuong ID: ...{item.get('chapter_id', '')[-6:]}, "
-                    f"Index: {item.get('chunk_index', 'N/A')}) ---\n"
-                    f"{item.get('content', '')}"
+                    f"--- Doan {i + 1} (Chuong ID: ...{chapter_id[-6:]}, "
+                    f"Index: {chunk_index}) ---\n"
+                    f"{content}"
                 )
                 formatted_chunks.append(chunk_text)
 
@@ -134,20 +143,31 @@ async def entrypoint(ctx: JobContext):
 
     session = AgentSession(
         stt=inference.STT(
-            model="deepgram/flux-general",
-            language="en",
+            model="deepgram/nova-3",  # Nova-3 is more accurate for Vietnamese than Flux-General
+            language="vi",
+            extra_kwargs={
+                "language_hints": ["vi"],
+                "smart_format": True
+            }
         ),
         llm=inference.LLM(
             model="openai/gpt-5.3-chat-latest",
         ),
         tts=inference.TTS(
-            model="cartesia/sonic-3:9626c31c-bec5-4cca-baa8-f8ba9e84c8bc",
+            model="elevenlabs/eleven_flash_v2_5",
+            language="vi",
             extra_kwargs={
-                "add_timestamps": False,
-                "add_phoneme_timestamps": False,
-                "use_normalized_timestamps": False,
+                "voice_id": "Lcf7z35dm7QXBoD0f107",  # Custom voice Vietnamese - Linh
+                "add_timestamps": True,
+                "voice_settings": {
+                    "stability": 0.45,        # Giảm để AI nhấn dấu hỏi/ngã chuẩn hơn
+                    "similarity_boost": 0.8,   # Tăng để giữ đặc trưng giọng người Việt
+                    "style": 0.1,             # Thêm chút cảm xúc
+                    "use_speaker_boost": True
+                }
             },
         ),
+        vad=silero.VAD.load(),
     )
 
     async def handle_text_input(sess: AgentSession, ev: room_io.TextInputEvent) -> None:
