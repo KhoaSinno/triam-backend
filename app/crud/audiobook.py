@@ -62,8 +62,6 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID):
                     print(f"Đã xóa {len(paths)} files từ bucket: {bucket}")
 
         # 3. Xóa record trong DB
-        # Lưu ý: CASCADE (Alembic) sẽ tự động xóa các bảng liên quan
-        # (chapters, book_knowledge...) khi lệnh commit chạy.
         delete_book(session, book_id)
         print(f"Đã dọn dẹp sạch sẽ database cho book: {str_book_id}")
 

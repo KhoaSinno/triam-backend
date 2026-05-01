@@ -19,7 +19,6 @@ async def lifespan(app: FastAPI):
     yield  # Sau từ khóa yield là lúc ứng dụng đang chạy (đang phục vụ người dùng)
     # --- Chạy khi SHUTDOWN ---
     print("Đang dọn dẹp tài nguyên...")
-    # (Ví dụ: đóng kết nối database nếu cần)
 
 
 app = FastAPI(title="TRIAM Assistant API", lifespan=lifespan)
@@ -50,5 +49,4 @@ async def test_voice_stream_edge(
 if __name__ == "__main__":
     import uvicorn
 
-    # Reload=True để code tới đâu server cập nhật tới đó
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
