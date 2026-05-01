@@ -8,11 +8,11 @@ from livekit.agents import (
     JobContext,
     WorkerOptions,
     function_tool,
-    room_io,
     inference,
+    room_io,
 )
 from livekit.agents.voice import io as voice_io
-from livekit.plugins import google, noise_cancellation, silero
+from livekit.plugins import noise_cancellation, silero
 from supabase import Client, create_client
 from tavily import TavilyClient
 
@@ -71,10 +71,11 @@ class TriamAssistant(Agent):
     def __init__(self, book_id: str) -> None:
         super().__init__(
             instructions=(
-                "Ban la Tro ly TRIAM - Ho tro doc sach qua giong noi. "
-                "1. Luon dung 'search_book_knowledge' truoc khi tra loi ve noi dung sach. "
-                "2. Tra loi cuc ky ngan gon (duoi 2 cau), than thien. "
-                "3. Neu khong thay trong sach, moi dung 'search_web'."
+                "Bạn là trợ lý AI sách nói TRIAM - Trợ lý đọc sách nói thông minh.\n"
+                "1. Luôn dùng 'search_book_knowledge' trước khi trả lời về nội dung sách.\n"
+                "2. Trả lời cực kỳ NGẮN GỌN (dưới 2-3 câu), tự nhiên rành mạch, đi thẳng vào trọng tâm câu hỏi.\n"
+                "3. Tuyệt đối KHÔNG SỬ DỤNG Markdown (không dùng dấu **, *, #, -) và KHÔNG SỬ DỤNG EMOJI (biểu tượng cảm xúc) trong câu trả lời. Trả lời thuần văn bản (plain text) vì lời nói của bạn sẽ được đưa vào hệ thống đọc giọng nói.\n"
+                "4. Chỉ dùng 'search_web' nếu nội dung không có trong sách."
             )
         )
         self.book_id = book_id
@@ -82,7 +83,7 @@ class TriamAssistant(Agent):
     @function_tool
     async def search_book_knowledge(
         self,
-        query: Annotated[str, "Cau hoi hoac tu khoa can tim trong sach"],
+        query: Annotated[str, "Câu hỏi hoặc nội dung cần tìm trong sách"],
     ) -> str:
         try:
             data = await search_book_knowledge(query, self.book_id)
@@ -97,26 +98,22 @@ class TriamAssistant(Agent):
             for i, item in enumerate(data):
                 if not isinstance(item, dict):
                     continue
-                chapter_id = str(item.get('chapter_id', ''))
-                chunk_index = item.get('chunk_index', 'N/A')
-                content = item.get('content', '')
+                chapter_id = str(item.get("chapter_id", ""))
+                chunk_index = item.get("chunk_index", "N/A")
+                content = item.get("content", "")
 
-                chunk_text = (
-                    f"--- Doan {i + 1} (Chuong ID: ...{chapter_id[-6:]}, "
-                    f"Index: {chunk_index}) ---\n"
-                    f"{content}"
-                )
+                chunk_text = f"--- Segment {i + 1} (Chapter ID: ...{chapter_id[-6:]}, Index: {chunk_index}) ---\n{content}"
                 formatted_chunks.append(chunk_text)
 
             context = "\n\n".join(formatted_chunks)
-            return f"Thong tin tu sach: {context}"
+            return f"Book Knowledge: {context}"
         except Exception as e:
-            return f"Loi truy xuat: {str(e)}"
+            return f"Error: {str(e)}"
 
     @function_tool
     async def search_web(
         self,
-        query: Annotated[str, "Noi dung can tim kiem tren internet"],
+        query: Annotated[str, "Nội dung cần tìm kiếm trên internet"],
     ) -> str:
         import asyncio
 
@@ -129,13 +126,12 @@ class TriamAssistant(Agent):
                 max_results=3,
             ),
         )
-        result_text = "\n".join(
-            [f"- {r['content']}" for r in search_result["results"]])
+        result_text = "\n".join([f"- {r['content']}" for r in search_result["results"]])
         return result_text
 
 
 async def entrypoint(ctx: JobContext):
-    # Bat buoc: connect Room truoc khi start session
+
     await ctx.connect()
 
     book_id = ctx.room.name
@@ -145,10 +141,7 @@ async def entrypoint(ctx: JobContext):
         stt=inference.STT(
             model="deepgram/nova-3",  # Nova-3 is more accurate for Vietnamese than Flux-General
             language="vi",
-            extra_kwargs={
-                "language_hints": ["vi"],
-                "smart_format": True
-            }
+            extra_kwargs={"language_hints": ["vi"], "smart_format": True},
         ),
         llm=inference.LLM(
             model="openai/gpt-5.3-chat-latest",
@@ -160,16 +153,19 @@ async def entrypoint(ctx: JobContext):
                 "voice_id": "Lcf7z35dm7QXBoD0f107",  # Custom voice Vietnamese - Linh
                 "add_timestamps": True,
                 "voice_settings": {
-                    "stability": 0.45,        # Giảm để AI nhấn dấu hỏi/ngã chuẩn hơn
-                    "similarity_boost": 0.8,   # Tăng để giữ đặc trưng giọng người Việt
-                    "style": 0.1,             # Thêm chút cảm xúc
-                    "use_speaker_boost": True
-                }
+                    "stability": 0.45,  # Giảm để AI nhấn dấu hỏi/ngã chuẩn hơn
+                    "similarity_boost": 0.8,  # Tăng để giữ đặc trưng giọng người Việt
+                    "style": 0.1,  # Thêm chút cảm xúc
+                    "use_speaker_boost": True,
+                },
             },
         ),
         vad=silero.VAD.load(),
     )
 
+    # Note: We use a custom data channel ("lk.chat") for text input instead of relying on room_io.TextInputEvent,
+    # because TextInputEvent may not be supported or reliable in all client implementations. By listening to data packets directly, we can ensure that text input works consistently regardless of the client.
+    # THIS IS A TEXT STREAM implement
     async def handle_text_input(sess: AgentSession, ev: room_io.TextInputEvent) -> None:
         participant_id = ev.participant.identity if ev.participant else "unknown"
         print(f"[Agent] Text input from {participant_id}: {ev.text}")
@@ -188,13 +184,12 @@ async def entrypoint(ctx: JobContext):
             audio_input=room_io.AudioInputOptions(
                 noise_cancellation=lambda _: noise_cancellation.BVC(),
             ),
-            text_input=room_io.TextInputOptions(
-                text_input_cb=handle_text_input),
+            text_input=room_io.TextInputOptions(text_input_cb=handle_text_input),
             text_output=room_io.TextOutputOptions(
                 sync_transcription=False,
                 next_in_chain=ChatTextOutput(ctx.room),
             ),
-            close_on_disconnect=False,
+            close_on_disconnect=True,
         ),
     )
 
@@ -214,10 +209,7 @@ async def entrypoint(ctx: JobContext):
     ctx.room.on("data_received", on_data_received)
 
     await session.generate_reply(
-        instructions=(
-            "Chao ban! Toi la tro ly ao TRIAM. "
-            "Toi da san sang ho tro ban doc sach."
-        ),
+        instructions=("Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn quyển sách này."),
     )
 
 
