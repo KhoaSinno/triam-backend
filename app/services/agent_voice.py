@@ -1,4 +1,5 @@
 import asyncio
+import json
 from typing import Annotated
 
 from livekit import agents, rtc
@@ -134,7 +135,20 @@ async def entrypoint(ctx: JobContext):
 
     await ctx.connect()
 
-    book_id = ctx.room.name
+    try:
+        job_meta = json.loads(ctx.job.metadata or "{}")
+        book_id = job_meta.get("book_id", "")
+
+    except (json.JSONDecodeError, AttributeError, TypeError):
+        book_id = ""
+
+    if not book_id:
+        print("[Agent] ❌ Không tìm thấy book_id trong metadata! Thoát.")
+        return
+
+    print(f"[Agent] ✅ Book ID từ metadata: {book_id}")
+    print(f"[Agent] 🏠 Room Name (session): {ctx.room.name}")
+
     print(f"[Agent] Bat dau phien doc sach cho Book ID: {book_id}")
 
     session = AgentSession(

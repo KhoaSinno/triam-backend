@@ -1,3 +1,4 @@
+import json
 import uuid
 
 from fastapi import APIRouter
@@ -12,8 +13,10 @@ router = APIRouter()
 async def get_token(book_id: str):
     # Cấu hình dispatch Agent ngay khi user join room
     # Điều này bắt buộc để LiveKit FE Flutter Session nhận diện được 'dispatchesAgent: true'
-    agent_dispatch = api.RoomAgentDispatch(agent_name=settings.LIVEKIT_AGENT_NAME)
-    room_config = api.RoomConfiguration(name=book_id, agents=[agent_dispatch])
+    session_room_name = f"triam_{book_id[:8]}_{uuid.uuid4().hex[:6]}"
+
+    agent_dispatch = api.RoomAgentDispatch(agent_name=settings.LIVEKIT_AGENT_NAME, metadata=json.dumps({"book_id": book_id}))
+    room_config = api.RoomConfiguration(agents=[agent_dispatch])
 
     # Create Token for user join room
     token = (
@@ -22,14 +25,13 @@ async def get_token(book_id: str):
         .with_grants(
             api.VideoGrants(
                 room_join=True,
-                room=book_id,  # book_id is room name
+                room=session_room_name,
             )
         )
         .with_room_config(room_config)
-        .with_metadata(book_id)
-    )  # book_id is metadata for Agent
+    )
 
-    return {"token": token.to_jwt()}
+    return {"token": token.to_jwt(), "room_name": session_room_name}
 
 
 # tavily_client = AsyncTavilyClient(api_key=settings.TAVILY_API_KEY)
