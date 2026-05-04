@@ -7,6 +7,8 @@ from sqlalchemy import Column, DateTime, ForeignKey, Integer, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlmodel import Field, SQLModel
 
+from app.core.constant import PlanMode
+
 
 class Book(SQLModel, table=True):
     __tablename__ = "books"
@@ -60,7 +62,7 @@ class ChapterSegment(SQLModel, table=True):
     audio_url: Optional[str] = Field(default=None, sa_column=Column(Text))
     text_content: Optional[str] = Field(default=None, sa_column=Column(Text))
     duration_ms: Optional[int] = Field(default=None, sa_column=Column(Integer))
-    mode: str = Field(default="full", sa_column=Column(Text, nullable=False, server_default="full"))
+    mode: str = Field(default=PlanMode.FULL, sa_column=Column(Text, nullable=False, server_default=PlanMode.FULL))
 
 
 class BookKnowledge(SQLModel, table=True):

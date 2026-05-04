@@ -1,9 +1,19 @@
-class BookStatus:
+from enum import Enum
+
+
+class PlanStatus(str, Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+    ERROR = "error"
+
+
+class BookStatus(str, Enum):
+    DRAFT = "draft"
     PROCESSING = "processing"
     READY = "ready"
     ERROR = "error"
 
 
-class PlanMode:
+class PlanMode(str, Enum):
     FULL = "full"
     PARETO = "pareto"

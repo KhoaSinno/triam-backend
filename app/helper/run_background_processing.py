@@ -5,6 +5,7 @@ import uuid
 
 from sqlmodel import Session, select
 
+from app.core.constant import BookStatus
 from app.core.supabase import supabase
 from app.crud.audiobook import update_book_status
 from app.crud.book_knowledge import delete_knowledge_by_chapter
@@ -125,7 +126,7 @@ async def _process_single_chapter(
                 _thread_2_tts(book_id, chapter_id, chapter_index, raw_text, mode),
             )
             with Session(engine) as session:
-                update_chapter_status(session, chapter_id, "READY")
+                update_chapter_status(session, chapter_id, BookStatus.READY)
             logger.info(f"✅ Chapter {chapter_index + 1} READY")
         except Exception as e:
             logger.error(f"❌ Error processing chapter {chapter_index + 1}: {e}")
@@ -163,12 +164,12 @@ async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
 
         if not draft_chapters:
             with Session(engine) as session:
-                update_book_status(session, book_id, "ERROR", "Không có chapter nào để xử lý.")
+                update_book_status(session, book_id, BookStatus.ERROR, "Không có chapter nào để xử lý.")
             return
 
-        if not book.file_url or book.file_url == "pending":
+        if not book.file_url:
             with Session(engine) as session:
-                update_book_status(session, book_id, "ERROR", "file_url chưa được lưu — PDF chưa upload lên Storage.")
+                update_book_status(session, book_id, BookStatus.ERROR, "file_url chưa được lưu — PDF chưa upload lên Storage.")
             logger.error(f"book.file_url is missing for book {book_id}")
             return
 
@@ -205,12 +206,12 @@ async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
         await asyncio.gather(*tasks)
 
         with Session(engine) as session:
-            update_book_status(session, book_id, "READY")
+            update_book_status(session, book_id, BookStatus.READY)
         logger.info(f"🎉 Book {book_id} READY — tất cả chapters đã xử lý xong.")
 
     except Exception as e:
         with Session(engine) as session:
-            update_book_status(session, book_id, "ERROR", str(e))
+            update_book_status(session, book_id, BookStatus.ERROR, str(e))
         logger.error(f"❌ LỖI XỬ LÝ SÁCH {book_id}: {e}")
 
 
@@ -249,7 +250,7 @@ async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str) -> None:
             book = session.get(Book, book_id)
             chapters = session.exec(select(Chapter).where(Chapter.book_id == book_id)).all()
 
-        if not book or not book.file_url or book.file_url == "pending":
+        if not book or not book.file_url:
             logger.error(f"Cannot switch mode for book {book_id}: Invalid book or file_url")
             return
 

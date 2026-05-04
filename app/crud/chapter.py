@@ -1,6 +1,7 @@
 import json
 import uuid
 
+from aiohttp.web import HTTPException
 from sqlmodel import Session, select
 
 from app.models.db_models import Chapter
@@ -24,9 +25,9 @@ def update_chapter_review_audio(session: Session, chapter_id: uuid.UUID, review_
     if chapter:
         try:
             reviews_audio = json.loads(chapter.review_audio_url) if chapter.review_audio_url else {}
-        except:
-            # Fallback nếu data cũ là string thường
-            reviews_audio = {"full": chapter.review_audio_url} if chapter.review_audio_url else {}
+        except (json.JSONDecodeError, TypeError) as e:
+            print(f"Data integrity error: {e}")
+            raise HTTPException(status_code=500, detail="Data integrity error") from e
 
         reviews_audio[mode] = review_audio_url
         chapter.review_audio_url = json.dumps(reviews_audio, ensure_ascii=False)
@@ -47,9 +48,9 @@ def update_chapter_review_text(session: Session, chapter_id: uuid.UUID, review_t
     if chapter:
         try:
             reviews_text = json.loads(chapter.review_text) if chapter.review_text else {}
-        except:
-            # Fallback nếu data cũ là string thường
-            reviews_text = {"full": chapter.review_text} if chapter.review_text else {}
+        except (json.JSONDecodeError, TypeError) as e:
+            print(f"Data integrity error: {e}")
+            raise HTTPException(status_code=500, detail="Data integrity error") from e
 
         reviews_text[mode] = review_text
         chapter.review_text = json.dumps(reviews_text, ensure_ascii=False)

@@ -7,7 +7,7 @@ from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, Uploa
 from sqlmodel import Session
 
 from app.core.config import settings
-from app.core.constant import PlanMode
+from app.core.constant import BookStatus, PlanStatus
 from app.crud.audiobook import create_book, update_book_status
 from app.crud.chapter import create_chapter
 from app.crud.plan import create_reading_plan
@@ -126,10 +126,7 @@ async def upload_document(file: UploadFile = File(...)):  # noqa: B008
 # ENDPOINT 2: POST /generate-plan
 # -----------------------------------------------------------------------
 @router.post("/generate-plan")
-async def generate_plan(
-    background_tasks: BackgroundTasks,
-    payload: PlanInput = Body(...),  # noqa: B008
-):
+async def generate_plan(background_tasks: BackgroundTasks, payload: PlanInput = Body(...)):  # noqa: B008
     """
     Bước 2: Nhận cấu hình kế hoạch học từ Flutter, lưu ReadingPlan,
     kick-off background processing.
@@ -139,15 +136,8 @@ async def generate_plan(
         book = session.get(Book, payload.book_id)
         if not book:
             raise HTTPException(status_code=404, detail="Không tìm thấy sách.")
-        if book.status not in ("DRAFT", "ERROR"):
+        if book.status not in (BookStatus.DRAFT):
             raise HTTPException(status_code=409, detail=f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
-
-    # 2. Validate mode (sau khi đã được normalize về lowercase bởi PlanInput validator)
-    if payload.mode not in (PlanMode.FULL, PlanMode.PARETO):
-        raise HTTPException(
-            status_code=400,
-            detail=f"mode không hợp lệ: '{payload.mode}'. Chỉ chấp nhận '{PlanMode.FULL}' hoặc '{PlanMode.PARETO}'.",
-        )
 
     # 3. Lưu ReadingPlan + cập nhật Book status
     try:
@@ -157,10 +147,10 @@ async def generate_plan(
                 mode=payload.mode,
                 pace=payload.pace,
                 schedule_config=payload.schedule_config,
-                status="ACTIVE",
+                status=PlanStatus.ACTIVE,
             )
             create_reading_plan(session, plan)
-            update_book_status(session, payload.book_id, "PROCESSING")
+            update_book_status(session, payload.book_id, BookStatus.PROCESSING)
 
         logger.info(f"📋 ReadingPlan created for book {payload.book_id} | mode={payload.mode}")
     except Exception as e:

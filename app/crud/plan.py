@@ -2,6 +2,7 @@ import uuid
 
 from sqlmodel import Session, select
 
+from app.core.constant import PlanStatus
 from app.models.db_models import ReadingPlan
 
 
@@ -14,7 +15,7 @@ def get_plan_by_book_id(session: Session, book_id: uuid.UUID) -> ReadingPlan:
 
 
 def get_active_plan_by_book_id(session: Session, book_id: uuid.UUID) -> ReadingPlan:
-    return session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id).where(ReadingPlan.status == "active")).first()
+    return session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id).where(ReadingPlan.status == PlanStatus.ACTIVE)).first()
 
 
 def get_all_plan_by_user_id(session: Session, user_id: uuid.UUID) -> list[ReadingPlan]:
