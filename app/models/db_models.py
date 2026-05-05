@@ -80,7 +80,7 @@ class ChapterSegment(SQLModel, table=True):
     audio_url: Optional[str] = Field(default=None, sa_column=Column(Text))
     text_content: Optional[str] = Field(default=None, sa_column=Column(Text))
     duration_ms: Optional[int] = Field(default=None, sa_column=Column(Integer))
-    mode: PlanMode = Field(default=PlanMode.FULL, sa_column=Column(Text, nullable=False, server_default=PlanMode.FULL))
+    mode: PlanMode = Field(sa_column=Column(Text, nullable=False))
 
     # === RELATIONSHIPS ===
     chapter: Chapter = Relationship(back_populates="segments")

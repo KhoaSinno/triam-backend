@@ -1,69 +1,14 @@
-{"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.5.6", "rtc-version": "1.1.5", "timestamp": "2026-05-05T03:13:39.857492+00:00"}
-{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.silero", "version": "1.5.6", "timestamp": "2026-05-05T03:13:39.858536+00:00"}
-{"message": "HTTP server listening on :8081", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-05-05T03:13:39.859533+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 17804, "timestamp": "2026-05-05T03:13:39.862043+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 9744, "timestamp": "2026-05-05T03:13:39.862043+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 6296, "timestamp": "2026-05-05T03:13:39.863045+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 5068, "timestamp": "2026-05-05T03:13:39.863045+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 17804, "elapsed_time": 0.0, "timestamp": "2026-05-05T03:13:39.864095+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 9744, "elapsed_time": 0.0, "timestamp": "2026-05-05T03:13:39.864095+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 5068, "elapsed_time": 0.0, "timestamp": "2026-05-05T03:13:39.864095+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 6296, "elapsed_time": 0.0, "timestamp": "2026-05-05T03:13:39.864095+00:00"}
-{"message": "registered worker", "level": "INFO", "name": "livekit.agents", "agent_name": "triam-voice-agent", "id": "AW_VALVaWh9xbBH", "url": "wss://tri-am-bmdl413w.livekit.cloud", "region": "India South", "protocol": 17, "timestamp": "2026-05-05T03:13:41.752338+00:00"}
-{"message": "received job request", "level": "INFO", "name": "livekit.agents", "job_id": "AJ_j4zzRYgV6FTm", "dispatch_id": "AD_vGotqCoYTqpn", "room": "triam_f25f309f_64e3ed", "room_id": "RM_BCwequqHhe5i", "agent_name": "triam-voice-agent", "resuming": false, "enable_recording": false, "timestamp": "2026-05-05T03:14:38.214322+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 16700, "timestamp": "2026-05-05T03:14:38.430181+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 16700, "elapsed_time": 0.0, "timestamp": "2026-05-05T03:14:38.430181+00:00"}
-[Agent] ✅ Document IDs từ metadata: ['1b893d40-e0cc-4ee3-ae5f-a7809834e6dd']
-[Agent] 🏠 Room Name (session): triam_f25f309f_64e3ed
-[Agent] Bat dau phien doc sach cho Thread ID: f25f309f-1dbb-4517-90b9-5fbbc88e3070
-{"message": "adaptive interruption is disabled by default in production mode", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-05-05T03:14:40.394063+00:00"}
-2026-05-05 10:14:40,789 INFO sqlalchemy.engine.Engine select pg_catalog.version()
-{"message": "select pg_catalog.version()", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:40.789343+00:00"}
-2026-05-05 10:14:40,790 INFO sqlalchemy.engine.Engine [raw sql] {}
-{"message": "[raw sql] {}", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:40.790352+00:00"}
-2026-05-05 10:14:40,854 INFO sqlalchemy.engine.Engine select current_schema()
-{"message": "select current_schema()", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:40.854060+00:00"}
-2026-05-05 10:14:40,854 INFO sqlalchemy.engine.Engine [raw sql] {}
-{"message": "[raw sql] {}", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:40.854060+00:00"}
-2026-05-05 10:14:40,920 INFO sqlalchemy.engine.Engine show standard_conforming_strings
-{"message": "show standard_conforming_strings", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:40.920403+00:00"}
-2026-05-05 10:14:40,920 INFO sqlalchemy.engine.Engine [raw sql] {}
-{"message": "[raw sql] {}", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:40.920403+00:00"}
-2026-05-05 10:14:40,988 INFO sqlalchemy.engine.Engine BEGIN (implicit)
-{"message": "BEGIN (implicit)", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:40.988276+00:00"}
-2026-05-05 10:14:41,082 INFO sqlalchemy.engine.Engine SELECT chat_messages.id, chat_messages.thread_id, chat_messages.is_user, chat_messages.text, chat_messages.source, chat_messages.timestamp 
-FROM chat_messages 
-WHERE chat_messages.thread_id = %(thread_id_1)s::UUID ORDER BY chat_messages.timestamp ASC
-{"message": "SELECT chat_messages.id, chat_messages.thread_id, chat_messages.is_user, chat_messages.text, chat_messages.source, chat_messages.timestamp \nFROM chat_messages \nWHERE chat_messages.thread_id = %(thread_id_1)s::UUID ORDER BY chat_messages.timestamp ASC", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:41.082996+00:00"}
-2026-05-05 10:14:41,082 INFO sqlalchemy.engine.Engine [generated in 0.00057s] {'thread_id_1': 'f25f309f-1dbb-4517-90b9-5fbbc88e3070'}
-{"message": "[generated in 0.00057s] {'thread_id_1': 'f25f309f-1dbb-4517-90b9-5fbbc88e3070'}", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:41.082996+00:00"}
-2026-05-05 10:14:41,187 INFO sqlalchemy.engine.Engine ROLLBACK
-{"message": "ROLLBACK", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:41.187306+00:00"}
-[Agent] Text output (51 chars): Chào bạn, bạn muốn tìm hiểu nội dung gì trong sách?
-2026-05-05 10:14:44,326 INFO sqlalchemy.engine.Engine BEGIN (implicit)
-{"message": "BEGIN (implicit)", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:44.326752+00:00"}
-2026-05-05 10:14:44,328 INFO sqlalchemy.engine.Engine INSERT INTO chat_messages (id, thread_id, is_user, text, source, timestamp) VALUES (%(id)s::UUID, %(thread_id)s::UUID, %(is_user)s, %(text)s, %(source)s, %(timestamp)s)
-{"message": "INSERT INTO chat_messages (id, thread_id, is_user, text, source, timestamp) VALUES (%(id)s::UUID, %(thread_id)s::UUID, %(is_user)s, %(text)s, %(source)s, %(timestamp)s)", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:44.328750+00:00"}
-2026-05-05 10:14:44,328 INFO sqlalchemy.engine.Engine [generated in 0.00034s] {'id': UUID('0a12f94c-67be-4eb9-9d07-5de8ef746303'), 'thread_id': UUID('f25f309f-1dbb-4517-90b9-5fbbc88e3070'), 'is_user': False, 'text': 'Chào bạn, bạn muốn tìm hiểu nội dung gì trong sách?', 'source': 'livekit', 'timestamp': datetime.datetime(2026, 5, 5, 3, 14, 44, 326752, tzinfo=datetime.timezone.utc)}
-{"message": "[generated in 0.00034s] {'id': UUID('0a12f94c-67be-4eb9-9d07-5de8ef746303'), 'thread_id': UUID('f25f309f-1dbb-4517-90b9-5fbbc88e3070'), 'is_user': False, 'text': 'Chào bạn, bạn muốn tìm hiểu nội dung gì trong sách?', 'source': 'livekit', 'timestamp': datetime.datetime(2026, 5, 5, 3, 14, 44, 326752, tzinfo=datetime.timezone.utc)}", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:44.328750+00:00"}
-2026-05-05 10:14:44,394 INFO sqlalchemy.engine.Engine COMMIT
-{"message": "COMMIT", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:44.394718+00:00"}
-[Agent] Data input from user_8f1410: Tóm tắt ngắn gọn giúp tôi quyển sách này nói về phương pháp học tập nào? Tên tác giả là gì, có mấy chương
-2026-05-05 10:14:44,936 INFO sqlalchemy.engine.Engine BEGIN (implicit)
-{"message": "BEGIN (implicit)", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:44.936082+00:00"}
-2026-05-05 10:14:44,937 INFO sqlalchemy.engine.Engine INSERT INTO chat_messages (id, thread_id, is_user, text, source, timestamp) VALUES (%(id)s::UUID, %(thread_id)s::UUID, %(is_user)s, %(text)s, %(source)s, %(timestamp)s)
-{"message": "INSERT INTO chat_messages (id, thread_id, is_user, text, source, timestamp) VALUES (%(id)s::UUID, %(thread_id)s::UUID, %(is_user)s, %(text)s, %(source)s, %(timestamp)s)", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:44.937627+00:00"}
-2026-05-05 10:14:44,937 INFO sqlalchemy.engine.Engine [cached since 0.6092s ago] {'id': UUID('66bc5421-45a5-4c3d-b507-8c0ba0b7b3cd'), 'thread_id': UUID('f25f309f-1dbb-4517-90b9-5fbbc88e3070'), 'is_user': True, 'text': 'Tóm tắt ngắn gọn giúp tôi quyển sách này nói về phương pháp học tập nào? Tên tác giả là gì, có mấy chương', 'source': 'livekit', 'timestamp': datetime.datetime(2026, 5, 5, 3, 14, 44, 936082, tzinfo=datetime.timezone.utc)}
-{"message": "[cached since 0.6092s ago] {'id': UUID('66bc5421-45a5-4c3d-b507-8c0ba0b7b3cd'), 'thread_id': UUID('f25f309f-1dbb-4517-90b9-5fbbc88e3070'), 'is_user': True, 'text': 'Tóm tắt ngắn gọn giúp tôi quyển sách này nói về phương pháp học tập nào? Tên tác giả là gì, có mấy chương', 'source': 'livekit', 'timestamp': datetime.datetime(2026, 5, 5, 3, 14, 44, 936082, tzinfo=datetime.timezone.utc)}", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:44.937627+00:00"}
-2026-05-05 10:14:45,002 INFO sqlalchemy.engine.Engine COMMIT
-{"message": "COMMIT", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:45.002758+00:00"}
-[Agent] Text output (247 chars): Cuốn sách tập trung vào phương pháp rèn luyện trí nhớ bằng liên tưởng, hình ảnh hóa và các kỹ thuật như Roman Room, kết ...
-2026-05-05 10:14:54,886 INFO sqlalchemy.engine.Engine BEGIN (implicit)
-{"message": "BEGIN (implicit)", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:54.886905+00:00"}
-2026-05-05 10:14:54,886 INFO sqlalchemy.engine.Engine INSERT INTO chat_messages (id, thread_id, is_user, text, source, timestamp) VALUES (%(id)s::UUID, %(thread_id)s::UUID, %(is_user)s, %(text)s, %(source)s, %(timestamp)s)
-{"message": "INSERT INTO chat_messages (id, thread_id, is_user, text, source, timestamp) VALUES (%(id)s::UUID, %(thread_id)s::UUID, %(is_user)s, %(text)s, %(source)s, %(timestamp)s)", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:54.886905+00:00"}
-2026-05-05 10:14:54,886 INFO sqlalchemy.engine.Engine [cached since 10.56s ago] {'id': UUID('4aab1d9d-f4f5-4d76-b9c1-23c72dbabf67'), 'thread_id': UUID('f25f309f-1dbb-4517-90b9-5fbbc88e3070'), 'is_user': False, 'text': 'Cuốn sách tập trung vào phương pháp rèn luyện trí nhớ bằng liên tưởng, hình ảnh hóa và các kỹ thuật như Roman Room, kết hợp luyện tập tăng dần.\n\nTác giả không được nêu rõ trong đoạn trích này.\n\nSách có 23 chương chính (kèm phần mở đầu và tóm tắt).', 'source': 'livekit', 'timestamp': datetime.datetime(2026, 5, 5, 3, 14, 54, 885903, tzinfo=datetime.timezone.utc)}
-{"message": "[cached since 10.56s ago] {'id': UUID('4aab1d9d-f4f5-4d76-b9c1-23c72dbabf67'), 'thread_id': UUID('f25f309f-1dbb-4517-90b9-5fbbc88e3070'), 'is_user': False, 'text': 'Cuốn sách tập trung vào phương pháp rèn luyện trí nhớ bằng liên tưởng, hình ảnh hóa và các kỹ thuật như Roman Room, kết hợp luyện tập tăng dần.\\n\\nTác giả không được nêu rõ trong đoạn trích này.\\n\\nSách có 23 chương chính (kèm phần mở đầu và tóm tắt).', 'source': 'livekit', 'timestamp': datetime.datetime(2026, 5, 5, 3, 14, 54, 885903, tzinfo=datetime.timezone.utc)}", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:54.886905+00:00"}
-2026-05-05 10:14:54,953 INFO sqlalchemy.engine.Engine COMMIT
-{"message": "COMMIT", "level": "INFO", "name": "sqlalchemy.engine.Engine", "timestamp": "2026-05-05T03:14:54.953826+00:00"}
-{"message": "closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)", "level": "INFO", "name": "livekit.agents", "room": "triam_f25f309f_64e3ed", "participant": "user_8f1410", "reason": "CLIENT_INITIATED", "timestamp": "2026-05-05T03:15:08.039800+00:00"}
+{"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.5.6", "rtc-version": "1.1.5", "timestamp": "2026-05-05T13:18:43.502916+00:00"}
+{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.silero", "version": "1.5.6", "timestamp": "2026-05-05T13:18:43.503927+00:00"}
+{"message": "HTTP server listening on :8081", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-05-05T13:18:43.504978+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 11232, "timestamp": "2026-05-05T13:18:43.507519+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 21496, "timestamp": "2026-05-05T13:18:43.507519+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 13736, "timestamp": "2026-05-05T13:18:43.507519+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 412, "timestamp": "2026-05-05T13:18:43.508527+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 11232, "elapsed_time": 0.0, "timestamp": "2026-05-05T13:18:43.510030+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 13736, "elapsed_time": 0.0, "timestamp": "2026-05-05T13:18:43.510030+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 21496, "elapsed_time": 0.0, "timestamp": "2026-05-05T13:18:43.511035+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 412, "elapsed_time": 0.0, "timestamp": "2026-05-05T13:18:43.511035+00:00"}
+{"message": "registered worker", "level": "INFO", "name": "livekit.agents", "agent_name": "triam-voice-agent", "id": "AW_UXkS8u4rLEUE", "url": "wss://tri-am-bmdl413w.livekit.cloud", "region": "India South", "protocol": 17, "timestamp": "2026-05-05T13:18:47.657935+00:00"}
+{"message": "draining worker", "level": "INFO", "name": "livekit.agents", "id": "AW_UXkS8u4rLEUE", "timeout": 1800, "timestamp": "2026-05-05T13:19:17.879697+00:00"}
+{"message": "shutting down worker", "level": "INFO", "name": "livekit.agents", "id": "AW_UXkS8u4rLEUE", "timestamp": "2026-05-05T13:19:17.880072+00:00"}

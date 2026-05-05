@@ -3,12 +3,13 @@ import os
 import uuid
 
 import aiofiles
-from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, HTTPException, UploadFile
+from sqlalchemy.sql.annotation import Annotated
 from sqlmodel import Session
 
 from app.core.config import settings
 from app.core.constant import BookStatus, PlanStatus
-from app.db.database import engine
+from app.db.database import engine, get_session
 from app.helper.run_background_processing import run_background_processing
 from app.helper.upload2supabase import upload_file_to_supabase
 from app.models.db_models import Book, Chapter, ReadingPlan
@@ -32,7 +33,10 @@ MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
 # ENDPOINT 1: POST /upload
 # -----------------------------------------------------------------------
 @router.post("/upload")
-async def upload_document(file: UploadFile = File(...)):  # noqa: B008
+async def upload_document(
+    session: Annotated[Session, Depends(get_session)],
+    file: Annotated[UploadFile, File(...)],
+):
     """
     Bước 1: Nhận file, extract outline, upload PDF lên Supabase Storage,
     lưu Book + Chapter (DRAFT), trả về outline cho Flutter.
@@ -86,27 +90,27 @@ async def upload_document(file: UploadFile = File(...)):  # noqa: B008
     title = (file.filename or "unknown").rsplit(".", 1)[0]
 
     try:
-        with Session(engine) as session:
-            book = Book(
-                id=book_id,
-                user_id=MOCK_USER_ID,
-                title=title,
-                total_chapters=len(chapters_data),
+        book = Book(
+            id=book_id,
+            user_id=MOCK_USER_ID,
+            title=title,
+            total_chapters=len(chapters_data),
+            status="DRAFT",
+            file_url=file_url,  # URL thật của PDF trên Supabase Storage
+        )
+        create_book(session, book)
+
+        # Lưu Chapter DRAFT ngay để /generate-plan fetch lại được
+        for i, chap in enumerate(chapters_data):
+            chapter = Chapter(
+                book_id=book_id,
+                chapter_index=i,
+                title=chap.get("title", "Empty Chapter"),
                 status="DRAFT",
-                file_url=file_url,  # URL thật của PDF trên Supabase Storage
             )
-            create_book(session, book)
+            create_chapter(session, chapter)
 
-            # Lưu Chapter DRAFT ngay để /generate-plan fetch lại được
-            for i, chap in enumerate(chapters_data):
-                chapter = Chapter(
-                    book_id=book_id,
-                    chapter_index=i,
-                    title=chap.get("title", "Empty Chapter"),
-                    status="DRAFT",
-                )
-                create_chapter(session, chapter)
-
+        session.commit()
         logger.info(f"📘 Created DRAFT book {book_id} | {len(chapters_data)} chapters | file_url saved")
     except Exception as e:
         logger.error(f"Failed to create book record: {e}")
@@ -126,31 +130,33 @@ async def upload_document(file: UploadFile = File(...)):  # noqa: B008
 # ENDPOINT 2: POST /generate-plan
 # -----------------------------------------------------------------------
 @router.post("/generate-plan")
-async def generate_plan(background_tasks: BackgroundTasks, payload: PlanInput = Body(...)):  # noqa: B008
+async def generate_plan(
+    background_tasks: BackgroundTasks,
+    session: Annotated[Session, Depends(get_session)],
+    payload: Annotated[PlanInput, Body(...)],
+):
     """
     Bước 2: Nhận cấu hình kế hoạch học từ Flutter, lưu ReadingPlan,
     kick-off background processing.
     """
     # 1. Validate book tồn tại
-    with Session(engine) as session:
-        book = session.get(Book, payload.book_id)
-        if not book:
-            raise HTTPException(status_code=404, detail="Không tìm thấy sách.")
-        if book.status not in (BookStatus.DRAFT):
-            raise HTTPException(status_code=409, detail=f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
+    book = session.get(Book, payload.book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Không tìm thấy sách.")
+    if book.status not in (BookStatus.DRAFT):
+        raise HTTPException(status_code=409, detail=f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
 
     # 3. Lưu ReadingPlan + cập nhật Book status
     try:
-        with Session(engine) as session:
-            plan = ReadingPlan(
-                book_id=payload.book_id,
-                mode=payload.mode,
-                pace=payload.pace,
-                schedule_config=payload.schedule_config,
-                status=PlanStatus.ACTIVE,
-            )
-            create_reading_plan(session, plan)
-            update_book_status(session, payload.book_id, BookStatus.PROCESSING)
+        plan = ReadingPlan(
+            book_id=payload.book_id,
+            mode=payload.mode,
+            pace=payload.pace,
+            schedule_config=payload.schedule_config,
+            status=PlanStatus.ACTIVE,
+        )
+        create_reading_plan(session, plan)
+        update_book_status(session, payload.book_id, BookStatus.PROCESSING)
 
         logger.info(f"📋 ReadingPlan created for book {payload.book_id} | mode={payload.mode}")
     except Exception as e:

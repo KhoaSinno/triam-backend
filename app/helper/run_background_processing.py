@@ -21,7 +21,7 @@ from app.repositories.chapter_repo import (
     update_chapter_status,
 )
 from app.repositories.chapter_segment_repo import bulk_create_segments, delete_segments_by_chapter_and_mode
-from app.services.embed import embed_and_save_chapter
+from app.services.embed_service import embed_and_save_chapter
 from app.services.llm_service import normalize_text_for_speech
 from app.services.pdf_service import extract_chapters_smart
 from app.services.tts_service import generate_audio_and_get_duration

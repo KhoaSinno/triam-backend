@@ -1,34 +1,40 @@
-import os
+from typing import Set
 
 from dotenv import load_dotenv
+from pydantic.v1.env_settings import BaseSettings
 
 load_dotenv(override=True)
 
 
-class Settings:
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or ""
-    PINECONE_API_KEY = os.getenv("PINECONE_API_KEY") or ""
-    PINECONE_ENV = os.getenv("PINECONE_ENV") or ""
-    TAVILY_API_KEY = os.getenv("TAVILY_API_KEY") or ""
-    GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL") or ""
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or ""
-    DATABASE_URL = os.getenv("DATABASE_URL") or ""
-    SUPABASE_URL = os.getenv("SUPABASE_URL") or ""
-    SUPABASE_KEY = os.getenv("SUPABASE_KEY") or ""
-    SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or ""
-    EDGE_TTS_VOICE = os.getenv("EDGE_TTS_VOICE", "en-US-AvaMultilingualNeural") or ""
-    LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY") or ""
-    LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET") or ""
-    LIVEKIT_AGENT_NAME = os.getenv("LIVEKIT_AGENT_NAME") or ""
-    GEMINI_MODEL_NATIVE_AUDIO = os.getenv("GEMINI_MODEL_NATIVE_AUDIO", "gemini-2.5-flash-native-audio-latest") or ""
+class Settings(BaseSettings):
+    OPENAI_API_KEY: str
+    PINECONE_API_KEY: str
+    PINECONE_ENV: str
+    TAVILY_API_KEY: str
+    GEMINI_BASE_URL: str
+    GEMINI_API_KEY: str
+    DATABASE_URL: str
+    SUPABASE_URL: str
+    SUPABASE_KEY: str
+    SUPABASE_SERVICE_ROLE_KEY: str
+    EDGE_TTS_VOICE: str = "en-US-AvaMultilingualNeural"
+    LIVEKIT_API_KEY: str
+    LIVEKIT_API_SECRET: str
+    LIVEKIT_AGENT_NAME: str
+    GEMINI_MODEL_NATIVE_AUDIO: str = "gemini-2.5-flash-native-audio-latest"
 
     # Upload file
-    MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
-    ALLOWED_MIME_TYPES = {
+    MAX_FILE_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB
+    ALLOWED_MIME_TYPES: Set[str] = {
         "application/pdf",
         "application/epub+zip",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     }
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        extra = "ignore"
 
 
 settings = Settings()
