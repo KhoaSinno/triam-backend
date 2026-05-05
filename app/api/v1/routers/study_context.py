@@ -6,25 +6,25 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session
 
-from app.crud.audiobook import get_book_by_id
-from app.crud.study_context import (
+from app.db.database import get_session
+from app.models.db_models import ChatMessage, ChatThread, StudyContext, StudyContextDocumentLink
+from app.repositories.audiobook_repo import get_book_by_id
+from app.repositories.study_context_document_link_repo import (
+    create_new_context_document,
+    delete_study_context_document,
+)
+from app.repositories.study_context_repo import (
     create_study_context,
     delete_study_context,
     get_study_context,
     get_study_contexts,
     update_study_context,
 )
-from app.crud.study_context_document_link import (
-    create_new_context_document,
-    delete_study_context_document,
-)
-from app.crud.study_context_thread import (
+from app.repositories.study_context_thread_repo import (
     create_new_thread,
     get_chat_history_by_thread_id,
     get_chat_threads_for_context,
 )
-from app.db import get_session
-from app.models.db_models import ChatMessage, ChatThread, StudyContext, StudyContextDocumentLink
 from app.schemas.study_context import (
     ChatThreadInput,
     StudyContextDocumentInput,

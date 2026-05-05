@@ -8,13 +8,13 @@ from sqlmodel import Session
 
 from app.core.config import settings
 from app.core.constant import BookStatus, PlanStatus
-from app.crud.audiobook import create_book, update_book_status
-from app.crud.chapter import create_chapter
-from app.crud.plan import create_reading_plan
-from app.db import engine
+from app.db.database import engine
 from app.helper.run_background_processing import run_background_processing
 from app.helper.upload2supabase import upload_file_to_supabase
 from app.models.db_models import Book, Chapter, ReadingPlan
+from app.repositories.audiobook_repo import create_book, update_book_status
+from app.repositories.chapter_repo import create_chapter
+from app.repositories.plan_repo import create_reading_plan
 from app.schemas.plan import PlanInput
 from app.services.pdf_service import extract_chapters_smart
 

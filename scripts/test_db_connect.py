@@ -6,7 +6,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from sqlmodel import Session, select
 
-from app.db import engine
+from app.db.database import engine
 from app.models.db_models import Book
 
 

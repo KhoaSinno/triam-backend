@@ -87,7 +87,7 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session
 from app.db import get_session
 from app.models.audiobook import Audiobook
-from app.crud import audiobook as crud_book
+from app.repositories import audiobook as crud_book
 
 router = APIRouter()
 

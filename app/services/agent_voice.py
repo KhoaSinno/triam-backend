@@ -22,7 +22,7 @@ from supabase import Client, create_client
 from tavily import TavilyClient
 
 from app.core.config import settings
-from app.db import engine
+from app.db.database import engine
 from app.models.db_models import ChatMessage
 from app.services.rag_service import search_book_knowledge
 

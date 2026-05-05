@@ -5,7 +5,7 @@ from fastapi.responses import StreamingResponse
 from sqlmodel import SQLModel
 
 from app.api.v1.endpoints import audiobooks, live, study_context, upload
-from app.db import engine
+from app.db.database import engine
 from app.models import db_models  # Import db_models để SQLAlchemy nhận diện
 from app.services.tts_service import stream_text_to_speech_edge
 

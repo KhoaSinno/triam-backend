@@ -6,11 +6,11 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from sqlmodel import Session, select
 
 from app.core.constant import PlanMode
-from app.crud import audiobook as crud_book
-from app.crud.chapter_segment import count_segments_by_book_and_mode
-from app.db import get_session
+from app.db.database import get_session
 from app.helper.run_background_processing import run_switch_mode_processing
 from app.models.db_models import Book, Chapter, ChapterSegment, ReadingPlan
+from app.repositories import audiobook_repo
+from app.repositories.chapter_segment_repo import count_segments_by_book_and_mode
 from app.schemas.plan import SwitchModeRequest
 
 router = APIRouter()
@@ -18,22 +18,22 @@ router = APIRouter()
 
 @router.get("/books", response_model=list[Book])
 def read_all_books(session: Annotated[Session, Depends(get_session)]):
-    return crud_book.get_audiobooks(session)
+    return audiobook_repo.get_audiobooks(session)
 
 
 @router.get("/books/{book_id}", response_model=Book)
 def read_book(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
-    return crud_book.get_book_by_id(session, book_id)
+    return audiobook_repo.get_book_by_id(session, book_id)
 
 
 @router.post("/books", response_model=Book)
 def add_new_book(book: Book, session: Annotated[Session, Depends(get_session)]):
-    return crud_book.create_book(session, book)
+    return audiobook_repo.create_book(session, book)
 
 
 @router.delete("/book/{book_id}")
 async def delete_book(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
-    await crud_book.delete_book_storage(session, book_id)
+    await audiobook_repo.delete_book_storage(session, book_id)
     return {"message": "Book deleted"}
 
 

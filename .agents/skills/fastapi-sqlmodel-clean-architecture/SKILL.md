@@ -5,7 +5,7 @@ description: Project-specific guidelines for Triam Backend. Use this skill when 
 
 # Triam Backend: FastAPI + SQLModel Architecture Guide
 
-This project follows a strict layered **Clean Architecture** using **FastAPI** and **SQLModel**. 
+This project follows a strict layered **Clean Architecture** using **FastAPI** and **SQLModel**.
 To ensure code maintainability, you must adhere to the specific structure and patterns defined below when adding new features or modifying existing ones.
 
 ---
@@ -14,15 +14,15 @@ To ensure code maintainability, you must adhere to the specific structure and pa
 
 Do not mix responsibilities. Code must be placed in the correct layer.
 
-| Directory | Responsibility | Implementation Rules |
-| :--- | :--- | :--- |
-| `app/models/db_models.py` | **Database Schema** | Contains `SQLModel(table=True)` classes. This is the single source of truth for the database schema. |
-| `app/schemas/` | **Data Validation (DTOs)** | Contains `SQLModel(table=False)` or Pydantic `BaseModel` classes used for API Request/Response validation. |
-| `app/crud/` | **Database Operations** | Contains repository functions that interact with the database using `sqlmodel.Session`. **No HTTP logic here.** |
-| `app/services/` | **Core Business Logic** | Handles external integrations (LLM, TTS, PDF parsing) and heavy data processing. |
-| `app/api/v1/endpoints/` | **API Routers** | Defines FastAPI routes. Routes should be thin: validate input, call CRUD/Services, return response. |
-| `app/helper/` | **Utilities & Background** | Shared utility functions (e.g., Supabase uploaders) and heavy background task orchestrators (`run_background_processing.py`). |
-| `app/core/` | **Configuration** | Setup for Database, Supabase client, and environment variables. |
+| Directory                 | Responsibility             | Implementation Rules                                                                                                          |
+| :------------------------ | :------------------------- | :---------------------------------------------------------------------------------------------------------------------------- |
+| `app/models/db_models.py` | **Database Schema**        | Contains `SQLModel(table=True)` classes. This is the single source of truth for the database schema.                          |
+| `app/schemas/`            | **Data Validation (DTOs)** | Contains `SQLModel(table=False)` or Pydantic `BaseModel` classes used for API Request/Response validation.                    |
+| `app/crud/`               | **Database Operations**    | Contains repository functions that interact with the database using `sqlmodel.Session`. **No HTTP logic here.**               |
+| `app/services/`           | **Core Business Logic**    | Handles external integrations (LLM, TTS, PDF parsing) and heavy data processing.                                              |
+| `app/api/v1/endpoints/`   | **API Routers**            | Defines FastAPI routes. Routes should be thin: validate input, call CRUD/Services, return response.                           |
+| `app/helper/`             | **Utilities & Background** | Shared utility functions (e.g., Supabase uploaders) and heavy background task orchestrators (`run_background_processing.py`). |
+| `app/core/`               | **Configuration**          | Setup for Database, Supabase client, and environment variables.                                                               |
 
 ---
 
@@ -30,8 +30,8 @@ Do not mix responsibilities. Code must be placed in the correct layer.
 
 When adding or modifying tables, always use SQLModel.
 
-*   **Primary Keys:** Always use `uuid.UUID` with `default_factory=uuid.uuid4` for primary keys unless there is a specific reason not to.
-*   **Foreign Keys:** Define explicit foreign keys using `Field(foreign_key="table_name.id")`.
+- **Primary Keys:** Always use `uuid.UUID` with `default_factory=uuid.uuid4` for primary keys unless there is a specific reason not to.
+- **Foreign Keys:** Define explicit foreign keys using `Field(foreign_key="table_name.id")`.
 
 ```python
 # app/models/db_models.py
@@ -50,9 +50,10 @@ class ExampleEntity(SQLModel, table=True):
 
 ## 3. CRUD Operations Pattern
 
-All database queries must be isolated in the `app/crud/` directory. 
-*   **Always** pass `session: Session` as the first argument to CRUD functions.
-*   **Do not** create database sessions inside the CRUD functions themselves.
+All database queries must be isolated in the `app/crud/` directory.
+
+- **Always** pass `session: Session` as the first argument to CRUD functions.
+- **Do not** create database sessions inside the CRUD functions themselves.
 
 ```python
 # app/crud/example.py
@@ -90,7 +91,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlmodel import Session
 from app.db import get_session
-from app.crud.example import get_entity_by_id
+from app.repositories.example import get_entity_by_id
 from app.helper.run_background_processing import some_heavy_task
 
 router = APIRouter()
@@ -104,10 +105,10 @@ def process_entity(
     entity = get_entity_by_id(session, entity_id)
     if not entity:
         raise HTTPException(status_code=404, detail="Entity not found")
-        
+
     # Delegate heavy work to background
     background_tasks.add_task(some_heavy_task, entity_id)
-    
+
     return {"message": "Processing started in background."}
 ```
 
@@ -116,14 +117,17 @@ def process_entity(
 ## 5. Storage & External Integrations
 
 ### Supabase Storage
+
 For file uploads (PDFs, Audio), use the established Supabase client in `app.core.supabase`.
-*   **Upserting:** When overwriting files (e.g., during a mode switch), ensure you pass `upsert="true"` in the `file_options` to avoid `409 Duplicate` errors.
-*   **Path Isolation:** Always isolate file paths logically, especially for different AI modes (e.g., `/{book_id}/chap_1/full/part_1.mp3` vs `/{book_id}/chap_1/pareto/part_1.mp3`).
+
+- **Upserting:** When overwriting files (e.g., during a mode switch), ensure you pass `upsert="true"` in the `file_options` to avoid `409 Duplicate` errors.
+- **Path Isolation:** Always isolate file paths logically, especially for different AI modes (e.g., `/{book_id}/chap_1/full/part_1.mp3` vs `/{book_id}/chap_1/pareto/part_1.mp3`).
 
 ### Background AI Processing (LLM & TTS)
-*   Do not run LLM calls or TTS generation directly in the API request thread.
-*   Background workers (in `app/helper/run_background_processing.py`) should use `asyncio.Semaphore` to limit concurrency and avoid hitting API rate limits.
-*   Update database status (e.g., `status="READY"` or `status="ERROR"`) within the background task so the frontend can poll for updates.
+
+- Do not run LLM calls or TTS generation directly in the API request thread.
+- Background workers (in `app/helper/run_background_processing.py`) should use `asyncio.Semaphore` to limit concurrency and avoid hitting API rate limits.
+- Update database status (e.g., `status="READY"` or `status="ERROR"`) within the background task so the frontend can poll for updates.
 
 ---
 

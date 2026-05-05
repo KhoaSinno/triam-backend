@@ -5,8 +5,8 @@ from openai import AsyncOpenAI
 from sqlmodel import Session
 
 from app.core.config import settings
-from app.crud.book_knowledge import bulk_create_knowledge
 from app.models.db_models import BookKnowledge
+from app.repositories.book_knowledge_repo import bulk_create_knowledge
 
 aclient = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 

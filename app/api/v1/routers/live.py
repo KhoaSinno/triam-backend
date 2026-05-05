@@ -6,7 +6,7 @@ from livekit import api
 from sqlmodel import Session, select
 
 from app.core.config import settings
-from app.db import get_session
+from app.db.database import get_session
 from app.models.db_models import ChatThread, StudyContextDocumentLink
 
 router = APIRouter()

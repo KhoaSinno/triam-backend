@@ -7,9 +7,12 @@ from sqlmodel import Session, select
 
 from app.core.constant import BookStatus
 from app.core.supabase import supabase
-from app.crud.audiobook import update_book_status
-from app.crud.book_knowledge import delete_knowledge_by_chapter
-from app.crud.chapter import (
+from app.db.database import engine
+from app.helper.upload2supabase import upload_file_to_supabase
+from app.models.db_models import Book, ChapterSegment
+from app.repositories.audiobook_repo import update_book_status
+from app.repositories.book_knowledge_repo import delete_knowledge_by_chapter
+from app.repositories.chapter_repo import (
     Chapter,
     delete_chapter,
     get_draft_chapters_by_book,
@@ -17,10 +20,7 @@ from app.crud.chapter import (
     update_chapter_review_text,
     update_chapter_status,
 )
-from app.crud.chapter_segment import bulk_create_segments, delete_segments_by_chapter_and_mode
-from app.db import engine
-from app.helper.upload2supabase import upload_file_to_supabase
-from app.models.db_models import Book, ChapterSegment
+from app.repositories.chapter_segment_repo import bulk_create_segments, delete_segments_by_chapter_and_mode
 from app.services.embed import embed_and_save_chapter
 from app.services.llm_service import normalize_text_for_speech
 from app.services.pdf_service import extract_chapters_smart
