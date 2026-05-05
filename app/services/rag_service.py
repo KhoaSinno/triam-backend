@@ -5,7 +5,7 @@ from app.core.supabase import supabase
 
 ai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
-async def search_book_knowledge(query: str, book_id: str):
+async def search_book_knowledge(query: str, document_ids: list[str]):
     # 1. Tạo embedding cho câu hỏi của user
     res = await ai_client.embeddings.create(model="text-embedding-3-small", input=[query])
     query_vector = res.data[0].embedding
@@ -15,7 +15,7 @@ async def search_book_knowledge(query: str, book_id: str):
         "query_embedding": query_vector,
         "match_threshold": 0.3,
         "match_count": 10,
-        "filter_book_id": book_id
+        "filter_book_ids": document_ids
     }).execute()
 
     if not result.data:

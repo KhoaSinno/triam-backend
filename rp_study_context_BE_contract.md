@@ -4,6 +4,7 @@
 
 Hệ thống hiện tại có sự liên kết 1-1 giữa Sách (Book) -> Kế Hoạch Đọc (Plan) -> Nội Dung Audio (Chunks). Đây là **Core Engine** của việc sinh nội dung, tuyệt đối không được phá vỡ.
 Tuy nhiên, nếu hội thoại AI cũng bị giới hạn trong 1 Sách, chúng ta sẽ gặp phải các "Nỗi Đau" (Pain Points):
+
 - **Knowledge Silos (Cô lập tri thức):** User không thể hỏi AI đối chiếu kiến thức giữa Sách A và Slide B.
 - **Context Switching:** Nếu muốn dùng chung 1 tập tài liệu cho nhiều mục đích thảo luận khác nhau (VD: Hôm nay luyện Speaking, ngày mai hỏi đáp ngữ pháp), user không có chỗ để lưu trữ các luồng hội thoại độc lập.
 - **Thiếu tính định hướng trong ôn tập:** Quá trình Spaced Repetition bị rời rạc theo từng cuốn sách, thay vì ôn tập theo một "Chiến dịch" hay "Chủ đề".
@@ -21,6 +22,7 @@ Tuy nhiên, nếu hội thoại AI cũng bị giới hạn trong 1 Sách, chúng
 3. **Lớp Phiên Hội Thoại (Chat Thread):** Nơi lưu trữ thực tế của các luồng chat. Một `Study Context` có thể tạo ra vô hạn `Chat Thread`.
 
 ### Sự kết hợp mượt mà vào UI/UX:
+
 - **Luồng Tự Động (Nghe sách đơn lẻ):** Khi user mở 1 Sách để nghe và bấm Chat, hệ thống ngầm định sinh ra 1 `Study Context` (chứa 1 sách đó) và 1 `Chat Thread` mặc định. Trải nghiệm mượt mà, user không cần setup.
 - **Luồng Không Gian Học Tập (Góc ôn thi):** User chủ động tạo Context "Ôn thi IELTS", add 5 cuốn sách. Giao diện cung cấp cho user danh sách các `Chat Thread` để họ tùy ý tách luồng thảo luận (Ví dụ: Thread "Luyện Speaking", Thread "Hỏi đáp Reading").
 
@@ -72,12 +74,14 @@ class ChatMessage(SQLModel, table=True):
 Tạo `app/api/v1/endpoints/study_context.py` implement các endpoints sau:
 
 **Quản lý Context:**
+
 - `GET /study-contexts` (Lấy danh sách Workspace)
 - `POST /study-contexts` (Tạo Workspace mới)
 - `GET /study-contexts/{id}` (Lấy chi tiết Workspace và các Book bên trong)
 - `POST /study-contexts/{id}/documents` (Thêm/xóa sách khỏi Workspace)
 
 **Quản lý Thread (Nằm trong Context):**
+
 - `GET /study-contexts/{id}/threads` (Lấy danh sách các luồng chat của một Workspace)
 - `POST /study-contexts/{id}/threads` (Tạo luồng chat mới)
 - `GET /threads/{thread_id}/messages` (Lấy lịch sử tin nhắn của một luồng)
@@ -85,6 +89,7 @@ Tạo `app/api/v1/endpoints/study_context.py` implement các endpoints sau:
 ### Bước 2: Cập Nhật RAG Pipeline (Supabase)
 
 Khi truy vấn RAG cho một Thread:
+
 1. Lấy `context_id` từ `thread_id`.
 2. Truy vấn Database lấy ra mảng `document_ids` (chứa các `book_id` thuộc Context đó).
 3. Sử dụng mảng này làm filter cho Supabase Vector: `query(book_id IN [doc1, doc2, ...])`.

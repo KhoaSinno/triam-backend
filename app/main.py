@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from sqlmodel import SQLModel
 
-from app.api.v1.endpoints import audiobooks, live, upload
+from app.api.v1.endpoints import audiobooks, live, study_context, upload
 from app.db import engine
 from app.models import db_models  # Import db_models để SQLAlchemy nhận diện
 from app.services.tts_service import stream_text_to_speech_edge
@@ -28,6 +28,7 @@ app = FastAPI(title="TRIAM Assistant API", lifespan=lifespan)
 app.include_router(upload.router, prefix="/api/v1", tags=["Upload"])
 app.include_router(live.router, prefix="/api/v1", tags=["Live"])
 app.include_router(audiobooks.router, prefix="/api/v1", tags=["Audiobooks"])
+app.include_router(study_context.router, prefix="/api/v1", tags=["Study Context"])
 
 
 @app.get("/")
