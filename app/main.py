@@ -2,21 +2,15 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
-from sqlmodel import SQLModel
 
 from app.api.v1.routers import audiobooks, live, study_context, upload
-from app.db.database import engine
-
-# from app.models import db_models
 from app.services.tts_service import stream_text_to_speech_edge
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # --- Chạy khi STARTUP ---
-    print("Đang khởi tạo database...")
-    SQLModel.metadata.create_all(engine)
-
+    # Schema được quản lý bởi Alembic. Chạy: alembic upgrade head
     yield  # Sau từ khóa yield là lúc ứng dụng đang chạy (đang phục vụ người dùng)
     # --- Chạy khi SHUTDOWN ---
     print("Đang dọn dẹp tài nguyên...")
