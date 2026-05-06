@@ -1,14 +1,14 @@
-{"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.5.6", "rtc-version": "1.1.5", "timestamp": "2026-05-05T15:19:50.355945+00:00"}
-{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.silero", "version": "1.5.6", "timestamp": "2026-05-05T15:19:50.355945+00:00"}
-{"message": "HTTP server listening on :8081", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-05-05T15:19:50.357089+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 21036, "timestamp": "2026-05-05T15:19:50.360086+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 3864, "timestamp": "2026-05-05T15:19:50.360086+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 7668, "timestamp": "2026-05-05T15:19:50.360086+00:00"}
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 3520, "timestamp": "2026-05-05T15:19:50.360086+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 21036, "elapsed_time": 0.0, "timestamp": "2026-05-05T15:19:50.361597+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 3864, "elapsed_time": 0.0, "timestamp": "2026-05-05T15:19:50.363022+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 7668, "elapsed_time": 0.0, "timestamp": "2026-05-05T15:19:50.363022+00:00"}
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 3520, "elapsed_time": 0.0, "timestamp": "2026-05-05T15:19:50.363022+00:00"}
-{"message": "registered worker", "level": "INFO", "name": "livekit.agents", "agent_name": "triam-voice-agent", "id": "AW_7C3Xe2C88MET", "url": "wss://tri-am-bmdl413w.livekit.cloud", "region": "India South", "protocol": 17, "timestamp": "2026-05-05T15:19:52.043616+00:00"}
-{"message": "draining worker", "level": "INFO", "name": "livekit.agents", "id": "AW_7C3Xe2C88MET", "timeout": 1800, "timestamp": "2026-05-05T15:20:37.781378+00:00"}
-{"message": "shutting down worker", "level": "INFO", "name": "livekit.agents", "id": "AW_7C3Xe2C88MET", "timestamp": "2026-05-05T15:20:37.781378+00:00"}
+{"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.5.6", "rtc-version": "1.1.5", "timestamp": "2026-05-05T15:33:13.710325+00:00"}
+{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.silero", "version": "1.5.6", "timestamp": "2026-05-05T15:33:13.710325+00:00"}
+{"message": "HTTP server listening on :8081", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-05-05T15:33:13.711831+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 18272, "timestamp": "2026-05-05T15:33:13.714348+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 14820, "timestamp": "2026-05-05T15:33:13.714348+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 17388, "timestamp": "2026-05-05T15:33:13.714348+00:00"}
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 16016, "timestamp": "2026-05-05T15:33:13.714348+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 18272, "elapsed_time": 0.0, "timestamp": "2026-05-05T15:33:13.716858+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 14820, "elapsed_time": 0.0, "timestamp": "2026-05-05T15:33:13.716858+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 17388, "elapsed_time": 0.0, "timestamp": "2026-05-05T15:33:13.716858+00:00"}
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 16016, "elapsed_time": 0.0, "timestamp": "2026-05-05T15:33:13.717858+00:00"}
+{"message": "registered worker", "level": "INFO", "name": "livekit.agents", "agent_name": "triam-voice-agent", "id": "AW_CdYiPiXkQyV3", "url": "wss://tri-am-bmdl413w.livekit.cloud", "region": "India South", "protocol": 17, "timestamp": "2026-05-05T15:33:15.659900+00:00"}
+{"message": "draining worker", "level": "INFO", "name": "livekit.agents", "id": "AW_CdYiPiXkQyV3", "timeout": 1800, "timestamp": "2026-05-05T15:33:39.112983+00:00"}
+{"message": "shutting down worker", "level": "INFO", "name": "livekit.agents", "id": "AW_CdYiPiXkQyV3", "timestamp": "2026-05-05T15:33:39.114415+00:00"}

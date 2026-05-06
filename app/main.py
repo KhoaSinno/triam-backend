@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
+from fastapi.requests import Request
+from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.api.v1.routers import audiobooks, live, study_context, upload
+from app.core.exceptions import AppException
 from app.services.tts_service import stream_text_to_speech_edge
 
 
@@ -17,6 +19,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="TRIAM Assistant API", lifespan=lifespan)
+
+
+# ---------------------------------------------------------------------------
+# Global Exception Handler — bắt tất cả AppException và subclass của nó
+# ---------------------------------------------------------------------------
+@app.exception_handler(AppException)
+async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
 # Include Router

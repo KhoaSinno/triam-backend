@@ -1,11 +1,11 @@
 import json
 import uuid
 
-from fastapi import HTTPException
 from livekit import api
 from sqlmodel import Session, select
 
 from app.core.config import settings
+from app.core.exceptions import ThreadNotFoundError
 from app.models.db_models import ChatThread, StudyContextDocumentLink
 
 
@@ -39,7 +39,7 @@ def get_token_for_thread(session: Session, thread_id: uuid.UUID) -> dict:
     """Tạo LiveKit token cho session gắn với Study Context thread."""
     thread = session.get(ChatThread, thread_id)
     if not thread:
-        raise HTTPException(status_code=404, detail="Thread not found")
+        raise ThreadNotFoundError()
 
     # Lấy danh sách document_ids từ context
     links = session.exec(

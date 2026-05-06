@@ -2,10 +2,16 @@ import json
 import uuid
 from typing import Any
 
-from fastapi import BackgroundTasks, HTTPException
+from fastapi import BackgroundTasks
 from sqlmodel import Session, select
 
 from app.core.constant import PlanMode
+from app.core.exceptions import (
+    BookNotFoundError,
+    DataIntegrityError,
+    NoReadingPlanError,
+    ReadingPlanNotFoundError,
+)
 from app.helper.run_background_processing import run_switch_mode_processing
 from app.models.db_models import Book, Chapter, ChapterSegment, ReadingPlan
 from app.repositories.chapter_segment_repo import count_segments_by_book_and_mode
@@ -19,7 +25,7 @@ def _extract_json_content(raw_data: Any, mode: str) -> str:
         data = json.loads(raw_data)
         return data.get(mode, "")
     except (json.JSONDecodeError, TypeError) as e:
-        raise HTTPException(status_code=500, detail="Data integrity error") from e
+        raise DataIntegrityError() from e
 
 
 def get_book_details(session: Session, book_id: uuid.UUID) -> dict:
@@ -29,17 +35,17 @@ def get_book_details(session: Session, book_id: uuid.UUID) -> dict:
     """
     book = session.get(Book, book_id)
     if not book:
-        raise HTTPException(status_code=404, detail="Book not found")
+        raise BookNotFoundError()
 
     # 1. Lấy ReadingPlan và xác định active mode
     plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
     if not plan:
-        raise HTTPException(status_code=400, detail="User has no reading plan for this book")
+        raise NoReadingPlanError()
 
     try:
         active_mode = PlanMode(plan.mode)
     except ValueError as e:
-        raise HTTPException(status_code=500, detail="Data integrity error") from e
+        raise DataIntegrityError() from e
 
     # 2. Query tất cả chapters và segments một lần — tránh N+1
     chapters = session.exec(
@@ -86,12 +92,12 @@ def switch_book_mode(
     """
     book = session.get(Book, book_id)
     if not book:
-        raise HTTPException(status_code=404, detail="Book not found")
+        raise BookNotFoundError()
 
     # 1. Lấy ReadingPlan hiện tại
     plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
     if not plan:
-        raise HTTPException(status_code=404, detail="Chưa có ReadingPlan cho sách này")
+        raise ReadingPlanNotFoundError()
 
     # 2. Nếu switch sang cùng mode đang active → không cần làm gì thêm
     if plan.mode == payload_mode:

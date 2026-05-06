@@ -3,11 +3,19 @@ import os
 import uuid
 
 import aiofiles
-from fastapi import BackgroundTasks, HTTPException, UploadFile
+from fastapi import BackgroundTasks, UploadFile
 from sqlmodel import Session
 
 from app.core.config import settings
 from app.core.constant import BookStatus, PlanStatus
+from app.core.exceptions import (
+    BookNotFoundError,
+    BookStatusConflictError,
+    DatabaseError,
+    FileTooLargeError,
+    PdfExtractionError,
+    UnsupportedFileTypeError,
+)
 from app.helper.run_background_processing import run_background_processing
 from app.helper.upload2supabase import upload_file_to_supabase
 from app.models.db_models import Book, Chapter, ReadingPlan
@@ -34,14 +42,13 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
 
     if not is_valid_type:
         if not (filename_lower.endswith(".pdf") or filename_lower.endswith(".epub") or filename_lower.endswith(".docx")):
-            raise HTTPException(
-                status_code=400,
-                detail=f"Loại file không hỗ trợ ({file.content_type}). Chỉ chấp nhận PDF, EPUB, DOCX.",
+            raise UnsupportedFileTypeError(
+                f"Loại file không hỗ trợ ({file.content_type}). Chỉ chấp nhận PDF, EPUB, DOCX."
             )
 
     content = await file.read()
     if len(content) > settings.MAX_FILE_SIZE_BYTES:
-        raise HTTPException(status_code=400, detail="File vượt quá giới hạn 50MB.")
+        raise FileTooLargeError()
 
     # 2. Lưu file tạm để extract outline
     book_id = uuid.uuid4()
@@ -59,10 +66,7 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
             chapters_data = await extract_chapters_smart(f)
 
         if not chapters_data:
-            raise HTTPException(
-                status_code=422,
-                detail="Không thể trích xuất nội dung từ file. File có thể bị lỗi hoặc là scan ảnh.",
-            )
+            raise PdfExtractionError()
 
         # 4. Upload PDF lên Supabase Storage bucket 'raw_books'
         storage_path = f"{book_id}/original.pdf"
@@ -105,7 +109,7 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
         logger.info(f"📘 Created DRAFT book {book_id} | {len(chapters_data)} chapters | file_url saved")
     except Exception as e:
         logger.error(f"Failed to create book record: {e}")
-        raise HTTPException(status_code=500, detail=f"Lỗi lưu DB: {str(e)}") from e
+        raise DatabaseError(f"Lỗi lưu DB: {str(e)}") from e
 
     # 6. Trả về outline để Flutter hiển thị
     outline = [{"title": c.get("title", f"Chương {i + 1}"), "page_start": c.get("page_start", 0)} for i, c in enumerate(chapters_data)]
@@ -124,9 +128,9 @@ async def handle_generate_plan(session: Session, background_tasks: BackgroundTas
     # 1. Validate book tồn tại và đang ở trạng thái DRAFT
     book = session.get(Book, payload.book_id)
     if not book:
-        raise HTTPException(status_code=404, detail="Không tìm thấy sách.")
+        raise BookNotFoundError()
     if book.status not in (BookStatus.DRAFT):
-        raise HTTPException(status_code=409, detail=f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
+        raise BookStatusConflictError(f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
 
     # 2. Lưu ReadingPlan + cập nhật Book status
     try:
@@ -143,7 +147,7 @@ async def handle_generate_plan(session: Session, background_tasks: BackgroundTas
         logger.info(f"📋 ReadingPlan created for book {payload.book_id} | mode={payload.mode}")
     except Exception as e:
         logger.error(f"Failed to create reading plan: {e}")
-        raise HTTPException(status_code=500, detail=f"Lỗi lưu ReadingPlan: {str(e)}") from e
+        raise DatabaseError(f"Lỗi lưu ReadingPlan: {str(e)}") from e
 
     # 3. Kick-off background task — trả 200 OK ngay
     background_tasks.add_task(run_background_processing, payload.book_id, payload.mode)

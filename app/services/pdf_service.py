@@ -1,4 +1,3 @@
-import re
 
 import pdfplumber
 from pypdf import PdfReader

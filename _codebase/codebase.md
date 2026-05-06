@@ -2,7 +2,7 @@
 
 ## Project Statistics
 
-- Total files: 37
+- Total files: 51
 
 ## Folder Structure
 
@@ -10,7 +10,7 @@
 app
   api
     v1
-      endpoints
+      routers
         audiobooks.py
         live.py
         study_context.py
@@ -21,311 +21,167 @@ app
   core
     config.py
     constant.py
+    exceptions.py
+    security.py
     supabase.py
     __init__.py
-  crud
-    audiobook.py
-    book_knowledge.py
-    chapter.py
-    chapter_segment.py
-    plan.py
-    study_context.py
-    study_context_document_link.py
-    study_context_thread.py
-  db.py
+  db
+    database.py
+    migrations
+      env.py
+      README
+      script.py.mako
+      versions
+        054450a4d3fc_added_new_logic_context_conversation_.py
+        1a04ac7f0a85_add_mode_to_chapter_segments.py
+        34b51c319023_optimize_all_db_schema_add_plan_table.py
+        7c1f860609e9_added_error_message_to_book.py
+        960bf5ca365d_udpate_cascade_role.py
   helper
     run_background_processing.py
     upload2supabase.py
   main.py
   models
     db_models.py
+  repositories
+    audiobook_repo.py
+    book_knowledge_repo.py
+    chapter_repo.py
+    chapter_segment_repo.py
+    plan_repo.py
+    study_context_document_link_repo.py
+    study_context_repo.py
+    study_context_thread_repo.py
   schemas
     plan.py
     study_context.py
   services
-    agent_voice.py
-    embed.py
+    agent_voice_service.py
+    audiobook_service.py
+    embed_service.py
+    live_service.py
     llm_service.py
     pdf_service.py
     rag_service.py
+    study_context_service.py
     tts_service.py
+    upload_service.py
     __init__.py
   __init__.py
-.python-version
+Dockerfile
+start.sh
 pyproject.toml
-rpc_match_book_knowledge.md
 
 ```
 
-### app\api\v1\endpoints\audiobooks.py
+### app\api\v1\routers\audiobooks.py
 
 ```py
-import json
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
-from sqlmodel import Session, select
+from fastapi import APIRouter, BackgroundTasks, Depends
+from sqlmodel import Session
 
-from app.core.constant import PlanMode
-from app.repositories import audiobook as crud_book
-from app.repositories.chapter_segment import count_segments_by_book_and_mode
-from app.db import get_session
-from app.helper.run_background_processing import run_switch_mode_processing
-from app.models.db_models import Book, Chapter, ChapterSegment, ReadingPlan
+from app.db.database import get_session
+from app.models.db_models import Book
+from app.repositories import audiobook_repo
 from app.schemas.plan import SwitchModeRequest
+from app.services.audiobook_service import get_book_details, switch_book_mode
 
 router = APIRouter()
 
 
 @router.get("/books", response_model=list[Book])
 def read_all_books(session: Annotated[Session, Depends(get_session)]):
-    return crud_book.get_audiobooks(session)
+    return audiobook_repo.get_audiobooks(session)
 
 
 @router.get("/books/{book_id}", response_model=Book)
 def read_book(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
-    return crud_book.get_book_by_id(session, book_id)
+    return audiobook_repo.get_book_by_id(session, book_id)
 
 
 @router.post("/books", response_model=Book)
 def add_new_book(book: Book, session: Annotated[Session, Depends(get_session)]):
-    return crud_book.create_book(session, book)
+    return audiobook_repo.create_book(session, book)
 
 
 @router.delete("/book/{book_id}")
 async def delete_book(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
-    await crud_book.delete_book_storage(session, book_id)
+    await audiobook_repo.delete_book_storage(session, book_id)
     return {"message": "Book deleted"}
 
 
 @router.get("/books/{book_id}/details")
-def get_book_details(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
-    book = session.get(Book, book_id)
-    if not book:
-        raise HTTPException(status_code=404, detail="Book not found")
-
-    # 1. Kiểm tra plan chặt chẽ
-    plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
-    if not plan:
-        raise HTTPException(status_code=400, detail="User has no reading plan for this book")
-
-    try:
-        active_mode = PlanMode(plan.mode)
-    except ValueError as e:
-        print(f"Critical Error: Invalid mode '{plan.mode}' in DB for book {book_id}")
-        raise HTTPException(status_code=500, detail="Data integrity error") from e
-
-    # 2. Giải quyết N+1 bằng cách lấy TẤT CẢ segments một lần duy nhất
-    chapters = session.exec(select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_index)).all()
-
-    chapter_ids = [c.id for c in chapters]
-    all_segments = session.exec(select(ChapterSegment).where(ChapterSegment.chapter_id.in_(chapter_ids), ChapterSegment.mode == active_mode).order_by(ChapterSegment.segment_index)).all()
-
-    # Nhóm segments theo chapter_id để truy xuất nhanh
-    segments_map = {}
-    for s in all_segments:
-        segments_map.setdefault(s.chapter_id, []).append(s.model_dump())
-
-    # 3. Helper function để xử lý JSON "bẩn"
-    def extract_json_content(raw_data, mode):
-        if not raw_data:
-            return ""
-        try:
-            data = json.loads(raw_data)
-            return data.get(mode, "")
-        except (json.JSONDecodeError, TypeError) as e:
-            raise HTTPException(status_code=500, detail="Data integrity error") from e
-
-    # 4. Gom kết quả
-    result = []
-    for chap in chapters:
-        result.append(
-            {
-                "id": str(chap.id),
-                "title": chap.title,
-                "status": chap.status,
-                "chapter_index": chap.chapter_index,
-                "review_text": extract_json_content(chap.review_text, active_mode),
-                "review_audio_url": extract_json_content(chap.review_audio_url, active_mode),
-                "chapter_segments": segments_map.get(chap.id, []),
-            }
-        )
-
-    return {"book_status": book.status, "total_chapters": book.total_chapters, "chapters": result}
+def get_book_details_endpoint(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
+    return get_book_details(session, book_id)
 
 
 @router.post("/books/{book_id}/switch-mode")
-def switch_book_mode(book_id: uuid.UUID, payload: SwitchModeRequest, background_tasks: BackgroundTasks, session: Annotated[Session, Depends(get_session)]):
+def switch_book_mode_endpoint(
+    book_id: uuid.UUID,
+    payload: SwitchModeRequest,
+    background_tasks: BackgroundTasks,
+    session: Annotated[Session, Depends(get_session)],
+):
     """Đổi mode đang active và sinh audio mới nếu mode này chưa từng được gen."""
-
-    payload_mode = payload.mode
-
-    book = session.get(Book, book_id)
-    if not book:
-        raise HTTPException(status_code=404, detail="Book not found")
-
-    # 1. Lấy ReadingPlan hiện tại
-    plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
-    if not plan:
-        raise HTTPException(status_code=404, detail="Chưa có ReadingPlan cho sách này")
-
-    # 2. Nếu switch sang cùng mode đang active → không cần làm gì thêm
-    if plan.mode == payload_mode:
-        # Đếm tổng segments trên toàn bộ sách (không chỉ chapter 1)
-        total = count_segments_by_book_and_mode(session, book_id, payload_mode)
-        if total > 0:
-            return {"message": f"Đã ở mode {payload_mode} và audio đã có sẵn ({total} segments).", "needs_generation": False}
-        else:
-            # Đang ở đúng mode nhưng chưa có segments (do gen thất bại trước)
-            background_tasks.add_task(run_switch_mode_processing, book_id, payload_mode)
-            return {"message": f"Mode {payload_mode} chưa có audio, đang gen lại.", "needs_generation": True}
-
-    # 3. Cập nhật mode mới vào ReadingPlan
-    plan.mode = payload_mode
-    session.add(plan)
-    session.commit()
-
-    # 4. Kiểm tra xem audio của mode mới đã được sinh ra bao giờ chưa
-    # Dùng count toàn sách — tránh trường hợp chương 1 có segment nhưng chương khác không có
-    total = count_segments_by_book_and_mode(session, book_id, payload_mode)
-    needs_generation = total == 0
-
-    # 5. Kích hoạt Background Task sinh audio nếu cần
-    if needs_generation:
-        background_tasks.add_task(run_switch_mode_processing, book_id, payload_mode)
-        return {"message": f"Đã chuyển sang mode {payload_mode}. Hệ thống đang sinh audio trong background.", "needs_generation": True}
-
-    return {"message": f"Đã chuyển sang mode {payload_mode}. Audio đã có sẵn.", "needs_generation": False}
+    return switch_book_mode(session, background_tasks, book_id, payload.mode)
 
 ```
 
-### app\api\v1\endpoints\live.py
+### app\api\v1\routers\live.py
 
 ```py
-import json
 import uuid
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
-from livekit import api
-from sqlmodel import Session, select
+from fastapi import APIRouter, Depends
+from sqlmodel import Session
 
-from app.core.config import settings
-from app.db import get_session
-from app.models.db_models import ChatThread, StudyContextDocumentLink
+from app.db.database import get_session
+from app.services.live_service import get_token_for_book, get_token_for_thread
 
 router = APIRouter()
 
 
 @router.get("/live-token/{book_id}")
 async def get_token(book_id: str):
-    # Cấu hình dispatch Agent ngay khi user join room
-    # Điều này bắt buộc để LiveKit FE Flutter Session nhận diện được 'dispatchesAgent: true'
-    session_room_name = f"triam_{book_id[:8]}_{uuid.uuid4().hex[:6]}"
+    return get_token_for_book(book_id)
 
-    agent_dispatch = api.RoomAgentDispatch(agent_name=settings.LIVEKIT_AGENT_NAME, metadata=json.dumps({"book_id": book_id}))
-    room_config = api.RoomConfiguration(agents=[agent_dispatch])
-
-    # Create Token for user join room
-    token = (
-        api.AccessToken(settings.LIVEKIT_API_KEY, settings.LIVEKIT_API_SECRET)
-        .with_identity(f"user_{uuid.uuid4().hex[:6]}")
-        .with_grants(
-            api.VideoGrants(
-                room_join=True,
-                room=session_room_name,
-            )
-        )
-        .with_room_config(room_config)
-    )
-
-    return {"token": token.to_jwt(), "room_name": session_room_name}
 
 @router.get("/live-token/thread/{thread_id}")
-async def get_token_thread(thread_id: uuid.UUID, session: Session = Depends(get_session)):
-    # 1. Validate thread and get context
-    thread = session.get(ChatThread, thread_id)
-    if not thread:
-        raise HTTPException(status_code=404, detail="Thread not found")
-
-    # 2. Get document_ids for context
-    links = session.exec(
-        select(StudyContextDocumentLink).where(StudyContextDocumentLink.context_id == thread.context_id)
-    ).all()
-    document_ids = [str(link.book_id) for link in links]
-
-    # Cấu hình dispatch Agent ngay khi user join room
-    session_room_name = f"triam_{str(thread_id)[:8]}_{uuid.uuid4().hex[:6]}"
-
-    agent_dispatch = api.RoomAgentDispatch(
-        agent_name=settings.LIVEKIT_AGENT_NAME,
-        metadata=json.dumps({
-            "thread_id": str(thread_id),
-            "context_id": str(thread.context_id),
-            "document_ids": document_ids
-        })
-    )
-    room_config = api.RoomConfiguration(agents=[agent_dispatch])
-
-    # Create Token for user join room
-    token = (
-        api.AccessToken(settings.LIVEKIT_API_KEY, settings.LIVEKIT_API_SECRET)
-        .with_identity(f"user_{uuid.uuid4().hex[:6]}")
-        .with_grants(
-            api.VideoGrants(
-                room_join=True,
-                room=session_room_name,
-            )
-        )
-        .with_room_config(room_config)
-    )
-
-    return {"token": token.to_jwt(), "room_name": session_room_name}
+async def get_token_thread(thread_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
+    return get_token_for_thread(session, thread_id)
 
 ```
 
-### app\api\v1\endpoints\study_context.py
+### app\api\v1\routers\study_context.py
 
 ```py
-import logging
 import uuid
-from datetime import datetime, timezone
 from typing import Annotated, List
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
-from app.repositories.audiobook import get_book_by_id
-from app.repositories.study_context import (
-    create_study_context,
-    delete_study_context,
-    get_study_context,
-    get_study_contexts,
-    update_study_context,
-)
-from app.repositories.study_context_document_link import (
-    create_new_context_document,
-    delete_study_context_document,
-)
-from app.repositories.study_context_thread import (
-    create_new_thread,
-    get_chat_history_by_thread_id,
-    get_chat_threads_for_context,
-)
-from app.db import get_session
+from app.db.database import get_session
 from app.models.db_models import ChatMessage, ChatThread, StudyContext, StudyContextDocumentLink
+from app.repositories.study_context_repo import get_study_contexts
+from app.repositories.study_context_thread_repo import get_chat_history_by_thread_id
 from app.schemas.study_context import (
     ChatThreadInput,
     StudyContextDocumentInput,
     StudyContextInput,
     StudyContextUpdate,
 )
+from app.services import study_context_service
 
-logger = logging.getLogger("study_context")
 router = APIRouter()
 
 # TODO: REPLACE WITH JWT DECODE USER LATER
 MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
+
 
 # === Context Management ===
 
@@ -337,66 +193,33 @@ async def get_study_contexts_api(session: Annotated[Session, Depends(get_session
 
 @router.get("/study-contexts/{context_id}", response_model=StudyContext)
 async def get_study_context_api(context_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
-    context = get_study_context(session, context_id)
-    if not context or context.user_id != MOCK_USER_ID:
-        raise HTTPException(status_code=404, detail="Study context not found")
-    return context
+    return study_context_service.get_context(session, MOCK_USER_ID, context_id)
 
 
 @router.post("/study-contexts", response_model=StudyContext)
 async def create_study_context_api(payload: StudyContextInput, session: Annotated[Session, Depends(get_session)]):
-    context = StudyContext(
-        user_id=MOCK_USER_ID,
-        title=payload.title,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
-    )
-    return create_study_context(session, context)
+    return study_context_service.create_context(session, MOCK_USER_ID, payload)
 
 
 @router.patch("/study-contexts/{context_id}", response_model=StudyContext)
 async def update_study_context_api(context_id: uuid.UUID, payload: StudyContextUpdate, session: Annotated[Session, Depends(get_session)]):
-    context = get_study_context(session, context_id)
-    if not context or context.user_id != MOCK_USER_ID:
-        raise HTTPException(status_code=404, detail="Study context not found")
-
-    updated_context = update_study_context(session, context_id, payload.title)
-    if not updated_context:
-        raise HTTPException(status_code=404, detail="Study context not found")
-    return updated_context
+    return study_context_service.update_context_title(session, MOCK_USER_ID, context_id, payload.title)
 
 
 @router.delete("/study-contexts/{context_id}")
 async def delete_study_context_api(context_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
-    context = get_study_context(session, context_id)
-    if not context or context.user_id != MOCK_USER_ID:
-        raise HTTPException(status_code=404, detail="Study context not found")
-
-    delete_study_context(session, context_id)
+    study_context_service.delete_context(session, MOCK_USER_ID, context_id)
     return {"message": "Study context deleted successfully"}
 
 
 @router.post("/study-contexts/{context_id}/documents", response_model=StudyContextDocumentLink)
 async def add_study_context_document_api(context_id: uuid.UUID, payload: StudyContextDocumentInput, session: Annotated[Session, Depends(get_session)]):
-    book = get_book_by_id(session, payload.book_id)
-    if not book:
-        raise HTTPException(status_code=404, detail="Book not found")
-
-    context = get_study_context(session, context_id)
-    if not context or context.user_id != MOCK_USER_ID:
-        raise HTTPException(status_code=404, detail="Study context not found")
-
-    link = StudyContextDocumentLink(context_id=context_id, book_id=payload.book_id)
-    return create_new_context_document(session, link)
+    return study_context_service.add_document_to_context(session, MOCK_USER_ID, context_id, payload)
 
 
 @router.delete("/study-contexts/{context_id}/documents/{book_id}")
 async def delete_study_context_document_api(context_id: uuid.UUID, book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
-    context = get_study_context(session, context_id)
-    if not context or context.user_id != MOCK_USER_ID:
-        raise HTTPException(status_code=404, detail="Study context not found")
-
-    delete_study_context_document(session, context_id, book_id)
+    study_context_service.delete_document_from_context(session, MOCK_USER_ID, context_id, book_id)
     return {"message": "Context document deleted successfully"}
 
 
@@ -405,25 +228,12 @@ async def delete_study_context_document_api(context_id: uuid.UUID, book_id: uuid
 
 @router.get("/study-contexts/{context_id}/threads", response_model=List[ChatThread])
 async def get_chat_threads_api(context_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
-    context = get_study_context(session, context_id)
-    if not context or context.user_id != MOCK_USER_ID:
-        raise HTTPException(status_code=404, detail="Study context not found")
-    return get_chat_threads_for_context(session, context_id)
+    return study_context_service.get_threads_for_context(session, MOCK_USER_ID, context_id)
 
 
 @router.post("/study-contexts/{context_id}/threads", response_model=ChatThread)
 async def create_chat_thread_api(context_id: uuid.UUID, payload: ChatThreadInput, session: Annotated[Session, Depends(get_session)]):
-    context = get_study_context(session, context_id)
-    if not context or context.user_id != MOCK_USER_ID:
-        raise HTTPException(status_code=404, detail="Study context not found")
-
-    thread = ChatThread(
-        context_id=context_id,
-        title=payload.title,
-        created_at=datetime.now(timezone.utc),
-        updated_at=datetime.now(timezone.utc),
-    )
-    return create_new_thread(session, thread)
+    return study_context_service.create_thread(session, MOCK_USER_ID, context_id, payload)
 
 
 @router.get("/threads/{thread_id}/messages", response_model=List[ChatMessage])
@@ -432,194 +242,68 @@ async def get_thread_messages_api(thread_id: uuid.UUID, session: Annotated[Sessi
 
 ```
 
-### app\api\v1\endpoints\upload.py
+### app\api\v1\routers\upload.py
 
 ```py
-import logging
-import os
-import uuid
+from typing import Annotated
 
-import aiofiles
-from fastapi import APIRouter, BackgroundTasks, Body, File, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, UploadFile
 from sqlmodel import Session
 
-from app.core.config import settings
-from app.core.constant import BookStatus, PlanStatus
-from app.repositories.audiobook import create_book, update_book_status
-from app.repositories.chapter import create_chapter
-from app.repositories.plan import create_reading_plan
-from app.db import engine
-from app.helper.run_background_processing import run_background_processing
-from app.helper.upload2supabase import upload_file_to_supabase
-from app.models.db_models import Book, Chapter, ReadingPlan
+from app.db.database import get_session
 from app.schemas.plan import PlanInput
-from app.services.pdf_service import extract_chapters_smart
-
-logger = logging.getLogger("upload")
+from app.services.upload_service import handle_generate_plan, handle_upload_document
 
 router = APIRouter()
-
-# -----------------------------------------------------------------------
-# Mock User — thay bằng JWT decode sau khi tích hợp Auth
-# -----------------------------------------------------------------------
-MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
 
 
 # -----------------------------------------------------------------------
 # ENDPOINT 1: POST /upload
 # -----------------------------------------------------------------------
 @router.post("/upload")
-async def upload_document(file: UploadFile = File(...)):  # noqa: B008
+async def upload_document(
+    session: Annotated[Session, Depends(get_session)],
+    file: Annotated[UploadFile, File(...)],
+):
     """
     Bước 1: Nhận file, extract outline, upload PDF lên Supabase Storage,
     lưu Book + Chapter (DRAFT), trả về outline cho Flutter.
-    Không kích hoạt xử lý AI ở đây.
     """
-    # 1. Validate MIME Type hoặc đuôi file (vì chọn file từ Google Drive hay trả về application/octet-stream)
-    is_valid_type = file.content_type in settings.ALLOWED_MIME_TYPES
-    filename_lower = (file.filename or "").lower()
-
-    if not is_valid_type:
-        # Fallback kiểm tra bằng đuôi file
-        if not (filename_lower.endswith(".pdf") or filename_lower.endswith(".epub") or filename_lower.endswith(".docx")):
-            raise HTTPException(status_code=400, detail=f"Loại file không hỗ trợ ({file.content_type}). Chỉ chấp nhận PDF, EPUB, DOCX.")
-
-    content = await file.read()
-    if len(content) > settings.MAX_FILE_SIZE_BYTES:
-        raise HTTPException(status_code=400, detail="File vượt quá giới hạn 50MB.")
-
-    # 2. Lưu file tạm để extract outline
-    book_id = uuid.uuid4()
-    tmp_filename = f"uploads/{book_id}.tmp"
-    os.makedirs("uploads", exist_ok=True)
-    chapters_data = []
-    try:
-        async with aiofiles.open(tmp_filename, "wb") as f:
-            await f.write(content)
-
-        # 3. Extract outline
-        with open(tmp_filename, "rb") as f:
-            chapters_data = await extract_chapters_smart(f)
-
-        if not chapters_data:
-            raise HTTPException(status_code=422, detail="Không thể trích xuất nội dung từ file. File có thể bị lỗi hoặc là scan ảnh.")
-
-        # 4. Upload PDF lên Supabase Storage bucket 'raw_books'
-        storage_path = f"{book_id}/original.pdf"
-        file_url = await upload_file_to_supabase(
-            tmp_filename,
-            storage_path,
-            bucket="raw_books",
-            content_type="application/pdf",
-        )
-        logger.info(f"☁️  PDF uploaded to Storage: {storage_path}")
-
-    finally:
-        # [Dọn Rác] Xóa file tạm dù thành công hay thất bại
-        if os.path.exists(tmp_filename):
-            os.remove(tmp_filename)
-
-    # 5. Lưu DB: Book (DRAFT) + Chapters (DRAFT)
-    title = (file.filename or "unknown").rsplit(".", 1)[0]
-
-    try:
-        with Session(engine) as session:
-            book = Book(
-                id=book_id,
-                user_id=MOCK_USER_ID,
-                title=title,
-                total_chapters=len(chapters_data),
-                status="DRAFT",
-                file_url=file_url,  # URL thật của PDF trên Supabase Storage
-            )
-            create_book(session, book)
-
-            # Lưu Chapter DRAFT ngay để /generate-plan fetch lại được
-            for i, chap in enumerate(chapters_data):
-                chapter = Chapter(
-                    book_id=book_id,
-                    chapter_index=i,
-                    title=chap.get("title", "Empty Chapter"),
-                    status="DRAFT",
-                )
-                create_chapter(session, chapter)
-
-        logger.info(f"📘 Created DRAFT book {book_id} | {len(chapters_data)} chapters | file_url saved")
-    except Exception as e:
-        logger.error(f"Failed to create book record: {e}")
-        raise HTTPException(status_code=500, detail=f"Lỗi lưu DB: {str(e)}") from e
-
-    # 6. Trả về outline để Flutter hiển thị
-    outline = [{"title": c.get("title", f"Chương {i + 1}"), "page_start": c.get("page_start", 0)} for i, c in enumerate(chapters_data)]
-
-    return {
-        "book_id": str(book_id),
-        "total_chapters": len(chapters_data),
-        "outline": outline,
-    }
+    return await handle_upload_document(session, file)
 
 
 # -----------------------------------------------------------------------
 # ENDPOINT 2: POST /generate-plan
 # -----------------------------------------------------------------------
 @router.post("/generate-plan")
-async def generate_plan(background_tasks: BackgroundTasks, payload: PlanInput = Body(...)):  # noqa: B008
+async def generate_plan(
+    background_tasks: BackgroundTasks,
+    session: Annotated[Session, Depends(get_session)],
+    payload: Annotated[PlanInput, Body(...)],
+):
     """
     Bước 2: Nhận cấu hình kế hoạch học từ Flutter, lưu ReadingPlan,
     kick-off background processing.
     """
-    # 1. Validate book tồn tại
-    with Session(engine) as session:
-        book = session.get(Book, payload.book_id)
-        if not book:
-            raise HTTPException(status_code=404, detail="Không tìm thấy sách.")
-        if book.status not in (BookStatus.DRAFT):
-            raise HTTPException(status_code=409, detail=f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
-
-    # 3. Lưu ReadingPlan + cập nhật Book status
-    try:
-        with Session(engine) as session:
-            plan = ReadingPlan(
-                book_id=payload.book_id,
-                mode=payload.mode,
-                pace=payload.pace,
-                schedule_config=payload.schedule_config,
-                status=PlanStatus.ACTIVE,
-            )
-            create_reading_plan(session, plan)
-            update_book_status(session, payload.book_id, BookStatus.PROCESSING)
-
-        logger.info(f"📋 ReadingPlan created for book {payload.book_id} | mode={payload.mode}")
-    except Exception as e:
-        logger.error(f"Failed to create reading plan: {e}")
-        raise HTTPException(status_code=500, detail=f"Lỗi lưu ReadingPlan: {str(e)}") from e
-
-    # 4. Kick-off background task — trả 200 OK ngay
-    background_tasks.add_task(run_background_processing, payload.book_id, payload.mode)
-
-    return {
-        "message": "Kế hoạch học tập đã được tạo! Chúng tôi đang xử lý sách của bạn.",
-        "book_id": str(payload.book_id),
-        "mode": payload.mode,
-    }
+    return await handle_generate_plan(session, background_tasks, payload)
 
 ```
 
-### app\api\v1\endpoints\_\_init\_\_.py
+### app\api\v1\routers\__init__.py
 
 ```py
 # API Endpoints module
 
 ```
 
-### app\api\v1\_\_init\_\_.py
+### app\api\v1\__init__.py
 
 ```py
 # API v1 module
 
 ```
 
-### app\api\_\_init\_\_.py
+### app\api\__init__.py
 
 ```py
 # API v1 module
@@ -629,37 +313,43 @@ async def generate_plan(background_tasks: BackgroundTasks, payload: PlanInput = 
 ### app\core\config.py
 
 ```py
-import os
+from typing import Set
 
 from dotenv import load_dotenv
+from pydantic.v1.env_settings import BaseSettings
 
 load_dotenv(override=True)
 
 
-class Settings:
-    OPENAI_API_KEY = os.getenv("OPENAI_API_KEY") or ""
-    PINECONE_API_KEY = os.getenv("PINECONE_API_KEY") or ""
-    PINECONE_ENV = os.getenv("PINECONE_ENV") or ""
-    TAVILY_API_KEY = os.getenv("TAVILY_API_KEY") or ""
-    GEMINI_BASE_URL = os.getenv("GEMINI_BASE_URL") or ""
-    GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") or ""
-    DATABASE_URL = os.getenv("DATABASE_URL") or ""
-    SUPABASE_URL = os.getenv("SUPABASE_URL") or ""
-    SUPABASE_KEY = os.getenv("SUPABASE_KEY") or ""
-    SUPABASE_SERVICE_ROLE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or ""
-    EDGE_TTS_VOICE = os.getenv("EDGE_TTS_VOICE", "en-US-AvaMultilingualNeural") or ""
-    LIVEKIT_API_KEY = os.getenv("LIVEKIT_API_KEY") or ""
-    LIVEKIT_API_SECRET = os.getenv("LIVEKIT_API_SECRET") or ""
-    LIVEKIT_AGENT_NAME = os.getenv("LIVEKIT_AGENT_NAME") or ""
-    GEMINI_MODEL_NATIVE_AUDIO = os.getenv("GEMINI_MODEL_NATIVE_AUDIO", "gemini-2.5-flash-native-audio-latest") or ""
+class Settings(BaseSettings):
+    OPENAI_API_KEY: str
+    PINECONE_API_KEY: str
+    PINECONE_ENV: str
+    TAVILY_API_KEY: str
+    GEMINI_BASE_URL: str
+    GEMINI_API_KEY: str
+    DATABASE_URL: str
+    SUPABASE_URL: str
+    SUPABASE_KEY: str
+    SUPABASE_SERVICE_ROLE_KEY: str
+    EDGE_TTS_VOICE: str = "en-US-AvaMultilingualNeural"
+    LIVEKIT_API_KEY: str
+    LIVEKIT_API_SECRET: str
+    LIVEKIT_AGENT_NAME: str
+    GEMINI_MODEL_NATIVE_AUDIO: str = "gemini-2.5-flash-native-audio-latest"
 
     # Upload file
-    MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024  # 50 MB
-    ALLOWED_MIME_TYPES = {
+    MAX_FILE_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB
+    ALLOWED_MIME_TYPES: Set[str] = {
         "application/pdf",
         "application/epub+zip",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     }
+
+    class Config:
+        env_file = ".env"
+        env_file_encoding = "utf-8"
+        extra = "ignore"
 
 
 settings = Settings()
@@ -691,6 +381,127 @@ class PlanMode(str, Enum):
 
 ```
 
+### app\core\exceptions.py
+
+```py
+"""
+app/core/exceptions.py
+======================
+Domain-specific exception classes cho Triam Backend.
+
+Luồng hoạt động:
+    1. Service layer raise DomainError thay vì HTTPException
+    2. @app.exception_handler(AppException) trong main.py bắt tất cả và
+       tự động map sang HTTP response chuẩn
+
+Lợi ích:
+    - Service layer không phụ thuộc FastAPI → dễ unit test độc lập
+    - Tất cả error format tập trung một chỗ duy nhất
+"""
+
+
+class AppException(Exception):
+    """Base class cho tất cả domain exceptions của ứng dụng."""
+
+    status_code: int = 500
+    detail: str = "An unexpected error occurred."
+
+    def __init__(self, detail: str | None = None):
+        self.detail = detail or self.__class__.detail
+        super().__init__(self.detail)
+
+
+# ---------------------------------------------------------------------------
+# 404 Not Found
+# ---------------------------------------------------------------------------
+
+
+class BookNotFoundError(AppException):
+    status_code = 404
+    detail = "Book not found."
+
+
+class ReadingPlanNotFoundError(AppException):
+    status_code = 404
+    detail = "Chưa có ReadingPlan cho sách này."
+
+
+class NoReadingPlanError(AppException):
+    """Book tồn tại nhưng user chưa có reading plan."""
+    status_code = 400
+    detail = "User has no reading plan for this book."
+
+
+class StudyContextNotFoundError(AppException):
+    status_code = 404
+    detail = "Study context not found."
+
+
+class ThreadNotFoundError(AppException):
+    status_code = 404
+    detail = "Thread not found."
+
+
+# ---------------------------------------------------------------------------
+# 400 Bad Request
+# ---------------------------------------------------------------------------
+
+
+class UnsupportedFileTypeError(AppException):
+    status_code = 400
+    detail = "Loại file không hỗ trợ. Chỉ chấp nhận PDF, EPUB, DOCX."
+
+
+class FileTooLargeError(AppException):
+    status_code = 400
+    detail = "File vượt quá giới hạn 50MB."
+
+
+# ---------------------------------------------------------------------------
+# 409 Conflict
+# ---------------------------------------------------------------------------
+
+
+class BookStatusConflictError(AppException):
+    status_code = 409
+    detail = "Sách đang ở trạng thái không hợp lệ để thực hiện thao tác này."
+
+
+# ---------------------------------------------------------------------------
+# 422 Unprocessable Entity
+# ---------------------------------------------------------------------------
+
+
+class PdfExtractionError(AppException):
+    status_code = 422
+    detail = "Không thể trích xuất nội dung từ file. File có thể bị lỗi hoặc là scan ảnh."
+
+
+# ---------------------------------------------------------------------------
+# 500 Internal Server Error
+# ---------------------------------------------------------------------------
+
+
+class DataIntegrityError(AppException):
+    """Dữ liệu trong DB bị corrupt hoặc không nhất quán."""
+    status_code = 500
+    detail = "Data integrity error."
+
+
+class DatabaseError(AppException):
+    """Lỗi khi thực hiện thao tác ghi vào DB."""
+    status_code = 500
+    detail = "Database operation failed."
+
+```
+
+### app\core\security.py
+
+```py
+# Xử lý JWT, Auth (sau này)
+
+```
+
 ### app\core\supabase.py
 
 ```py
@@ -710,422 +521,14 @@ supabase: Client = create_client(url, key)
 
 ```
 
-### app\core\_\_init\_\_.py
+### app\core\__init__.py
 
 ```py
 # Core module
 
 ```
 
-### app\crud\audiobook.py
-
-```py
-import uuid
-from typing import Optional
-
-from sqlmodel import Session, select
-
-from app.core.supabase import supabase
-from app.models.db_models import Book
-
-
-def get_audiobooks(session: Session) -> list[Book]:
-    return session.exec(select(Book)).all()
-
-
-def get_book_by_id(session: Session, book_id: uuid.UUID) -> Optional[Book]:
-    return session.get(Book, book_id)
-
-
-def create_book(session: Session, book: Book) -> Book:
-    session.add(book)
-    session.commit()
-    session.refresh(book)
-    return book
-
-
-def update_book_status(session: Session, book_id: uuid.UUID, status: str, error_message: Optional[str] = None) -> None:
-    book = session.get(Book, book_id)
-    if book:
-        book.status = status
-        if error_message is not None:
-            book.error_message = error_message
-        session.add(book)
-        session.commit()
-
-
-def delete_book(session: Session, book_id: uuid.UUID) -> None:
-    book = session.get(Book, book_id)
-    if book:
-        session.delete(book)
-        session.commit()
-
-
-async def delete_book_storage(session: Session, book_id: uuid.UUID):
-    """
-    Xóa sạch assets trong Storage và bản ghi trong Database.
-    """
-    str_book_id = str(book_id)
-    target_buckets = ["audios", "raw_books"]
-
-    try:
-        # 1. Lấy danh sách file từ tất cả bucket liên quan qua RPC (SELECT)
-        result = supabase.rpc("get_book_asset_paths", {"bucket_names": target_buckets, "book_id_prefix": str_book_id}).execute()
-
-        # 2. Phân loại và xóa file qua Storage API
-        if result.data:
-            for bucket in target_buckets:
-                # Lọc ra danh sách file thuộc bucket hiện tại
-                paths = [item["name"] for item in result.data if item["bucket_id"] == bucket]
-
-                if paths:
-                    # Xóa hàng loạt file trong bucket này (Đúng quy trình API)
-                    supabase.storage.from_(bucket).remove(paths)
-                    print(f"Đã xóa {len(paths)} files từ bucket: {bucket}")
-
-        # 3. Xóa record trong DB
-        delete_book(session, book_id)
-        print(f"Đã dọn dẹp sạch sẽ database cho book: {str_book_id}")
-
-    except Exception as e:
-        # Rollback session nếu có lỗi ở tầng DB để tránh mất dữ liệu không đồng bộ
-        session.rollback()
-        print(f"Lỗi nghiêm trọng khi xóa book {str_book_id}: {e}")
-        raise e
-
-```
-
-### app\crud\book_knowledge.py
-
-```py
-import uuid
-
-from sqlmodel import Session, select
-
-from app.models.db_models import BookKnowledge
-
-
-def bulk_create_knowledge(session: Session, records: list[BookKnowledge]) -> None:
-    """Insert hàng loạt BookKnowledge (vector chunks) vào DB."""
-    for record in records:
-        session.add(record)
-    session.commit()
-
-
-def delete_knowledge_by_chapter(session: Session, chapter_id: uuid.UUID) -> None:
-    """Xóa toàn bộ vector chunks của 1 chapter (dùng khi rollback)."""
-    records = session.exec(
-        select(BookKnowledge).where(BookKnowledge.chapter_id == chapter_id)
-    ).all()
-    for record in records:
-        session.delete(record)
-    session.commit()
-
-
-```
-
-### app\crud\chapter.py
-
-```py
-import json
-import uuid
-
-from aiohttp.web import HTTPException
-from sqlmodel import Session, select
-
-from app.models.db_models import Chapter
-
-
-def get_draft_chapters_by_book(session: Session, book_id: uuid.UUID) -> list[Chapter]:
-    """Lấy danh sách chapters có status='DRAFT' theo book_id, sort theo chapter_index."""
-    statement = select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_index)
-    return list(session.exec(statement).all())
-
-
-def create_chapter(session: Session, chapter: Chapter) -> Chapter:
-    session.add(chapter)
-    session.commit()
-    session.refresh(chapter)
-    return chapter
-
-
-def update_chapter_review_audio(session: Session, chapter_id: uuid.UUID, review_audio_url: str, mode: str) -> None:
-    chapter = session.get(Chapter, chapter_id)
-    if chapter:
-        try:
-            reviews_audio = json.loads(chapter.review_audio_url) if chapter.review_audio_url else {}
-        except (json.JSONDecodeError, TypeError) as e:
-            print(f"Data integrity error: {e}")
-            raise HTTPException(status_code=500, detail="Data integrity error") from e
-
-        reviews_audio[mode] = review_audio_url
-        chapter.review_audio_url = json.dumps(reviews_audio, ensure_ascii=False)
-        session.add(chapter)
-        session.commit()
-
-
-def update_chapter_status(session: Session, chapter_id: uuid.UUID, status: str) -> None:
-    chapter = session.get(Chapter, chapter_id)
-    if chapter:
-        chapter.status = status
-        session.add(chapter)
-        session.commit()
-
-
-def update_chapter_review_text(session: Session, chapter_id: uuid.UUID, review_text: str, mode: str) -> None:
-    chapter = session.get(Chapter, chapter_id)
-    if chapter:
-        try:
-            reviews_text = json.loads(chapter.review_text) if chapter.review_text else {}
-        except (json.JSONDecodeError, TypeError) as e:
-            print(f"Data integrity error: {e}")
-            raise HTTPException(status_code=500, detail="Data integrity error") from e
-
-        reviews_text[mode] = review_text
-        chapter.review_text = json.dumps(reviews_text, ensure_ascii=False)
-        session.add(chapter)
-        session.commit()
-
-
-def delete_chapter(session: Session, chapter_id: uuid.UUID) -> None:
-    chapter = session.get(Chapter, chapter_id)
-    if chapter:
-        session.delete(chapter)
-        session.commit()
-
-```
-
-### app\crud\chapter_segment.py
-
-```py
-import uuid
-
-from sqlmodel import Session, func, select
-
-from app.models.db_models import ChapterSegment
-
-
-def bulk_create_segments(session: Session, segments: list[ChapterSegment]) -> None:
-    """Bulk tạo mới các segments."""
-    for segment in segments:
-        session.add(segment)
-    session.commit()
-
-
-def check_segments_exist_by_mode(session: Session, chapter_id: uuid.UUID, mode: str) -> bool:
-    """Kiểm tra xem đã có segment nào của mode này sinh ra chưa (trong 1 chapter)."""
-    return (
-        session.exec(
-            select(ChapterSegment).where(
-                ChapterSegment.chapter_id == chapter_id,
-                ChapterSegment.mode == mode,
-            )
-        ).first()
-        is not None
-    )
-
-
-def count_segments_by_book_and_mode(session: Session, book_id: uuid.UUID, mode: str) -> int:
-    """
-    Đếm tổng số segments của một mode trên toàn bộ sách.
-    Dùng để xác định chính xác xem mode đó đã được gen hoàn chỉnh chưa.
-    Thay thế check_segments_exist_by_mode khi cần kiểm tra cả sách.
-    """
-    from app.models.db_models import Chapter  # tránh circular import
-
-    result = session.exec(
-        select(func.count(ChapterSegment.id))
-        .join(Chapter, ChapterSegment.chapter_id == Chapter.id)  # type: ignore[arg-type]
-        .where(Chapter.book_id == book_id)
-        .where(ChapterSegment.mode == mode)
-    ).one()
-    return result or 0
-
-
-def delete_segments_by_chapter_and_mode(session: Session, chapter_id: uuid.UUID, mode: str) -> None:
-    """Xóa tất cả các segments của 1 chapter theo mode (dùng khi gen lại)."""
-    segments = session.exec(
-        select(ChapterSegment).where(
-            ChapterSegment.chapter_id == chapter_id,
-            ChapterSegment.mode == mode,
-        )
-    ).all()
-    for s in segments:
-        session.delete(s)
-    session.commit()
-
-```
-
-### app\crud\plan.py
-
-```py
-import uuid
-
-from sqlmodel import Session, select
-
-from app.core.constant import PlanStatus
-from app.models.db_models import ReadingPlan
-
-
-def check_plan_exist(session: Session, book_id: uuid.UUID) -> bool:
-    return session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first() is not None
-
-
-def get_plan_by_book_id(session: Session, book_id: uuid.UUID) -> ReadingPlan:
-    return session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
-
-
-def get_active_plan_by_book_id(session: Session, book_id: uuid.UUID) -> ReadingPlan:
-    return session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id).where(ReadingPlan.status == PlanStatus.ACTIVE)).first()
-
-
-def get_all_plan_by_user_id(session: Session, user_id: uuid.UUID) -> list[ReadingPlan]:
-    return session.exec(select(ReadingPlan).where(ReadingPlan.user_id == user_id)).all()
-
-
-def create_reading_plan(session: Session, plan: ReadingPlan) -> ReadingPlan:
-    session.add(plan)
-    session.commit()
-    session.refresh(plan)
-    return plan
-
-```
-
-### app\crud\study_context.py
-
-```py
-import uuid
-from datetime import datetime, timezone
-
-from sqlmodel import Session, select
-
-from app.models.db_models import StudyContext
-
-
-def get_study_context(session: Session, context_id: uuid.UUID) -> StudyContext | None:
-    return session.get(StudyContext, context_id)
-
-
-def get_study_contexts(session: Session, user_id: uuid.UUID) -> list[StudyContext]:
-    return session.exec(select(StudyContext).where(StudyContext.user_id == user_id)).all()
-
-
-def create_study_context(session: Session, study_context: StudyContext) -> StudyContext:
-    session.add(study_context)
-    session.commit()
-    session.refresh(study_context)
-    return study_context
-
-
-def update_study_context(
-    session: Session, context_id: uuid.UUID, title: str | None = None
-) -> StudyContext | None:
-    study_context = session.get(StudyContext, context_id)
-    if study_context:
-        if title is not None:
-            study_context.title = title
-        study_context.updated_at = datetime.now(timezone.utc)
-        session.add(study_context)
-        session.commit()
-        session.refresh(study_context)
-        return study_context
-    return None
-
-
-def delete_study_context(session: Session, context_id: uuid.UUID) -> None:
-    study_context = session.get(StudyContext, context_id)
-    if study_context:
-        session.delete(study_context)
-        session.commit()
-
-```
-
-### app\crud\study_context_document_link.py
-
-```py
-import uuid
-
-from sqlmodel import Session, select
-
-from app.models.db_models import StudyContextDocumentLink
-
-
-def create_new_context_document(
-    session: Session, link: StudyContextDocumentLink
-) -> StudyContextDocumentLink:
-    session.add(link)
-    session.commit()
-    session.refresh(link)
-    return link
-
-
-def get_context_documents(session: Session, context_id: uuid.UUID) -> list[StudyContextDocumentLink]:
-    return session.exec(
-        select(StudyContextDocumentLink).where(StudyContextDocumentLink.context_id == context_id)
-    ).all()
-
-
-def delete_study_context_document(session: Session, context_id: uuid.UUID, book_id: uuid.UUID) -> None:
-    link = session.exec(
-        select(StudyContextDocumentLink).where(
-            StudyContextDocumentLink.context_id == context_id, StudyContextDocumentLink.book_id == book_id
-        )
-    ).first()
-    if link:
-        session.delete(link)
-        session.commit()
-
-```
-
-### app\crud\study_context_thread.py
-
-```py
-import uuid
-from datetime import datetime, timezone
-
-from sqlmodel import Session, select
-
-from app.models.db_models import ChatMessage, ChatThread
-
-
-def get_chat_threads_for_context(session: Session, context_id: uuid.UUID) -> list[ChatThread]:
-    threads = session.exec(select(ChatThread).where(ChatThread.context_id == context_id)).all()
-    return threads
-
-
-def get_chat_history_by_thread_id(session: Session, thread_id: uuid.UUID) -> list[ChatMessage]:
-    messages = session.exec(select(ChatMessage).where(ChatMessage.thread_id == thread_id).order_by(ChatMessage.timestamp.asc())).all()
-    return messages
-
-
-def create_new_thread(session: Session, thread: ChatThread) -> ChatThread:
-    session.add(thread)
-    session.commit()
-    session.refresh(thread)
-    return thread
-
-
-def update_thread_title(session: Session, thread_id: uuid.UUID, title: str) -> ChatThread | None:
-    thread = session.get(ChatThread, thread_id)
-    if thread:
-        thread.title = title
-        thread.updated_at = datetime.now(timezone.utc)
-        session.add(thread)
-        session.commit()
-        session.refresh(thread)
-        return thread
-    return None
-
-
-def delete_thread(session: Session, thread_id: uuid.UUID) -> None:
-    thread = session.get(ChatThread, thread_id)
-    if thread:
-        session.delete(thread)
-        session.commit()
-
-```
-
-### app\db.py
+### app\db\database.py
 
 ```py
 from typing import Generator
@@ -1150,6 +553,535 @@ def get_session() -> Generator[Session, None, None]:
 
 ```
 
+### app\db\migrations\env.py
+
+```py
+from logging.config import fileConfig
+
+from alembic import context
+from sqlalchemy import engine_from_config, pool
+
+# this is the Alembic Config object, which provides
+# access to the values within the .ini file in use.
+config = context.config
+
+# Interpret the config file for Python logging.
+# This line sets up loggers basically.
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
+
+from sqlmodel import SQLModel
+
+from app.core.config import settings
+
+# Import all db models to make sure they are included in SQLModel.metadata
+
+# add your model's MetaData object here
+# for 'autogenerate' support
+target_metadata = SQLModel.metadata
+
+# Set sqlalchemy.url from our settings dynamically so we don't have to put it in alembic.ini
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+
+# other values from the config, defined by the needs of env.py,
+# can be acquired:
+# my_important_option = config.get_main_option("my_important_option")
+# ... etc.
+
+
+def run_migrations_offline() -> None:
+    """Run migrations in 'offline' mode.
+
+    This configures the context with just a URL
+    and not an Engine, though an Engine is acceptable
+    here as well.  By skipping the Engine creation
+    we don't even need a DBAPI to be available.
+
+    Calls to context.execute() here emit the given string to the
+    script output.
+
+    """
+    url = config.get_main_option("sqlalchemy.url")
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+    )
+
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+def run_migrations_online() -> None:
+    """Run migrations in 'online' mode.
+
+    In this scenario we need to create an Engine
+    and associate a connection with the context.
+
+    """
+    connectable = engine_from_config(
+        config.get_section(config.config_ini_section, {}),
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
+
+    with connectable.connect() as connection:
+        context.configure(connection=connection, target_metadata=target_metadata)
+
+        with context.begin_transaction():
+            context.run_migrations()
+
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()
+
+```
+
+### app\db\migrations\README
+
+*(Unsupported file type)*
+
+### app\db\migrations\script.py.mako
+
+*(Unsupported file type)*
+
+### app\db\migrations\versions\054450a4d3fc_added_new_logic_context_conversation_.py
+
+```py
+"""added new logic context conversation, optimized type/relationship
+
+Revision ID: 054450a4d3fc
+Revises: 960bf5ca365d
+Create Date: 2026-05-05 08:46:18.296083
+
+"""
+from typing import Sequence, Union
+
+import sqlalchemy as sa
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision: str = '054450a4d3fc'
+down_revision: Union[str, Sequence[str], None] = '960bf5ca365d'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Upgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.create_table('study_contexts',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('user_id', sa.UUID(), nullable=False),
+    sa.Column('title', sa.Text(), nullable=False),
+    sa.Column('is_auto_generated', sa.Boolean(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_study_contexts_user_id'), 'study_contexts', ['user_id'], unique=False)
+    op.create_table('chat_threads',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('context_id', sa.UUID(), nullable=True),
+    sa.Column('title', sa.Text(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['context_id'], ['study_contexts.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_chat_threads_context_id'), 'chat_threads', ['context_id'], unique=False)
+    op.create_table('study_context_document_links',
+    sa.Column('context_id', sa.UUID(), nullable=False),
+    sa.Column('book_id', sa.UUID(), nullable=False),
+    sa.ForeignKeyConstraint(['book_id'], ['books.id'], ondelete='CASCADE'),
+    sa.ForeignKeyConstraint(['context_id'], ['study_contexts.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('context_id', 'book_id')
+    )
+    op.create_index(op.f('ix_study_context_document_links_book_id'), 'study_context_document_links', ['book_id'], unique=False)
+    op.create_index(op.f('ix_study_context_document_links_context_id'), 'study_context_document_links', ['context_id'], unique=False)
+    op.create_table('chat_messages',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('thread_id', sa.UUID(), nullable=True),
+    sa.Column('is_user', sa.Boolean(), nullable=False),
+    sa.Column('text', sa.Text(), nullable=False),
+    sa.Column('source', sa.Text(), nullable=False),
+    sa.Column('timestamp', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['thread_id'], ['chat_threads.id'], ondelete='CASCADE'),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_chat_messages_thread_id'), 'chat_messages', ['thread_id'], unique=False)
+    op.create_index(op.f('ix_book_knowledge_book_id'), 'book_knowledge', ['book_id'], unique=False)
+    op.create_index(op.f('ix_book_knowledge_chapter_id'), 'book_knowledge', ['chapter_id'], unique=False)
+    op.create_index(op.f('ix_chapter_segments_chapter_id'), 'chapter_segments', ['chapter_id'], unique=False)
+    op.create_index(op.f('ix_chapters_book_id'), 'chapters', ['book_id'], unique=False)
+    op.create_index(op.f('ix_reading_plans_book_id'), 'reading_plans', ['book_id'], unique=False)
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_index(op.f('ix_reading_plans_book_id'), table_name='reading_plans')
+    op.drop_index(op.f('ix_chapters_book_id'), table_name='chapters')
+    op.drop_index(op.f('ix_chapter_segments_chapter_id'), table_name='chapter_segments')
+    op.drop_index(op.f('ix_book_knowledge_chapter_id'), table_name='book_knowledge')
+    op.drop_index(op.f('ix_book_knowledge_book_id'), table_name='book_knowledge')
+    op.drop_index(op.f('ix_chat_messages_thread_id'), table_name='chat_messages')
+    op.drop_table('chat_messages')
+    op.drop_index(op.f('ix_study_context_document_links_context_id'), table_name='study_context_document_links')
+    op.drop_index(op.f('ix_study_context_document_links_book_id'), table_name='study_context_document_links')
+    op.drop_table('study_context_document_links')
+    op.drop_index(op.f('ix_chat_threads_context_id'), table_name='chat_threads')
+    op.drop_table('chat_threads')
+    op.drop_index(op.f('ix_study_contexts_user_id'), table_name='study_contexts')
+    op.drop_table('study_contexts')
+    # ### end Alembic commands ###
+
+```
+
+### app\db\migrations\versions\1a04ac7f0a85_add_mode_to_chapter_segments.py
+
+```py
+"""add mode to chapter_segments
+
+Revision ID: 1a04ac7f0a85
+Revises: 34b51c319023
+Create Date: 2026-04-24 08:38:44.287323
+
+"""
+from typing import Sequence, Union
+
+import sqlalchemy as sa
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision: str = '1a04ac7f0a85'
+down_revision: Union[str, Sequence[str], None] = '34b51c319023'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Upgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.add_column('chapter_segments', sa.Column('mode', sa.Text(), server_default='full', nullable=False))
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_column('chapter_segments', 'mode')
+    # ### end Alembic commands ###
+
+```
+
+### app\db\migrations\versions\34b51c319023_optimize_all_db_schema_add_plan_table.py
+
+```py
+"""optimize all db schema, add plan table
+
+Revision ID: 34b51c319023
+Revises: 7c1f860609e9
+Create Date: 2026-04-08 15:59:13.882212
+
+"""
+from typing import Sequence, Union
+
+import sqlalchemy as sa
+from alembic import op
+from sqlalchemy.dialects import postgresql
+
+# revision identifiers, used by Alembic.
+revision: str = '34b51c319023'
+down_revision: Union[str, Sequence[str], None] = '7c1f860609e9'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Upgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.create_table('reading_plans',
+    sa.Column('id', sa.Uuid(), nullable=False),
+    sa.Column('book_id', sa.Uuid(), nullable=False),
+    sa.Column('mode', sa.Text(), nullable=False),
+    sa.Column('pace', sa.Integer(), nullable=False),
+    sa.Column('schedule_config', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+    sa.Column('status', sa.Text(), nullable=False),
+    sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+    sa.ForeignKeyConstraint(['book_id'], ['books.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    # 1. Add columns as nullable=True to not break existing rows
+    op.add_column('book_knowledge', sa.Column('chapter_id', sa.Uuid(), nullable=True))
+    op.add_column('books', sa.Column('user_id', sa.UUID(), nullable=True))
+
+    # Do normal operations
+    op.create_foreign_key(None, 'book_knowledge', 'chapters', ['chapter_id'], ['id'])
+
+    # 2. Fix data relationships
+    # Xoá các chunk cũ không còn chapter tương ứng để map dữ liệu
+    op.execute("""
+        DELETE FROM book_knowledge bk
+        WHERE NOT EXISTS (
+            SELECT 1 FROM chapters c 
+            WHERE c.book_id = bk.book_id AND c.chapter_index = bk.chapter_index
+        )
+    """)
+    # Ánh xạ chapter_id bằng cách join với thông tin cũ
+    op.execute("""
+        UPDATE book_knowledge bk
+        SET chapter_id = c.id
+        FROM chapters c
+        WHERE c.book_id = bk.book_id AND c.chapter_index = bk.chapter_index
+    """)
+
+    # Cấp một Dummy UUID cho các sách cũ thiếu user_id (tránh lỗi null)
+    op.execute("UPDATE books SET user_id = '00000000-0000-0000-0000-000000000000' WHERE user_id IS NULL")
+
+    # 3. Alter các cột thành NOT NULL sau khi đã có dữ liệu hợp lệ
+    op.alter_column('book_knowledge', 'chapter_id', nullable=False)
+    op.alter_column('books', 'user_id', nullable=False)
+
+    # Clean up operations
+    op.drop_column('book_knowledge', 'chapter_index')
+    op.add_column('books', sa.Column('file_url', sa.Text(), nullable=True))
+    op.create_index(op.f('ix_books_user_id'), 'books', ['user_id'], unique=False)
+    op.drop_column('books', 'gcs_pdf_url')
+    op.add_column('chapter_segments', sa.Column('duration_ms', sa.Integer(), nullable=True))
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_column('chapter_segments', 'duration_ms')
+    op.add_column('books', sa.Column('gcs_pdf_url', sa.TEXT(), autoincrement=False, nullable=True))
+    op.drop_index(op.f('ix_books_user_id'), table_name='books')
+    op.drop_column('books', 'file_url')
+    op.drop_column('books', 'user_id')
+    op.add_column('book_knowledge', sa.Column('chapter_index', sa.INTEGER(), autoincrement=False, nullable=False))
+    op.drop_constraint(None, 'book_knowledge', type_='foreignkey')
+    op.drop_column('book_knowledge', 'chapter_id')
+    op.drop_table('reading_plans')
+    # ### end Alembic commands ###
+
+```
+
+### app\db\migrations\versions\7c1f860609e9_added_error_message_to_book.py
+
+```py
+"""added error_message to book
+
+Revision ID: 7c1f860609e9
+Revises: 
+Create Date: 2026-04-07 22:49:48.167966
+
+"""
+from typing import Sequence, Union
+
+import sqlalchemy as sa
+from alembic import op
+from sqlalchemy.dialects import postgresql
+
+# revision identifiers, used by Alembic.
+revision: str = '7c1f860609e9'
+down_revision: Union[str, Sequence[str], None] = None
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Upgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_table('audiobook')
+    op.alter_column('book_knowledge', 'id',
+               existing_type=sa.BIGINT(),
+               type_=sa.Integer(),
+               existing_nullable=False,
+               autoincrement=True)
+    op.alter_column('book_knowledge', 'chapter_index',
+               existing_type=sa.INTEGER(),
+               nullable=False)
+    op.alter_column('book_knowledge', 'chunk_index',
+               existing_type=sa.INTEGER(),
+               nullable=False)
+    op.alter_column('book_knowledge', 'content',
+               existing_type=sa.TEXT(),
+               nullable=False)
+    op.drop_index(op.f('book_knowledge_embedding_idx'), table_name='book_knowledge', postgresql_ops={'embedding': 'vector_cosine_ops'}, postgresql_using='hnsw')
+    op.drop_constraint(op.f('book_knowledge_book_id_fkey'), 'book_knowledge', type_='foreignkey')
+    op.create_foreign_key(None, 'book_knowledge', 'books', ['book_id'], ['id'])
+    op.add_column('books', sa.Column('error_message', sa.Text(), nullable=True))
+    op.alter_column('books', 'created_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               nullable=False,
+               existing_server_default=sa.text('now()'))
+    op.create_index(op.f('ix_books_id'), 'books', ['id'], unique=False)
+    op.alter_column('chapter_segments', 'id',
+               existing_type=sa.BIGINT(),
+               type_=sa.Integer(),
+               existing_nullable=False,
+               autoincrement=True)
+    op.alter_column('chapter_segments', 'chapter_id',
+               existing_type=sa.UUID(),
+               nullable=False)
+    op.alter_column('chapter_segments', 'segment_index',
+               existing_type=sa.INTEGER(),
+               nullable=False)
+    op.drop_constraint(op.f('chapter_segments_chapter_id_fkey'), 'chapter_segments', type_='foreignkey')
+    op.create_foreign_key(None, 'chapter_segments', 'chapters', ['chapter_id'], ['id'])
+    op.alter_column('chapters', 'book_id',
+               existing_type=sa.UUID(),
+               nullable=False)
+    op.alter_column('chapters', 'chapter_index',
+               existing_type=sa.INTEGER(),
+               nullable=False)
+    op.alter_column('chapters', 'title',
+               existing_type=sa.TEXT(),
+               nullable=False)
+    op.drop_constraint(op.f('chapters_book_id_fkey'), 'chapters', type_='foreignkey')
+    op.create_foreign_key(None, 'chapters', 'books', ['book_id'], ['id'])
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_constraint(None, 'chapters', type_='foreignkey')
+    op.create_foreign_key(op.f('chapters_book_id_fkey'), 'chapters', 'books', ['book_id'], ['id'], ondelete='CASCADE')
+    op.alter_column('chapters', 'title',
+               existing_type=sa.TEXT(),
+               nullable=True)
+    op.alter_column('chapters', 'chapter_index',
+               existing_type=sa.INTEGER(),
+               nullable=True)
+    op.alter_column('chapters', 'book_id',
+               existing_type=sa.UUID(),
+               nullable=True)
+    op.drop_constraint(None, 'chapter_segments', type_='foreignkey')
+    op.create_foreign_key(op.f('chapter_segments_chapter_id_fkey'), 'chapter_segments', 'chapters', ['chapter_id'], ['id'], ondelete='CASCADE')
+    op.alter_column('chapter_segments', 'segment_index',
+               existing_type=sa.INTEGER(),
+               nullable=True)
+    op.alter_column('chapter_segments', 'chapter_id',
+               existing_type=sa.UUID(),
+               nullable=True)
+    op.alter_column('chapter_segments', 'id',
+               existing_type=sa.Integer(),
+               type_=sa.BIGINT(),
+               existing_nullable=False,
+               autoincrement=True)
+    op.drop_index(op.f('ix_books_id'), table_name='books')
+    op.alter_column('books', 'created_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               nullable=True,
+               existing_server_default=sa.text('now()'))
+    op.drop_column('books', 'error_message')
+    op.drop_constraint(None, 'book_knowledge', type_='foreignkey')
+    op.create_foreign_key(op.f('book_knowledge_book_id_fkey'), 'book_knowledge', 'books', ['book_id'], ['id'], ondelete='CASCADE')
+    op.create_index(op.f('book_knowledge_embedding_idx'), 'book_knowledge', ['embedding'], unique=False, postgresql_ops={'embedding': 'vector_cosine_ops'}, postgresql_using='hnsw')
+    op.alter_column('book_knowledge', 'content',
+               existing_type=sa.TEXT(),
+               nullable=True)
+    op.alter_column('book_knowledge', 'chunk_index',
+               existing_type=sa.INTEGER(),
+               nullable=True)
+    op.alter_column('book_knowledge', 'chapter_index',
+               existing_type=sa.INTEGER(),
+               nullable=True)
+    op.alter_column('book_knowledge', 'id',
+               existing_type=sa.Integer(),
+               type_=sa.BIGINT(),
+               existing_nullable=False,
+               autoincrement=True)
+    op.create_table('audiobook',
+    sa.Column('id', sa.INTEGER(), autoincrement=True, nullable=False),
+    sa.Column('title', sa.VARCHAR(), autoincrement=False, nullable=False),
+    sa.Column('created_at', postgresql.TIMESTAMP(), autoincrement=False, nullable=True),
+    sa.PrimaryKeyConstraint('id', name=op.f('audiobook_pkey'))
+    )
+    # ### end Alembic commands ###
+
+```
+
+### app\db\migrations\versions\960bf5ca365d_udpate_cascade_role.py
+
+```py
+"""udpate CASCADE role
+
+Revision ID: 960bf5ca365d
+Revises: 1a04ac7f0a85
+Create Date: 2026-04-27 19:58:47.509670
+
+"""
+from typing import Sequence, Union
+
+import sqlalchemy as sa
+from alembic import op
+
+# revision identifiers, used by Alembic.
+revision: str = '960bf5ca365d'
+down_revision: Union[str, Sequence[str], None] = '1a04ac7f0a85'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Upgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.alter_column('book_knowledge', 'chapter_id',
+               existing_type=sa.UUID(),
+               nullable=True)
+    op.drop_constraint(op.f('book_knowledge_book_id_fkey'), 'book_knowledge', type_='foreignkey')
+    op.drop_constraint(op.f('book_knowledge_chapter_id_fkey'), 'book_knowledge', type_='foreignkey')
+    op.create_foreign_key(None, 'book_knowledge', 'books', ['book_id'], ['id'], ondelete='CASCADE')
+    op.create_foreign_key(None, 'book_knowledge', 'chapters', ['chapter_id'], ['id'], ondelete='CASCADE')
+    op.alter_column('chapter_segments', 'chapter_id',
+               existing_type=sa.UUID(),
+               nullable=True)
+    op.alter_column('chapter_segments', 'segment_index',
+               existing_type=sa.INTEGER(),
+               nullable=True)
+    op.drop_constraint(op.f('chapter_segments_chapter_id_fkey'), 'chapter_segments', type_='foreignkey')
+    op.create_foreign_key(None, 'chapter_segments', 'chapters', ['chapter_id'], ['id'], ondelete='CASCADE')
+    op.drop_constraint(op.f('chapters_book_id_fkey'), 'chapters', type_='foreignkey')
+    op.create_foreign_key(None, 'chapters', 'books', ['book_id'], ['id'], ondelete='CASCADE')
+    op.drop_constraint(op.f('reading_plans_book_id_fkey'), 'reading_plans', type_='foreignkey')
+    op.create_foreign_key(None, 'reading_plans', 'books', ['book_id'], ['id'], ondelete='CASCADE')
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.drop_constraint(None, 'reading_plans', type_='foreignkey')
+    op.create_foreign_key(op.f('reading_plans_book_id_fkey'), 'reading_plans', 'books', ['book_id'], ['id'])
+    op.drop_constraint(None, 'chapters', type_='foreignkey')
+    op.create_foreign_key(op.f('chapters_book_id_fkey'), 'chapters', 'books', ['book_id'], ['id'])
+    op.drop_constraint(None, 'chapter_segments', type_='foreignkey')
+    op.create_foreign_key(op.f('chapter_segments_chapter_id_fkey'), 'chapter_segments', 'chapters', ['chapter_id'], ['id'])
+    op.alter_column('chapter_segments', 'segment_index',
+               existing_type=sa.INTEGER(),
+               nullable=False)
+    op.alter_column('chapter_segments', 'chapter_id',
+               existing_type=sa.UUID(),
+               nullable=False)
+    op.drop_constraint(None, 'book_knowledge', type_='foreignkey')
+    op.drop_constraint(None, 'book_knowledge', type_='foreignkey')
+    op.create_foreign_key(op.f('book_knowledge_chapter_id_fkey'), 'book_knowledge', 'chapters', ['chapter_id'], ['id'])
+    op.create_foreign_key(op.f('book_knowledge_book_id_fkey'), 'book_knowledge', 'books', ['book_id'], ['id'])
+    op.alter_column('book_knowledge', 'chapter_id',
+               existing_type=sa.UUID(),
+               nullable=False)
+    # ### end Alembic commands ###
+
+```
+
 ### app\helper\run_background_processing.py
 
 ```py
@@ -1162,9 +1094,12 @@ from sqlmodel import Session, select
 
 from app.core.constant import BookStatus
 from app.core.supabase import supabase
-from app.repositories.audiobook import update_book_status
-from app.repositories.book_knowledge import delete_knowledge_by_chapter
-from app.repositories.chapter import (
+from app.db.database import engine
+from app.helper.upload2supabase import upload_file_to_supabase
+from app.models.db_models import Book, ChapterSegment
+from app.repositories.audiobook_repo import update_book_status
+from app.repositories.book_knowledge_repo import delete_knowledge_by_chapter
+from app.repositories.chapter_repo import (
     Chapter,
     delete_chapter,
     get_draft_chapters_by_book,
@@ -1172,11 +1107,8 @@ from app.repositories.chapter import (
     update_chapter_review_text,
     update_chapter_status,
 )
-from app.repositories.chapter_segment import bulk_create_segments, delete_segments_by_chapter_and_mode
-from app.db import engine
-from app.helper.upload2supabase import upload_file_to_supabase
-from app.models.db_models import Book, ChapterSegment
-from app.services.embed import embed_and_save_chapter
+from app.repositories.chapter_segment_repo import bulk_create_segments, delete_segments_by_chapter_and_mode
+from app.services.embed_service import embed_and_save_chapter
 from app.services.llm_service import normalize_text_for_speech
 from app.services.pdf_service import extract_chapters_smart
 from app.services.tts_service import generate_audio_and_get_duration
@@ -1491,27 +1423,32 @@ async def upload_file_to_supabase(
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
-from fastapi.responses import StreamingResponse
-from sqlmodel import SQLModel
+from fastapi.requests import Request
+from fastapi.responses import JSONResponse, StreamingResponse
 
-from app.api.v1.endpoints import audiobooks, live, study_context, upload
-from app.db import engine
-from app.models import db_models  # Import db_models để SQLAlchemy nhận diện
+from app.api.v1.routers import audiobooks, live, study_context, upload
+from app.core.exceptions import AppException
 from app.services.tts_service import stream_text_to_speech_edge
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # --- Chạy khi STARTUP ---
-    print("Đang khởi tạo database...")
-    SQLModel.metadata.create_all(engine)
-
+    # Schema được quản lý bởi Alembic. Chạy: alembic upgrade head
     yield  # Sau từ khóa yield là lúc ứng dụng đang chạy (đang phục vụ người dùng)
     # --- Chạy khi SHUTDOWN ---
     print("Đang dọn dẹp tài nguyên...")
 
 
 app = FastAPI(title="TRIAM Assistant API", lifespan=lifespan)
+
+
+# ---------------------------------------------------------------------------
+# Global Exception Handler — bắt tất cả AppException và subclass của nó
+# ---------------------------------------------------------------------------
+@app.exception_handler(AppException)
+async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
 # Include Router
@@ -1629,7 +1566,7 @@ class ChapterSegment(SQLModel, table=True):
     audio_url: Optional[str] = Field(default=None, sa_column=Column(Text))
     text_content: Optional[str] = Field(default=None, sa_column=Column(Text))
     duration_ms: Optional[int] = Field(default=None, sa_column=Column(Integer))
-    mode: PlanMode = Field(default=PlanMode.FULL, sa_column=Column(Text, nullable=False, server_default=PlanMode.FULL))
+    mode: PlanMode = Field(sa_column=Column(Text, nullable=False))
 
     # === RELATIONSHIPS ===
     chapter: Chapter = Relationship(back_populates="segments")
@@ -1692,6 +1629,414 @@ class ChatMessage(SQLModel, table=True):
 
 ```
 
+### app\repositories\audiobook_repo.py
+
+```py
+import uuid
+from typing import Optional
+
+from sqlmodel import Session, select
+
+from app.core.supabase import supabase
+from app.models.db_models import Book
+
+
+def get_audiobooks(session: Session) -> list[Book]:
+    return session.exec(select(Book)).all()
+
+
+def get_book_by_id(session: Session, book_id: uuid.UUID) -> Optional[Book]:
+    return session.get(Book, book_id)
+
+
+def create_book(session: Session, book: Book) -> Book:
+    session.add(book)
+    session.commit()
+    session.refresh(book)
+    return book
+
+
+def update_book_status(session: Session, book_id: uuid.UUID, status: str, error_message: Optional[str] = None) -> None:
+    book = session.get(Book, book_id)
+    if book:
+        book.status = status
+        if error_message is not None:
+            book.error_message = error_message
+        session.add(book)
+        session.commit()
+
+
+def delete_book(session: Session, book_id: uuid.UUID) -> None:
+    book = session.get(Book, book_id)
+    if book:
+        session.delete(book)
+        session.commit()
+
+
+async def delete_book_storage(session: Session, book_id: uuid.UUID):
+    """
+    Xóa sạch assets trong Storage và bản ghi trong Database.
+    """
+    str_book_id = str(book_id)
+    target_buckets = ["audios", "raw_books"]
+
+    try:
+        # 1. Lấy danh sách file từ tất cả bucket liên quan qua RPC (SELECT)
+        result = supabase.rpc("get_book_asset_paths", {"bucket_names": target_buckets, "book_id_prefix": str_book_id}).execute()
+
+        # 2. Phân loại và xóa file qua Storage API
+        if result.data:
+            for bucket in target_buckets:
+                # Lọc ra danh sách file thuộc bucket hiện tại
+                paths = [item["name"] for item in result.data if item["bucket_id"] == bucket]
+
+                if paths:
+                    # Xóa hàng loạt file trong bucket này (Đúng quy trình API)
+                    supabase.storage.from_(bucket).remove(paths)
+                    print(f"Đã xóa {len(paths)} files từ bucket: {bucket}")
+
+        # 3. Xóa record trong DB
+        delete_book(session, book_id)
+        print(f"Đã dọn dẹp sạch sẽ database cho book: {str_book_id}")
+
+    except Exception as e:
+        # Rollback session nếu có lỗi ở tầng DB để tránh mất dữ liệu không đồng bộ
+        session.rollback()
+        print(f"Lỗi nghiêm trọng khi xóa book {str_book_id}: {e}")
+        raise e
+
+```
+
+### app\repositories\book_knowledge_repo.py
+
+```py
+import uuid
+
+from sqlmodel import Session, select
+
+from app.models.db_models import BookKnowledge
+
+
+def bulk_create_knowledge(session: Session, records: list[BookKnowledge]) -> None:
+    """Insert hàng loạt BookKnowledge (vector chunks) vào DB."""
+    for record in records:
+        session.add(record)
+    session.commit()
+
+
+def delete_knowledge_by_chapter(session: Session, chapter_id: uuid.UUID) -> None:
+    """Xóa toàn bộ vector chunks của 1 chapter (dùng khi rollback)."""
+    records = session.exec(
+        select(BookKnowledge).where(BookKnowledge.chapter_id == chapter_id)
+    ).all()
+    for record in records:
+        session.delete(record)
+    session.commit()
+
+
+```
+
+### app\repositories\chapter_repo.py
+
+```py
+import json
+import uuid
+
+from aiohttp.web import HTTPException
+from sqlmodel import Session, select
+
+from app.models.db_models import Chapter
+
+
+def get_draft_chapters_by_book(session: Session, book_id: uuid.UUID) -> list[Chapter]:
+    """Lấy danh sách chapters có status='DRAFT' theo book_id, sort theo chapter_index."""
+    statement = select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_index)
+    return list(session.exec(statement).all())
+
+
+def create_chapter(session: Session, chapter: Chapter) -> Chapter:
+    session.add(chapter)
+    session.commit()
+    session.refresh(chapter)
+    return chapter
+
+
+def update_chapter_review_audio(session: Session, chapter_id: uuid.UUID, review_audio_url: str, mode: str) -> None:
+    chapter = session.get(Chapter, chapter_id)
+    if chapter:
+        try:
+            reviews_audio = json.loads(chapter.review_audio_url) if chapter.review_audio_url else {}
+        except (json.JSONDecodeError, TypeError) as e:
+            print(f"Data integrity error: {e}")
+            raise HTTPException(status_code=500, detail="Data integrity error") from e
+
+        reviews_audio[mode] = review_audio_url
+        chapter.review_audio_url = json.dumps(reviews_audio, ensure_ascii=False)
+        session.add(chapter)
+        session.commit()
+
+
+def update_chapter_status(session: Session, chapter_id: uuid.UUID, status: str) -> None:
+    chapter = session.get(Chapter, chapter_id)
+    if chapter:
+        chapter.status = status
+        session.add(chapter)
+        session.commit()
+
+
+def update_chapter_review_text(session: Session, chapter_id: uuid.UUID, review_text: str, mode: str) -> None:
+    chapter = session.get(Chapter, chapter_id)
+    if chapter:
+        try:
+            reviews_text = json.loads(chapter.review_text) if chapter.review_text else {}
+        except (json.JSONDecodeError, TypeError) as e:
+            print(f"Data integrity error: {e}")
+            raise HTTPException(status_code=500, detail="Data integrity error") from e
+
+        reviews_text[mode] = review_text
+        chapter.review_text = json.dumps(reviews_text, ensure_ascii=False)
+        session.add(chapter)
+        session.commit()
+
+
+def delete_chapter(session: Session, chapter_id: uuid.UUID) -> None:
+    chapter = session.get(Chapter, chapter_id)
+    if chapter:
+        session.delete(chapter)
+        session.commit()
+
+```
+
+### app\repositories\chapter_segment_repo.py
+
+```py
+import uuid
+
+from sqlmodel import Session, func, select
+
+from app.models.db_models import ChapterSegment
+
+
+def bulk_create_segments(session: Session, segments: list[ChapterSegment]) -> None:
+    """Bulk tạo mới các segments."""
+    for segment in segments:
+        session.add(segment)
+    session.commit()
+
+
+def check_segments_exist_by_mode(session: Session, chapter_id: uuid.UUID, mode: str) -> bool:
+    """Kiểm tra xem đã có segment nào của mode này sinh ra chưa (trong 1 chapter)."""
+    return (
+        session.exec(
+            select(ChapterSegment).where(
+                ChapterSegment.chapter_id == chapter_id,
+                ChapterSegment.mode == mode,
+            )
+        ).first()
+        is not None
+    )
+
+
+def count_segments_by_book_and_mode(session: Session, book_id: uuid.UUID, mode: str) -> int:
+    """
+    Đếm tổng số segments của một mode trên toàn bộ sách.
+    Dùng để xác định chính xác xem mode đó đã được gen hoàn chỉnh chưa.
+    Thay thế check_segments_exist_by_mode khi cần kiểm tra cả sách.
+    """
+    from app.models.db_models import Chapter  # tránh circular import
+
+    result = session.exec(
+        select(func.count(ChapterSegment.id))
+        .join(Chapter, ChapterSegment.chapter_id == Chapter.id)  # type: ignore[arg-type]
+        .where(Chapter.book_id == book_id)
+        .where(ChapterSegment.mode == mode)
+    ).one()
+    return result or 0
+
+
+def delete_segments_by_chapter_and_mode(session: Session, chapter_id: uuid.UUID, mode: str) -> None:
+    """Xóa tất cả các segments của 1 chapter theo mode (dùng khi gen lại)."""
+    segments = session.exec(
+        select(ChapterSegment).where(
+            ChapterSegment.chapter_id == chapter_id,
+            ChapterSegment.mode == mode,
+        )
+    ).all()
+    for s in segments:
+        session.delete(s)
+    session.commit()
+
+```
+
+### app\repositories\plan_repo.py
+
+```py
+import uuid
+
+from sqlmodel import Session, select
+
+from app.core.constant import PlanStatus
+from app.models.db_models import ReadingPlan
+
+
+def check_plan_exist(session: Session, book_id: uuid.UUID) -> bool:
+    return session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first() is not None
+
+
+def get_plan_by_book_id(session: Session, book_id: uuid.UUID) -> ReadingPlan:
+    return session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
+
+
+def get_active_plan_by_book_id(session: Session, book_id: uuid.UUID) -> ReadingPlan:
+    return session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id).where(ReadingPlan.status == PlanStatus.ACTIVE)).first()
+
+
+def get_all_plan_by_user_id(session: Session, user_id: uuid.UUID) -> list[ReadingPlan]:
+    return session.exec(select(ReadingPlan).where(ReadingPlan.user_id == user_id)).all()
+
+
+def create_reading_plan(session: Session, plan: ReadingPlan) -> ReadingPlan:
+    session.add(plan)
+    session.commit()
+    session.refresh(plan)
+    return plan
+
+```
+
+### app\repositories\study_context_document_link_repo.py
+
+```py
+import uuid
+
+from sqlmodel import Session, select
+
+from app.models.db_models import StudyContextDocumentLink
+
+
+def create_new_context_document(
+    session: Session, link: StudyContextDocumentLink
+) -> StudyContextDocumentLink:
+    session.add(link)
+    session.commit()
+    session.refresh(link)
+    return link
+
+
+def get_context_documents(session: Session, context_id: uuid.UUID) -> list[StudyContextDocumentLink]:
+    return session.exec(
+        select(StudyContextDocumentLink).where(StudyContextDocumentLink.context_id == context_id)
+    ).all()
+
+
+def delete_study_context_document(session: Session, context_id: uuid.UUID, book_id: uuid.UUID) -> None:
+    link = session.exec(
+        select(StudyContextDocumentLink).where(
+            StudyContextDocumentLink.context_id == context_id, StudyContextDocumentLink.book_id == book_id
+        )
+    ).first()
+    if link:
+        session.delete(link)
+        session.commit()
+
+```
+
+### app\repositories\study_context_repo.py
+
+```py
+import uuid
+from datetime import datetime, timezone
+
+from sqlmodel import Session, select
+
+from app.models.db_models import StudyContext
+
+
+def get_study_context(session: Session, context_id: uuid.UUID) -> StudyContext | None:
+    return session.get(StudyContext, context_id)
+
+
+def get_study_contexts(session: Session, user_id: uuid.UUID) -> list[StudyContext]:
+    return session.exec(select(StudyContext).where(StudyContext.user_id == user_id)).all()
+
+
+def create_study_context(session: Session, study_context: StudyContext) -> StudyContext:
+    session.add(study_context)
+    session.commit()
+    session.refresh(study_context)
+    return study_context
+
+
+def update_study_context(
+    session: Session, context_id: uuid.UUID, title: str | None = None
+) -> StudyContext | None:
+    study_context = session.get(StudyContext, context_id)
+    if study_context:
+        if title is not None:
+            study_context.title = title
+        study_context.updated_at = datetime.now(timezone.utc)
+        session.add(study_context)
+        session.commit()
+        session.refresh(study_context)
+        return study_context
+    return None
+
+
+def delete_study_context(session: Session, context_id: uuid.UUID) -> None:
+    study_context = session.get(StudyContext, context_id)
+    if study_context:
+        session.delete(study_context)
+        session.commit()
+
+```
+
+### app\repositories\study_context_thread_repo.py
+
+```py
+import uuid
+from datetime import datetime, timezone
+
+from sqlmodel import Session, select
+
+from app.models.db_models import ChatMessage, ChatThread
+
+
+def get_chat_threads_for_context(session: Session, context_id: uuid.UUID) -> list[ChatThread]:
+    threads = session.exec(select(ChatThread).where(ChatThread.context_id == context_id)).all()
+    return threads
+
+
+def get_chat_history_by_thread_id(session: Session, thread_id: uuid.UUID) -> list[ChatMessage]:
+    messages = session.exec(select(ChatMessage).where(ChatMessage.thread_id == thread_id).order_by(ChatMessage.timestamp.asc())).all()
+    return messages
+
+
+def create_new_thread(session: Session, thread: ChatThread) -> ChatThread:
+    session.add(thread)
+    session.commit()
+    session.refresh(thread)
+    return thread
+
+
+def update_thread_title(session: Session, thread_id: uuid.UUID, title: str) -> ChatThread | None:
+    thread = session.get(ChatThread, thread_id)
+    if thread:
+        thread.title = title
+        thread.updated_at = datetime.now(timezone.utc)
+        session.add(thread)
+        session.commit()
+        session.refresh(thread)
+        return thread
+    return None
+
+
+def delete_thread(session: Session, thread_id: uuid.UUID) -> None:
+    thread = session.get(ChatThread, thread_id)
+    if thread:
+        session.delete(thread)
+        session.commit()
+
+```
+
 ### app\schemas\plan.py
 
 ```py
@@ -1739,7 +2084,7 @@ class ChatThreadUpdate(BaseModel):
 
 ```
 
-### app\services\agent_voice.py
+### app\services\agent_voice_service.py
 
 ```py
 import asyncio
@@ -1766,7 +2111,7 @@ from supabase import Client, create_client
 from tavily import TavilyClient
 
 from app.core.config import settings
-from app.db import engine
+from app.db.database import engine
 from app.models.db_models import ChatMessage
 from app.services.rag_service import search_book_knowledge
 
@@ -2036,7 +2381,145 @@ if __name__ == "__main__":
 
 ```
 
-### app\services\embed.py
+### app\services\audiobook_service.py
+
+```py
+import json
+import uuid
+from typing import Any
+
+from fastapi import BackgroundTasks
+from sqlmodel import Session, select
+
+from app.core.constant import PlanMode
+from app.core.exceptions import (
+    BookNotFoundError,
+    DataIntegrityError,
+    NoReadingPlanError,
+    ReadingPlanNotFoundError,
+)
+from app.helper.run_background_processing import run_switch_mode_processing
+from app.models.db_models import Book, Chapter, ChapterSegment, ReadingPlan
+from app.repositories.chapter_segment_repo import count_segments_by_book_and_mode
+
+
+def _extract_json_content(raw_data: Any, mode: str) -> str:
+    """Helper: Trích xuất nội dung theo mode từ chuỗi JSON."""
+    if not raw_data:
+        return ""
+    try:
+        data = json.loads(raw_data)
+        return data.get(mode, "")
+    except (json.JSONDecodeError, TypeError) as e:
+        raise DataIntegrityError() from e
+
+
+def get_book_details(session: Session, book_id: uuid.UUID) -> dict:
+    """
+    Lấy chi tiết sách kèm chapters và segments theo active mode.
+    Tối ưu N+1 bằng cách query TẤT CẢ segments một lần duy nhất.
+    """
+    book = session.get(Book, book_id)
+    if not book:
+        raise BookNotFoundError()
+
+    # 1. Lấy ReadingPlan và xác định active mode
+    plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
+    if not plan:
+        raise NoReadingPlanError()
+
+    try:
+        active_mode = PlanMode(plan.mode)
+    except ValueError as e:
+        raise DataIntegrityError() from e
+
+    # 2. Query tất cả chapters và segments một lần — tránh N+1
+    chapters = session.exec(
+        select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_index)
+    ).all()
+
+    chapter_ids = [c.id for c in chapters]
+    all_segments = session.exec(
+        select(ChapterSegment)
+        .where(ChapterSegment.chapter_id.in_(chapter_ids), ChapterSegment.mode == active_mode)
+        .order_by(ChapterSegment.segment_index)
+    ).all()
+
+    # 3. Nhóm segments theo chapter_id để truy xuất O(1)
+    segments_map: dict = {}
+    for s in all_segments:
+        segments_map.setdefault(s.chapter_id, []).append(s.model_dump())
+
+    # 4. Gom kết quả
+    result = [
+        {
+            "id": str(chap.id),
+            "title": chap.title,
+            "status": chap.status,
+            "chapter_index": chap.chapter_index,
+            "review_text": _extract_json_content(chap.review_text, active_mode),
+            "review_audio_url": _extract_json_content(chap.review_audio_url, active_mode),
+            "chapter_segments": segments_map.get(chap.id, []),
+        }
+        for chap in chapters
+    ]
+
+    return {"book_status": book.status, "total_chapters": book.total_chapters, "chapters": result}
+
+
+def switch_book_mode(
+    session: Session,
+    background_tasks: BackgroundTasks,
+    book_id: uuid.UUID,
+    payload_mode: str,
+) -> dict:
+    """
+    Đổi mode active trên ReadingPlan và sinh audio mới nếu mode chưa từng được gen.
+    """
+    book = session.get(Book, book_id)
+    if not book:
+        raise BookNotFoundError()
+
+    # 1. Lấy ReadingPlan hiện tại
+    plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
+    if not plan:
+        raise ReadingPlanNotFoundError()
+
+    # 2. Nếu switch sang cùng mode đang active → không cần làm gì thêm
+    if plan.mode == payload_mode:
+        total = count_segments_by_book_and_mode(session, book_id, payload_mode)
+        if total > 0:
+            return {
+                "message": f"Đã ở mode {payload_mode} và audio đã có sẵn ({total} segments).",
+                "needs_generation": False,
+            }
+        else:
+            # Đang ở đúng mode nhưng chưa có segments (do gen thất bại trước)
+            background_tasks.add_task(run_switch_mode_processing, book_id, payload_mode)
+            return {"message": f"Mode {payload_mode} chưa có audio, đang gen lại.", "needs_generation": True}
+
+    # 3. Cập nhật mode mới vào ReadingPlan
+    plan.mode = payload_mode
+    session.add(plan)
+    session.commit()
+
+    # 4. Kiểm tra xem audio của mode mới đã được sinh ra bao giờ chưa
+    total = count_segments_by_book_and_mode(session, book_id, payload_mode)
+    needs_generation = total == 0
+
+    # 5. Kích hoạt Background Task sinh audio nếu cần
+    if needs_generation:
+        background_tasks.add_task(run_switch_mode_processing, book_id, payload_mode)
+        return {
+            "message": f"Đã chuyển sang mode {payload_mode}. Hệ thống đang sinh audio trong background.",
+            "needs_generation": True,
+        }
+
+    return {"message": f"Đã chuyển sang mode {payload_mode}. Audio đã có sẵn.", "needs_generation": False}
+
+```
+
+### app\services\embed_service.py
 
 ```py
 import uuid
@@ -2046,8 +2529,8 @@ from openai import AsyncOpenAI
 from sqlmodel import Session
 
 from app.core.config import settings
-from app.repositories.book_knowledge import bulk_create_knowledge
 from app.models.db_models import BookKnowledge
+from app.repositories.book_knowledge_repo import bulk_create_knowledge
 
 aclient = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
@@ -2092,6 +2575,68 @@ async def embed_and_save_chapter(
 
     bulk_create_knowledge(session, records)
     print(f"✅ RAG: Saved {len(records)} vectors for chapter_id={chapter_id}")
+
+```
+
+### app\services\live_service.py
+
+```py
+import json
+import uuid
+
+from livekit import api
+from sqlmodel import Session, select
+
+from app.core.config import settings
+from app.core.exceptions import ThreadNotFoundError
+from app.models.db_models import ChatThread, StudyContextDocumentLink
+
+
+def _build_livekit_token(room_name: str, metadata: dict) -> dict:
+    """
+    Helper dùng chung: Tạo AccessToken LiveKit với room config và trả về JWT + room_name.
+    """
+    agent_dispatch = api.RoomAgentDispatch(
+        agent_name=settings.LIVEKIT_AGENT_NAME,
+        metadata=json.dumps(metadata),
+    )
+    room_config = api.RoomConfiguration(agents=[agent_dispatch])
+
+    token = (
+        api.AccessToken(settings.LIVEKIT_API_KEY, settings.LIVEKIT_API_SECRET)
+        .with_identity(f"user_{uuid.uuid4().hex[:6]}")
+        .with_grants(api.VideoGrants(room_join=True, room=room_name))
+        .with_room_config(room_config)
+    )
+
+    return {"token": token.to_jwt(), "room_name": room_name}
+
+
+def get_token_for_book(book_id: str) -> dict:
+    """Tạo LiveKit token cho session đọc sách đơn lẻ."""
+    session_room_name = f"triam_{book_id[:8]}_{uuid.uuid4().hex[:6]}"
+    return _build_livekit_token(session_room_name, {"book_id": book_id})
+
+
+def get_token_for_thread(session: Session, thread_id: uuid.UUID) -> dict:
+    """Tạo LiveKit token cho session gắn với Study Context thread."""
+    thread = session.get(ChatThread, thread_id)
+    if not thread:
+        raise ThreadNotFoundError()
+
+    # Lấy danh sách document_ids từ context
+    links = session.exec(
+        select(StudyContextDocumentLink).where(StudyContextDocumentLink.context_id == thread.context_id)
+    ).all()
+    document_ids = [str(link.book_id) for link in links]
+
+    session_room_name = f"triam_{str(thread_id)[:8]}_{uuid.uuid4().hex[:6]}"
+    metadata = {
+        "thread_id": str(thread_id),
+        "context_id": str(thread.context_id),
+        "document_ids": document_ids,
+    }
+    return _build_livekit_token(session_room_name, metadata)
 
 ```
 
@@ -2283,7 +2828,6 @@ async def normalize_text_for_speech(raw_text: str, mode: str) -> dict:
 ### app\services\pdf_service.py
 
 ```py
-import re
 
 import pdfplumber
 from pypdf import PdfReader
@@ -2325,115 +2869,48 @@ def get_pdf_outline_structure(file_obj):
         return []
 
 
-async def extract_chapters_smart(file_obj, pages_per_chunk=10):
+async def extract_chapters_smart(file_obj):
     """
-    Hàm xử lý thông minh 3 cấp độ:
-    Level 1: Dùng Outline (Mục lục ẩn).
-    Level 2: Dùng Regex quét text.
-    Level 3: Cắt theo số trang cố định.
+    Hàm xử lý thông minh Dùng Outline (Mục lục ẩn).
     """
-    # --- LEVEL 1: Dùng Mục lục Metadata ---
     # Lưu ý: Phải reset pointer file về 0 trước khi đọc
     file_obj.seek(0)
     outlines = get_pdf_outline_structure(file_obj)
 
     chapters = []
 
-    if outlines and len(outlines) > 1:
-        print(">> Đã tìm thấy Mục lục Metadata (Outline). Sử dụng Level 1.")
+    if not outlines or len(outlines) <= 1:
+        raise ValueError("Tài liệu PDF không có Mục lục (Outline) ẩn. Hệ thống hiện chỉ hỗ trợ PDF có Mục lục chuẩn.")
 
-        # Mở lại bằng pdfplumber để lấy text (pdfplumber extract text ngon hơn pypdf)
-        file_obj.seek(0)
-        with pdfplumber.open(file_obj) as pdf:
-            total_pages = len(pdf.pages)
+    print(">> Đã tìm thấy Mục lục Metadata (Outline). Sử dụng Level 1.")
 
-            for i in range(len(outlines)):
-                current_chap = outlines[i]
-                start_p = current_chap["page_start"] - 1  # index từ 0
-
-                # Xác định trang kết thúc (là trang bắt đầu của chương sau - 1)
-                if i < len(outlines) - 1:
-                    end_p = outlines[i + 1]["page_start"] - 1
-                else:
-                    end_p = total_pages  # Chương cuối thì lấy hết
-
-                # Đảm bảo không vượt quá file
-                end_p = min(end_p, total_pages)
-
-                # Gom text từ start_p đến end_p
-                chap_text = ""
-                for p_idx in range(start_p, end_p):
-                    text = pdf.pages[p_idx].extract_text()
-                    if text:
-                        chap_text += text + "\n"
-
-                if chap_text.strip():
-                    chapters.append({"title": current_chap["title"], "text": chap_text, "page_start": start_p + 1, "page_end": end_p})
-        return chapters
-
-    # --- LEVEL 2: Dùng Regex (Nếu Level 1 thất bại) ---
-    print(">> Không có Mục lục Metadata. Chuyển sang Level 2 (Regex Scan).")
-    file_obj.seek(0)
-
-    # Compile regex patterns cho tiêu đề chương
-    chapter_patterns = [
-        r"^\s*(?:Chương|CHƯƠNG|Chapter|CHAPTER)\s+(?:[IVX]+|\d+)",  # Chương 1, Chapter I, etc.
-        r"^\s*(?:Phần|PHẦN|Part|PART)\s+(?:[IVX]+|\d+)",  # Phần 1, Part I, etc.
-    ]
-    combined_pattern = re.compile("|".join(chapter_patterns), re.MULTILINE)
-
-    with pdfplumber.open(file_obj) as pdf:
-        total_pages = len(pdf.pages)
-        chapter_markers = []  # List of {title, page_idx}
-
-        # Quét từng trang tìm tiêu đề
-        for page_idx, page in enumerate(pdf.pages):
-            text = page.extract_text()
-            if not text:
-                continue
-
-            # Tách thành từng dòng và kiểm tra
-            lines = text.split("\n")
-            for line in lines[:10]:  # Chỉ check 10 dòng đầu mỗi trang
-                if combined_pattern.match(line.strip()):
-                    chapter_markers.append({"title": line.strip(), "page_idx": page_idx})
-                    break  # Tìm được tiêu đề rồi thì next page
-
-        # Nếu tìm được ít nhất 2 chương
-        if len(chapter_markers) >= 2:
-            print(f">> Tìm được {len(chapter_markers)} chương bằng Regex.")
-
-            for i in range(len(chapter_markers)):
-                start_p = chapter_markers[i]["page_idx"]
-
-                # Xác định trang kết thúc
-                if i < len(chapter_markers) - 1:
-                    end_p = chapter_markers[i + 1]["page_idx"]
-                else:
-                    end_p = total_pages
-
-                # Extract text từ start đến end
-                chap_text = ""
-                for p_idx in range(start_p, end_p):
-                    chap_text += (pdf.pages[p_idx].extract_text() or "") + "\n"
-
-                if chap_text.strip():
-                    chapters.append({"title": chapter_markers[i]["title"], "text": chap_text, "page_start": start_p + 1, "page_end": end_p})
-
-            return chapters  # Return kết quả Level 2
-
-    # --- LEVEL 3: Cắt Page cố định (Fallback cuối cùng) ---
-    print(">> Không quét được tiêu đề. Chuyển sang Level 3 (Fixed Page Chunk).")
+    # Mở lại bằng pdfplumber để lấy text (pdfplumber extract text ngon hơn pypdf)
     file_obj.seek(0)
     with pdfplumber.open(file_obj) as pdf:
         total_pages = len(pdf.pages)
-        for i in range(0, total_pages, pages_per_chunk):
-            chunk_text = ""
-            end_page = min(i + pages_per_chunk, total_pages)
-            for p_idx in range(i, end_page):
-                chunk_text += (pdf.pages[p_idx].extract_text() or "") + "\n"
 
-            chapters.append({"title": f"Phần {i // pages_per_chunk + 1} (Trang {i + 1}-{end_page})", "text": chunk_text, "page_start": i + 1, "page_end": end_page})
+        for i in range(len(outlines)):
+            current_chap = outlines[i]
+            start_p = current_chap["page_start"] - 1  # index từ 0
+
+            # Xác định trang kết thúc (là trang bắt đầu của chương sau - 1)
+            if i < len(outlines) - 1:
+                end_p = outlines[i + 1]["page_start"] - 1
+            else:
+                end_p = total_pages  # Chương cuối thì lấy hết
+
+            # Đảm bảo không vượt quá file
+            end_p = min(end_p, total_pages)
+
+            # Gom text từ start_p đến end_p
+            chap_text = ""
+            for p_idx in range(start_p, end_p):
+                text = pdf.pages[p_idx].extract_text()
+                if text:
+                    chap_text += text + "\n"
+
+            if chap_text.strip():
+                chapters.append({"title": current_chap["title"], "text": chap_text, "page_start": start_p + 1, "page_end": end_p})
 
     return chapters
 
@@ -2548,6 +3025,119 @@ async def search_book_knowledge(query: str, document_ids: list[str]):
         return "Không tìm thấy thông tin cụ thể trong sách."
 
     return result.data
+
+```
+
+### app\services\study_context_service.py
+
+```py
+import uuid
+from datetime import datetime, timezone
+
+from sqlmodel import Session
+
+from app.core.exceptions import BookNotFoundError, StudyContextNotFoundError
+from app.models.db_models import ChatThread, StudyContext, StudyContextDocumentLink
+from app.repositories.audiobook_repo import get_book_by_id
+from app.repositories.study_context_document_link_repo import create_new_context_document
+from app.repositories.study_context_repo import create_study_context, get_study_context
+from app.repositories.study_context_thread_repo import create_new_thread
+from app.schemas.study_context import ChatThreadInput, StudyContextDocumentInput, StudyContextInput
+
+
+def _get_owned_context(session: Session, context_id: uuid.UUID, user_id: uuid.UUID) -> StudyContext:
+    """Helper: Lấy context và kiểm tra ownership. Raise nếu không tìm thấy hoặc không thuộc user."""
+    context = get_study_context(session, context_id)
+    if not context or context.user_id != user_id:
+        raise StudyContextNotFoundError()
+    return context
+
+
+def create_context(session: Session, user_id: uuid.UUID, payload: StudyContextInput) -> StudyContext:
+    """Tạo mới một StudyContext cho user."""
+    context = StudyContext(
+        user_id=user_id,
+        title=payload.title,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    return create_study_context(session, context)
+
+
+def get_context(session: Session, user_id: uuid.UUID, context_id: uuid.UUID) -> StudyContext:
+    """Lấy context và kiểm tra ownership. Dùng cho router GET."""
+    return _get_owned_context(session, context_id, user_id)
+
+
+def update_context_title(session: Session, user_id: uuid.UUID, context_id: uuid.UUID, title: str) -> StudyContext:
+    """Validate ownership rồi cập nhật title."""
+    from app.repositories.study_context_repo import update_study_context
+    _get_owned_context(session, context_id, user_id)
+    updated = update_study_context(session, context_id, title)
+    if not updated:
+        raise StudyContextNotFoundError()
+    return updated
+
+
+def delete_context(session: Session, user_id: uuid.UUID, context_id: uuid.UUID) -> None:
+    """Validate ownership rồi xóa context."""
+    from app.repositories.study_context_repo import delete_study_context
+    _get_owned_context(session, context_id, user_id)
+    delete_study_context(session, context_id)
+
+
+def add_document_to_context(
+    session: Session,
+    user_id: uuid.UUID,
+    context_id: uuid.UUID,
+    payload: StudyContextDocumentInput,
+) -> StudyContextDocumentLink:
+    """Validate book và context, sau đó tạo link giữa context và document."""
+    book = get_book_by_id(session, payload.book_id)
+    if not book:
+        raise BookNotFoundError()
+
+    _get_owned_context(session, context_id, user_id)
+
+    link = StudyContextDocumentLink(context_id=context_id, book_id=payload.book_id)
+    return create_new_context_document(session, link)
+
+
+def delete_document_from_context(
+    session: Session,
+    user_id: uuid.UUID,
+    context_id: uuid.UUID,
+    book_id: uuid.UUID,
+) -> None:
+    """Validate ownership rồi xóa document link."""
+    from app.repositories.study_context_document_link_repo import delete_study_context_document
+    _get_owned_context(session, context_id, user_id)
+    delete_study_context_document(session, context_id, book_id)
+
+
+def get_threads_for_context(session: Session, user_id: uuid.UUID, context_id: uuid.UUID) -> list:
+    """Validate ownership rồi trả về danh sách threads."""
+    from app.repositories.study_context_thread_repo import get_chat_threads_for_context
+    _get_owned_context(session, context_id, user_id)
+    return get_chat_threads_for_context(session, context_id)
+
+
+def create_thread(
+    session: Session,
+    user_id: uuid.UUID,
+    context_id: uuid.UUID,
+    payload: ChatThreadInput,
+) -> ChatThread:
+    """Validate context ownership rồi tạo mới ChatThread."""
+    _get_owned_context(session, context_id, user_id)
+
+    thread = ChatThread(
+        context_id=context_id,
+        title=payload.title,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+    return create_new_thread(session, thread)
 
 ```
 
@@ -2670,89 +3260,242 @@ async def generate_audio_and_get_duration(
 
 ```
 
-### app\services\_\_init\_\_.py
+### app\services\upload_service.py
+
+```py
+import logging
+import os
+import uuid
+
+import aiofiles
+from fastapi import BackgroundTasks, UploadFile
+from sqlmodel import Session
+
+from app.core.config import settings
+from app.core.constant import BookStatus, PlanStatus
+from app.core.exceptions import (
+    BookNotFoundError,
+    BookStatusConflictError,
+    DatabaseError,
+    FileTooLargeError,
+    PdfExtractionError,
+    UnsupportedFileTypeError,
+)
+from app.helper.run_background_processing import run_background_processing
+from app.helper.upload2supabase import upload_file_to_supabase
+from app.models.db_models import Book, Chapter, ReadingPlan
+from app.repositories.audiobook_repo import create_book, update_book_status
+from app.repositories.chapter_repo import create_chapter
+from app.repositories.plan_repo import create_reading_plan
+from app.schemas.plan import PlanInput
+from app.services.pdf_service import extract_chapters_smart
+
+logger = logging.getLogger("upload_service")
+
+# TODO: REPLACE WITH JWT DECODE USER LATER
+MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
+
+
+async def handle_upload_document(session: Session, file: UploadFile) -> dict:
+    """
+    Bước 1: Validate file, extract outline từ PDF, upload lên Supabase Storage,
+    lưu Book + Chapter (DRAFT) vào DB, trả về outline cho Flutter.
+    """
+    # 1. Validate MIME Type hoặc đuôi file
+    is_valid_type = file.content_type in settings.ALLOWED_MIME_TYPES
+    filename_lower = (file.filename or "").lower()
+
+    if not is_valid_type:
+        if not (filename_lower.endswith(".pdf") or filename_lower.endswith(".epub") or filename_lower.endswith(".docx")):
+            raise UnsupportedFileTypeError(
+                f"Loại file không hỗ trợ ({file.content_type}). Chỉ chấp nhận PDF, EPUB, DOCX."
+            )
+
+    content = await file.read()
+    if len(content) > settings.MAX_FILE_SIZE_BYTES:
+        raise FileTooLargeError()
+
+    # 2. Lưu file tạm để extract outline
+    book_id = uuid.uuid4()
+    tmp_filename = f"uploads/{book_id}.tmp"
+    os.makedirs("uploads", exist_ok=True)
+
+    chapters_data = []
+    file_url = ""
+    try:
+        async with aiofiles.open(tmp_filename, "wb") as f:
+            await f.write(content)
+
+        # 3. Extract outline từ PDF
+        with open(tmp_filename, "rb") as f:
+            chapters_data = await extract_chapters_smart(f)
+
+        if not chapters_data:
+            raise PdfExtractionError()
+
+        # 4. Upload PDF lên Supabase Storage bucket 'raw_books'
+        storage_path = f"{book_id}/original.pdf"
+        file_url = await upload_file_to_supabase(
+            tmp_filename,
+            storage_path,
+            bucket="raw_books",
+            content_type="application/pdf",
+        )
+        logger.info(f"☁️  PDF uploaded to Storage: {storage_path}")
+
+    finally:
+        # Dọn rác: Xóa file tạm dù thành công hay thất bại
+        if os.path.exists(tmp_filename):
+            os.remove(tmp_filename)
+
+    # 5. Lưu DB: Book (DRAFT) + Chapters (DRAFT)
+    title = (file.filename or "unknown").rsplit(".", 1)[0]
+    try:
+        book = Book(
+            id=book_id,
+            user_id=MOCK_USER_ID,
+            title=title,
+            total_chapters=len(chapters_data),
+            status="DRAFT",
+            file_url=file_url,
+        )
+        create_book(session, book)
+
+        for i, chap in enumerate(chapters_data):
+            chapter = Chapter(
+                book_id=book_id,
+                chapter_index=i,
+                title=chap.get("title", "Empty Chapter"),
+                status="DRAFT",
+            )
+            create_chapter(session, chapter)
+
+        session.commit()
+        logger.info(f"📘 Created DRAFT book {book_id} | {len(chapters_data)} chapters | file_url saved")
+    except Exception as e:
+        logger.error(f"Failed to create book record: {e}")
+        raise DatabaseError(f"Lỗi lưu DB: {str(e)}") from e
+
+    # 6. Trả về outline để Flutter hiển thị
+    outline = [{"title": c.get("title", f"Chương {i + 1}"), "page_start": c.get("page_start", 0)} for i, c in enumerate(chapters_data)]
+
+    return {
+        "book_id": str(book_id),
+        "total_chapters": len(chapters_data),
+        "outline": outline,
+    }
+
+
+async def handle_generate_plan(session: Session, background_tasks: BackgroundTasks, payload: PlanInput) -> dict:
+    """
+    Bước 2: Validate trạng thái sách, tạo ReadingPlan, kick-off background processing.
+    """
+    # 1. Validate book tồn tại và đang ở trạng thái DRAFT
+    book = session.get(Book, payload.book_id)
+    if not book:
+        raise BookNotFoundError()
+    if book.status not in (BookStatus.DRAFT):
+        raise BookStatusConflictError(f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
+
+    # 2. Lưu ReadingPlan + cập nhật Book status
+    try:
+        plan = ReadingPlan(
+            book_id=payload.book_id,
+            mode=payload.mode,
+            pace=payload.pace,
+            schedule_config=payload.schedule_config,
+            status=PlanStatus.ACTIVE,
+        )
+        create_reading_plan(session, plan)
+        update_book_status(session, payload.book_id, BookStatus.PROCESSING)
+
+        logger.info(f"📋 ReadingPlan created for book {payload.book_id} | mode={payload.mode}")
+    except Exception as e:
+        logger.error(f"Failed to create reading plan: {e}")
+        raise DatabaseError(f"Lỗi lưu ReadingPlan: {str(e)}") from e
+
+    # 3. Kick-off background task — trả 200 OK ngay
+    background_tasks.add_task(run_background_processing, payload.book_id, payload.mode)
+
+    return {
+        "message": "Kế hoạch học tập đã được tạo! Chúng tôi đang xử lý sách của bạn.",
+        "book_id": str(payload.book_id),
+        "mode": payload.mode,
+    }
+
+```
+
+### app\services\__init__.py
 
 ```py
 # Services module
 
 ```
 
-### app\_\_init\_\_.py
+### app\__init__.py
 
 ```py
 # TRIAM Backend Application
 
 ```
 
-### .python-version
+### Dockerfile
 
-_(Unsupported file type)_
+```dockerfile
+FROM python:3.12-slim
+
+# Copy uv from Astral's official image (best way to install uv in Docker)
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+# Create non-root user (required on Hugging Face Spaces)
+RUN useradd -m -u 1000 user
+USER user
+ENV HOME=/home/user \
+    PATH=/home/user/.local/bin:$PATH
+
+# Set working directory
+WORKDIR $HOME/app
+
+# Copy uv's dependency management files to cache
+COPY --chown=user pyproject.toml uv.lock ./
+
+# Install dependencies (using uv sync)
+RUN uv sync --frozen --no-dev
+
+# Copy all project source code into container
+COPY --chown=user . .
+
+# Run FastAPI application using uvicorn via uv, change port to 7860
+# CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
+
+# Provide access to execute and run start.sh
+RUN chmod +x ./start.sh
+ENV BACKEND_PORT=7860
+ENV AGENT_MODE=start
+CMD ["./start.sh"]
+```
+
+### start.sh
+
+```sh
+#!/usr/bin/env bash
+set -e
+
+# Bắt tín hiệu Ctrl+C để gửi lệnh tắt (TERM) cho worker, sau đó ĐỨNG CHỜ (wait) nó dọn dẹp an toàn
+trap 'echo "Đang tắt an toàn các tiến trình..."; kill -TERM $(jobs -p) 2>/dev/null; wait $(jobs -p) 2>/dev/null; echo "Đã tắt xong."; exit' INT TERM EXIT
+
+# Chạy Agent ngầm qua module path để tránh lỗi import package `app`.
+# Dùng mode `start` cho server; có thể đổi qua `dev` khi local debug.
+AGENT_MODE="${AGENT_MODE:-start}"
+export PYTHONUNBUFFERED=1
+uv run python -m app.services.agent_voice_service "$AGENT_MODE" > worker.log 2>&1 &
+
+# Chạy FastAPI chính
+BACKEND_PORT="${BACKEND_PORT:-8000}"
+uv run uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload
+
+```
 
 ### pyproject.toml
 
-_(Unsupported file type)_
-
-### rpc_match_book_knowledge.md
-
-```md
-      SELECT
-        book_knowledge.id,
-        book_knowledge.book_id,
-        book_knowledge.chapter_id,
-        book_knowledge.chunk_index,
-        book_knowledge.content,
-        1 - (book_knowledge.embedding <=> query_embedding) AS similarity
-      FROM book_knowledge
-      WHERE 1 - (book_knowledge.embedding <=> query_embedding) > match_threshold
-        AND book_knowledge.book_id = ANY(filter_book_ids)
-      ORDER BY book_knowledge.embedding <=> query_embedding
-      LIMIT match_count;
-
-
-
-
-
-    ///
-
-
-    -- 4. Viết hàm RPC (Remote Procedure Call) để search vector
-
--- Hàm này giúp bạn gọi từ code Python/Flutter chỉ bằng 1 dòng
-drop function if exists match_book_knowledge(vector, float, int, uuid[]);
-
-create or replace function match_book_knowledge (
-query_embedding vector(1536),
-match_threshold float,
-match_count int,
-filter_book_ids uuid[]
-)
-returns table (
-id integer,
-book_id uuid,
-chapter_id uuid,
-chunk_index integer,
-content text,
-similarity float
-)
-language plpgsql
-as $$
-begin
-return query
-select
-book_knowledge.id,
-book_knowledge.book_id,
-book_knowledge.chapter_id,
-book_knowledge.chunk_index,
-book_knowledge.content,
-1 - (book_knowledge.embedding <=> query_embedding) as similarity
-from book_knowledge
-where 1 - (book_knowledge.embedding <=> query_embedding) > match_threshold
-and book_knowledge.book_id = ANY(filter_book_ids)
-order by book_knowledge.embedding <=> query_embedding
-limit match_count;
-end;
-
-$$
-;
-$$
-```
+*(Unsupported file type)*

@@ -7,8 +7,8 @@ Create Date: 2026-04-08 15:59:13.882212
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
@@ -35,10 +35,10 @@ def upgrade() -> None:
     # 1. Add columns as nullable=True to not break existing rows
     op.add_column('book_knowledge', sa.Column('chapter_id', sa.Uuid(), nullable=True))
     op.add_column('books', sa.Column('user_id', sa.UUID(), nullable=True))
-    
+
     # Do normal operations
     op.create_foreign_key(None, 'book_knowledge', 'chapters', ['chapter_id'], ['id'])
-    
+
     # 2. Fix data relationships
     # Xoá các chunk cũ không còn chapter tương ứng để map dữ liệu
     op.execute("""
@@ -55,15 +55,15 @@ def upgrade() -> None:
         FROM chapters c
         WHERE c.book_id = bk.book_id AND c.chapter_index = bk.chapter_index
     """)
-    
+
     # Cấp một Dummy UUID cho các sách cũ thiếu user_id (tránh lỗi null)
     op.execute("UPDATE books SET user_id = '00000000-0000-0000-0000-000000000000' WHERE user_id IS NULL")
-    
+
     # 3. Alter các cột thành NOT NULL sau khi đã có dữ liệu hợp lệ
     op.alter_column('book_knowledge', 'chapter_id', nullable=False)
     op.alter_column('books', 'user_id', nullable=False)
 
-    # Clean up operations 
+    # Clean up operations
     op.drop_column('book_knowledge', 'chapter_index')
     op.add_column('books', sa.Column('file_url', sa.Text(), nullable=True))
     op.create_index(op.f('ix_books_user_id'), 'books', ['user_id'], unique=False)
