@@ -4,18 +4,21 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlmodel import Session
 
+from app.api.dependencies.auth import get_current_user
 from app.db.database import get_session
 from app.models.db_models import Book
 from app.repositories import audiobook_repo
 from app.schemas.plan import SwitchModeRequest
 from app.schemas.responses import BookDetailResponse, BookResponse, SwitchModeResponse
+from app.schemas.user import UserTokenPayload
 from app.services.audiobook_service import get_book_details, switch_book_mode
 
 router = APIRouter()
 
 
 @router.get("/books", response_model=list[BookResponse])
-def read_all_books(session: Annotated[Session, Depends(get_session)]):
+def read_all_books(session: Annotated[Session, Depends(get_session)], current_user: UserTokenPayload = Depends(get_current_user) ):
+    print(f"Current user: {current_user.email} (ID: {current_user.sub})")  # Debug log để xem thông tin user
     return audiobook_repo.get_audiobooks(session)
 
 

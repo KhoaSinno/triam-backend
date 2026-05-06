@@ -20,7 +20,7 @@ Tài liệu này cung cấp đặc tả API chính xác để đội ngũ Fronte
 
 ## 2. Đặc tả API (Endpoints)
 
-Base URL: `http://127.0.0.1:8000/api/v1`
+Base URL: `https://khoasinoo-tri-am-backend.hf.space/api/v1`
 
 ### 2.1 Quản lý Study Context (Ngữ cảnh học tập)
 

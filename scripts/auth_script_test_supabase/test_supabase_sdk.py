@@ -1,0 +1,18 @@
+import os
+import asyncio
+from supabase import create_client, Client
+
+url = "https://drlbwntplyteqvrpnmdi.supabase.co"
+key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRybGJ3bnRwbHl0ZXF2cnBubWRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1Mzk1MzQsImV4cCI6MjA4NjExNTUzNH0.9GxV8X3iSls_0JQrzVIbRvgR6YOSW2jWMCJmiCGrdM0"
+supabase: Client = create_client(url, key)
+
+token = "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNmNWVmZmQyLWY0MWMtNDdiNS04YTBkLTE4YTBlYzMxNWZjZCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2RybGJ3bnRwbHl0ZXF2cnBubWRpLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI4MzliYzhkYi1iZTMzLTQyOTAtYWNhZC05YmRmODk0YjA5MGIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc4MDY5MTMxLCJpYXQiOjE3NzgwNjU1MzEsImVtYWlsIjoia2hvYWxtaHQwQGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWxfdmVyaWZpZWQiOnRydWV9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzc4MDY1NTMxfV0sInNlc3Npb25faWQiOiJkNTUzM2JmNi0yODVlLTQ3OTEtOTIxMS0wYTM4YWFhY2MyN2MiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.OUwC0qG_k4xtqeCMoLRTOWyrv7Th0lRK94aQxs6oTSdBJ8q_10_Aiv3mJChdTplbtmhzGMXR4eMxEKFhibLBqw"
+
+async def test():
+    try:
+        user = supabase.auth.get_user(token)
+        print("User:", user.user.id)
+    except Exception as e:
+        print("Error:", e)
+
+asyncio.run(test())
