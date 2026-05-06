@@ -8,22 +8,23 @@ from app.db.database import get_session
 from app.models.db_models import Book
 from app.repositories import audiobook_repo
 from app.schemas.plan import SwitchModeRequest
+from app.schemas.responses import BookDetailResponse, BookResponse, SwitchModeResponse
 from app.services.audiobook_service import get_book_details, switch_book_mode
 
 router = APIRouter()
 
 
-@router.get("/books", response_model=list[Book])
+@router.get("/books", response_model=list[BookResponse])
 def read_all_books(session: Annotated[Session, Depends(get_session)]):
     return audiobook_repo.get_audiobooks(session)
 
 
-@router.get("/books/{book_id}", response_model=Book)
+@router.get("/books/{book_id}", response_model=BookResponse)
 def read_book(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
     return audiobook_repo.get_book_by_id(session, book_id)
 
 
-@router.post("/books", response_model=Book)
+@router.post("/books", response_model=BookResponse)
 def add_new_book(book: Book, session: Annotated[Session, Depends(get_session)]):
     return audiobook_repo.create_book(session, book)
 
@@ -34,12 +35,12 @@ async def delete_book(book_id: uuid.UUID, session: Annotated[Session, Depends(ge
     return {"message": "Book deleted"}
 
 
-@router.get("/books/{book_id}/details")
+@router.get("/books/{book_id}/details", response_model=BookDetailResponse)
 def get_book_details_endpoint(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
     return get_book_details(session, book_id)
 
 
-@router.post("/books/{book_id}/switch-mode")
+@router.post("/books/{book_id}/switch-mode", response_model=SwitchModeResponse)
 def switch_book_mode_endpoint(
     book_id: uuid.UUID,
     payload: SwitchModeRequest,
