@@ -22,7 +22,7 @@ from livekit import api, rtc
 # ─── CẤU HÌNH ──────────────────────────────────────────────────────────────
 BASE_URL = "http://127.0.0.1:8000/api/v1"
 LIVEKIT_URL = "wss://tri-am-bmdl413w.livekit.cloud"
-MOCK_BOOK_ID = "140376bf-3e5f-491d-95fc-dd82d33fd64d"
+MOCK_BOOK_ID = "9cda7cbc-c9e4-4325-9fc9-cb74d71e14b3"
 TEST_QUESTION = "Tên tác giả và nội dung quyển sách này là gì?"
 WAIT_TIMEOUT_SECONDS = 25  # Thời gian chờ tối đa cho phản hồi của agent
 # ───────────────────────────────────────────────────────────────────────────

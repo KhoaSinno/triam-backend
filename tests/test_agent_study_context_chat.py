@@ -7,6 +7,7 @@ BASE_URL = "http://127.0.0.1:8000/api/v1"
 LIVEKIT_URL = "wss://tri-am-bmdl413w.livekit.cloud"
 MOCK_BOOK_ID = "1b893d40-e0cc-4ee3-ae5f-a7809834e6dd"
 TEST_QUESTION = "Tóm tắt ngắn gọn giúp tôi quyển sách này nói về phương pháp học tập nào? Tên tác giả là gì, có mấy chương"
+TITLE_CONTEXT = "ppm 1"
 
 async def main() -> None:
     print("=" * 60)
@@ -34,7 +35,7 @@ async def main() -> None:
 
         # 3. Tạo Thread
         print("\n[3/6] 💬 Đang tạo Chat Thread...")
-        async with session.post(f"{BASE_URL}/study-contexts/{context_id}/threads", json={"title": "Test Thread 1"}) as r:
+        async with session.post(f"{BASE_URL}/study-contexts/{context_id}/threads", json={"title": TITLE_CONTEXT}) as r:
             thread = await r.json()
             thread_id = thread["id"]
             print(f"   ✅ Tạo thành công Thread ID: {thread_id}")

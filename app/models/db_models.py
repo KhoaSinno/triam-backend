@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Text
+from sqlalchemy import Boolean, Column, func, DateTime, ForeignKey, Integer, Text
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlmodel import Field, Relationship, SQLModel
@@ -33,8 +33,8 @@ class Book(SQLModel, table=True):
     total_chapters: Optional[int] = Field(default=None, sa_column=Column(Integer))
     status: Optional[str] = Field(default=None, sa_column=Column(Text))
     error_message: Optional[str] = Field(default=None, sa_column=Column(Text))
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
     # === RELATIONSHIPS ===
     chapters: list["Chapter"] = Relationship(back_populates="book", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
@@ -51,8 +51,8 @@ class ReadingPlan(SQLModel, table=True):
     pace: int = Field(sa_column=Column(Integer, nullable=False))
     schedule_config: Optional[Any] = Field(default=None, sa_column=Column(JSONB))
     status: str = Field(sa_column=Column(Text, nullable=False))
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
     # === RELATIONSHIPS ===
     book: Book = Relationship(back_populates="reading_plans")
@@ -111,8 +111,8 @@ class StudyContext(SQLModel, table=True):
     user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
     title: str = Field(sa_column=Column(Text, nullable=False))
     is_auto_generated: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
     # === RELATIONSHIPS ===
     books: list[Book] = Relationship(back_populates="contexts", link_model=StudyContextDocumentLink)
@@ -124,8 +124,8 @@ class ChatThread(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     context_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("study_contexts.id", ondelete="CASCADE"), index=True, nullable=False))
     title: str = Field(sa_column=Column(Text, nullable=False))
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
     # === RELATIONSHIPS ===
     context: StudyContext = Relationship(back_populates="threads")
@@ -139,7 +139,7 @@ class ChatMessage(SQLModel, table=True):
     is_user: bool = Field(sa_column=Column(Boolean, nullable=False))
     text: str = Field(sa_column=Column(Text, nullable=False))
     source: str = Field(sa_column=Column(Text, nullable=False))
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
 
     # === RELATIONSHIPS ===
     thread: ChatThread = Relationship(back_populates="messages")
