@@ -5,6 +5,7 @@ from openai import AsyncOpenAI
 from sqlmodel import Session
 
 from app.core.config import settings
+from app.core.logger import log
 from app.models.db_models import BookKnowledge
 from app.repositories.book_knowledge_repo import bulk_create_knowledge
 
@@ -50,4 +51,4 @@ async def embed_and_save_chapter(
     ]
 
     bulk_create_knowledge(session, records)
-    print(f"✅ RAG: Saved {len(records)} vectors for chapter_id={chapter_id}")
+    log.info(f"RAG: Saved {len(records)} vectors for chapter_id={chapter_id}")

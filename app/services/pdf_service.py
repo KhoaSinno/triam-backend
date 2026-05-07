@@ -2,6 +2,8 @@
 import pdfplumber
 from pypdf import PdfReader
 
+from app.core.logger import log
+
 
 def get_pdf_outline_structure(file_obj):
     """
@@ -25,7 +27,8 @@ def get_pdf_outline_structure(file_obj):
                         # Lấy số trang (pypdf trả về page object, cần lấy index)
                         page_number = reader.get_destination_page_number(item)
                         # pypdf get đúng page number
-                        outline_data.append({"title": item.title, "page_start": page_number})
+                        outline_data.append(
+                            {"title": item.title, "page_start": page_number})
                     except Exception:
                         pass  # Bỏ qua nếu item bị lỗi link
 
@@ -35,7 +38,7 @@ def get_pdf_outline_structure(file_obj):
         outline_data.sort(key=lambda x: x["page_start"])
         return outline_data
     except Exception as e:
-        print(f"Lỗi đọc Outline: {e}")
+        log.warning(f"Lỗi đọc Outline: {e}")
         return []
 
 
@@ -50,9 +53,10 @@ async def extract_chapters_smart(file_obj):
     chapters = []
 
     if not outlines or len(outlines) <= 1:
-        raise ValueError("Tài liệu PDF không có Mục lục (Outline) ẩn. Hệ thống hiện chỉ hỗ trợ PDF có Mục lục chuẩn.")
+        raise ValueError(
+            "Tài liệu PDF không có Mục lục (Outline) ẩn. Hệ thống hiện chỉ hỗ trợ PDF có Mục lục chuẩn.")
 
-    print(">> Đã tìm thấy Mục lục Metadata (Outline). Sử dụng Level 1.")
+    log.info("Đã tìm thấy Mục lục Metadata (Outline). Sử dụng Level 1.")
 
     # Mở lại bằng pdfplumber để lấy text (pdfplumber extract text ngon hơn pypdf)
     file_obj.seek(0)
@@ -80,7 +84,8 @@ async def extract_chapters_smart(file_obj):
                     chap_text += text + "\n"
 
             if chap_text.strip():
-                chapters.append({"title": current_chap["title"], "text": chap_text, "page_start": start_p + 1, "page_end": end_p})
+                chapters.append(
+                    {"title": current_chap["title"], "text": chap_text, "page_start": start_p + 1, "page_end": end_p})
 
     return chapters
 
@@ -101,7 +106,8 @@ async def extract_text_from_pdf(file_obj, max_pages=None):
     extracted_text = ""
 
     with pdfplumber.open(file_obj) as pdf:
-        pages_to_read = len(pdf.pages) if max_pages is None else min(max_pages, len(pdf.pages))
+        pages_to_read = len(pdf.pages) if max_pages is None else min(
+            max_pages, len(pdf.pages))
 
         for i in range(pages_to_read):
             text = pdf.pages[i].extract_text()
@@ -143,7 +149,7 @@ def extract_text_by_page_range(pdf_obj, start_page: int, end_page: int):
             if text:
                 extracted_text += text + "\n"
         except Exception as e:
-            print(f"Lỗi đọc trang {i + 1}: {e}")
+            log.warning(f"Lỗi đọc trang {i + 1}: {e}")
 
     return extracted_text
 

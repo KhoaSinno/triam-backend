@@ -17,7 +17,6 @@ Concurrency model:
 """
 
 import asyncio
-import logging
 import uuid
 
 from sqlmodel import Session
@@ -30,7 +29,7 @@ from app.repositories.chapter_segment_repo import delete_segments_by_chapter_and
 from app.services.embed_service import embed_and_save_chapter
 from app.services.workers.tts_worker import run_tts_pipeline
 
-logger = logging.getLogger("chapter_worker")
+from app.core.logger import log as logger
 
 # Tối đa 5 chapters xử lý song song — cân bằng giữa tốc độ và tải hệ thống
 sem = asyncio.Semaphore(5)

@@ -1,4 +1,3 @@
-import logging
 import os
 import uuid
 
@@ -25,7 +24,7 @@ from app.services.pdf_service import extract_chapters_smart
 from app.services.storage_service import upload_file_to_supabase
 from app.services.workers.book_pipeline import run_background_processing
 
-logger = logging.getLogger("upload_service")
+from app.core.logger import log as logger
 
 # TODO: REPLACE WITH JWT DECODE USER LATER
 MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")

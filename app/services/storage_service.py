@@ -8,13 +8,12 @@ Di chuyển vào services/ để thống nhất cấu trúc dự án.
 """
 
 import asyncio
-import logging
 
 import aiofiles
 
 from app.core.supabase import supabase
 
-logger = logging.getLogger("storage")
+from app.core.logger import log as logger
 
 
 async def upload_file_to_supabase(

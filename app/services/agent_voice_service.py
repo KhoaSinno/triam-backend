@@ -1,6 +1,7 @@
 import asyncio
 import json
 import uuid
+from app.core.logger import log
 from datetime import datetime, timezone
 from typing import Annotated
 
@@ -57,7 +58,7 @@ class ChatTextOutput(voice_io.TextOutput):
         message = "".join(self._buffer)
         self._buffer.clear()
         preview = message if len(message) <= 120 else f"{message[:120]}..."
-        print(f"[Agent] Text output ({len(message)} chars): {preview}")
+        log.info(f"Text output ({len(message)} chars): {preview}")
 
         if self._save_cb:
             asyncio.create_task(asyncio.to_thread(self._save_cb, message, False))
@@ -72,7 +73,7 @@ class ChatTextOutput(voice_io.TextOutput):
                     topic=self._topic,
                 )
             except Exception as exc:
-                print(f"[Agent] Text output publish failed: {exc}")
+                log.info(f"Text output publish failed: {exc}")
 
         # Flush is sync; schedule async publish.
         self._flush_task = asyncio.create_task(_publish(message))
@@ -161,12 +162,12 @@ async def entrypoint(ctx: JobContext):
         document_ids = []
 
     if not document_ids:
-        print("[Agent] ❌ Không tìm thấy document_ids trong metadata! Thoát.")
+        log.info("❌ Không tìm thấy document_ids trong metadata! Thoát.")
         return
 
-    print(f"[Agent] ✅ Document IDs từ metadata: {document_ids}")
-    print(f"[Agent] 🏠 Room Name (session): {ctx.room.name}")
-    print(f"[Agent] Bat dau phien doc sach cho Thread ID: {thread_id}")
+    log.info(f"✅ Document IDs từ metadata: {document_ids}")
+    log.info(f"🏠 Room Name (session): {ctx.room.name}")
+    log.info(f"Bat dau phien doc sach cho Thread ID: {thread_id}")
 
     session = AgentSession(
         stt=inference.STT(
@@ -203,20 +204,20 @@ async def entrypoint(ctx: JobContext):
                 db.add(new_msg)
                 db.commit()
         except Exception as e:
-            print(f"[Agent] Lỗi khi lưu message: {e}")
+            log.info(f"Lỗi khi lưu message: {e}")
 
     # Note: We use a custom data channel ("lk.chat") for text input instead of relying on room_io.TextInputEvent,
     # because TextInputEvent may not be supported or reliable in all client implementations. By listening to data packets directly, we can ensure that text input works consistently regardless of the client.
     # THIS IS A TEXT STREAM implement
     async def handle_text_input(sess: AgentSession, ev: room_io.TextInputEvent) -> None:
         participant_id = ev.participant.identity if ev.participant else "unknown"
-        print(f"[Agent] Text input from {participant_id}: {ev.text}")
+        log.info(f"Text input from {participant_id}: {ev.text}")
         asyncio.create_task(asyncio.to_thread(_save_message, ev.text, True))
         await sess.interrupt()
         sess.generate_reply(user_input=ev.text)
 
     async def handle_data_input(text: str, participant_id: str | None) -> None:
-        print(f"[Agent] Data input from {participant_id or 'unknown'}: {text}")
+        log.info(f"Data input from {participant_id or 'unknown'}: {text}")
         asyncio.create_task(asyncio.to_thread(_save_message, text, True))
         await session.interrupt()
         session.generate_reply(user_input=text)
@@ -227,7 +228,7 @@ async def entrypoint(ctx: JobContext):
         try:
             text = packet.data.decode("utf-8")
         except Exception as exc:
-            print(f"[Agent] Data input decode failed: {exc}")
+            log.info(f"Data input decode failed: {exc}")
             return
         participant_id = packet.participant.identity if packet.participant else None
         asyncio.create_task(handle_data_input(text, participant_id))
@@ -275,7 +276,7 @@ async def entrypoint(ctx: JobContext):
             for msg in history_msgs:
                 session.chat_ctx.append(role="user" if msg.is_user else "assistant", text=msg.text)
     except Exception as e:
-        print(f"[Agent] Lỗi khi load history: {e}")
+        log.info(f"Lỗi khi load history: {e}")
 
     await session.generate_reply(
         instructions=("Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này."),

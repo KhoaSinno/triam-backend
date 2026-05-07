@@ -10,7 +10,6 @@ Trách nhiệm:
        (thay vì 3 sessions riêng biệt như trước → giảm connection overhead)
 """
 
-import logging
 import os
 import uuid
 
@@ -24,7 +23,7 @@ from app.services.llm_service import normalize_text_for_speech
 from app.services.storage_service import upload_file_to_supabase
 from app.services.tts_service import generate_audio_and_get_duration
 
-logger = logging.getLogger("tts_worker")
+from app.core.logger import log as logger
 
 
 async def run_tts_pipeline(

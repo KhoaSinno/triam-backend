@@ -5,6 +5,7 @@ import edge_tts
 from openai import AsyncOpenAI
 
 from app.core.config import settings
+from app.core.logger import log
 
 client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
@@ -24,7 +25,7 @@ async def stream_text_to_speech(text: str, voice: str = "alloy"):
                     yield chunk
 
     except Exception as e:
-        print(f"Error in TTS Stream: {e}")
+        log.error(f"Error in TTS Stream: {e}")
 
 
 async def stream_text_to_speech_edge(text: str, voice: str = settings.EDGE_TTS_VOICE):
@@ -44,9 +45,9 @@ async def generate_audio_file_edge(text: str, filename: str, voice: str = settin
     try:
         communicate = edge_tts.Communicate(text, voice)
         await communicate.save(filename)
-        print(f"✓ Audio saved to {filename}")
+        log.info(f"Audio saved to {filename}")
     except Exception as e:
-        print(f"Error creating audio file: {e}")
+        log.error(f"Error creating audio file: {e}")
 
 
 # -----------------------------------------------------------------------
@@ -79,7 +80,8 @@ async def generate_audio_and_get_duration(
     # Clean and Valid text: too short (page numbers, special characters)
     cleaned = text.strip()
     if len(cleaned) < 10:
-        raise ValueError(f"Text too short for TTS ({len(cleaned)} chars): '{cleaned}'")
+        raise ValueError(
+            f"Text too short for TTS ({len(cleaned)} chars): '{cleaned}'")
 
     async with _tts_sem:
         for attempt in range(max_retries):
@@ -102,12 +104,13 @@ async def generate_audio_and_get_duration(
             except Exception as e:
                 if attempt < max_retries - 1:
                     wait = 3 * (2 ** attempt)  # 3s, 6s, 12s, 24s, 48s
-                    print(
-                        f"⚠️ TTS attempt {attempt + 1}/{max_retries} failed "
+                    log.warning(
+                        f"TTS attempt {attempt + 1}/{max_retries} failed "
                         f"({len(cleaned)} chars): {e}. Retry in {wait}s..."
                     )
                     await asyncio.sleep(wait)
                 else:
-                    print(f"❌ TTS failed after {max_retries} attempts ({len(cleaned)} chars): {e}")
+                    log.error(
+                        f"TTS failed after {max_retries} attempts ({len(cleaned)} chars): {e}")
                     raise
     return 0  # unreachable

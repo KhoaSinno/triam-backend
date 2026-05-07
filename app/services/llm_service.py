@@ -1,12 +1,11 @@
 import json
-import logging
 
 from openai import AsyncOpenAI
 
 from app.core.config import settings
 from app.core.constant import PlanMode
 
-logger = logging.getLogger("llm_service")
+from app.core.logger import log as logger
 
 # Sử dụng Gemini qua OpenAI-compatible API
 client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY, base_url=settings.GEMINI_BASE_URL)

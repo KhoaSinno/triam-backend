@@ -15,7 +15,6 @@ Entry points (được gọi từ FastAPI BackgroundTasks):
 
 import asyncio
 import io
-import logging
 import uuid
 
 from sqlmodel import Session, select
@@ -29,7 +28,7 @@ from app.repositories.chapter_repo import get_draft_chapters_by_book
 from app.services.pdf_service import extract_chapters_smart
 from app.services.workers.chapter_worker import process_chapter, process_switch_mode_chapter
 
-logger = logging.getLogger("book_pipeline")
+from app.core.logger import log as logger
 
 
 async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:

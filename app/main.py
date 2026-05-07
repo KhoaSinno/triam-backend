@@ -6,16 +6,19 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.api.v1.routers import audiobooks, live, study_context, upload
 from app.core.exceptions import AppException
+from app.core.logger import log
 from app.services.tts_service import stream_text_to_speech_edge
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # --- Chạy khi STARTUP ---
+    log.info("Khởi động hệ thống... (TRIAM)")
     # Schema được quản lý bởi Alembic. Chạy: alembic upgrade head
-    yield  # Sau từ khóa yield là lúc ứng dụng đang chạy (đang phục vụ người dùng)
+    # Sau từ khóa yield là lúc ứng dụng đang chạy (đang phục vụ người dùng)
+    yield
     # --- Chạy khi SHUTDOWN ---
-    print("Đang dọn dẹp tài nguyên...")
+    log.info("Đang dọn dẹp tài nguyên...")
 
 
 app = FastAPI(title="TRIAM Assistant API", lifespan=lifespan)
@@ -26,14 +29,22 @@ app = FastAPI(title="TRIAM Assistant API", lifespan=lifespan)
 # ---------------------------------------------------------------------------
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
+    log.error(f"AppException: {exc.detail} - Status Code: {exc.status_code}")
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    log.exception("Unhandled Exception:")
+    return JSONResponse(status_code=500, content={"detail": "Lỗi hệ thống nội bộ."})
 
 
 # Include Router
 app.include_router(upload.router, prefix="/api/v1", tags=["Upload"])
 app.include_router(live.router, prefix="/api/v1", tags=["Live"])
 app.include_router(audiobooks.router, prefix="/api/v1", tags=["Audiobooks"])
-app.include_router(study_context.router, prefix="/api/v1", tags=["Study Context"])
+app.include_router(study_context.router, prefix="/api/v1",
+                   tags=["Study Context"])
 
 
 @app.get("/")
