@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     LIVEKIT_API_SECRET: str
     LIVEKIT_AGENT_NAME: str
     GEMINI_MODEL_NATIVE_AUDIO: str = "gemini-2.5-flash-native-audio-latest"
+    GEMINI_MODEL_LLM: str = "gemini-2.5-flash"
 
     # Upload file
     MAX_FILE_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB

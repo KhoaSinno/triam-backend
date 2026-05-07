@@ -1,0 +1,8 @@
+login_get_AT: 
+	uv run python -m scripts.auth_script_test_supabase.test_login
+
+get_supabase_user: 
+	uv run python -m scripts.auth_script_test_supabase.test_supabase_sdk
+
+clean: 
+	./clean.sh

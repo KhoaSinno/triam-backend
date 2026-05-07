@@ -1,15 +1,16 @@
 import json
-import re
+import logging
 
 from openai import AsyncOpenAI
 
 from app.core.config import settings
 from app.core.constant import PlanMode
 
+logger = logging.getLogger("llm_service")
+
 # Sử dụng Gemini qua OpenAI-compatible API
 client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY, base_url=settings.GEMINI_BASE_URL)
 
-# Prompt được nâng cấp để trả về JSON và xử lý logic chia đoạn thông minh
 SYSTEM_PROMPT_REWRITE_FULL = """
 Bạn là một Biên tập viên Sách nói & Chuyên gia Giáo dục (TRIAM AI).
 Nhiệm vụ: Chuyển đổi văn bản thô thành kịch bản nói (TTS Script) và trích xuất nội dung ôn tập.
@@ -88,92 +89,36 @@ Output: Chỉ trả về JSON thuần.
 """
 
 
-def _chunk_text_fallback(text: str, max_chars: int = 1200) -> list[str]:
-    """Phân chia văn bản thô dài thành các chunk nhỏ nếu LLM thất bại."""
-    paragraphs = re.split(r"\n+", text.strip())
-    chunks = []
-    current_chunk = []
-    current_length = 0
-
-    for p in paragraphs:
-        if len(p) > max_chars:
-            sentences = re.split(r"(?<=[.!?])\s+", p)
-            for s in sentences:
-                if current_length + len(s) > max_chars and current_chunk:
-                    chunks.append(" ".join(current_chunk))
-                    current_chunk = [s]
-                    current_length = len(s)
-                else:
-                    current_chunk.append(s)
-                    current_length += len(s)
-        else:
-            if current_length + len(p) > max_chars and current_chunk:
-                chunks.append("\n".join(current_chunk))
-                current_chunk = [p]
-                current_length = len(p)
-            else:
-                current_chunk.append(p)
-                current_length += len(p)
-
-    if current_chunk:
-        chunks.append("\n".join(current_chunk))
-
-    return chunks
-
-
 # ---------------------------------------------------------------------------
 # MAIN FUNCTION
 # ---------------------------------------------------------------------------
 
+
 async def normalize_text_for_speech(raw_text: str, mode: str) -> dict:
     """
-    Gửi text thô cho Gemini/GPT để biên tập và cấu trúc lại dữ liệu.
-    Trả về Dictionary: {"main_scripts": [], "review_script": ""}
-    """
-    # Sử dụng fallback phân rã động thay vì ném cả đoạn lớn vào 1 chuỗi.
-    # Ngăn chặn việc LLM lỗi làm file audio bị dài 18+ phút.
-    fallback_result = {"main_scripts": _chunk_text_fallback(raw_text), "review_script": "Không thể tạo tóm tắt do độ dài văn bản gốc quá lớn."}
+    Gửi text thô cho Gemini để biên tập và cấu trúc lại thành TTS script.
 
-    if mode.lower() == PlanMode.PARETO:
+    Returns:
+        {"main_scripts": [...], "review_script": "..."}
+
+    Raises:
+        Exception: Nếu LLM call thất bại hoặc response không parse được —
+                   caller (tts_worker) chịu trách nhiệm rollback chapter.
+    """
+    if mode.lower() == PlanMode.PARETO or mode.lower() == PlanMode.PARETO.value:
         mode_prompt = SYSTEM_PROMPT_REWRITE_PARETO
     else:
-        # Default fallback to FULL
         mode_prompt = SYSTEM_PROMPT_REWRITE_FULL
 
-    try:
-        response = await client.chat.completions.create(
-            model="gemini-2.5-flash-lite",
-            messages=[{"role": "system", "content": mode_prompt}, {"role": "user", "content": raw_text}],
-            temperature=0.3,  # Giảm sáng tạo để format JSON chuẩn
-            response_format={"type": "json_object"},
-        )
+    response = await client.chat.completions.create(
+        model=settings.GEMINI_MODEL_LLM,
+        messages=[{"role": "system", "content": mode_prompt}, {"role": "user", "content": raw_text}],
+        temperature=0.3,
+        response_format={"type": "json_object"},
+    )
 
-        content = response.choices[0].message.content.strip()
+    content = response.choices[0].message.content.strip()
+    parsed_data = json.loads(content)
 
-        # Parse JSON
-        parsed_data = json.loads(content)
-
-        # Nếu LLM chia chuỗi dài quá, cưỡng chế cắt bằng tay thêm lần nữa
-        # để ngăn chặn issue của Edge TTS (Mặc dù prompt đã yêu cầu 3-5 câu / chunk).
-        final_main_scripts = []
-        for script in parsed_data.get("main_scripts", fallback_result["main_scripts"]):
-            if len(script) > 1800:
-                final_main_scripts.extend(_chunk_text_fallback(script))
-            else:
-                final_main_scripts.append(script)
-
-        parsed_data["main_scripts"] = final_main_scripts
-
-        return parsed_data
-
-    except json.JSONDecodeError as de:
-        print(f"Lỗi Parse JSON từ LLM ({de}). Raw content: Length {len(content)}")
-        # Cố gắng lấy vớt lại text nếu có thể
-        try:
-            return {"main_scripts": _chunk_text_fallback(content), "review_script": "Rất tiếc tóm tắt của đoạn văn này bị lỗi do bộ nhớ quá giới hạn."}
-        except:
-            return fallback_result
-
-    except Exception as e:
-        print(f"Lỗi LLM Service: {e}")
-        return fallback_result
+    logger.debug(f"LLM parsed OK — {len(parsed_data.get('main_scripts', []))} scripts, mode={mode}")
+    return parsed_data

@@ -26,6 +26,7 @@ class BookResponse(BaseModel):
     status: Optional[str] = None
     file_url: Optional[str] = None
     created_at: datetime
+    updated_at: datetime
 
 
 class SegmentResponse(BaseModel):

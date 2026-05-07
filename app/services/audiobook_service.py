@@ -12,9 +12,9 @@ from app.core.exceptions import (
     NoReadingPlanError,
     ReadingPlanNotFoundError,
 )
-from app.helper.run_background_processing import run_switch_mode_processing
 from app.models.db_models import Book, Chapter, ChapterSegment, ReadingPlan
 from app.repositories.chapter_segment_repo import count_segments_by_book_and_mode
+from app.services.workers.book_pipeline import run_switch_mode_processing
 
 
 def _extract_json_content(raw_data: Any, mode: str) -> str:

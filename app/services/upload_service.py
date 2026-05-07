@@ -16,14 +16,14 @@ from app.core.exceptions import (
     PdfExtractionError,
     UnsupportedFileTypeError,
 )
-from app.helper.run_background_processing import run_background_processing
-from app.helper.upload2supabase import upload_file_to_supabase
 from app.models.db_models import Book, Chapter, ReadingPlan
 from app.repositories.audiobook_repo import create_book, update_book_status
 from app.repositories.chapter_repo import create_chapter
 from app.repositories.plan_repo import create_reading_plan
 from app.schemas.plan import PlanInput
 from app.services.pdf_service import extract_chapters_smart
+from app.services.storage_service import upload_file_to_supabase
+from app.services.workers.book_pipeline import run_background_processing
 
 logger = logging.getLogger("upload_service")
 
@@ -91,7 +91,7 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
             user_id=MOCK_USER_ID,
             title=title,
             total_chapters=len(chapters_data),
-            status="DRAFT",
+            status=BookStatus.DRAFT,
             file_url=file_url,
         )
         create_book(session, book)
@@ -101,7 +101,7 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
                 book_id=book_id,
                 chapter_index=i,
                 title=chap.get("title", "Empty Chapter"),
-                status="DRAFT",
+                status=BookStatus.DRAFT,
             )
             create_chapter(session, chapter)
 

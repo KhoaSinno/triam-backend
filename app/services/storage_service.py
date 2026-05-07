@@ -1,3 +1,12 @@
+"""
+app/services/storage_service.py
+=================================
+Utility service để upload file lên Supabase Storage.
+
+Trước đây là app/helper/upload2supabase.py.
+Di chuyển vào services/ để thống nhất cấu trúc dự án.
+"""
+
 import asyncio
 import logging
 
@@ -5,12 +14,9 @@ import aiofiles
 
 from app.core.supabase import supabase
 
-logger = logging.getLogger("upload")
+logger = logging.getLogger("storage")
 
 
-# -----------------------------------------------------------------------
-# Helper: Upload file lên Supabase Storage
-# -----------------------------------------------------------------------
 async def upload_file_to_supabase(
     local_path: str,
     storage_path: str,
@@ -22,8 +28,16 @@ async def upload_file_to_supabase(
     """
     Upload file lên Supabase Storage và trả về public URL.
 
-    upsert=True (mặc định): Ghi đè nếu file đã tồn tại.
-    Cần thiết để switch-mode hoạt động đúng (tránh 409 Duplicate).
+    Args:
+        local_path: Đường dẫn file local cần upload.
+        storage_path: Đường dẫn đích trong bucket.
+        bucket: Tên bucket Supabase (vd: "raw_books", "audios").
+        content_type: MIME type của file.
+        max_retries: Số lần retry nếu upload thất bại (default 3).
+        upsert: Ghi đè nếu file đã tồn tại (default True — cần cho switch-mode).
+
+    Returns:
+        Public URL của file sau khi upload thành công.
     """
     for attempt in range(max_retries):
         try:
@@ -40,8 +54,9 @@ async def upload_file_to_supabase(
             return supabase.storage.from_(bucket).get_public_url(storage_path)
         except Exception as e:
             if attempt < max_retries - 1:
-                logger.warning(f"Upload failed (attempt {attempt + 1}), retrying...")
-                await asyncio.sleep(2**attempt)
+                wait = 2**attempt
+                logger.warning(f"Upload failed (attempt {attempt + 1}/{max_retries}), retrying in {wait}s...")
+                await asyncio.sleep(wait)
             else:
                 logger.error(f"Upload failed after {max_retries} attempts: {e}")
                 raise

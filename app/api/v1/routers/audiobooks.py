@@ -16,9 +16,14 @@ from app.services.audiobook_service import get_book_details, switch_book_mode
 router = APIRouter()
 
 
+# @router.get("/books", response_model=list[BookResponse])
+# def read_all_books(session: Annotated[Session, Depends(get_session)], current_user: Annotated[UserTokenPayload, Depends(get_current_user)]):
+#     print(f"Current user: {current_user.email} (ID: {current_user.sub})")  # Debug log để xem thông tin user
+#     return audiobook_repo.get_audiobooks(session)
+
+
 @router.get("/books", response_model=list[BookResponse])
-def read_all_books(session: Annotated[Session, Depends(get_session)], current_user: UserTokenPayload = Depends(get_current_user) ):
-    print(f"Current user: {current_user.email} (ID: {current_user.sub})")  # Debug log để xem thông tin user
+def read_all_books(session: Annotated[Session, Depends(get_session)]):
     return audiobook_repo.get_audiobooks(session)
 
 

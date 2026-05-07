@@ -15,6 +15,7 @@ if config.config_file_name is not None:
 from sqlmodel import SQLModel
 
 from app.core.config import settings
+import app.models.db_models
 
 # Import all db models to make sure they are included in SQLModel.metadata
 

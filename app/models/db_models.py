@@ -4,6 +4,7 @@ from typing import Any, Optional
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Text
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -33,10 +34,11 @@ class Book(SQLModel, table=True):
     status: Optional[str] = Field(default=None, sa_column=Column(Text))
     error_message: Optional[str] = Field(default=None, sa_column=Column(Text))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
 
     # === RELATIONSHIPS ===
     chapters: list["Chapter"] = Relationship(back_populates="book", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
-    reading_plans: list["ReadingPlan"] = Relationship(back_populates="book")
+    reading_plans: list["ReadingPlan"] = Relationship(back_populates="book", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     contexts: list["StudyContext"] = Relationship(back_populates="books", link_model=StudyContextDocumentLink)
 
 
@@ -45,11 +47,12 @@ class ReadingPlan(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
-    mode: PlanMode = Field(sa_column=Column(Text, nullable=False))
+    mode: PlanMode = Field(sa_column=Column(SAEnum(PlanMode), nullable=False))
     pace: int = Field(sa_column=Column(Integer, nullable=False))
     schedule_config: Optional[Any] = Field(default=None, sa_column=Column(JSONB))
     status: str = Field(sa_column=Column(Text, nullable=False))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
 
     # === RELATIONSHIPS ===
     book: Book = Relationship(back_populates="reading_plans")
@@ -75,12 +78,12 @@ class ChapterSegment(SQLModel, table=True):
     __tablename__ = "chapter_segments"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    chapter_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="CASCADE"), index=True))
-    segment_index: int = Field(sa_column=Column(Integer))
+    chapter_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="CASCADE"), index=True, nullable=False))
+    segment_index: int = Field(sa_column=Column(Integer, nullable=False))
     audio_url: Optional[str] = Field(default=None, sa_column=Column(Text))
     text_content: Optional[str] = Field(default=None, sa_column=Column(Text))
     duration_ms: Optional[int] = Field(default=None, sa_column=Column(Integer))
-    mode: PlanMode = Field(sa_column=Column(Text, nullable=False))
+    mode: PlanMode = Field(sa_column=Column(SAEnum(PlanMode), nullable=False))
 
     # === RELATIONSHIPS ===
     chapter: Chapter = Relationship(back_populates="segments")
@@ -91,7 +94,7 @@ class BookKnowledge(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
-    chapter_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="CASCADE"), index=True))
+    chapter_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="CASCADE"), index=True, nullable=False))
     chunk_index: int = Field(sa_column=Column(Integer, nullable=False))
     content: str = Field(sa_column=Column(Text, nullable=False))
     # TODO: REPALCE 1536 (OpenAI text-embedding-3-small)
@@ -119,7 +122,7 @@ class StudyContext(SQLModel, table=True):
 class ChatThread(SQLModel, table=True):
     __tablename__ = "chat_threads"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    context_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("study_contexts.id", ondelete="CASCADE"), index=True))
+    context_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("study_contexts.id", ondelete="CASCADE"), index=True, nullable=False))
     title: str = Field(sa_column=Column(Text, nullable=False))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
@@ -132,7 +135,7 @@ class ChatThread(SQLModel, table=True):
 class ChatMessage(SQLModel, table=True):
     __tablename__ = "chat_messages"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    thread_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chat_threads.id", ondelete="CASCADE"), index=True))
+    thread_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chat_threads.id", ondelete="CASCADE"), index=True, nullable=False))
     is_user: bool = Field(sa_column=Column(Boolean, nullable=False))
     text: str = Field(sa_column=Column(Text, nullable=False))
     source: str = Field(sa_column=Column(Text, nullable=False))
