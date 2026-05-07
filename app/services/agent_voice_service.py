@@ -17,7 +17,7 @@ from livekit.agents import (
 )
 from livekit.agents.llm import ChatMessage as LLMMessage
 from livekit.agents.voice import io as voice_io
-from livekit.plugins import noise_cancellation, silero
+from livekit.plugins import noise_cancellation, silero, openai, deepgram, google
 from sqlmodel import Session, select
 from supabase import Client, create_client
 from tavily import TavilyClient
@@ -61,7 +61,8 @@ class ChatTextOutput(voice_io.TextOutput):
         log.info(f"Text output ({len(message)} chars): {preview}")
 
         if self._save_cb:
-            asyncio.create_task(asyncio.to_thread(self._save_cb, message, False))
+            asyncio.create_task(asyncio.to_thread(
+                self._save_cb, message, False))
 
         async def _publish(text: str) -> None:
             if not self._room.isconnected():
@@ -139,7 +140,8 @@ class TriamAssistant(Agent):
                 max_results=3,
             ),
         )
-        result_text = "\n".join([f"- {r['content']}" for r in search_result["results"]])
+        result_text = "\n".join(
+            [f"- {r['content']}" for r in search_result["results"]])
         return result_text
 
 
@@ -150,8 +152,10 @@ async def entrypoint(ctx: JobContext):
     try:
         job_meta = json.loads(ctx.job.metadata or "{}")
         # TODO: Hardcoded to test console => My intention
-        book_id = job_meta.get("book_id", "9cda7cbc-c9e4-4325-9fc9-cb74d71e14b3")
-        thread_id = job_meta.get("thread_id", "f25f309f-1dbb-4517-90b9-5fbbc88e3070")
+        book_id = job_meta.get(
+            "book_id", "9cda7cbc-c9e4-4325-9fc9-cb74d71e14b3")
+        thread_id = job_meta.get(
+            "thread_id", "f25f309f-1dbb-4517-90b9-5fbbc88e3070")
         document_ids = job_meta.get("document_ids", [])
 
         if book_id and not document_ids:
@@ -169,28 +173,48 @@ async def entrypoint(ctx: JobContext):
     log.info(f"🏠 Room Name (session): {ctx.room.name}")
     log.info(f"Bat dau phien doc sach cho Thread ID: {thread_id}")
 
+    # session = AgentSession(
+    #     stt=inference.STT(
+    #         model="deepgram/nova-3",  # Nova-3 is more accurate for Vietnamese than Flux-General
+    #         language="vi",
+    #         extra_kwargs={"language_hints": ["vi"], "smart_format": True},
+    #     ),
+    #     llm=inference.LLM(
+    #         model="openai/gpt-5.3-chat-latest",
+    #     ),
+    #     tts=inference.TTS(
+    #         model="elevenlabs/eleven_flash_v2_5",
+    #         language="vi",
+    #         extra_kwargs={
+    #             "voice_id": "Lcf7z35dm7QXBoD0f107",  # Custom voice Vietnamese - Linh
+    #             "add_timestamps": True,
+    #             "voice_settings": {
+    #                 "stability": 0.45,  # Giảm để AI nhấn dấu hỏi/ngã chuẩn hơn
+    #                 "similarity_boost": 0.8,  # Tăng để giữ đặc trưng giọng người Việt
+    #                 "style": 0.1,  # Thêm chút cảm xúc
+    #                 "use_speaker_boost": True,
+    #             },
+    #         },
+    #     ),
+    #     vad=silero.VAD.load(),
+    # )
     session = AgentSession(
-        stt=inference.STT(
-            model="deepgram/nova-3",  # Nova-3 is more accurate for Vietnamese than Flux-General
+        stt=deepgram.STT(
+            api_key=settings.DEEPGRAM_API_KEY,
+            model="nova-3",
             language="vi",
-            extra_kwargs={"language_hints": ["vi"], "smart_format": True},
+            smart_format=True,
         ),
-        llm=inference.LLM(
-            model="openai/gpt-5.3-chat-latest",
+        llm=google.LLM(
+            api_key=settings.GEMINI_API_KEY,
+            model="gemini-2.5-flash",
         ),
-        tts=inference.TTS(
-            model="elevenlabs/eleven_flash_v2_5",
-            language="vi",
-            extra_kwargs={
-                "voice_id": "Lcf7z35dm7QXBoD0f107",  # Custom voice Vietnamese - Linh
-                "add_timestamps": True,
-                "voice_settings": {
-                    "stability": 0.45,  # Giảm để AI nhấn dấu hỏi/ngã chuẩn hơn
-                    "similarity_boost": 0.8,  # Tăng để giữ đặc trưng giọng người Việt
-                    "style": 0.1,  # Thêm chút cảm xúc
-                    "use_speaker_boost": True,
-                },
-            },
+        tts=openai.TTS(
+            api_key=settings.OPENAI_API_KEY,
+            model="gpt-4o-mini-tts",
+            voice="nova",
+            speed=1.3,
+            instructions="Hãy nói với tốc độ nhanh, hào hứng và ngắt nghỉ dứt khoát."
         ),
         vad=silero.VAD.load(),
     )
@@ -200,7 +224,8 @@ async def entrypoint(ctx: JobContext):
             return
         try:
             with Session(engine) as db:
-                new_msg = ChatMessage(thread_id=uuid.UUID(thread_id), is_user=is_user, text=text, source="livekit", timestamp=datetime.now(timezone.utc))
+                new_msg = ChatMessage(thread_id=uuid.UUID(
+                    thread_id), is_user=is_user, text=text, source="livekit", timestamp=datetime.now(timezone.utc))
                 db.add(new_msg)
                 db.commit()
         except Exception as e:
@@ -239,13 +264,15 @@ async def entrypoint(ctx: JobContext):
     def on_user_speech(msg: LLMMessage):
         content = getattr(msg, "content", getattr(msg, "text", ""))
         if content:
-            asyncio.create_task(asyncio.to_thread(_save_message, str(content), True))
+            asyncio.create_task(asyncio.to_thread(
+                _save_message, str(content), True))
 
     @session.on("agent_speech_committed")
     def on_agent_speech(msg: LLMMessage):
         content = getattr(msg, "content", getattr(msg, "text", ""))
         if content:
-            asyncio.create_task(asyncio.to_thread(_save_message, str(content), False))
+            asyncio.create_task(asyncio.to_thread(
+                _save_message, str(content), False))
 
     await session.start(
         room=ctx.room,
@@ -254,7 +281,8 @@ async def entrypoint(ctx: JobContext):
             audio_input=room_io.AudioInputOptions(
                 noise_cancellation=lambda _: noise_cancellation.BVC(),
             ),
-            text_input=room_io.TextInputOptions(text_input_cb=handle_text_input),
+            text_input=room_io.TextInputOptions(
+                text_input_cb=handle_text_input),
             text_output=room_io.TextOutputOptions(
                 sync_transcription=False,
                 next_in_chain=ChatTextOutput(ctx.room, save_cb=_save_message),
@@ -274,12 +302,14 @@ async def entrypoint(ctx: JobContext):
         history_msgs = await asyncio.to_thread(_load_history)
         if hasattr(session, "chat_ctx") and session.chat_ctx:
             for msg in history_msgs:
-                session.chat_ctx.append(role="user" if msg.is_user else "assistant", text=msg.text)
+                session.chat_ctx.append(
+                    role="user" if msg.is_user else "assistant", text=msg.text)
     except Exception as e:
         log.info(f"Lỗi khi load history: {e}")
 
     await session.generate_reply(
-        instructions=("Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này."),
+        instructions=(
+            "Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này."),
     )
 
 

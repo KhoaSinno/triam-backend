@@ -1,30 +1,71 @@
-[32m2026-05-07 17:21:15.258[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mlivekit_ffi::server:153:livekit_ffi::server - initializing ffi server v0.12.52[0m
-[32m2026-05-07 17:21:15.259[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mlivekit_ffi::cabi:50:livekit_ffi::cabi - initializing ffi server v0.12.52[0m
-[32m2026-05-07 17:21:16.168[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mstarting worker[0m
-{"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.5.6", "rtc-version": "1.1.5", "timestamp": "2026-05-07T10:21:16.168686+00:00"}
-[32m2026-05-07 17:21:16.254[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mplugin registered[0m
-{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.silero", "version": "1.5.6", "timestamp": "2026-05-07T10:21:16.254094+00:00"}
-[32m2026-05-07 17:21:16.255[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mHTTP server listening on :8081[0m
-{"message": "HTTP server listening on :8081", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-05-07T10:21:16.255109+00:00"}
-[32m2026-05-07 17:21:16.259[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 16408, "timestamp": "2026-05-07T10:21:16.259266+00:00"}
-[32m2026-05-07 17:21:16.259[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 7564, "timestamp": "2026-05-07T10:21:16.259780+00:00"}
-[32m2026-05-07 17:21:16.259[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 11528, "timestamp": "2026-05-07T10:21:16.259780+00:00"}
-[32m2026-05-07 17:21:16.259[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 9448, "timestamp": "2026-05-07T10:21:16.259780+00:00"}
-[32m2026-05-07 17:21:16.261[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 16408, "elapsed_time": 0.0, "timestamp": "2026-05-07T10:21:16.261811+00:00"}
-[32m2026-05-07 17:21:16.262[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 7564, "elapsed_time": 0.0, "timestamp": "2026-05-07T10:21:16.262992+00:00"}
-[32m2026-05-07 17:21:16.264[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 11528, "elapsed_time": 0.0, "timestamp": "2026-05-07T10:21:16.264006+00:00"}
-[32m2026-05-07 17:21:16.264[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 9448, "elapsed_time": 0.0, "timestamp": "2026-05-07T10:21:16.264006+00:00"}
-[32m2026-05-07 17:21:18.680[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mregistered worker[0m
-{"message": "registered worker", "level": "INFO", "name": "livekit.agents", "agent_name": "triam-voice-agent", "id": "AW_4VXUMnkX9P2a", "url": "wss://tri-am-bmdl413w.livekit.cloud", "region": "India South", "protocol": 17, "timestamp": "2026-05-07T10:21:18.680798+00:00"}
-[32m2026-05-07 17:21:32.617[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mdraining worker[0m
-{"message": "draining worker", "level": "INFO", "name": "livekit.agents", "id": "AW_4VXUMnkX9P2a", "timeout": 1800, "timestamp": "2026-05-07T10:21:32.617762+00:00"}
-[32m2026-05-07 17:21:32.617[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mshutting down worker[0m
-{"message": "shutting down worker", "level": "INFO", "name": "livekit.agents", "id": "AW_4VXUMnkX9P2a", "timestamp": "2026-05-07T10:21:32.617762+00:00"}
+[32m2026-05-07 23:25:42.652[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mlivekit_ffi::server:153:livekit_ffi::server - initializing ffi server v0.12.53[0m
+[32m2026-05-07 23:25:42.653[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mlivekit_ffi::cabi:50:livekit_ffi::cabi - initializing ffi server v0.12.53[0m
+[32m2026-05-07 23:25:44.688[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mstarting worker[0m
+{"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.5.8", "rtc-version": "1.1.7", "timestamp": "2026-05-07T16:25:44.688204+00:00"}
+[32m2026-05-07 23:25:44.689[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mplugin registered[0m
+{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.silero", "version": "1.5.6", "timestamp": "2026-05-07T16:25:44.689210+00:00"}
+[32m2026-05-07 23:25:44.689[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mplugin registered[0m
+{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.openai", "version": "1.5.6", "timestamp": "2026-05-07T16:25:44.689210+00:00"}
+[32m2026-05-07 23:25:44.689[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mplugin registered[0m
+{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.deepgram", "version": "1.5.6", "timestamp": "2026-05-07T16:25:44.689210+00:00"}
+[32m2026-05-07 23:25:44.689[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mplugin registered[0m
+{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.google", "version": "1.5.6", "timestamp": "2026-05-07T16:25:44.689210+00:00"}
+[32m2026-05-07 23:25:44.690[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mHTTP server listening on :8081[0m
+{"message": "HTTP server listening on :8081", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-05-07T16:25:44.690208+00:00"}
+[32m2026-05-07 23:25:44.693[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 11720, "timestamp": "2026-05-07T16:25:44.693213+00:00"}
+[32m2026-05-07 23:25:44.694[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 17076, "timestamp": "2026-05-07T16:25:44.694210+00:00"}
+[32m2026-05-07 23:25:44.694[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 6200, "timestamp": "2026-05-07T16:25:44.694210+00:00"}
+[32m2026-05-07 23:25:44.695[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 15648, "timestamp": "2026-05-07T16:25:44.695211+00:00"}
+[32m2026-05-07 23:25:44.696[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 11720, "elapsed_time": 0.0, "timestamp": "2026-05-07T16:25:44.696430+00:00"}
+[32m2026-05-07 23:25:44.697[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 17076, "elapsed_time": 0.0, "timestamp": "2026-05-07T16:25:44.697708+00:00"}
+[32m2026-05-07 23:25:44.698[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 6200, "elapsed_time": 0.0, "timestamp": "2026-05-07T16:25:44.698754+00:00"}
+[32m2026-05-07 23:25:44.698[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 15648, "elapsed_time": 0.0, "timestamp": "2026-05-07T16:25:44.698754+00:00"}
+[32m2026-05-07 23:25:45.617[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mregistered worker[0m
+{"message": "registered worker", "level": "INFO", "name": "livekit.agents", "agent_name": "triam-voice-agent", "id": "AW_eDNpiHZugyCZ", "url": "wss://tri-am-bmdl413w.livekit.cloud", "region": "India South", "protocol": 17, "timestamp": "2026-05-07T16:25:45.617501+00:00"}
+[32m2026-05-07 23:26:18.858[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mreceived job request[0m
+{"message": "received job request", "level": "INFO", "name": "livekit.agents", "job_id": "AJ_ciTGkatoaMR9", "dispatch_id": "AD_7jU3LotCwxfu", "room": "triam_1b893d40_5e0289", "room_id": "RM_WubBZR9tKyU3", "agent_name": "triam-voice-agent", "resuming": false, "enable_recording": false, "timestamp": "2026-05-07T16:26:18.858724+00:00"}
+[32m2026-05-07 23:26:19.106[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 12300, "timestamp": "2026-05-07T16:26:19.106085+00:00"}
+[32m2026-05-07 23:26:19.106[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 12300, "elapsed_time": 0.0, "timestamp": "2026-05-07T16:26:19.106085+00:00"}
+[32m2026-05-07 23:26:21.709[0m | [1mINFO    [0m | [36m__main__[0m:[36mentrypoint[0m:[36m172[0m - [1m✅ Document IDs từ metadata: ['1b893d40-e0cc-4ee3-ae5f-a7809834e6dd'][0m
+[32m2026-05-07 23:26:21.709[0m | [1mINFO    [0m | [36m__main__[0m:[36mentrypoint[0m:[36m173[0m - [1m🏠 Room Name (session): triam_1b893d40_5e0289[0m
+[32m2026-05-07 23:26:21.711[0m | [1mINFO    [0m | [36m__main__[0m:[36mentrypoint[0m:[36m174[0m - [1mBat dau phien doc sach cho Thread ID: f25f309f-1dbb-4517-90b9-5fbbc88e3070[0m
+[32m2026-05-07 23:26:21.712[0m | [33m[1mWARNING [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [33m[1mBoth GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.[0m
+{"message": "Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.", "level": "WARNING", "name": "google_genai._api_client", "timestamp": "2026-05-07T16:26:21.712091+00:00"}
+[32m2026-05-07 23:26:21.855[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1madaptive interruption is disabled by default in production mode[0m
+{"message": "adaptive interruption is disabled by default in production mode", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-05-07T16:26:21.855360+00:00"}
+[32m2026-05-07 23:26:24.799[0m | [1mINFO    [0m | [36m__main__[0m:[36mflush[0m:[36m61[0m - [1mText output (71 chars): Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này.[0m
+[32m2026-05-07 23:27:36.742[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mclosing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)[0m
+{"message": "closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)", "level": "INFO", "name": "livekit.agents", "room": "triam_1b893d40_5e0289", "participant": "user_ccd1e2", "reason": "CLIENT_INITIATED", "timestamp": "2026-05-07T16:27:36.742214+00:00"}
+[32m2026-05-07 23:27:38.748[0m | [33m[1mWARNING [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [33m[1mfinal transcript not received after timeout[0m
+{"message": "final transcript not received after timeout", "level": "WARNING", "name": "livekit.agents", "transcript_timeout": 2.0, "interim_transcript": "Giới thiệu", "timestamp": "2026-05-07T16:27:38.748036+00:00"}
+[32m2026-05-07 23:27:38.749[0m | [33m[1mWARNING [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [33m[1mskipping user input, speech scheduling is paused[0m
+{"message": "skipping user input, speech scheduling is paused", "level": "WARNING", "name": "livekit.agents", "user_input": "Giới thiệu", "timestamp": "2026-05-07T16:27:38.749038+00:00"}
+[32m2026-05-07 23:27:48.283[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mreceived job request[0m
+{"message": "received job request", "level": "INFO", "name": "livekit.agents", "job_id": "AJ_KL3P6fksyUgZ", "dispatch_id": "AD_mChSy4ege3XT", "room": "triam_1b893d40_1fb19c", "room_id": "RM_5JBsyAjJmrR8", "agent_name": "triam-voice-agent", "resuming": false, "enable_recording": false, "timestamp": "2026-05-07T16:27:48.283525+00:00"}
+[32m2026-05-07 23:27:48.458[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 14108, "timestamp": "2026-05-07T16:27:48.458876+00:00"}
+[32m2026-05-07 23:27:48.459[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 14108, "elapsed_time": 0.0, "timestamp": "2026-05-07T16:27:48.459939+00:00"}
+[32m2026-05-07 23:27:49.565[0m | [1mINFO    [0m | [36m__main__[0m:[36mentrypoint[0m:[36m172[0m - [1m✅ Document IDs từ metadata: ['1b893d40-e0cc-4ee3-ae5f-a7809834e6dd'][0m
+[32m2026-05-07 23:27:49.565[0m | [1mINFO    [0m | [36m__main__[0m:[36mentrypoint[0m:[36m173[0m - [1m🏠 Room Name (session): triam_1b893d40_1fb19c[0m
+[32m2026-05-07 23:27:49.565[0m | [1mINFO    [0m | [36m__main__[0m:[36mentrypoint[0m:[36m174[0m - [1mBat dau phien doc sach cho Thread ID: f25f309f-1dbb-4517-90b9-5fbbc88e3070[0m
+[32m2026-05-07 23:27:49.566[0m | [33m[1mWARNING [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [33m[1mBoth GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.[0m
+{"message": "Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.", "level": "WARNING", "name": "google_genai._api_client", "timestamp": "2026-05-07T16:27:49.566329+00:00"}
+[32m2026-05-07 23:27:49.693[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1madaptive interruption is disabled by default in production mode[0m
+{"message": "adaptive interruption is disabled by default in production mode", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-05-07T16:27:49.693648+00:00"}
+[32m2026-05-07 23:27:51.437[0m | [1mINFO    [0m | [36m__main__[0m:[36mflush[0m:[36m61[0m - [1mText output (37 chars): Chào bạn! Tôi có thể giúp gì cho bạn?[0m
+[32m2026-05-07 23:28:06.903[0m | [1mINFO    [0m | [36m__main__[0m:[36mflush[0m:[36m61[0m - [1mText output (299 chars): Cuốn sách này hướng dẫn các phương pháp và bí quyết để phát triển trí nhớ siêu phàm. Nó giúp bạn cải thiện khả năng ghi ...[0m
+[32m2026-05-07 23:28:27.946[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mclosing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)[0m
+{"message": "closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)", "level": "INFO", "name": "livekit.agents", "room": "triam_1b893d40_1fb19c", "participant": "user_7d46d4", "reason": "CLIENT_INITIATED", "timestamp": "2026-05-07T16:28:27.946176+00:00"}
+[32m2026-05-07 23:28:40.433[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mdraining worker[0m
+{"message": "draining worker", "level": "INFO", "name": "livekit.agents", "id": "AW_eDNpiHZugyCZ", "timeout": 1800, "timestamp": "2026-05-07T16:28:40.433761+00:00"}

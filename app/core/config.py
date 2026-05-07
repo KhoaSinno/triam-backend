@@ -23,6 +23,9 @@ class Settings(BaseSettings):
     LIVEKIT_AGENT_NAME: str
     GEMINI_MODEL_NATIVE_AUDIO: str = "gemini-2.5-flash-native-audio-latest"
     GEMINI_MODEL_LLM: str = "gemini-2.5-flash"
+    DEEPGRAM_API_KEY: str
+    CARTESIA_API_KEY_TTS: str
+    ELEVENLABS_API_KEY_TTS: str
 
     # Upload file
     MAX_FILE_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB

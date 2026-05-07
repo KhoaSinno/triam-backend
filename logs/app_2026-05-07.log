@@ -302,3 +302,1048 @@ asyncio.exceptions.CancelledError
 2026-05-07 17:21:32.793 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
 2026-05-07 17:21:32.794 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
 2026-05-07 17:21:32.794 | INFO     | logging:callHandlers:1762 - Finished server process [11284]
+2026-05-07 22:25:39.640 | INFO     | logging:callHandlers:1762 - livekit_ffi::server:153:livekit_ffi::server - initializing ffi server v0.12.53
+2026-05-07 22:25:39.641 | INFO     | logging:callHandlers:1762 - livekit_ffi::cabi:50:livekit_ffi::cabi - initializing ffi server v0.12.53
+2026-05-07 22:25:41.891 | INFO     | logging:callHandlers:1762 - starting worker
+2026-05-07 22:25:41.892 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 22:25:41.892 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 22:25:41.892 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 22:25:41.892 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 22:25:41.894 | INFO     | logging:callHandlers:1762 - HTTP server listening on :8081
+2026-05-07 22:25:41.897 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 22:25:41.897 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 22:25:41.897 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 22:25:41.898 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 22:25:41.899 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 22:25:41.900 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 22:25:41.901 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 22:25:41.901 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 22:25:43.795 | INFO     | logging:callHandlers:1762 - registered worker
+2026-05-07 22:26:03.710 | INFO     | logging:callHandlers:1762 - Started server process [18588]
+2026-05-07 22:26:03.711 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 22:26:03.711 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 22:26:03.712 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 22:26:20.785 | INFO     | logging:callHandlers:1762 - 127.0.0.1:65169 - "GET /api/v1/books?limit=50&offset=0 HTTP/1.1" 200
+2026-05-07 22:26:45.586 | INFO     | logging:callHandlers:1762 - 127.0.0.1:65176 - "GET /api/v1/books/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd/details HTTP/1.1" 200
+2026-05-07 22:26:58.277 | INFO     | logging:callHandlers:1762 - 127.0.0.1:58895 - "GET /api/v1/books/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd/details HTTP/1.1" 200
+2026-05-07 22:27:07.177 | INFO     | logging:callHandlers:1762 - 127.0.0.1:58904 - "GET /api/v1/live-token/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd HTTP/1.1" 200
+2026-05-07 22:27:10.548 | INFO     | logging:callHandlers:1762 - received job request
+2026-05-07 22:27:10.745 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 22:27:10.746 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 22:27:12.402 | INFO     | __main__:entrypoint:172 - ✅ Document IDs từ metadata: ['1b893d40-e0cc-4ee3-ae5f-a7809834e6dd']
+2026-05-07 22:27:12.403 | INFO     | __main__:entrypoint:173 - 🏠 Room Name (session): triam_1b893d40_e4b909
+2026-05-07 22:27:12.403 | INFO     | __main__:entrypoint:174 - Bat dau phien doc sach cho Thread ID: f25f309f-1dbb-4517-90b9-5fbbc88e3070
+2026-05-07 22:27:12.404 | WARNING  | logging:callHandlers:1762 - Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+2026-05-07 22:27:12.445 | WARNING  | logging:callHandlers:1762 - word_timestamps is only supported for languages en, de, es, and fr with `sonic` models or all languages with `preview` models
+2026-05-07 22:27:12.570 | INFO     | logging:callHandlers:1762 - adaptive interruption is disabled by default in production mode
+2026-05-07 22:27:15.867 | INFO     | __main__:flush:61 - Text output (37 chars): Chào bạn, tôi có thể giúp gì cho bạn?
+2026-05-07 22:27:15.990 | WARNING  | logging:callHandlers:1762 - failed to synthesize speech: no audio frames were pushed for text: Chào bạn, tôi có thể giúp gì cho bạn?, retrying in 0.1s
+2026-05-07 22:27:16.081 | WARNING  | logging:callHandlers:1762 - failed to synthesize speech: no audio frames were pushed for text: Chào bạn, tôi có thể giúp gì cho bạn?, retrying in 2.0s
+2026-05-07 22:27:18.081 | WARNING  | logging:callHandlers:1762 - failed to synthesize speech: no audio frames were pushed for text: Chào bạn, tôi có thể giúp gì cho bạn?, retrying in 2.0s
+2026-05-07 22:27:20.081 | ERROR    | logging:callHandlers:1762 - Error in _tts_inference_task
+Traceback (most recent call last):
+
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 690, in __anext__
+    val = await self._event_aiter.__anext__()
+                │    │            └ <slot wrapper '__anext__' of 'async_generator' objects>
+                │    └ <async_generator object tee_peer at 0x000001FDE9AD7760>
+                └ <livekit.plugins.cartesia.tts.SynthesizeStream object at 0x000001FDEDB91CD0>
+
+StopAsyncIteration
+
+
+During handling of the above exception, another exception occurred:
+
+
+Traceback (most recent call last):
+
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\threading.py", line 1032, in _bootstrap
+    self._bootstrap_inner()
+    │    └ <function Thread._bootstrap_inner at 0x000001FDBC6732E0>
+    └ <Thread(job_thread_runner, started 1928)>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\threading.py", line 1075, in _bootstrap_inner
+    self.run()
+    │    └ <function Thread.run at 0x000001FDBC672FC0>
+    └ <Thread(job_thread_runner, started 1928)>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+    │    │        │    │        │    └ {}
+    │    │        │    │        └ <Thread(job_thread_runner, started 1928)>
+    │    │        │    └ (ThreadStartArgs(initialize_process_fnc=<function _default_setup_fnc at 0x000001FDE36B00E0>, job_entrypoint_fnc=<function ent...
+    │    │        └ <Thread(job_thread_runner, started 1928)>
+    │    └ <function thread_main at 0x000001FDE3824720>
+    └ <Thread(job_thread_runner, started 1928)>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\ipc\job_proc_lazy_main.py", line 444, in thread_main
+    client.run()
+    │      └ <function _ProcClient.run at 0x000001FDE380CEA0>
+    └ <livekit.agents.ipc.proc_client._ProcClient object at 0x000001FDE9ABCB00>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\ipc\proc_client.py", line 70, in run
+    loop.run_until_complete(self._task)
+    │    │                  │    └ <Task pending name='proc_client_main' coro=<_ProcClient._monitor_task() running at W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-bac...
+    │    │                  └ <livekit.agents.ipc.proc_client._ProcClient object at 0x000001FDE9ABCB00>
+    │    └ <function BaseEventLoop.run_until_complete at 0x000001FDBE4C53A0>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+    │    └ <function ProactorEventLoop.run_forever at 0x000001FDBE585580>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+    │    └ <function BaseEventLoop._run_once at 0x000001FDBE4C7100>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+    │      └ <function Handle._run at 0x000001FDBE0014E0>
+    └ <Handle Task.task_wakeup(<Future finished result=None>)>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+    │    │            │    │           │    └ <member '_args' of 'Handle' objects>
+    │    │            │    │           └ <Handle Task.task_wakeup(<Future finished result=None>)>
+    │    │            │    └ <member '_callback' of 'Handle' objects>
+    │    │            └ <Handle Task.task_wakeup(<Future finished result=None>)>
+    │    └ <member '_context' of 'Handle' objects>
+    └ <Handle Task.task_wakeup(<Future finished result=None>)>
+> File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\utils\log.py", line 17, in async_fn_logs
+    return await fn(*args, **kwargs)
+                 │   │       └ {}
+                 │   └ (<bound method Agent.tts_node of <__main__.TriamAssistant object at 0x000001FDE9BAB740>>, <async_generator object tee_peer at...
+                 └ <function _tts_inference_task at 0x000001FDE37342C0>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\voice\generation.py", line 328, in _tts_inference_task
+    pushed_duration += await _tts_node_inference(input_segment, pushed_duration)
+    │                        │                   │              └ 0.0
+    │                        │                   └ <async_generator object _tts_inference_task.<locals>._input_segment at 0x000001FDEDB7FA00>
+    │                        └ <function _tts_inference_task.<locals>._tts_node_inference at 0x000001FDEDB77740>
+    └ 0.0
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\opentelemetry\util\_decorator.py", line 71, in async_wrapper
+    return await func(*args, **kwargs)  # type: ignore
+                 │     │       └ {}
+                 │     └ (<async_generator object _tts_inference_task.<locals>._input_segment at 0x000001FDEDB7FA00>, 0.0)
+                 └ <function _tts_inference_task.<locals>._tts_node_inference at 0x000001FDEDB77BA0>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\voice\generation.py", line 284, in _tts_node_inference
+    async for audio_frame in tts_node:
+                             └ <async_generator object Agent.default.tts_node at 0x000001FDEDB88500>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\voice\agent.py", line 490, in tts_node
+    async for ev in stream:
+                    └ <livekit.plugins.cartesia.tts.SynthesizeStream object at 0x000001FDEDB91CD0>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 693, in __anext__
+    raise exc  # noqa: B904
+          └ APIError('no audio frames were pushed for text: Chào bạn, tôi có thể giúp gì cho bạn?', body=None, retryable=True)
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 433, in _traceable_main_task
+    await self._main_task()
+          │    └ <function SynthesizeStream._main_task at 0x000001FDE34F6840>
+          └ <livekit.plugins.cartesia.tts.SynthesizeStream object at 0x000001FDEDB91CD0>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 490, in _main_task
+    raise APIError(f"no audio frames were pushed for text: {self._pushed_text}")
+          │                                                 │    └ 'Chào bạn, tôi có thể giúp gì cho bạn?'
+          │                                                 └ <livekit.plugins.cartesia.tts.SynthesizeStream object at 0x000001FDEDB91CD0>
+          └ <class 'livekit.agents._exceptions.APIError'>
+
+livekit.agents._exceptions.APIError: no audio frames were pushed for text: Chào bạn, tôi có thể giúp gì cho bạn?
+2026-05-07 22:27:40.994 | INFO     | __main__:handle_data_input:245 - Data input from user_d4b11f: alo
+2026-05-07 22:27:42.081 | WARNING  | logging:callHandlers:1762 - failed to synthesize speech: no audio frames were pushed for text: Chào bạn, tôi có thể giúp gì cho bạn?, retrying in 0.1s
+2026-05-07 22:27:42.082 | INFO     | __main__:flush:61 - Text output (37 chars): Chào bạn, tôi có thể giúp gì cho bạn?
+2026-05-07 22:27:42.181 | WARNING  | logging:callHandlers:1762 - failed to synthesize speech: no audio frames were pushed for text: Chào bạn, tôi có thể giúp gì cho bạn?, retrying in 2.0s
+2026-05-07 22:27:44.180 | WARNING  | logging:callHandlers:1762 - failed to synthesize speech: no audio frames were pushed for text: Chào bạn, tôi có thể giúp gì cho bạn?, retrying in 2.0s
+2026-05-07 22:27:46.181 | ERROR    | logging:callHandlers:1762 - Error in _tts_inference_task
+Traceback (most recent call last):
+
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 690, in __anext__
+    val = await self._event_aiter.__anext__()
+                │    │            └ <slot wrapper '__anext__' of 'async_generator' objects>
+                │    └ <async_generator object tee_peer at 0x000001FDE9AD5900>
+                └ <livekit.plugins.cartesia.tts.SynthesizeStream object at 0x000001FDEDBBD8B0>
+
+StopAsyncIteration
+
+
+During handling of the above exception, another exception occurred:
+
+
+Traceback (most recent call last):
+
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\threading.py", line 1032, in _bootstrap
+    self._bootstrap_inner()
+    │    └ <function Thread._bootstrap_inner at 0x000001FDBC6732E0>
+    └ <Thread(job_thread_runner, started 1928)>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\threading.py", line 1075, in _bootstrap_inner
+    self.run()
+    │    └ <function Thread.run at 0x000001FDBC672FC0>
+    └ <Thread(job_thread_runner, started 1928)>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+    │    │        │    │        │    └ {}
+    │    │        │    │        └ <Thread(job_thread_runner, started 1928)>
+    │    │        │    └ (ThreadStartArgs(initialize_process_fnc=<function _default_setup_fnc at 0x000001FDE36B00E0>, job_entrypoint_fnc=<function ent...
+    │    │        └ <Thread(job_thread_runner, started 1928)>
+    │    └ <function thread_main at 0x000001FDE3824720>
+    └ <Thread(job_thread_runner, started 1928)>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\ipc\job_proc_lazy_main.py", line 444, in thread_main
+    client.run()
+    │      └ <function _ProcClient.run at 0x000001FDE380CEA0>
+    └ <livekit.agents.ipc.proc_client._ProcClient object at 0x000001FDE9ABCB00>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\ipc\proc_client.py", line 70, in run
+    loop.run_until_complete(self._task)
+    │    │                  │    └ <Task pending name='proc_client_main' coro=<_ProcClient._monitor_task() running at W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-bac...
+    │    │                  └ <livekit.agents.ipc.proc_client._ProcClient object at 0x000001FDE9ABCB00>
+    │    └ <function BaseEventLoop.run_until_complete at 0x000001FDBE4C53A0>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+    │    └ <function ProactorEventLoop.run_forever at 0x000001FDBE585580>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+    │    └ <function BaseEventLoop._run_once at 0x000001FDBE4C7100>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+    │      └ <function Handle._run at 0x000001FDBE0014E0>
+    └ <Handle Task.task_wakeup(<Future finished result=None>)>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+    │    │            │    │           │    └ <member '_args' of 'Handle' objects>
+    │    │            │    │           └ <Handle Task.task_wakeup(<Future finished result=None>)>
+    │    │            │    └ <member '_callback' of 'Handle' objects>
+    │    │            └ <Handle Task.task_wakeup(<Future finished result=None>)>
+    │    └ <member '_context' of 'Handle' objects>
+    └ <Handle Task.task_wakeup(<Future finished result=None>)>
+> File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\utils\log.py", line 17, in async_fn_logs
+    return await fn(*args, **kwargs)
+                 │   │       └ {}
+                 │   └ (<bound method Agent.tts_node of <__main__.TriamAssistant object at 0x000001FDE9BAB740>>, <async_generator object tee_peer at...
+                 └ <function _tts_inference_task at 0x000001FDE37342C0>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\voice\generation.py", line 328, in _tts_inference_task
+    pushed_duration += await _tts_node_inference(input_segment, pushed_duration)
+    │                        │                   │              └ 0.0
+    │                        │                   └ <async_generator object _tts_inference_task.<locals>._input_segment at 0x000001FDEDC98F20>
+    │                        └ <function _tts_inference_task.<locals>._tts_node_inference at 0x000001FDEDBA4400>
+    └ 0.0
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\opentelemetry\util\_decorator.py", line 71, in async_wrapper
+    return await func(*args, **kwargs)  # type: ignore
+                 │     │       └ {}
+                 │     └ (<async_generator object _tts_inference_task.<locals>._input_segment at 0x000001FDEDC98F20>, 0.0)
+                 └ <function _tts_inference_task.<locals>._tts_node_inference at 0x000001FDEDBA59E0>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\voice\generation.py", line 284, in _tts_node_inference
+    async for audio_frame in tts_node:
+                             └ <async_generator object Agent.default.tts_node at 0x000001FDEDB89210>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\voice\agent.py", line 490, in tts_node
+    async for ev in stream:
+                    └ <livekit.plugins.cartesia.tts.SynthesizeStream object at 0x000001FDEDBBD8B0>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 693, in __anext__
+    raise exc  # noqa: B904
+          └ APIError('no audio frames were pushed for text: Chào bạn, tôi có thể giúp gì cho bạn?', body=None, retryable=True)
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 433, in _traceable_main_task
+    await self._main_task()
+          │    └ <function SynthesizeStream._main_task at 0x000001FDE34F6840>
+          └ <livekit.plugins.cartesia.tts.SynthesizeStream object at 0x000001FDEDBBD8B0>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 490, in _main_task
+    raise APIError(f"no audio frames were pushed for text: {self._pushed_text}")
+          │                                                 │    └ 'Chào bạn, tôi có thể giúp gì cho bạn?'
+          │                                                 └ <livekit.plugins.cartesia.tts.SynthesizeStream object at 0x000001FDEDBBD8B0>
+          └ <class 'livekit.agents._exceptions.APIError'>
+
+livekit.agents._exceptions.APIError: no audio frames were pushed for text: Chào bạn, tôi có thể giúp gì cho bạn?
+2026-05-07 22:27:59.986 | INFO     | __main__:handle_data_input:245 - Data input from user_d4b11f: bạn biết đang nói về sách j ko
+2026-05-07 22:28:08.534 | INFO     | __main__:flush:61 - Text output (126 chars): Chúng ta đang nói về một cuốn sách hướng dẫn cải thiện trí nhớ và các phương pháp tăng cường trí nhớ, có tác giả là Eran...
+2026-05-07 22:28:08.536 | WARNING  | logging:callHandlers:1762 - failed to synthesize speech: no audio frames were pushed for text: Chúng ta đang nói về một cuốn sách hướng dẫn cải thiện trí nhớ và các phương pháp tăng cường trí nhớ, có tác giả là Eran Katz., retrying in 0.1s
+2026-05-07 22:28:08.629 | WARNING  | logging:callHandlers:1762 - failed to synthesize speech: no audio frames were pushed for text: Chúng ta đang nói về một cuốn sách hướng dẫn cải thiện trí nhớ và các phương pháp tăng cường trí nhớ, có tác giả là Eran Katz., retrying in 2.0s
+2026-05-07 22:28:10.631 | WARNING  | logging:callHandlers:1762 - failed to synthesize speech: no audio frames were pushed for text: Chúng ta đang nói về một cuốn sách hướng dẫn cải thiện trí nhớ và các phương pháp tăng cường trí nhớ, có tác giả là Eran Katz., retrying in 2.0s
+2026-05-07 22:28:12.631 | ERROR    | logging:callHandlers:1762 - Error in _tts_inference_task
+Traceback (most recent call last):
+
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 690, in __anext__
+    val = await self._event_aiter.__anext__()
+                │    │            └ <slot wrapper '__anext__' of 'async_generator' objects>
+                │    └ <async_generator object tee_peer at 0x000001FDEE0EDFC0>
+                └ <livekit.plugins.cartesia.tts.SynthesizeStream object at 0x000001FDEE21CF80>
+
+StopAsyncIteration
+
+
+During handling of the above exception, another exception occurred:
+
+
+Traceback (most recent call last):
+
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\threading.py", line 1032, in _bootstrap
+    self._bootstrap_inner()
+    │    └ <function Thread._bootstrap_inner at 0x000001FDBC6732E0>
+    └ <Thread(job_thread_runner, started 1928)>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\threading.py", line 1075, in _bootstrap_inner
+    self.run()
+    │    └ <function Thread.run at 0x000001FDBC672FC0>
+    └ <Thread(job_thread_runner, started 1928)>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+    │    │        │    │        │    └ {}
+    │    │        │    │        └ <Thread(job_thread_runner, started 1928)>
+    │    │        │    └ (ThreadStartArgs(initialize_process_fnc=<function _default_setup_fnc at 0x000001FDE36B00E0>, job_entrypoint_fnc=<function ent...
+    │    │        └ <Thread(job_thread_runner, started 1928)>
+    │    └ <function thread_main at 0x000001FDE3824720>
+    └ <Thread(job_thread_runner, started 1928)>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\ipc\job_proc_lazy_main.py", line 444, in thread_main
+    client.run()
+    │      └ <function _ProcClient.run at 0x000001FDE380CEA0>
+    └ <livekit.agents.ipc.proc_client._ProcClient object at 0x000001FDE9ABCB00>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\ipc\proc_client.py", line 70, in run
+    loop.run_until_complete(self._task)
+    │    │                  │    └ <Task pending name='proc_client_main' coro=<_ProcClient._monitor_task() running at W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-bac...
+    │    │                  └ <livekit.agents.ipc.proc_client._ProcClient object at 0x000001FDE9ABCB00>
+    │    └ <function BaseEventLoop.run_until_complete at 0x000001FDBE4C53A0>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+    │    └ <function ProactorEventLoop.run_forever at 0x000001FDBE585580>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+    │    └ <function BaseEventLoop._run_once at 0x000001FDBE4C7100>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+    │      └ <function Handle._run at 0x000001FDBE0014E0>
+    └ <Handle Task.task_wakeup(<Future finished result=None>)>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+    │    │            │    │           │    └ <member '_args' of 'Handle' objects>
+    │    │            │    │           └ <Handle Task.task_wakeup(<Future finished result=None>)>
+    │    │            │    └ <member '_callback' of 'Handle' objects>
+    │    │            └ <Handle Task.task_wakeup(<Future finished result=None>)>
+    │    └ <member '_context' of 'Handle' objects>
+    └ <Handle Task.task_wakeup(<Future finished result=None>)>
+> File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\utils\log.py", line 17, in async_fn_logs
+    return await fn(*args, **kwargs)
+                 │   │       └ {}
+                 │   └ (<bound method Agent.tts_node of <__main__.TriamAssistant object at 0x000001FDE9BAB740>>, <async_generator object tee_peer at...
+                 └ <function _tts_inference_task at 0x000001FDE37342C0>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\voice\generation.py", line 328, in _tts_inference_task
+    pushed_duration += await _tts_node_inference(input_segment, pushed_duration)
+    │                        │                   │              └ 0.0
+    │                        │                   └ <async_generator object _tts_inference_task.<locals>._input_segment at 0x000001FDEE20A6C0>
+    │                        └ <function _tts_inference_task.<locals>._tts_node_inference at 0x000001FDEE1FB420>
+    └ 0.0
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\opentelemetry\util\_decorator.py", line 71, in async_wrapper
+    return await func(*args, **kwargs)  # type: ignore
+                 │     │       └ {}
+                 │     └ (<async_generator object _tts_inference_task.<locals>._input_segment at 0x000001FDEE20A6C0>, 0.0)
+                 └ <function _tts_inference_task.<locals>._tts_node_inference at 0x000001FDEDB772E0>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\voice\generation.py", line 284, in _tts_node_inference
+    async for audio_frame in tts_node:
+                             └ <async_generator object Agent.default.tts_node at 0x000001FDEE17CC20>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\voice\agent.py", line 490, in tts_node
+    async for ev in stream:
+                    └ <livekit.plugins.cartesia.tts.SynthesizeStream object at 0x000001FDEE21CF80>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 693, in __anext__
+    raise exc  # noqa: B904
+          └ APIError('no audio frames were pushed for text: Chúng ta đang nói về một cuốn sách hướng dẫn cải thiện trí nhớ và các phương ...
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 433, in _traceable_main_task
+    await self._main_task()
+          │    └ <function SynthesizeStream._main_task at 0x000001FDE34F6840>
+          └ <livekit.plugins.cartesia.tts.SynthesizeStream object at 0x000001FDEE21CF80>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 490, in _main_task
+    raise APIError(f"no audio frames were pushed for text: {self._pushed_text}")
+          │                                                 │    └ 'Chúng ta đang nói về một cuốn sách hướng dẫn cải thiện trí nhớ và các phương pháp tăng cường trí nhớ, có tác giả là Eran Katz.'
+          │                                                 └ <livekit.plugins.cartesia.tts.SynthesizeStream object at 0x000001FDEE21CF80>
+          └ <class 'livekit.agents._exceptions.APIError'>
+
+livekit.agents._exceptions.APIError: no audio frames were pushed for text: Chúng ta đang nói về một cuốn sách hướng dẫn cải thiện trí nhớ và các phương pháp tăng cường trí nhớ, có tác giả là Eran Katz.
+2026-05-07 22:30:03.850 | INFO     | logging:callHandlers:1762 - draining worker
+2026-05-07 22:30:03.865 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 22:30:03.975 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 22:30:03.975 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 22:30:03.976 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 22:30:03.976 | INFO     | logging:callHandlers:1762 - Finished server process [18588]
+2026-05-07 22:32:04.117 | INFO     | logging:callHandlers:1762 - livekit_ffi::server:153:livekit_ffi::server - initializing ffi server v0.12.53
+2026-05-07 22:32:04.117 | INFO     | logging:callHandlers:1762 - livekit_ffi::cabi:50:livekit_ffi::cabi - initializing ffi server v0.12.53
+2026-05-07 22:32:05.844 | INFO     | logging:callHandlers:1762 - starting worker
+2026-05-07 22:32:05.844 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 22:32:05.844 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 22:32:05.845 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 22:32:05.845 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 22:32:05.846 | INFO     | logging:callHandlers:1762 - HTTP server listening on :8081
+2026-05-07 22:32:05.849 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 22:32:05.849 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 22:32:05.850 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 22:32:05.850 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 22:32:05.851 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 22:32:05.852 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 22:32:05.853 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 22:32:05.854 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 22:32:06.980 | INFO     | logging:callHandlers:1762 - registered worker
+2026-05-07 22:32:09.945 | INFO     | logging:callHandlers:1762 - Started server process [19936]
+2026-05-07 22:32:09.945 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 22:32:09.946 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 22:32:09.946 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 22:32:27.872 | INFO     | logging:callHandlers:1762 - 127.0.0.1:61677 - "GET /api/v1/books?limit=50&offset=0 HTTP/1.1" 200
+2026-05-07 22:32:30.759 | INFO     | logging:callHandlers:1762 - 127.0.0.1:61679 - "GET /api/v1/books/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd/details HTTP/1.1" 200
+2026-05-07 22:32:43.986 | INFO     | logging:callHandlers:1762 - 127.0.0.1:61680 - "GET /api/v1/live-token/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd HTTP/1.1" 200
+2026-05-07 22:32:46.549 | INFO     | logging:callHandlers:1762 - received job request
+2026-05-07 22:32:46.837 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 22:32:46.838 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 22:32:48.320 | INFO     | __main__:entrypoint:172 - ✅ Document IDs từ metadata: ['1b893d40-e0cc-4ee3-ae5f-a7809834e6dd']
+2026-05-07 22:32:48.321 | INFO     | __main__:entrypoint:173 - 🏠 Room Name (session): triam_1b893d40_4a6152
+2026-05-07 22:32:48.321 | INFO     | __main__:entrypoint:174 - Bat dau phien doc sach cho Thread ID: f25f309f-1dbb-4517-90b9-5fbbc88e3070
+2026-05-07 22:32:48.321 | WARNING  | logging:callHandlers:1762 - Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+2026-05-07 22:32:48.362 | WARNING  | logging:callHandlers:1762 - word_timestamps is only supported for languages en, de, es, and fr with `sonic` models or all languages with `preview` models
+2026-05-07 22:32:48.458 | INFO     | logging:callHandlers:1762 - adaptive interruption is disabled by default in production mode
+2026-05-07 22:32:51.650 | INFO     | __main__:flush:61 - Text output (71 chars): Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này.
+2026-05-07 22:32:51.768 | WARNING  | logging:callHandlers:1762 - failed to synthesize speech: no audio frames were pushed for text: Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này., retrying in 0.1s
+2026-05-07 22:32:51.862 | WARNING  | logging:callHandlers:1762 - failed to synthesize speech: no audio frames were pushed for text: Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này., retrying in 2.0s
+2026-05-07 22:32:53.862 | WARNING  | logging:callHandlers:1762 - failed to synthesize speech: no audio frames were pushed for text: Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này., retrying in 2.0s
+2026-05-07 22:32:55.863 | ERROR    | logging:callHandlers:1762 - Error in _tts_inference_task
+Traceback (most recent call last):
+
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 690, in __anext__
+    val = await self._event_aiter.__anext__()
+                │    │            └ <slot wrapper '__anext__' of 'async_generator' objects>
+                │    └ <async_generator object tee_peer at 0x00000186D5D46C20>
+                └ <livekit.plugins.cartesia.tts.SynthesizeStream object at 0x00000186D7E8F0B0>
+
+StopAsyncIteration
+
+
+During handling of the above exception, another exception occurred:
+
+
+Traceback (most recent call last):
+
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\threading.py", line 1032, in _bootstrap
+    self._bootstrap_inner()
+    │    └ <function Thread._bootstrap_inner at 0x00000186A88932E0>
+    └ <Thread(job_thread_runner, started 2276)>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\threading.py", line 1075, in _bootstrap_inner
+    self.run()
+    │    └ <function Thread.run at 0x00000186A8892FC0>
+    └ <Thread(job_thread_runner, started 2276)>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+    │    │        │    │        │    └ {}
+    │    │        │    │        └ <Thread(job_thread_runner, started 2276)>
+    │    │        │    └ (ThreadStartArgs(initialize_process_fnc=<function _default_setup_fnc at 0x00000186CE568E00>, job_entrypoint_fnc=<function ent...
+    │    │        └ <Thread(job_thread_runner, started 2276)>
+    │    └ <function thread_main at 0x00000186CF970220>
+    └ <Thread(job_thread_runner, started 2276)>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\ipc\job_proc_lazy_main.py", line 444, in thread_main
+    client.run()
+    │      └ <function _ProcClient.run at 0x00000186CF954720>
+    └ <livekit.agents.ipc.proc_client._ProcClient object at 0x00000186D5B38680>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\ipc\proc_client.py", line 70, in run
+    loop.run_until_complete(self._task)
+    │    │                  │    └ <Task pending name='proc_client_main' coro=<_ProcClient._monitor_task() running at W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-bac...
+    │    │                  └ <livekit.agents.ipc.proc_client._ProcClient object at 0x00000186D5B38680>
+    │    └ <function BaseEventLoop.run_until_complete at 0x00000186AA7353A0>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+    │    └ <function ProactorEventLoop.run_forever at 0x00000186AA7F5580>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+    │    └ <function BaseEventLoop._run_once at 0x00000186AA737100>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+    │      └ <function Handle._run at 0x00000186A8C414E0>
+    └ <Handle Task.task_wakeup(<Future finished result=None>)>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+    │    │            │    │           │    └ <member '_args' of 'Handle' objects>
+    │    │            │    │           └ <Handle Task.task_wakeup(<Future finished result=None>)>
+    │    │            │    └ <member '_callback' of 'Handle' objects>
+    │    │            └ <Handle Task.task_wakeup(<Future finished result=None>)>
+    │    └ <member '_context' of 'Handle' objects>
+    └ <Handle Task.task_wakeup(<Future finished result=None>)>
+> File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\utils\log.py", line 17, in async_fn_logs
+    return await fn(*args, **kwargs)
+                 │   │       └ {}
+                 │   └ (<bound method Agent.tts_node of <__main__.TriamAssistant object at 0x00000186D5D775F0>>, <async_generator object tee_peer at...
+                 └ <function _tts_inference_task at 0x00000186CF8ABB00>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\voice\generation.py", line 328, in _tts_inference_task
+    pushed_duration += await _tts_node_inference(input_segment, pushed_duration)
+    │                        │                   │              └ 0.0
+    │                        │                   └ <async_generator object _tts_inference_task.<locals>._input_segment at 0x00000186D7EA09E0>
+    │                        └ <function _tts_inference_task.<locals>._tts_node_inference at 0x00000186D7EAC5E0>
+    └ 0.0
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\opentelemetry\util\_decorator.py", line 71, in async_wrapper
+    return await func(*args, **kwargs)  # type: ignore
+                 │     │       └ {}
+                 │     └ (<async_generator object _tts_inference_task.<locals>._input_segment at 0x00000186D7EA09E0>, 0.0)
+                 └ <function _tts_inference_task.<locals>._tts_node_inference at 0x00000186D7EAC540>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\voice\generation.py", line 284, in _tts_node_inference
+    async for audio_frame in tts_node:
+                             └ <async_generator object Agent.default.tts_node at 0x00000186D5CBA640>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\voice\agent.py", line 490, in tts_node
+    async for ev in stream:
+                    └ <livekit.plugins.cartesia.tts.SynthesizeStream object at 0x00000186D7E8F0B0>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 693, in __anext__
+    raise exc  # noqa: B904
+          └ APIError('no audio frames were pushed for text: Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này.', bod...
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 433, in _traceable_main_task
+    await self._main_task()
+          │    └ <function SynthesizeStream._main_task at 0x00000186CF74E020>
+          └ <livekit.plugins.cartesia.tts.SynthesizeStream object at 0x00000186D7E8F0B0>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 490, in _main_task
+    raise APIError(f"no audio frames were pushed for text: {self._pushed_text}")
+          │                                                 │    └ 'Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này.'
+          │                                                 └ <livekit.plugins.cartesia.tts.SynthesizeStream object at 0x00000186D7E8F0B0>
+          └ <class 'livekit.agents._exceptions.APIError'>
+
+livekit.agents._exceptions.APIError: no audio frames were pushed for text: Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này.
+2026-05-07 22:33:49.350 | INFO     | logging:callHandlers:1762 - closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)
+2026-05-07 22:34:36.255 | INFO     | logging:callHandlers:1762 - draining worker
+2026-05-07 22:34:36.257 | INFO     | logging:callHandlers:1762 - shutting down worker
+2026-05-07 22:34:36.276 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 22:34:36.385 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 22:34:36.385 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 22:34:36.386 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 22:34:36.386 | INFO     | logging:callHandlers:1762 - Finished server process [19936]
+2026-05-07 22:41:17.040 | INFO     | logging:callHandlers:1762 - livekit_ffi::server:153:livekit_ffi::server - initializing ffi server v0.12.53
+2026-05-07 22:41:17.041 | INFO     | logging:callHandlers:1762 - livekit_ffi::cabi:50:livekit_ffi::cabi - initializing ffi server v0.12.53
+2026-05-07 22:41:18.778 | INFO     | logging:callHandlers:1762 - starting worker
+2026-05-07 22:41:18.779 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 22:41:18.779 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 22:41:18.779 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 22:41:18.779 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 22:41:18.780 | INFO     | logging:callHandlers:1762 - HTTP server listening on :8081
+2026-05-07 22:41:18.783 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 22:41:18.783 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 22:41:18.784 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 22:41:18.784 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 22:41:18.785 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 22:41:18.787 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 22:41:18.788 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 22:41:18.788 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 22:41:19.883 | INFO     | logging:callHandlers:1762 - registered worker
+2026-05-07 22:41:22.967 | INFO     | logging:callHandlers:1762 - Started server process [2016]
+2026-05-07 22:41:22.969 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 22:41:22.969 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 22:41:22.969 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 22:41:36.863 | INFO     | logging:callHandlers:1762 - 127.0.0.1:55835 - "GET /api/v1/books?limit=50&offset=0 HTTP/1.1" 200
+2026-05-07 22:41:38.609 | INFO     | logging:callHandlers:1762 - 127.0.0.1:55837 - "GET /api/v1/books/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd/details HTTP/1.1" 200
+2026-05-07 22:41:53.177 | INFO     | logging:callHandlers:1762 - 127.0.0.1:58547 - "GET /api/v1/live-token/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd HTTP/1.1" 200
+2026-05-07 22:41:57.557 | INFO     | logging:callHandlers:1762 - received job request
+2026-05-07 22:41:57.775 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 22:41:57.776 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 22:41:59.466 | INFO     | __main__:entrypoint:172 - ✅ Document IDs từ metadata: ['1b893d40-e0cc-4ee3-ae5f-a7809834e6dd']
+2026-05-07 22:41:59.466 | INFO     | __main__:entrypoint:173 - 🏠 Room Name (session): triam_1b893d40_1992b5
+2026-05-07 22:41:59.466 | INFO     | __main__:entrypoint:174 - Bat dau phien doc sach cho Thread ID: f25f309f-1dbb-4517-90b9-5fbbc88e3070
+2026-05-07 22:41:59.468 | WARNING  | logging:callHandlers:1762 - Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+2026-05-07 22:41:59.599 | INFO     | logging:callHandlers:1762 - adaptive interruption is disabled by default in production mode
+2026-05-07 22:42:02.329 | INFO     | __main__:flush:61 - Text output (32 chars): Chào bạn, bạn cần tôi giúp gì ạ?
+2026-05-07 22:42:09.812 | INFO     | __main__:flush:61 - Text output (75 chars): Chào bạn! Bạn đang muốn tìm hiểu về kiến thức nào hoặc có câu hỏi gì không?
+2026-05-07 22:42:18.801 | INFO     | logging:callHandlers:1762 - closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)
+2026-05-07 22:42:48.156 | INFO     | logging:callHandlers:1762 - draining worker
+2026-05-07 22:42:48.157 | INFO     | logging:callHandlers:1762 - shutting down worker
+2026-05-07 22:42:48.216 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 22:42:48.327 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 22:42:48.327 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 22:42:48.328 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 22:42:48.328 | INFO     | logging:callHandlers:1762 - Finished server process [2016]
+2026-05-07 22:42:56.885 | INFO     | logging:callHandlers:1762 - Started server process [18076]
+2026-05-07 22:42:56.885 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 22:42:56.885 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 22:42:56.886 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 22:42:58.164 | ERROR    | logging:callHandlers:1762 - job did not ack shutdown in time
+2026-05-07 22:42:58.164 | ERROR    | logging:callHandlers:1762 - job did not ack shutdown in time
+2026-05-07 22:42:58.164 | ERROR    | logging:callHandlers:1762 - job did not ack shutdown in time
+2026-05-07 22:42:58.165 | ERROR    | logging:callHandlers:1762 - job did not ack shutdown in time
+2026-05-07 22:51:42.044 | WARNING  | logging:callHandlers:1762 - exiting forcefully
+2026-05-07 22:51:42.046 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 22:51:42.157 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 22:51:42.158 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 22:51:42.158 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 22:51:42.158 | INFO     | logging:callHandlers:1762 - Finished server process [18076]
+2026-05-07 22:51:52.783 | INFO     | logging:callHandlers:1762 - Started server process [3796]
+2026-05-07 22:51:52.783 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 22:51:52.784 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 22:51:52.784 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 22:51:52.846 | ERROR    | logging:callHandlers:1762 - Traceback (most recent call last):
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\runners.py", line 123, in run
+    raise KeyboardInterrupt()
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\starlette\routing.py", line 701, in lifespan
+    await receive()
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\uvicorn\lifespan\on.py", line 137, in receive
+    return await self.receive_queue.get()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\queues.py", line 158, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+2026-05-07 22:52:01.363 | INFO     | logging:callHandlers:1762 - Started server process [3264]
+2026-05-07 22:52:01.363 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 22:52:01.363 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 22:52:01.363 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 22:52:01.366 | ERROR    | logging:callHandlers:1762 - Traceback (most recent call last):
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\runners.py", line 123, in run
+    raise KeyboardInterrupt()
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\starlette\routing.py", line 701, in lifespan
+    await receive()
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\uvicorn\lifespan\on.py", line 137, in receive
+    return await self.receive_queue.get()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\queues.py", line 158, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+2026-05-07 22:52:09.537 | INFO     | logging:callHandlers:1762 - Started server process [18388]
+2026-05-07 22:52:09.538 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 22:52:09.538 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 22:52:09.539 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 22:59:44.561 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 22:59:44.671 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 22:59:44.671 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 22:59:44.672 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 22:59:44.672 | INFO     | logging:callHandlers:1762 - Finished server process [18388]
+2026-05-07 22:59:56.006 | INFO     | logging:callHandlers:1762 - Started server process [19388]
+2026-05-07 22:59:56.006 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 22:59:56.007 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 22:59:56.007 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 23:00:20.538 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 23:00:20.647 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 23:00:20.647 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 23:00:20.648 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 23:00:20.648 | INFO     | logging:callHandlers:1762 - Finished server process [19388]
+2026-05-07 23:00:30.448 | INFO     | logging:callHandlers:1762 - Started server process [13668]
+2026-05-07 23:00:30.449 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 23:00:30.449 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 23:00:30.450 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 23:00:44.504 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 23:00:44.613 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 23:00:44.613 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 23:00:44.613 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 23:00:44.614 | INFO     | logging:callHandlers:1762 - Finished server process [13668]
+2026-05-07 23:00:54.038 | INFO     | logging:callHandlers:1762 - Started server process [13800]
+2026-05-07 23:00:54.038 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 23:00:54.038 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 23:00:54.039 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 23:02:09.647 | INFO     | logging:callHandlers:1762 - 127.0.0.1:56785 - "GET /api/v1/books?limit=50&offset=0 HTTP/1.1" 200
+2026-05-07 23:02:11.155 | INFO     | logging:callHandlers:1762 - 127.0.0.1:56788 - "GET /api/v1/books/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd/details HTTP/1.1" 200
+2026-05-07 23:02:21.050 | INFO     | logging:callHandlers:1762 - 127.0.0.1:56789 - "GET /api/v1/books/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd/details HTTP/1.1" 200
+2026-05-07 23:02:35.561 | INFO     | logging:callHandlers:1762 - 127.0.0.1:56790 - "GET /api/v1/live-token/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd HTTP/1.1" 200
+2026-05-07 23:02:58.227 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 23:02:58.335 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 23:02:58.335 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 23:02:58.336 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 23:02:58.336 | INFO     | logging:callHandlers:1762 - Finished server process [13800]
+2026-05-07 23:03:06.153 | INFO     | logging:callHandlers:1762 - livekit_ffi::server:153:livekit_ffi::server - initializing ffi server v0.12.53
+2026-05-07 23:03:06.154 | INFO     | logging:callHandlers:1762 - livekit_ffi::cabi:50:livekit_ffi::cabi - initializing ffi server v0.12.53
+2026-05-07 23:03:08.193 | INFO     | logging:callHandlers:1762 - starting worker
+2026-05-07 23:03:08.194 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 23:03:08.194 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 23:03:08.194 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 23:03:08.194 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 23:03:08.195 | INFO     | logging:callHandlers:1762 - HTTP server listening on :8081
+2026-05-07 23:03:08.199 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:03:08.199 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:03:08.199 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:03:08.200 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:03:08.201 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:03:08.202 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:03:08.203 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:03:08.204 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:03:08.884 | INFO     | logging:callHandlers:1762 - registered worker
+2026-05-07 23:03:12.475 | INFO     | logging:callHandlers:1762 - Started server process [3556]
+2026-05-07 23:03:12.475 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 23:03:12.475 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 23:03:12.475 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 23:03:25.831 | INFO     | logging:callHandlers:1762 - 127.0.0.1:56823 - "GET /api/v1/books?limit=50&offset=0 HTTP/1.1" 200
+2026-05-07 23:03:28.264 | INFO     | logging:callHandlers:1762 - 127.0.0.1:56826 - "GET /api/v1/books/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd/details HTTP/1.1" 200
+2026-05-07 23:03:40.077 | INFO     | logging:callHandlers:1762 - 127.0.0.1:56827 - "GET /api/v1/live-token/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd HTTP/1.1" 200
+2026-05-07 23:03:42.443 | INFO     | logging:callHandlers:1762 - received job request
+2026-05-07 23:03:42.641 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:03:42.642 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:03:44.212 | INFO     | __main__:entrypoint:172 - ✅ Document IDs từ metadata: ['1b893d40-e0cc-4ee3-ae5f-a7809834e6dd']
+2026-05-07 23:03:44.213 | INFO     | __main__:entrypoint:173 - 🏠 Room Name (session): triam_1b893d40_5638f3
+2026-05-07 23:03:44.213 | INFO     | __main__:entrypoint:174 - Bat dau phien doc sach cho Thread ID: f25f309f-1dbb-4517-90b9-5fbbc88e3070
+2026-05-07 23:03:44.213 | WARNING  | logging:callHandlers:1762 - Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+2026-05-07 23:03:44.356 | INFO     | logging:callHandlers:1762 - adaptive interruption is disabled by default in production mode
+2026-05-07 23:03:48.484 | INFO     | __main__:flush:61 - Text output (71 chars): Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này.
+2026-05-07 23:03:49.231 | WARNING  | logging:callHandlers:1762 - failed to synthesize speech: no audio frames were pushed for text: Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này., retrying in 0.1s
+2026-05-07 23:03:49.654 | WARNING  | logging:callHandlers:1762 - failed to synthesize speech: no audio frames were pushed for text: Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này., retrying in 2.0s
+2026-05-07 23:03:51.965 | WARNING  | logging:callHandlers:1762 - failed to synthesize speech: no audio frames were pushed for text: Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này., retrying in 2.0s
+2026-05-07 23:03:54.275 | ERROR    | logging:callHandlers:1762 - Error in _tts_inference_task
+Traceback (most recent call last):
+
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 690, in __anext__
+    val = await self._event_aiter.__anext__()
+                │    │            └ <slot wrapper '__anext__' of 'async_generator' objects>
+                │    └ <async_generator object tee_peer at 0x00000194A56D2D40>
+                └ <livekit.plugins.elevenlabs.tts.SynthesizeStream object at 0x00000194A58AFF80>
+
+StopAsyncIteration
+
+
+During handling of the above exception, another exception occurred:
+
+
+Traceback (most recent call last):
+
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\threading.py", line 1032, in _bootstrap
+    self._bootstrap_inner()
+    │    └ <function Thread._bootstrap_inner at 0x00000194F82932E0>
+    └ <Thread(job_thread_runner, started 4156)>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\threading.py", line 1075, in _bootstrap_inner
+    self.run()
+    │    └ <function Thread.run at 0x00000194F8292FC0>
+    └ <Thread(job_thread_runner, started 4156)>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\threading.py", line 1012, in run
+    self._target(*self._args, **self._kwargs)
+    │    │        │    │        │    └ {}
+    │    │        │    │        └ <Thread(job_thread_runner, started 4156)>
+    │    │        │    └ (ThreadStartArgs(initialize_process_fnc=<function _default_setup_fnc at 0x000001949DF38E00>, job_entrypoint_fnc=<function ent...
+    │    │        └ <Thread(job_thread_runner, started 4156)>
+    │    └ <function thread_main at 0x000001949F3302C0>
+    └ <Thread(job_thread_runner, started 4156)>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\ipc\job_proc_lazy_main.py", line 444, in thread_main
+    client.run()
+    │      └ <function _ProcClient.run at 0x000001949F3147C0>
+    └ <livekit.agents.ipc.proc_client._ProcClient object at 0x00000194A571C9E0>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\ipc\proc_client.py", line 70, in run
+    loop.run_until_complete(self._task)
+    │    │                  │    └ <Task pending name='proc_client_main' coro=<_ProcClient._monitor_task() running at W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-bac...
+    │    │                  └ <livekit.agents.ipc.proc_client._ProcClient object at 0x00000194A571C9E0>
+    │    └ <function BaseEventLoop.run_until_complete at 0x00000194F9CD93A0>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+    │    └ <function ProactorEventLoop.run_forever at 0x00000194F9D95580>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+    │    └ <function BaseEventLoop._run_once at 0x00000194F9CDB100>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+    │      └ <function Handle._run at 0x00000194F9C114E0>
+    └ <Handle Task.task_wakeup(<Future finished result=None>)>
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+    │    │            │    │           │    └ <member '_args' of 'Handle' objects>
+    │    │            │    │           └ <Handle Task.task_wakeup(<Future finished result=None>)>
+    │    │            │    └ <member '_callback' of 'Handle' objects>
+    │    │            └ <Handle Task.task_wakeup(<Future finished result=None>)>
+    │    └ <member '_context' of 'Handle' objects>
+    └ <Handle Task.task_wakeup(<Future finished result=None>)>
+> File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\utils\log.py", line 17, in async_fn_logs
+    return await fn(*args, **kwargs)
+                 │   │       └ {}
+                 │   └ (<bound method Agent.tts_node of <__main__.TriamAssistant object at 0x00000194A57D48F0>>, <async_generator object tee_peer at...
+                 └ <function _tts_inference_task at 0x000001949F26BBA0>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\voice\generation.py", line 328, in _tts_inference_task
+    pushed_duration += await _tts_node_inference(input_segment, pushed_duration)
+    │                        │                   │              └ 0.0
+    │                        │                   └ <async_generator object _tts_inference_task.<locals>._input_segment at 0x00000194A58B9C40>
+    │                        └ <function _tts_inference_task.<locals>._tts_node_inference at 0x00000194A58B18A0>
+    └ 0.0
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\opentelemetry\util\_decorator.py", line 71, in async_wrapper
+    return await func(*args, **kwargs)  # type: ignore
+                 │     │       └ {}
+                 │     └ (<async_generator object _tts_inference_task.<locals>._input_segment at 0x00000194A58B9C40>, 0.0)
+                 └ <function _tts_inference_task.<locals>._tts_node_inference at 0x00000194A58B20C0>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\voice\generation.py", line 284, in _tts_node_inference
+    async for audio_frame in tts_node:
+                             └ <async_generator object Agent.default.tts_node at 0x00000194A56728A0>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\voice\agent.py", line 490, in tts_node
+    async for ev in stream:
+                    └ <livekit.plugins.elevenlabs.tts.SynthesizeStream object at 0x00000194A58AFF80>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 693, in __anext__
+    raise exc  # noqa: B904
+          └ APIError('no audio frames were pushed for text: Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này.', bod...
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 433, in _traceable_main_task
+    await self._main_task()
+          │    └ <function SynthesizeStream._main_task at 0x000001949F10A0C0>
+          └ <livekit.plugins.elevenlabs.tts.SynthesizeStream object at 0x00000194A58AFF80>
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\tts\tts.py", line 490, in _main_task
+    raise APIError(f"no audio frames were pushed for text: {self._pushed_text}")
+          │                                                 │    └ 'Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này.'
+          │                                                 └ <livekit.plugins.elevenlabs.tts.SynthesizeStream object at 0x00000194A58AFF80>
+          └ <class 'livekit.agents._exceptions.APIError'>
+
+livekit.agents._exceptions.APIError: no audio frames were pushed for text: Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này.
+2026-05-07 23:04:01.114 | INFO     | logging:callHandlers:1762 - closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)
+2026-05-07 23:05:09.328 | INFO     | logging:callHandlers:1762 - draining worker
+2026-05-07 23:05:09.328 | INFO     | logging:callHandlers:1762 - shutting down worker
+2026-05-07 23:05:09.345 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 23:05:09.454 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 23:05:09.454 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 23:05:09.455 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 23:05:09.455 | INFO     | logging:callHandlers:1762 - Finished server process [3556]
+2026-05-07 23:05:19.392 | INFO     | logging:callHandlers:1762 - Started server process [11388]
+2026-05-07 23:05:19.394 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 23:05:19.394 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 23:05:19.394 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 23:15:42.550 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 23:15:42.659 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 23:15:42.659 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 23:15:42.660 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 23:15:42.660 | INFO     | logging:callHandlers:1762 - Finished server process [11388]
+2026-05-07 23:15:51.551 | INFO     | logging:callHandlers:1762 - Started server process [17164]
+2026-05-07 23:15:51.551 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 23:15:51.551 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 23:15:51.552 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 23:16:37.296 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 23:16:37.407 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 23:16:37.407 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 23:16:37.408 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 23:16:37.408 | INFO     | logging:callHandlers:1762 - Finished server process [17164]
+2026-05-07 23:16:46.550 | INFO     | logging:callHandlers:1762 - Started server process [10068]
+2026-05-07 23:16:46.552 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 23:16:46.552 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 23:16:46.553 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 23:16:46.556 | ERROR    | logging:callHandlers:1762 - Traceback (most recent call last):
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\base_events.py", line 691, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+asyncio.exceptions.CancelledError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\runners.py", line 123, in run
+    raise KeyboardInterrupt()
+KeyboardInterrupt
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\starlette\routing.py", line 701, in lifespan
+    await receive()
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\uvicorn\lifespan\on.py", line 137, in receive
+    return await self.receive_queue.get()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\Lenovo\AppData\Roaming\uv\python\cpython-3.12.12-windows-x86_64-none\Lib\asyncio\queues.py", line 158, in get
+    await getter
+asyncio.exceptions.CancelledError
+
+2026-05-07 23:16:55.318 | INFO     | logging:callHandlers:1762 - Started server process [21776]
+2026-05-07 23:16:55.318 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 23:16:55.318 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 23:16:55.319 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 23:17:39.523 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 23:17:39.632 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 23:17:39.632 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 23:17:39.633 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 23:17:39.633 | INFO     | logging:callHandlers:1762 - Finished server process [21776]
+2026-05-07 23:17:45.167 | INFO     | logging:callHandlers:1762 - livekit_ffi::server:153:livekit_ffi::server - initializing ffi server v0.12.53
+2026-05-07 23:17:45.167 | INFO     | logging:callHandlers:1762 - livekit_ffi::cabi:50:livekit_ffi::cabi - initializing ffi server v0.12.53
+2026-05-07 23:17:47.137 | INFO     | logging:callHandlers:1762 - starting worker
+2026-05-07 23:17:47.137 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 23:17:47.137 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 23:17:47.137 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 23:17:47.138 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 23:17:47.139 | INFO     | logging:callHandlers:1762 - HTTP server listening on :8081
+2026-05-07 23:17:47.141 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:17:47.142 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:17:47.142 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:17:47.143 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:17:47.144 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:17:47.145 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:17:47.146 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:17:47.146 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:17:47.936 | INFO     | logging:callHandlers:1762 - registered worker
+2026-05-07 23:17:51.161 | INFO     | logging:callHandlers:1762 - Started server process [19288]
+2026-05-07 23:17:51.162 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 23:17:51.162 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 23:17:51.163 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 23:18:08.519 | INFO     | logging:callHandlers:1762 - 127.0.0.1:55373 - "GET /api/v1/books?limit=50&offset=0 HTTP/1.1" 200
+2026-05-07 23:18:10.979 | INFO     | logging:callHandlers:1762 - 127.0.0.1:55375 - "GET /api/v1/books/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd/details HTTP/1.1" 200
+2026-05-07 23:18:26.824 | INFO     | logging:callHandlers:1762 - 127.0.0.1:55376 - "GET /api/v1/live-token/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd HTTP/1.1" 200
+2026-05-07 23:18:30.158 | INFO     | logging:callHandlers:1762 - received job request
+2026-05-07 23:18:30.308 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:18:30.310 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:18:32.167 | INFO     | __main__:entrypoint:172 - ✅ Document IDs từ metadata: ['1b893d40-e0cc-4ee3-ae5f-a7809834e6dd']
+2026-05-07 23:18:32.168 | INFO     | __main__:entrypoint:173 - 🏠 Room Name (session): triam_1b893d40_923471
+2026-05-07 23:18:32.168 | INFO     | __main__:entrypoint:174 - Bat dau phien doc sach cho Thread ID: f25f309f-1dbb-4517-90b9-5fbbc88e3070
+2026-05-07 23:18:32.168 | WARNING  | logging:callHandlers:1762 - Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+2026-05-07 23:18:32.316 | INFO     | logging:callHandlers:1762 - adaptive interruption is disabled by default in production mode
+2026-05-07 23:18:35.629 | INFO     | __main__:flush:61 - Text output (71 chars): Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này.
+2026-05-07 23:18:48.132 | WARNING  | logging:callHandlers:1762 - failed to generate LLM completion: message='no response generated', status_code=-1, retryable=True, request_id=cb1e4d734275, body=finish reason: FinishReason.STOP, retrying in 0.1s
+2026-05-07 23:18:51.032 | INFO     | __main__:flush:61 - Text output (117 chars): Chào bạn, tôi có thể giúp bạn tìm kiếm thông tin trong các cuốn sách bạn đã chọn, hoặc tra cứu kiến thức nếu bạn cần.
+2026-05-07 23:19:20.672 | INFO     | logging:callHandlers:1762 - closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)
+2026-05-07 23:19:27.648 | INFO     | logging:callHandlers:1762 - draining worker
+2026-05-07 23:19:27.674 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 23:19:27.781 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 23:19:27.781 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 23:19:27.782 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 23:19:27.782 | INFO     | logging:callHandlers:1762 - Finished server process [19288]
+2026-05-07 23:19:36.543 | INFO     | logging:callHandlers:1762 - Started server process [15032]
+2026-05-07 23:19:36.543 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 23:19:36.544 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 23:19:36.544 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 23:19:36.708 | WARNING  | logging:callHandlers:1762 - exiting forcefully
+2026-05-07 23:19:36.760 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 23:19:36.868 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 23:19:36.868 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 23:19:36.868 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 23:19:36.870 | INFO     | logging:callHandlers:1762 - Finished server process [15032]
+2026-05-07 23:19:45.718 | INFO     | logging:callHandlers:1762 - Started server process [17072]
+2026-05-07 23:19:45.719 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 23:19:45.719 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 23:19:45.719 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 23:21:20.667 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 23:21:20.776 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 23:21:20.776 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 23:21:20.777 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 23:21:20.777 | INFO     | logging:callHandlers:1762 - Finished server process [17072]
+2026-05-07 23:21:29.227 | INFO     | logging:callHandlers:1762 - Started server process [20152]
+2026-05-07 23:21:29.227 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 23:21:29.227 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 23:21:29.227 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 23:21:32.836 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 23:21:32.944 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 23:21:32.945 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 23:21:32.945 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 23:21:32.945 | INFO     | logging:callHandlers:1762 - Finished server process [20152]
+2026-05-07 23:21:42.038 | INFO     | logging:callHandlers:1762 - livekit_ffi::server:153:livekit_ffi::server - initializing ffi server v0.12.53
+2026-05-07 23:21:42.038 | INFO     | logging:callHandlers:1762 - livekit_ffi::cabi:50:livekit_ffi::cabi - initializing ffi server v0.12.53
+2026-05-07 23:21:44.053 | INFO     | logging:callHandlers:1762 - starting worker
+2026-05-07 23:21:44.053 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 23:21:44.053 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 23:21:44.054 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 23:21:44.054 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 23:21:44.055 | INFO     | logging:callHandlers:1762 - HTTP server listening on :8081
+2026-05-07 23:21:44.058 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:21:44.058 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:21:44.058 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:21:44.059 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:21:44.060 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:21:44.061 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:21:44.062 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:21:44.062 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:21:44.641 | INFO     | logging:callHandlers:1762 - registered worker
+2026-05-07 23:21:48.127 | INFO     | logging:callHandlers:1762 - Started server process [1572]
+2026-05-07 23:21:48.127 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 23:21:48.128 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 23:21:48.128 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 23:22:01.327 | INFO     | logging:callHandlers:1762 - 127.0.0.1:52420 - "GET /api/v1/books?limit=50&offset=0 HTTP/1.1" 200
+2026-05-07 23:22:15.557 | INFO     | logging:callHandlers:1762 - 127.0.0.1:52428 - "GET /api/v1/books/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd/details HTTP/1.1" 200
+2026-05-07 23:22:22.756 | INFO     | logging:callHandlers:1762 - 127.0.0.1:52429 - "GET /api/v1/live-token/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd HTTP/1.1" 200
+2026-05-07 23:22:25.415 | INFO     | logging:callHandlers:1762 - received job request
+2026-05-07 23:22:25.667 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:22:25.667 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:22:27.265 | INFO     | __main__:entrypoint:172 - ✅ Document IDs từ metadata: ['1b893d40-e0cc-4ee3-ae5f-a7809834e6dd']
+2026-05-07 23:22:27.265 | INFO     | __main__:entrypoint:173 - 🏠 Room Name (session): triam_1b893d40_a9dce3
+2026-05-07 23:22:27.265 | INFO     | __main__:entrypoint:174 - Bat dau phien doc sach cho Thread ID: f25f309f-1dbb-4517-90b9-5fbbc88e3070
+2026-05-07 23:22:27.266 | WARNING  | logging:callHandlers:1762 - Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+2026-05-07 23:22:27.412 | INFO     | logging:callHandlers:1762 - adaptive interruption is disabled by default in production mode
+2026-05-07 23:22:31.065 | INFO     | __main__:flush:61 - Text output (57 chars): Chào bạn, tôi là trợ lý ảo TRIAM. Bạn muốn tôi giúp gì ạ?
+2026-05-07 23:22:48.101 | INFO     | __main__:flush:61 - Text output (93 chars): Tôi là trợ lý AI sách nói TRIAM, giúp bạn tìm kiếm kiến thức từ những cuốn sách bạn đã chọn.
+
+2026-05-07 23:23:02.934 | INFO     | __main__:flush:61 - Text output (75 chars): Cuốn sách bạn đang đọc có tên là Trí Nhớ Siêu Phàm và tác giả là Eran Katz.
+2026-05-07 23:23:22.956 | INFO     | __main__:flush:61 - Text output (62 chars): Cuốn sách này có 23 chương, bao gồm cả Phần mở đầu và Tóm tắt.
+2026-05-07 23:23:36.410 | INFO     | logging:callHandlers:1762 - closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)
+2026-05-07 23:23:48.164 | INFO     | logging:callHandlers:1762 - draining worker
+2026-05-07 23:23:48.188 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 23:23:48.301 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 23:23:48.301 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 23:23:48.302 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 23:23:48.302 | INFO     | logging:callHandlers:1762 - Finished server process [1572]
+2026-05-07 23:23:49.126 | WARNING  | logging:callHandlers:1762 - exiting forcefully
+2026-05-07 23:25:42.652 | INFO     | logging:callHandlers:1762 - livekit_ffi::server:153:livekit_ffi::server - initializing ffi server v0.12.53
+2026-05-07 23:25:42.653 | INFO     | logging:callHandlers:1762 - livekit_ffi::cabi:50:livekit_ffi::cabi - initializing ffi server v0.12.53
+2026-05-07 23:25:44.688 | INFO     | logging:callHandlers:1762 - starting worker
+2026-05-07 23:25:44.689 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 23:25:44.689 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 23:25:44.689 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 23:25:44.689 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-05-07 23:25:44.690 | INFO     | logging:callHandlers:1762 - HTTP server listening on :8081
+2026-05-07 23:25:44.693 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:25:44.694 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:25:44.694 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:25:44.695 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:25:44.696 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:25:44.697 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:25:44.698 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:25:44.698 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:25:45.617 | INFO     | logging:callHandlers:1762 - registered worker
+2026-05-07 23:25:48.634 | INFO     | logging:callHandlers:1762 - Started server process [19024]
+2026-05-07 23:25:48.635 | INFO     | logging:callHandlers:1762 - Waiting for application startup.
+2026-05-07 23:25:48.635 | INFO     | app.main:lifespan:16 - Khởi động hệ thống... (TRIAM)
+2026-05-07 23:25:48.635 | INFO     | logging:callHandlers:1762 - Application startup complete.
+2026-05-07 23:25:58.788 | INFO     | logging:callHandlers:1762 - 127.0.0.1:57640 - "GET /api/v1/books?limit=50&offset=0 HTTP/1.1" 200
+2026-05-07 23:26:01.105 | INFO     | logging:callHandlers:1762 - 127.0.0.1:57642 - "GET /api/v1/books/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd/details HTTP/1.1" 200
+2026-05-07 23:26:17.028 | INFO     | logging:callHandlers:1762 - 127.0.0.1:57645 - "GET /api/v1/live-token/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd HTTP/1.1" 200
+2026-05-07 23:26:18.858 | INFO     | logging:callHandlers:1762 - received job request
+2026-05-07 23:26:19.106 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:26:19.106 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:26:21.709 | INFO     | __main__:entrypoint:172 - ✅ Document IDs từ metadata: ['1b893d40-e0cc-4ee3-ae5f-a7809834e6dd']
+2026-05-07 23:26:21.709 | INFO     | __main__:entrypoint:173 - 🏠 Room Name (session): triam_1b893d40_5e0289
+2026-05-07 23:26:21.711 | INFO     | __main__:entrypoint:174 - Bat dau phien doc sach cho Thread ID: f25f309f-1dbb-4517-90b9-5fbbc88e3070
+2026-05-07 23:26:21.712 | WARNING  | logging:callHandlers:1762 - Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+2026-05-07 23:26:21.855 | INFO     | logging:callHandlers:1762 - adaptive interruption is disabled by default in production mode
+2026-05-07 23:26:24.799 | INFO     | __main__:flush:61 - Text output (71 chars): Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này.
+2026-05-07 23:27:36.742 | INFO     | logging:callHandlers:1762 - closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)
+2026-05-07 23:27:38.748 | WARNING  | logging:callHandlers:1762 - final transcript not received after timeout
+2026-05-07 23:27:38.749 | WARNING  | logging:callHandlers:1762 - skipping user input, speech scheduling is paused
+2026-05-07 23:27:45.690 | INFO     | logging:callHandlers:1762 - 127.0.0.1:50780 - "GET /api/v1/live-token/1b893d40-e0cc-4ee3-ae5f-a7809834e6dd HTTP/1.1" 200
+2026-05-07 23:27:48.283 | INFO     | logging:callHandlers:1762 - received job request
+2026-05-07 23:27:48.458 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-05-07 23:27:48.459 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-05-07 23:27:49.565 | INFO     | __main__:entrypoint:172 - ✅ Document IDs từ metadata: ['1b893d40-e0cc-4ee3-ae5f-a7809834e6dd']
+2026-05-07 23:27:49.565 | INFO     | __main__:entrypoint:173 - 🏠 Room Name (session): triam_1b893d40_1fb19c
+2026-05-07 23:27:49.565 | INFO     | __main__:entrypoint:174 - Bat dau phien doc sach cho Thread ID: f25f309f-1dbb-4517-90b9-5fbbc88e3070
+2026-05-07 23:27:49.566 | WARNING  | logging:callHandlers:1762 - Both GOOGLE_API_KEY and GEMINI_API_KEY are set. Using GOOGLE_API_KEY.
+2026-05-07 23:27:49.693 | INFO     | logging:callHandlers:1762 - adaptive interruption is disabled by default in production mode
+2026-05-07 23:27:51.437 | INFO     | __main__:flush:61 - Text output (37 chars): Chào bạn! Tôi có thể giúp gì cho bạn?
+2026-05-07 23:28:06.903 | INFO     | __main__:flush:61 - Text output (299 chars): Cuốn sách này hướng dẫn các phương pháp và bí quyết để phát triển trí nhớ siêu phàm. Nó giúp bạn cải thiện khả năng ghi ...
+2026-05-07 23:28:27.946 | INFO     | logging:callHandlers:1762 - closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)
+2026-05-07 23:28:40.433 | INFO     | logging:callHandlers:1762 - draining worker
+2026-05-07 23:28:40.452 | INFO     | logging:callHandlers:1762 - Shutting down
+2026-05-07 23:28:40.561 | INFO     | logging:callHandlers:1762 - Waiting for application shutdown.
+2026-05-07 23:28:40.561 | INFO     | app.main:lifespan:21 - Đang dọn dẹp tài nguyên...
+2026-05-07 23:28:40.561 | INFO     | logging:callHandlers:1762 - Application shutdown complete.
+2026-05-07 23:28:40.562 | INFO     | logging:callHandlers:1762 - Finished server process [19024]
