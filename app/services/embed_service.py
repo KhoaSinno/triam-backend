@@ -14,13 +14,29 @@ aclient = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 _splitter = RecursiveCharacterTextSplitter(
     chunk_size=1200,
     chunk_overlap=200,
-    separators=["\n\n", "\n", ".", " ", ""],
+    separators=["\n\n", "\n", ".", "!", "?", " ", ""],
 )
+
+
+def process_book_to_enriched_chunks(book_title: str, chapter_title: str, raw_text: str):
+    raw_chunks = _splitter.split_text(raw_text)
+    enriched_chunks = []
+
+    for index, chunk in enumerate(raw_chunks):
+        # BƠM NGỮ CẢNH: Giúp Vector nắm bắt được bối cảnh toàn cục
+        header = f"[Tác phẩm: {book_title} | Chương: {chapter_title}]\n"
+        enriched_content = header + chunk
+
+        enriched_chunks.append(enriched_content)
+
+    return enriched_chunks
 
 
 async def embed_and_save_chapter(
     book_id: uuid.UUID,
     chapter_id: uuid.UUID,
+    book_title: str,
+    chapter_title: str,
     raw_text: str,
     session: Session,
 ) -> None:
@@ -30,7 +46,12 @@ async def embed_and_save_chapter(
     2. Gọi OpenAI Embedding API (batch).
     3. Lưu vào bảng book_knowledge qua SQLModel session.
     """
-    chunks = _splitter.split_text(raw_text)
+    chunks: list[str] = process_book_to_enriched_chunks(
+        book_title=book_title,
+        chapter_title=chapter_title,
+        raw_text=raw_text,
+    )
+
     if not chunks:
         return
 

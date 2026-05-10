@@ -1,6 +1,6 @@
 # RAG Advance - Đề xuất tối ưu RAG (GỢI ý từ agent)
 
-### Giai đoạn 1: Làm giàu dữ liệu (Data Enrichment & Smart Chunking)
+### Giai đoạn 1 [DONE]: Làm giàu dữ liệu (Data Enrichment & Smart Chunking)
 
 Đừng chỉ coi mỗi chunk là một đoạn văn bản thô. Hãy biến nó thành một "đơn vị tri thức" có đầy đủ bối cảnh.
 

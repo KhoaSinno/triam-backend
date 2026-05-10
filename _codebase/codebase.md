@@ -2,13 +2,15 @@
 
 ## Project Statistics
 
-- Total files: 51
+- Total files: 59
 
 ## Folder Structure
 
 ```
 app
   api
+    dependencies
+      auth.py
     v1
       routers
         audiobooks.py
@@ -22,6 +24,7 @@ app
     config.py
     constant.py
     exceptions.py
+    logger.py
     security.py
     supabase.py
     __init__.py
@@ -35,11 +38,10 @@ app
         054450a4d3fc_added_new_logic_context_conversation_.py
         1a04ac7f0a85_add_mode_to_chapter_segments.py
         34b51c319023_optimize_all_db_schema_add_plan_table.py
+        78b35db4eddb_add_server_default_to_created_at_and_.py
         7c1f860609e9_added_error_message_to_book.py
+        951590abaacf_hotfix_book_ref.py
         960bf5ca365d_udpate_cascade_role.py
-  helper
-    run_background_processing.py
-    upload2supabase.py
   main.py
   models
     db_models.py
@@ -54,7 +56,12 @@ app
     study_context_thread_repo.py
   schemas
     plan.py
+    responses
+      audiobook_res.py
+      study_context_res.py
+      __init__.py
     study_context.py
+    user.py
   services
     agent_voice_service.py
     audiobook_service.py
@@ -63,14 +70,62 @@ app
     llm_service.py
     pdf_service.py
     rag_service.py
+    storage_service.py
     study_context_service.py
     tts_service.py
     upload_service.py
+    workers
+      book_pipeline.py
+      chapter_worker.py
+      tts_worker.py
+      __init__.py
     __init__.py
   __init__.py
-Dockerfile
-start.sh
-pyproject.toml
+
+```
+
+### app\api\dependencies\auth.py
+
+```py
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from uuid import UUID
+from app.core.supabase import supabase
+from app.schemas.user import UserTokenPayload
+
+security = HTTPBearer()
+
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> UserTokenPayload:
+    """
+    Dependency lấy và verify JWT token từ Header sử dụng Supabase Python SDK.
+    Dùng Depends(get_current_user) trong mọi endpoint cần bảo mật.
+    """
+    token = credentials.credentials
+    try:
+        # Sử dụng SDK chính thức của Supabase để kiểm tra auth qua server
+        # Phương pháp này hỗ trợ chuẩn Asymmetric Keys mới nhất (ES256/RS256) một cách mượt mà nhất.
+        user_response = supabase.auth.get_user(token)
+
+        if not user_response or not user_response.user:
+            raise ValueError("Không thể lấy thông tin người dùng")
+
+        user = user_response.user
+
+        return UserTokenPayload(
+            sub=UUID(str(user.id)),
+            email=user.email,
+            role=user.role,
+            aud=user.aud,
+        )
+
+    except Exception as e:
+        # Bắt mọi lỗi decode, hết hạn auth hoặc token rác
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=f"Token không hợp lệ hoặc đã hết hạn: {str(e)}",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 ```
 
@@ -83,26 +138,35 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlmodel import Session
 
+from app.api.dependencies.auth import get_current_user
 from app.db.database import get_session
 from app.models.db_models import Book
 from app.repositories import audiobook_repo
 from app.schemas.plan import SwitchModeRequest
+from app.schemas.responses import BookDetailResponse, BookResponse, SwitchModeResponse
+from app.schemas.user import UserTokenPayload
 from app.services.audiobook_service import get_book_details, switch_book_mode
 
 router = APIRouter()
 
 
-@router.get("/books", response_model=list[Book])
+# @router.get("/books", response_model=list[BookResponse])
+# def read_all_books(session: Annotated[Session, Depends(get_session)], current_user: Annotated[UserTokenPayload, Depends(get_current_user)]):
+#     print(f"Current user: {current_user.email} (ID: {current_user.sub})")  # Debug log để xem thông tin user
+#     return audiobook_repo.get_audiobooks(session)
+
+
+@router.get("/books", response_model=list[BookResponse])
 def read_all_books(session: Annotated[Session, Depends(get_session)]):
     return audiobook_repo.get_audiobooks(session)
 
 
-@router.get("/books/{book_id}", response_model=Book)
+@router.get("/books/{book_id}", response_model=BookResponse)
 def read_book(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
     return audiobook_repo.get_book_by_id(session, book_id)
 
 
-@router.post("/books", response_model=Book)
+@router.post("/books", response_model=BookResponse)
 def add_new_book(book: Book, session: Annotated[Session, Depends(get_session)]):
     return audiobook_repo.create_book(session, book)
 
@@ -113,12 +177,12 @@ async def delete_book(book_id: uuid.UUID, session: Annotated[Session, Depends(ge
     return {"message": "Book deleted"}
 
 
-@router.get("/books/{book_id}/details")
+@router.get("/books/{book_id}/details", response_model=BookDetailResponse)
 def get_book_details_endpoint(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
     return get_book_details(session, book_id)
 
 
-@router.post("/books/{book_id}/switch-mode")
+@router.post("/books/{book_id}/switch-mode", response_model=SwitchModeResponse)
 def switch_book_mode_endpoint(
     book_id: uuid.UUID,
     payload: SwitchModeRequest,
@@ -166,9 +230,9 @@ from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from app.db.database import get_session
-from app.models.db_models import ChatMessage, ChatThread, StudyContext, StudyContextDocumentLink
 from app.repositories.study_context_repo import get_study_contexts
 from app.repositories.study_context_thread_repo import get_chat_history_by_thread_id
+from app.schemas.responses import ChatMessageResponse, ChatThreadResponse, ContextDocumentResponse, StudyContextResponse
 from app.schemas.study_context import (
     ChatThreadInput,
     StudyContextDocumentInput,
@@ -186,22 +250,22 @@ MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
 # === Context Management ===
 
 
-@router.get("/study-contexts", response_model=List[StudyContext])
+@router.get("/study-contexts", response_model=List[StudyContextResponse])
 async def get_study_contexts_api(session: Annotated[Session, Depends(get_session)]):
     return get_study_contexts(session, MOCK_USER_ID)
 
 
-@router.get("/study-contexts/{context_id}", response_model=StudyContext)
+@router.get("/study-contexts/{context_id}", response_model=StudyContextResponse)
 async def get_study_context_api(context_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
     return study_context_service.get_context(session, MOCK_USER_ID, context_id)
 
 
-@router.post("/study-contexts", response_model=StudyContext)
+@router.post("/study-contexts", response_model=StudyContextResponse)
 async def create_study_context_api(payload: StudyContextInput, session: Annotated[Session, Depends(get_session)]):
     return study_context_service.create_context(session, MOCK_USER_ID, payload)
 
 
-@router.patch("/study-contexts/{context_id}", response_model=StudyContext)
+@router.patch("/study-contexts/{context_id}", response_model=StudyContextResponse)
 async def update_study_context_api(context_id: uuid.UUID, payload: StudyContextUpdate, session: Annotated[Session, Depends(get_session)]):
     return study_context_service.update_context_title(session, MOCK_USER_ID, context_id, payload.title)
 
@@ -212,7 +276,7 @@ async def delete_study_context_api(context_id: uuid.UUID, session: Annotated[Ses
     return {"message": "Study context deleted successfully"}
 
 
-@router.post("/study-contexts/{context_id}/documents", response_model=StudyContextDocumentLink)
+@router.post("/study-contexts/{context_id}/documents", response_model=ContextDocumentResponse)
 async def add_study_context_document_api(context_id: uuid.UUID, payload: StudyContextDocumentInput, session: Annotated[Session, Depends(get_session)]):
     return study_context_service.add_document_to_context(session, MOCK_USER_ID, context_id, payload)
 
@@ -226,17 +290,17 @@ async def delete_study_context_document_api(context_id: uuid.UUID, book_id: uuid
 # === Thread Management ===
 
 
-@router.get("/study-contexts/{context_id}/threads", response_model=List[ChatThread])
+@router.get("/study-contexts/{context_id}/threads", response_model=List[ChatThreadResponse])
 async def get_chat_threads_api(context_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
     return study_context_service.get_threads_for_context(session, MOCK_USER_ID, context_id)
 
 
-@router.post("/study-contexts/{context_id}/threads", response_model=ChatThread)
+@router.post("/study-contexts/{context_id}/threads", response_model=ChatThreadResponse)
 async def create_chat_thread_api(context_id: uuid.UUID, payload: ChatThreadInput, session: Annotated[Session, Depends(get_session)]):
     return study_context_service.create_thread(session, MOCK_USER_ID, context_id, payload)
 
 
-@router.get("/threads/{thread_id}/messages", response_model=List[ChatMessage])
+@router.get("/threads/{thread_id}/messages", response_model=List[ChatMessageResponse])
 async def get_thread_messages_api(thread_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
     return get_chat_history_by_thread_id(session, thread_id)
 
@@ -337,6 +401,10 @@ class Settings(BaseSettings):
     LIVEKIT_API_SECRET: str
     LIVEKIT_AGENT_NAME: str
     GEMINI_MODEL_NATIVE_AUDIO: str = "gemini-2.5-flash-native-audio-latest"
+    GEMINI_MODEL_LLM: str = "gemini-2.5-flash"
+    DEEPGRAM_API_KEY: str
+    CARTESIA_API_KEY_TTS: str
+    ELEVENLABS_API_KEY_TTS: str
 
     # Upload file
     MAX_FILE_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB
@@ -495,6 +563,94 @@ class DatabaseError(AppException):
 
 ```
 
+### app\core\logger.py
+
+```py
+import sys
+import json
+import logging
+from pathlib import Path
+from loguru import logger
+
+# Định cấu hình đường dẫn thư mục log
+LOG_DIR = Path("logs")
+LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+# Tùy chỉnh format log hiển thị trên console (có màu sắc)
+CONSOLE_FORMAT = (
+    "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | "
+    "<level>{level: <8}</level> | "
+    "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - "
+    "<level>{message}</level>"
+)
+
+
+def setup_logger():
+    # Bỏ cấu hình mặc định
+    logger.remove()
+
+    # 1. Cấu hình log ra console (cho môi trường dev)
+    logger.add(
+        sys.stdout,
+        format=CONSOLE_FORMAT,
+        level="DEBUG",
+        colorize=True,
+    )
+
+    # 2. Cấu hình log ra file văn bản chuẩn (để xem local)
+    logger.add(
+        LOG_DIR / "app_{time:YYYY-MM-DD}.log",
+        rotation="10 MB",     # Cắt file khi đạt 10MB
+        retention="7 days",   # Giữ file trong 7 ngày
+        level="INFO",
+        format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} - {message}",
+        encoding="utf-8"
+    )
+
+    # 3. Cấu hình log dạng JSON (để đẩy lên ELK / Datadog trên Production)
+    logger.add(
+        LOG_DIR / "app_json_{time:YYYY-MM-DD}.log",
+        rotation="50 MB",
+        retention="14 days",
+        level="INFO",
+        serialize=True,       # Ghi log dưới dạng JSON chuẩn
+        encoding="utf-8"
+    )
+
+    # Chuyển hướng log từ standard logging của Python sang loguru
+    class InterceptHandler(logging.Handler):
+        def emit(self, record):
+            # Get corresponding Loguru level if it exists
+            try:
+                level = logger.level(record.levelname).name
+            except ValueError:
+                level = record.levelno
+
+            # Find caller from where originated the logged message
+            frame, depth = logging.currentframe(), 2
+            while frame and frame.f_code.co_filename == logging.__file__:
+                frame = frame.f_back
+                depth += 1
+
+            logger.opt(depth=depth, exception=record.exc_info).log(
+                level, record.getMessage())
+
+    logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
+
+    # Bắt luôn cả log của Uvicorn và FastAPI nếu chúng chạy độc lập
+    for logger_name in ("uvicorn", "uvicorn.access", "uvicorn.error", "fastapi"):
+        logging_logger = logging.getLogger(logger_name)
+        logging_logger.handlers = [InterceptHandler()]
+        logging_logger.propagate = False
+
+    return logger
+
+
+# Singleton logger instance
+log = setup_logger()
+
+```
+
 ### app\core\security.py
 
 ```py
@@ -540,7 +696,14 @@ from app.core.config import settings
 
 load_dotenv()
 
-engine = create_engine(settings.DATABASE_URL, echo=True)
+engine = create_engine(
+    settings.DATABASE_URL,
+    echo=False,         # Tắt verbose SQL log trên production
+    pool_size=10,       # Connections persistent trong pool
+    max_overflow=20,    # Connections tạm thêm khi pool đầy
+    pool_timeout=30,    # Giây chờ nếu pool cạn
+    pool_recycle=1800,  # Recycle sau 30 phút (tránh stale connections)
+)
 
 
 def create_db_and_tables():
@@ -556,6 +719,9 @@ def get_session() -> Generator[Session, None, None]:
 ### app\db\migrations\env.py
 
 ```py
+import app.models.db_models
+from app.core.config import settings
+from sqlmodel import SQLModel
 from logging.config import fileConfig
 
 from alembic import context
@@ -570,9 +736,6 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-from sqlmodel import SQLModel
-
-from app.core.config import settings
 
 # Import all db models to make sure they are included in SQLModel.metadata
 
@@ -602,12 +765,12 @@ def run_migrations_offline() -> None:
 
     """
     url = config.get_main_option("sqlalchemy.url")
-    context.configure(
-        url=url,
-        target_metadata=target_metadata,
-        literal_binds=True,
-        dialect_opts={"paramstyle": "named"},
-    )
+    context.configure(compare_server_default=True,
+                      url=url,
+                      target_metadata=target_metadata,
+                      literal_binds=True,
+                      dialect_opts={"paramstyle": "named"},
+                      )
 
     with context.begin_transaction():
         context.run_migrations()
@@ -627,7 +790,8 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(compare_server_default=True,
+                          connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()
@@ -872,6 +1036,106 @@ def downgrade() -> None:
 
 ```
 
+### app\db\migrations\versions\78b35db4eddb_add_server_default_to_created_at_and_.py
+
+```py
+"""Add server_default to created_at and updated_at
+
+Revision ID: 78b35db4eddb
+Revises: 951590abaacf
+Create Date: 2026-05-07 13:20:01.447773
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+# revision identifiers, used by Alembic.
+revision: str = '78b35db4eddb'
+down_revision: Union[str, Sequence[str], None] = '951590abaacf'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Upgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.alter_column('books', 'updated_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               server_default=sa.text('now()'),
+               existing_nullable=False)
+    op.alter_column('chat_messages', 'timestamp',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               server_default=sa.text('now()'),
+               existing_nullable=False)
+    op.alter_column('chat_threads', 'created_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               server_default=sa.text('now()'),
+               existing_nullable=False)
+    op.alter_column('chat_threads', 'updated_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               server_default=sa.text('now()'),
+               existing_nullable=False)
+    op.alter_column('reading_plans', 'created_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               server_default=sa.text('now()'),
+               existing_nullable=False)
+    op.alter_column('reading_plans', 'updated_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               server_default=sa.text('now()'),
+               existing_nullable=False)
+    op.alter_column('study_contexts', 'created_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               server_default=sa.text('now()'),
+               existing_nullable=False)
+    op.alter_column('study_contexts', 'updated_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               server_default=sa.text('now()'),
+               existing_nullable=False)
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.alter_column('study_contexts', 'updated_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               server_default=None,
+               existing_nullable=False)
+    op.alter_column('study_contexts', 'created_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               server_default=None,
+               existing_nullable=False)
+    op.alter_column('reading_plans', 'updated_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               server_default=None,
+               existing_nullable=False)
+    op.alter_column('reading_plans', 'created_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               server_default=None,
+               existing_nullable=False)
+    op.alter_column('chat_threads', 'updated_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               server_default=None,
+               existing_nullable=False)
+    op.alter_column('chat_threads', 'created_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               server_default=None,
+               existing_nullable=False)
+    op.alter_column('chat_messages', 'timestamp',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               server_default=None,
+               existing_nullable=False)
+    op.alter_column('books', 'updated_at',
+               existing_type=postgresql.TIMESTAMP(timezone=True),
+               server_default=None,
+               existing_nullable=False)
+    # ### end Alembic commands ###
+
+```
+
 ### app\db\migrations\versions\7c1f860609e9_added_error_message_to_book.py
 
 ```py
@@ -1009,6 +1273,112 @@ def downgrade() -> None:
 
 ```
 
+### app\db\migrations\versions\951590abaacf_hotfix_book_ref.py
+
+```py
+"""Hotfix: book ref
+
+Revision ID: 951590abaacf
+Revises: 054450a4d3fc
+Create Date: 2026-05-06 22:08:41.499014
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision: str = '951590abaacf'
+down_revision: Union[str, Sequence[str], None] = '054450a4d3fc'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    """Upgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.alter_column('book_knowledge', 'chapter_id',
+               existing_type=sa.UUID(),
+               nullable=False)
+    op.add_column('books', sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True))
+    op.execute("UPDATE books SET updated_at = NOW()")
+    op.alter_column('books', 'updated_at', nullable=False)
+    op.alter_column('chapter_segments', 'chapter_id',
+               existing_type=sa.UUID(),
+               nullable=False)
+    op.alter_column('chapter_segments', 'segment_index',
+               existing_type=sa.INTEGER(),
+               nullable=False)
+    planmode_enum = sa.Enum('FULL', 'PARETO', name='planmode')
+    planmode_enum.create(op.get_bind(), checkfirst=True)
+    
+    op.execute("UPDATE chapter_segments SET mode = 'PARETO' WHERE UPPER(mode) = 'PARETO_MODE'")
+    op.execute("UPDATE chapter_segments SET mode = 'FULL' WHERE UPPER(mode) = 'FULL_MODE'")
+    op.execute("UPDATE chapter_segments SET mode = UPPER(mode)")
+    
+    op.alter_column('chapter_segments', 'mode', server_default=None)
+    
+    op.alter_column('chapter_segments', 'mode',
+               existing_type=sa.TEXT(),
+               type_=planmode_enum,
+               existing_nullable=False,
+               postgresql_using='UPPER(mode)::planmode')
+    op.alter_column('chat_messages', 'thread_id',
+               existing_type=sa.UUID(),
+               nullable=False)
+    op.alter_column('chat_threads', 'context_id',
+               existing_type=sa.UUID(),
+               nullable=False)
+    op.add_column('reading_plans', sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True))
+    op.execute("UPDATE reading_plans SET updated_at = NOW()")
+    op.alter_column('reading_plans', 'updated_at', nullable=False)
+    
+    op.execute("UPDATE reading_plans SET mode = 'PARETO' WHERE UPPER(mode) = 'PARETO_MODE'")
+    op.execute("UPDATE reading_plans SET mode = 'FULL' WHERE UPPER(mode) = 'FULL_MODE'")
+    op.execute("UPDATE reading_plans SET mode = UPPER(mode)")
+    op.alter_column('reading_plans', 'mode',
+               existing_type=sa.TEXT(),
+               type_=planmode_enum,
+               existing_nullable=False,
+               postgresql_using='UPPER(mode)::planmode')
+    # ### end Alembic commands ###
+
+
+def downgrade() -> None:
+    """Downgrade schema."""
+    # ### commands auto generated by Alembic - please adjust! ###
+    op.alter_column('reading_plans', 'mode',
+               existing_type=sa.Enum('FULL', 'PARETO', name='planmode'),
+               type_=sa.TEXT(),
+               existing_nullable=False)
+    op.drop_column('reading_plans', 'updated_at')
+    op.alter_column('chat_threads', 'context_id',
+               existing_type=sa.UUID(),
+               nullable=True)
+    op.alter_column('chat_messages', 'thread_id',
+               existing_type=sa.UUID(),
+               nullable=True)
+    op.alter_column('chapter_segments', 'mode',
+               existing_type=sa.Enum('FULL', 'PARETO', name='planmode'),
+               type_=sa.TEXT(),
+               existing_nullable=False,
+               existing_server_default=sa.text("'full'::text"))
+    op.alter_column('chapter_segments', 'segment_index',
+               existing_type=sa.INTEGER(),
+               nullable=True)
+    op.alter_column('chapter_segments', 'chapter_id',
+               existing_type=sa.UUID(),
+               nullable=True)
+    op.drop_column('books', 'updated_at')
+    op.alter_column('book_knowledge', 'chapter_id',
+               existing_type=sa.UUID(),
+               nullable=True)
+    # ### end Alembic commands ###
+
+```
+
 ### app\db\migrations\versions\960bf5ca365d_udpate_cascade_role.py
 
 ```py
@@ -1082,341 +1452,6 @@ def downgrade() -> None:
 
 ```
 
-### app\helper\run_background_processing.py
-
-```py
-import asyncio
-import logging
-import os
-import uuid
-
-from sqlmodel import Session, select
-
-from app.core.constant import BookStatus
-from app.core.supabase import supabase
-from app.db.database import engine
-from app.helper.upload2supabase import upload_file_to_supabase
-from app.models.db_models import Book, ChapterSegment
-from app.repositories.audiobook_repo import update_book_status
-from app.repositories.book_knowledge_repo import delete_knowledge_by_chapter
-from app.repositories.chapter_repo import (
-    Chapter,
-    delete_chapter,
-    get_draft_chapters_by_book,
-    update_chapter_review_audio,
-    update_chapter_review_text,
-    update_chapter_status,
-)
-from app.repositories.chapter_segment_repo import bulk_create_segments, delete_segments_by_chapter_and_mode
-from app.services.embed_service import embed_and_save_chapter
-from app.services.llm_service import normalize_text_for_speech
-from app.services.pdf_service import extract_chapters_smart
-from app.services.tts_service import generate_audio_and_get_duration
-
-logger = logging.getLogger("background")
-
-# Chapter concurrency limiter (tối đa 3 chương xử lý song song)
-sem = asyncio.Semaphore(5)
-
-
-# -----------------------------------------------------------------------
-# BACKGROUND: 2 luồng song song RAG + TTS cho từng chapter
-# -----------------------------------------------------------------------
-async def _thread_1_rag(
-    book_id: uuid.UUID,
-    chapter_id: uuid.UUID,
-    raw_text: str,
-) -> None:
-    """Luồng 1: Cắt chunks → Embed → Lưu vào book_knowledge."""
-    with Session(engine) as session:
-        await embed_and_save_chapter(book_id, chapter_id, raw_text, session)
-
-
-async def _thread_2_tts(
-    book_id: uuid.UUID,
-    chapter_id: uuid.UUID,
-    chapter_index: int,
-    raw_text: str,
-    mode: str,
-) -> None:
-    """Luồng 2: LLM rewrite → TTS → Upload Storage → Lưu chapter_segments."""
-    # Step 1: LLM Rewrite
-    obj_chapter = await normalize_text_for_speech(raw_text, mode)
-    main_scripts: list[str] = obj_chapter.get("main_scripts", [])
-    review_text: str = obj_chapter.get("review_script", "")
-
-    # Lưu review_text vào chapter
-    if review_text:
-        with Session(engine) as session:
-            update_chapter_review_text(session, chapter_id, review_text, mode)
-
-    # Step 2: TTS + Upload từng segment
-    segments: list[ChapterSegment] = []
-    for i, script in enumerate(main_scripts):
-        local_file = f"uploads/{uuid.uuid4()}.mp3"
-        os.makedirs("uploads", exist_ok=True)
-        try:
-            duration_ms = await generate_audio_and_get_duration(script, local_file)
-            storage_path = f"{book_id}/chap_{chapter_index + 1}/{mode}/part_{i + 1}.mp3"
-            audio_url = await upload_file_to_supabase(local_file, storage_path, "audios", "audio/mpeg")
-            segments.append(
-                ChapterSegment(
-                    chapter_id=chapter_id,
-                    segment_index=i,
-                    audio_url=audio_url,
-                    duration_ms=duration_ms,
-                    text_content=script,
-                    mode=mode,
-                )
-            )
-        except Exception as seg_err:
-            # Một segment thất bại — log kèm nội dung text để debug
-            text_preview = script[:80] if script else "(empty)"
-            logger.warning(f"⚠️ Segment {i + 1} chương {chapter_index + 1} lỗi TTS ({len(script)} chars, text='{text_preview}...'): {seg_err}")
-        finally:
-            if os.path.exists(local_file):
-                os.remove(local_file)
-
-    # Step 3: Bulk save segments
-    if segments:
-        with Session(engine) as session:
-            bulk_create_segments(session, segments)
-
-    # Step 4 (optional): Sinh audio review
-    if review_text and review_text.strip():
-        local_review = f"uploads/{uuid.uuid4()}.mp3"
-        try:
-            await generate_audio_and_get_duration(review_text, local_review)
-            storage_path = f"{book_id}/chap_{chapter_index + 1}/{mode}/review.mp3"
-            review_url = await upload_file_to_supabase(local_review, storage_path, "audios", "audio/mpeg")
-            with Session(engine) as session:
-                update_chapter_review_audio(session, chapter_id, review_url, mode)
-        except Exception as rev_err:
-            logger.warning(f"⚠️ Review audio chương {chapter_index + 1} lỗi, bỏ qua: {rev_err}")
-        finally:
-            if os.path.exists(local_review):
-                os.remove(local_review)
-
-
-async def _process_single_chapter(
-    book_id: uuid.UUID,
-    chapter_id: uuid.UUID,
-    chapter_index: int,
-    raw_text: str,
-    mode: str,
-) -> None:
-    """Xử lý 1 chương: chạy 2 luồng song song, bị giới hạn bởi Semaphore."""
-    async with sem:
-        try:
-            await asyncio.gather(
-                _thread_1_rag(book_id, chapter_id, raw_text),
-                _thread_2_tts(book_id, chapter_id, chapter_index, raw_text, mode),
-            )
-            with Session(engine) as session:
-                update_chapter_status(session, chapter_id, BookStatus.READY)
-            logger.info(f"✅ Chapter {chapter_index + 1} READY")
-        except Exception as e:
-            logger.error(f"❌ Error processing chapter {chapter_index + 1}: {e}")
-            # [FIX BUG 2] Rollback đúng thứ tự:
-            # Phải xóa book_knowledge (có FK trỏ vào chapter) TRƯỚC khi xóa chapter
-            try:
-                with Session(engine) as session:
-                    delete_knowledge_by_chapter(session, chapter_id)
-                    delete_chapter(session, chapter_id)
-                logger.info(f"🗑️ Rollback chapter {chapter_index + 1} thành công.")
-            except Exception as del_err:
-                logger.error(f"Failed to rollback chapter {chapter_index + 1}: {del_err}")
-            raise
-
-
-async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
-    """
-    Điều phối xử lý tất cả chapters song song.
-    1. Fetch draft chapters từ DB.
-    2. Download PDF từ Supabase Storage (file_url đã lưu lúc /upload).
-    3. Re-extract text per-chapter, ghép với draft chapters theo chapter_index.
-    4. Chạy 2 luồng song song: RAG + TTS cho từng chapter.
-    """
-    import io
-
-    try:
-        # 1. Fetch book + draft chapters từ DB
-        with Session(engine) as session:
-            book = session.get(Book, book_id)
-            draft_chapters = get_draft_chapters_by_book(session, book_id)
-
-        if not book:
-            logger.error(f"Book {book_id} not found")
-            return
-
-        if not draft_chapters:
-            with Session(engine) as session:
-                update_book_status(session, book_id, BookStatus.ERROR, "Không có chapter nào để xử lý.")
-            return
-
-        if not book.file_url:
-            with Session(engine) as session:
-                update_book_status(session, book_id, BookStatus.ERROR, "file_url chưa được lưu — PDF chưa upload lên Storage.")
-            logger.error(f"book.file_url is missing for book {book_id}")
-            return
-
-        # 2. Download PDF từ Supabase Storage
-        storage_path = f"{book_id}/original.pdf"
-        logger.info(f"⬇️  Downloading PDF from Storage: {storage_path}")
-        pdf_bytes: bytes = supabase.storage.from_("raw_books").download(storage_path)
-        pdf_file = io.BytesIO(pdf_bytes)
-
-        # 3. Re-extract chapters (giữ text thật theo từng chapter)
-        chapters_data = await extract_chapters_smart(pdf_file)
-
-        # Ghép chapters_data với draft_chapters theo chapter_index
-        # (draft_chapters đã sort theo chapter_index từ get_draft_chapters_by_book)
-        chapters_map: dict[int, str] = {i: chap.get("text", "") for i, chap in enumerate(chapters_data)}
-
-        # 4. Tạo tasks song song cho từng chapter
-        tasks = []
-        for draft_chap in draft_chapters:
-            raw_text = chapters_map.get(draft_chap.chapter_index, "")
-            if not raw_text.strip():
-                logger.warning(f"⚠️ Chapter {draft_chap.chapter_index + 1} '{draft_chap.title}' không có text — bỏ qua.")
-                continue
-            tasks.append(
-                _process_single_chapter(
-                    book_id,
-                    draft_chap.id,
-                    draft_chap.chapter_index,
-                    raw_text,
-                    mode,
-                )
-            )
-
-        await asyncio.gather(*tasks)
-
-        with Session(engine) as session:
-            update_book_status(session, book_id, BookStatus.READY)
-        logger.info(f"🎉 Book {book_id} READY — tất cả chapters đã xử lý xong.")
-
-    except Exception as e:
-        with Session(engine) as session:
-            update_book_status(session, book_id, BookStatus.ERROR, str(e))
-        logger.error(f"❌ LỖI XỬ LÝ SÁCH {book_id}: {e}")
-
-
-async def _process_switch_mode_chapter(
-    book_id: uuid.UUID,
-    chapter_id: uuid.UUID,
-    chapter_index: int,
-    raw_text: str,
-    new_mode: str,
-) -> None:
-    """Xử lý switch mode 1 chương: chỉ chạy TTS, xóa segments cũ của mode này trước khi tạo."""
-    async with sem:
-        try:
-            # 1. Xoá audio cũ của mode chuẩn bị gen (để ko bị trùng)
-            with Session(engine) as session:
-                delete_segments_by_chapter_and_mode(session, chapter_id, new_mode)
-
-            # 2. Sinh Audio TTS mới
-            await _thread_2_tts(book_id, chapter_id, chapter_index, raw_text, new_mode)
-
-            logger.info(f"✅ Chapter {chapter_index + 1} SWITCH MODE {new_mode} READY")
-        except Exception as e:
-            logger.error(f"❌ Error switching mode chapter {chapter_index + 1}: {e}")
-            raise
-
-
-async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str) -> None:
-    """
-    Luồng sinh audio riêng khi User switch mode:
-    Bỏ qua RAG, lấy lại text từ PDF, gen audio TTS.
-    """
-    import io
-
-    try:
-        with Session(engine) as session:
-            book = session.get(Book, book_id)
-            chapters = session.exec(select(Chapter).where(Chapter.book_id == book_id)).all()
-
-        if not book or not book.file_url:
-            logger.error(f"Cannot switch mode for book {book_id}: Invalid book or file_url")
-            return
-
-        # Tải PDF và lấy text gốc
-        storage_path = f"{book_id}/original.pdf"
-        logger.info(f"⬇️  Downloading PDF for Switch Mode: {storage_path}")
-        pdf_bytes = supabase.storage.from_("raw_books").download(storage_path)
-        pdf_file = io.BytesIO(pdf_bytes)
-        chapters_data = await extract_chapters_smart(pdf_file)
-        chapters_map = {i: chap.get("text", "") for i, chap in enumerate(chapters_data)}
-
-        # Chạy task song song cho các chapter
-        tasks = []
-        for chap in chapters:
-            raw_text = chapters_map.get(chap.chapter_index, "")
-            if raw_text.strip():
-                tasks.append(_process_switch_mode_chapter(book_id, chap.id, chap.chapter_index, raw_text, new_mode))
-
-        await asyncio.gather(*tasks)
-        logger.info(f"🎉 Sách {book_id} đã gen xong audio cho mode: {new_mode}.")
-
-    except Exception as e:
-        logger.error(f"❌ LỖI SWITCH MODE SÁCH {book_id}: {e}")
-
-```
-
-### app\helper\upload2supabase.py
-
-```py
-import asyncio
-import logging
-
-import aiofiles
-
-from app.core.supabase import supabase
-
-logger = logging.getLogger("upload")
-
-
-# -----------------------------------------------------------------------
-# Helper: Upload file lên Supabase Storage
-# -----------------------------------------------------------------------
-async def upload_file_to_supabase(
-    local_path: str,
-    storage_path: str,
-    bucket: str,
-    content_type: str,
-    max_retries: int = 3,
-    upsert: bool = True,
-) -> str:
-    """
-    Upload file lên Supabase Storage và trả về public URL.
-
-    upsert=True (mặc định): Ghi đè nếu file đã tồn tại.
-    Cần thiết để switch-mode hoạt động đúng (tránh 409 Duplicate).
-    """
-    for attempt in range(max_retries):
-        try:
-            async with aiofiles.open(local_path, "rb") as f:
-                file_bytes = await f.read()
-            supabase.storage.from_(bucket).upload(
-                path=storage_path,
-                file=file_bytes,
-                file_options={
-                    "content-type": content_type,
-                    "upsert": "true" if upsert else "false",
-                },
-            )
-            return supabase.storage.from_(bucket).get_public_url(storage_path)
-        except Exception as e:
-            if attempt < max_retries - 1:
-                logger.warning(f"Upload failed (attempt {attempt + 1}), retrying...")
-                await asyncio.sleep(2**attempt)
-            else:
-                logger.error(f"Upload failed after {max_retries} attempts: {e}")
-                raise
-
-```
-
 ### app\main.py
 
 ```py
@@ -1428,16 +1463,19 @@ from fastapi.responses import JSONResponse, StreamingResponse
 
 from app.api.v1.routers import audiobooks, live, study_context, upload
 from app.core.exceptions import AppException
+from app.core.logger import log
 from app.services.tts_service import stream_text_to_speech_edge
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # --- Chạy khi STARTUP ---
+    log.info("Khởi động hệ thống... (TRIAM)")
     # Schema được quản lý bởi Alembic. Chạy: alembic upgrade head
-    yield  # Sau từ khóa yield là lúc ứng dụng đang chạy (đang phục vụ người dùng)
+    # Sau từ khóa yield là lúc ứng dụng đang chạy (đang phục vụ người dùng)
+    yield
     # --- Chạy khi SHUTDOWN ---
-    print("Đang dọn dẹp tài nguyên...")
+    log.info("Đang dọn dẹp tài nguyên...")
 
 
 app = FastAPI(title="TRIAM Assistant API", lifespan=lifespan)
@@ -1448,14 +1486,22 @@ app = FastAPI(title="TRIAM Assistant API", lifespan=lifespan)
 # ---------------------------------------------------------------------------
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
+    log.error(f"AppException: {exc.detail} - Status Code: {exc.status_code}")
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    log.exception("Unhandled Exception:")
+    return JSONResponse(status_code=500, content={"detail": "Lỗi hệ thống nội bộ."})
 
 
 # Include Router
 app.include_router(upload.router, prefix="/api/v1", tags=["Upload"])
 app.include_router(live.router, prefix="/api/v1", tags=["Live"])
 app.include_router(audiobooks.router, prefix="/api/v1", tags=["Audiobooks"])
-app.include_router(study_context.router, prefix="/api/v1", tags=["Study Context"])
+app.include_router(study_context.router, prefix="/api/v1",
+                   tags=["Study Context"])
 
 
 @app.get("/")
@@ -1489,7 +1535,8 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Text
+from sqlalchemy import Boolean, Column, func, DateTime, ForeignKey, Integer, Text
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlmodel import Field, Relationship, SQLModel
 
@@ -1518,11 +1565,12 @@ class Book(SQLModel, table=True):
     total_chapters: Optional[int] = Field(default=None, sa_column=Column(Integer))
     status: Optional[str] = Field(default=None, sa_column=Column(Text))
     error_message: Optional[str] = Field(default=None, sa_column=Column(Text))
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
     # === RELATIONSHIPS ===
     chapters: list["Chapter"] = Relationship(back_populates="book", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
-    reading_plans: list["ReadingPlan"] = Relationship(back_populates="book")
+    reading_plans: list["ReadingPlan"] = Relationship(back_populates="book", sa_relationship_kwargs={"cascade": "all, delete-orphan"})
     contexts: list["StudyContext"] = Relationship(back_populates="books", link_model=StudyContextDocumentLink)
 
 
@@ -1531,11 +1579,12 @@ class ReadingPlan(SQLModel, table=True):
 
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
-    mode: PlanMode = Field(sa_column=Column(Text, nullable=False))
+    mode: PlanMode = Field(sa_column=Column(SAEnum(PlanMode), nullable=False))
     pace: int = Field(sa_column=Column(Integer, nullable=False))
     schedule_config: Optional[Any] = Field(default=None, sa_column=Column(JSONB))
     status: str = Field(sa_column=Column(Text, nullable=False))
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
     # === RELATIONSHIPS ===
     book: Book = Relationship(back_populates="reading_plans")
@@ -1561,12 +1610,12 @@ class ChapterSegment(SQLModel, table=True):
     __tablename__ = "chapter_segments"
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    chapter_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="CASCADE"), index=True))
-    segment_index: int = Field(sa_column=Column(Integer))
+    chapter_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="CASCADE"), index=True, nullable=False))
+    segment_index: int = Field(sa_column=Column(Integer, nullable=False))
     audio_url: Optional[str] = Field(default=None, sa_column=Column(Text))
     text_content: Optional[str] = Field(default=None, sa_column=Column(Text))
     duration_ms: Optional[int] = Field(default=None, sa_column=Column(Integer))
-    mode: PlanMode = Field(sa_column=Column(Text, nullable=False))
+    mode: PlanMode = Field(sa_column=Column(SAEnum(PlanMode), nullable=False))
 
     # === RELATIONSHIPS ===
     chapter: Chapter = Relationship(back_populates="segments")
@@ -1577,7 +1626,7 @@ class BookKnowledge(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
-    chapter_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="CASCADE"), index=True))
+    chapter_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="CASCADE"), index=True, nullable=False))
     chunk_index: int = Field(sa_column=Column(Integer, nullable=False))
     content: str = Field(sa_column=Column(Text, nullable=False))
     # TODO: REPALCE 1536 (OpenAI text-embedding-3-small)
@@ -1594,8 +1643,8 @@ class StudyContext(SQLModel, table=True):
     user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
     title: str = Field(sa_column=Column(Text, nullable=False))
     is_auto_generated: bool = Field(default=False)
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
     # === RELATIONSHIPS ===
     books: list[Book] = Relationship(back_populates="contexts", link_model=StudyContextDocumentLink)
@@ -1605,10 +1654,10 @@ class StudyContext(SQLModel, table=True):
 class ChatThread(SQLModel, table=True):
     __tablename__ = "chat_threads"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    context_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("study_contexts.id", ondelete="CASCADE"), index=True))
+    context_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("study_contexts.id", ondelete="CASCADE"), index=True, nullable=False))
     title: str = Field(sa_column=Column(Text, nullable=False))
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
     # === RELATIONSHIPS ===
     context: StudyContext = Relationship(back_populates="threads")
@@ -1618,11 +1667,11 @@ class ChatThread(SQLModel, table=True):
 class ChatMessage(SQLModel, table=True):
     __tablename__ = "chat_messages"
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    thread_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chat_threads.id", ondelete="CASCADE"), index=True))
+    thread_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chat_threads.id", ondelete="CASCADE"), index=True, nullable=False))
     is_user: bool = Field(sa_column=Column(Boolean, nullable=False))
     text: str = Field(sa_column=Column(Text, nullable=False))
     source: str = Field(sa_column=Column(Text, nullable=False))
-    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), nullable=False))
+    timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
 
     # === RELATIONSHIPS ===
     thread: ChatThread = Relationship(back_populates="messages")
@@ -1637,12 +1686,13 @@ from typing import Optional
 
 from sqlmodel import Session, select
 
+from app.core.logger import log
 from app.core.supabase import supabase
 from app.models.db_models import Book
 
 
 def get_audiobooks(session: Session) -> list[Book]:
-    return session.exec(select(Book)).all()
+    return list(session.exec(select(Book)).all())
 
 
 def get_book_by_id(session: Session, book_id: uuid.UUID) -> Optional[Book]:
@@ -1682,27 +1732,30 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID):
 
     try:
         # 1. Lấy danh sách file từ tất cả bucket liên quan qua RPC (SELECT)
-        result = supabase.rpc("get_book_asset_paths", {"bucket_names": target_buckets, "book_id_prefix": str_book_id}).execute()
+        result = supabase.rpc("get_book_asset_paths", {
+                              "bucket_names": target_buckets, "book_id_prefix": str_book_id}).execute()
 
         # 2. Phân loại và xóa file qua Storage API
         if result.data:
+            data_list = result.data if isinstance(result.data, list) else []
             for bucket in target_buckets:
                 # Lọc ra danh sách file thuộc bucket hiện tại
-                paths = [item["name"] for item in result.data if item["bucket_id"] == bucket]
+                paths = [str(item["name"])
+                         for item in data_list if isinstance(item, dict) and item.get("bucket_id") == bucket]
 
                 if paths:
                     # Xóa hàng loạt file trong bucket này (Đúng quy trình API)
                     supabase.storage.from_(bucket).remove(paths)
-                    print(f"Đã xóa {len(paths)} files từ bucket: {bucket}")
+                    log.info(f"Đã xóa {len(paths)} files từ bucket: {bucket}")
 
         # 3. Xóa record trong DB
         delete_book(session, book_id)
-        print(f"Đã dọn dẹp sạch sẽ database cho book: {str_book_id}")
+        log.info(f"Đã dọn dẹp sạch sẽ database cho book: {str_book_id}")
 
     except Exception as e:
         # Rollback session nếu có lỗi ở tầng DB để tránh mất dữ liệu không đồng bộ
         session.rollback()
-        print(f"Lỗi nghiêm trọng khi xóa book {str_book_id}: {e}")
+        log.exception(f"Lỗi nghiêm trọng khi xóa book {str_book_id}: {e}")
         raise e
 
 ```
@@ -1742,15 +1795,17 @@ def delete_knowledge_by_chapter(session: Session, chapter_id: uuid.UUID) -> None
 import json
 import uuid
 
-from aiohttp.web import HTTPException
-from sqlmodel import Session, select
+from fastapi import HTTPException
+from sqlmodel import Session, col, select
 
+from app.core.logger import log
 from app.models.db_models import Chapter
 
 
 def get_draft_chapters_by_book(session: Session, book_id: uuid.UUID) -> list[Chapter]:
     """Lấy danh sách chapters có status='DRAFT' theo book_id, sort theo chapter_index."""
-    statement = select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_index)
+    statement = select(Chapter).where(Chapter.book_id ==
+                                      book_id).order_by(col(Chapter.chapter_index))
     return list(session.exec(statement).all())
 
 
@@ -1765,13 +1820,16 @@ def update_chapter_review_audio(session: Session, chapter_id: uuid.UUID, review_
     chapter = session.get(Chapter, chapter_id)
     if chapter:
         try:
-            reviews_audio = json.loads(chapter.review_audio_url) if chapter.review_audio_url else {}
+            reviews_audio = json.loads(
+                chapter.review_audio_url) if chapter.review_audio_url else {}
         except (json.JSONDecodeError, TypeError) as e:
-            print(f"Data integrity error: {e}")
-            raise HTTPException(status_code=500, detail="Data integrity error") from e
+            log.error(f"Data integrity error: {e}")
+            raise HTTPException(
+                status_code=500, detail="Data integrity error") from e
 
         reviews_audio[mode] = review_audio_url
-        chapter.review_audio_url = json.dumps(reviews_audio, ensure_ascii=False)
+        chapter.review_audio_url = json.dumps(
+            reviews_audio, ensure_ascii=False)
         session.add(chapter)
         session.commit()
 
@@ -1788,10 +1846,12 @@ def update_chapter_review_text(session: Session, chapter_id: uuid.UUID, review_t
     chapter = session.get(Chapter, chapter_id)
     if chapter:
         try:
-            reviews_text = json.loads(chapter.review_text) if chapter.review_text else {}
+            reviews_text = json.loads(
+                chapter.review_text) if chapter.review_text else {}
         except (json.JSONDecodeError, TypeError) as e:
-            print(f"Data integrity error: {e}")
-            raise HTTPException(status_code=500, detail="Data integrity error") from e
+            log.error(f"Data integrity error: {e}")
+            raise HTTPException(
+                status_code=500, detail="Data integrity error") from e
 
         reviews_text[mode] = review_text
         chapter.review_text = json.dumps(reviews_text, ensure_ascii=False)
@@ -2059,6 +2119,180 @@ class SwitchModeRequest(BaseModel):
 
 ```
 
+### app\schemas\responses\audiobook_res.py
+
+```py
+"""
+app/schemas/responses/audiobook_res.py
+=======================================
+Response DTOs cho module Audiobook.
+
+Chỉ expose các trường Flutter FE thực sự cần — không lộ thông tin nội bộ
+(user_id, error_message, db relationships, ...).
+"""
+
+import uuid
+from datetime import datetime
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict
+
+
+class BookResponse(BaseModel):
+    """DTO cho một cuốn sách — dùng cho GET /books và GET /books/{id}."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    title: str
+    author: Optional[str] = None
+    total_chapters: Optional[int] = None
+    status: Optional[str] = None
+    file_url: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+
+class SegmentResponse(BaseModel):
+    """DTO cho một segment audio trong chapter."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    segment_index: int
+    audio_url: Optional[str] = None
+    text_content: Optional[str] = None
+    duration_ms: Optional[int] = None
+    mode: str
+
+
+class ChapterDetailResponse(BaseModel):
+    """DTO cho một chapter kèm danh sách segments."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    title: str
+    status: Optional[str] = None
+    chapter_index: int
+    review_text: str = ""
+    review_audio_url: str = ""
+    chapter_segments: list[SegmentResponse] = []
+
+
+class BookDetailResponse(BaseModel):
+    """DTO cho response của GET /books/{id}/details — sách kèm toàn bộ chapters."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    book_status: Optional[str] = None
+    total_chapters: Optional[int] = None
+    chapters: list[ChapterDetailResponse] = []
+
+
+class SwitchModeResponse(BaseModel):
+    """DTO cho response của POST /books/{id}/switch-mode."""
+
+    message: str
+    needs_generation: bool
+
+```
+
+### app\schemas\responses\study_context_res.py
+
+```py
+"""
+app/schemas/responses/study_context_res.py
+===========================================
+Response DTOs cho module Study Context.
+
+Chỉ expose các trường Flutter FE thực sự cần — không lộ user_id,
+không kéo theo lazy-load relationships.
+"""
+
+import uuid
+from datetime import datetime
+
+from pydantic import BaseModel, ConfigDict
+
+
+class StudyContextResponse(BaseModel):
+    """DTO cho StudyContext — ẩn user_id (internal field)."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    title: str
+    is_auto_generated: bool = False
+    created_at: datetime
+    updated_at: datetime
+
+
+class ChatThreadResponse(BaseModel):
+    """DTO cho ChatThread — không kéo theo relationship messages."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    context_id: uuid.UUID
+    title: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class ChatMessageResponse(BaseModel):
+    """DTO cho ChatMessage — không kéo theo relationship thread."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    thread_id: uuid.UUID
+    is_user: bool
+    text: str
+    source: str
+    timestamp: datetime
+
+
+class ContextDocumentResponse(BaseModel):
+    """DTO cho StudyContextDocumentLink."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    context_id: uuid.UUID
+    book_id: uuid.UUID
+
+```
+
+### app\schemas\responses\__init__.py
+
+```py
+# Response DTO schemas — import từ đây cho gọn
+from app.schemas.responses.audiobook_res import (
+    BookDetailResponse,
+    BookResponse,
+    SwitchModeResponse,
+)
+from app.schemas.responses.study_context_res import (
+    ChatMessageResponse,
+    ChatThreadResponse,
+    ContextDocumentResponse,
+    StudyContextResponse,
+)
+
+__all__ = [
+    # Audiobook
+    "BookResponse",
+    "BookDetailResponse",
+    "SwitchModeResponse",
+    # Study Context
+    "StudyContextResponse",
+    "ChatThreadResponse",
+    "ChatMessageResponse",
+    "ContextDocumentResponse",
+]
+
+```
+
 ### app\schemas\study_context.py
 
 ```py
@@ -2084,12 +2318,34 @@ class ChatThreadUpdate(BaseModel):
 
 ```
 
+### app\schemas\user.py
+
+```py
+# app/schemas/user.py
+from pydantic import BaseModel
+from typing import Optional
+from uuid import UUID
+
+
+class UserTokenPayload(BaseModel):
+    """
+    Schema định nghĩa payload chứa trong JWT token của Supabase trả về
+    """
+    sub: UUID
+    email: Optional[str] = None
+    role: Optional[str] = None
+    aud: Optional[str] = None
+    exp: Optional[int] = None
+
+```
+
 ### app\services\agent_voice_service.py
 
 ```py
 import asyncio
 import json
 import uuid
+from app.core.logger import log
 from datetime import datetime, timezone
 from typing import Annotated
 
@@ -2105,7 +2361,7 @@ from livekit.agents import (
 )
 from livekit.agents.llm import ChatMessage as LLMMessage
 from livekit.agents.voice import io as voice_io
-from livekit.plugins import noise_cancellation, silero
+from livekit.plugins import noise_cancellation, silero, openai, deepgram, google
 from sqlmodel import Session, select
 from supabase import Client, create_client
 from tavily import TavilyClient
@@ -2146,10 +2402,11 @@ class ChatTextOutput(voice_io.TextOutput):
         message = "".join(self._buffer)
         self._buffer.clear()
         preview = message if len(message) <= 120 else f"{message[:120]}..."
-        print(f"[Agent] Text output ({len(message)} chars): {preview}")
+        log.info(f"Text output ({len(message)} chars): {preview}")
 
         if self._save_cb:
-            asyncio.create_task(asyncio.to_thread(self._save_cb, message, False))
+            asyncio.create_task(asyncio.to_thread(
+                self._save_cb, message, False))
 
         async def _publish(text: str) -> None:
             if not self._room.isconnected():
@@ -2161,7 +2418,7 @@ class ChatTextOutput(voice_io.TextOutput):
                     topic=self._topic,
                 )
             except Exception as exc:
-                print(f"[Agent] Text output publish failed: {exc}")
+                log.info(f"Text output publish failed: {exc}")
 
         # Flush is sync; schedule async publish.
         self._flush_task = asyncio.create_task(_publish(message))
@@ -2227,7 +2484,8 @@ class TriamAssistant(Agent):
                 max_results=3,
             ),
         )
-        result_text = "\n".join([f"- {r['content']}" for r in search_result["results"]])
+        result_text = "\n".join(
+            [f"- {r['content']}" for r in search_result["results"]])
         return result_text
 
 
@@ -2237,8 +2495,11 @@ async def entrypoint(ctx: JobContext):
 
     try:
         job_meta = json.loads(ctx.job.metadata or "{}")
-        book_id = job_meta.get("book_id", "")
-        thread_id = job_meta.get("thread_id", "")
+        # TODO: Hardcoded to test console => My intention
+        book_id = job_meta.get(
+            "book_id", "9cda7cbc-c9e4-4325-9fc9-cb74d71e14b3")
+        thread_id = job_meta.get(
+            "thread_id", "f25f309f-1dbb-4517-90b9-5fbbc88e3070")
         document_ids = job_meta.get("document_ids", [])
 
         if book_id and not document_ids:
@@ -2249,35 +2510,55 @@ async def entrypoint(ctx: JobContext):
         document_ids = []
 
     if not document_ids:
-        print("[Agent] ❌ Không tìm thấy document_ids trong metadata! Thoát.")
+        log.info("❌ Không tìm thấy document_ids trong metadata! Thoát.")
         return
 
-    print(f"[Agent] ✅ Document IDs từ metadata: {document_ids}")
-    print(f"[Agent] 🏠 Room Name (session): {ctx.room.name}")
-    print(f"[Agent] Bat dau phien doc sach cho Thread ID: {thread_id}")
+    log.info(f"✅ Document IDs từ metadata: {document_ids}")
+    log.info(f"🏠 Room Name (session): {ctx.room.name}")
+    log.info(f"Bat dau phien doc sach cho Thread ID: {thread_id}")
 
+    # session = AgentSession(
+    #     stt=inference.STT(
+    #         model="deepgram/nova-3",  # Nova-3 is more accurate for Vietnamese than Flux-General
+    #         language="vi",
+    #         extra_kwargs={"language_hints": ["vi"], "smart_format": True},
+    #     ),
+    #     llm=inference.LLM(
+    #         model="openai/gpt-5.3-chat-latest",
+    #     ),
+    #     tts=inference.TTS(
+    #         model="elevenlabs/eleven_flash_v2_5",
+    #         language="vi",
+    #         extra_kwargs={
+    #             "voice_id": "Lcf7z35dm7QXBoD0f107",  # Custom voice Vietnamese - Linh
+    #             "add_timestamps": True,
+    #             "voice_settings": {
+    #                 "stability": 0.45,  # Giảm để AI nhấn dấu hỏi/ngã chuẩn hơn
+    #                 "similarity_boost": 0.8,  # Tăng để giữ đặc trưng giọng người Việt
+    #                 "style": 0.1,  # Thêm chút cảm xúc
+    #                 "use_speaker_boost": True,
+    #             },
+    #         },
+    #     ),
+    #     vad=silero.VAD.load(),
+    # )
     session = AgentSession(
-        stt=inference.STT(
-            model="deepgram/nova-3",  # Nova-3 is more accurate for Vietnamese than Flux-General
+        stt=deepgram.STT(
+            api_key=settings.DEEPGRAM_API_KEY,
+            model="nova-3",
             language="vi",
-            extra_kwargs={"language_hints": ["vi"], "smart_format": True},
+            smart_format=True,
         ),
-        llm=inference.LLM(
-            model="openai/gpt-5.3-chat-latest",
+        llm=google.LLM(
+            api_key=settings.GEMINI_API_KEY,
+            model="gemini-2.5-flash",
         ),
-        tts=inference.TTS(
-            model="elevenlabs/eleven_flash_v2_5",
-            language="vi",
-            extra_kwargs={
-                "voice_id": "Lcf7z35dm7QXBoD0f107",  # Custom voice Vietnamese - Linh
-                "add_timestamps": True,
-                "voice_settings": {
-                    "stability": 0.45,  # Giảm để AI nhấn dấu hỏi/ngã chuẩn hơn
-                    "similarity_boost": 0.8,  # Tăng để giữ đặc trưng giọng người Việt
-                    "style": 0.1,  # Thêm chút cảm xúc
-                    "use_speaker_boost": True,
-                },
-            },
+        tts=openai.TTS(
+            api_key=settings.OPENAI_API_KEY,
+            model="gpt-4o-mini-tts",
+            voice="nova",
+            speed=1.3,
+            instructions="Hãy nói với tốc độ nhanh, hào hứng và ngắt nghỉ dứt khoát."
         ),
         vad=silero.VAD.load(),
     )
@@ -2287,24 +2568,25 @@ async def entrypoint(ctx: JobContext):
             return
         try:
             with Session(engine) as db:
-                new_msg = ChatMessage(thread_id=uuid.UUID(thread_id), is_user=is_user, text=text, source="livekit", timestamp=datetime.now(timezone.utc))
+                new_msg = ChatMessage(thread_id=uuid.UUID(
+                    thread_id), is_user=is_user, text=text, source="livekit", timestamp=datetime.now(timezone.utc))
                 db.add(new_msg)
                 db.commit()
         except Exception as e:
-            print(f"[Agent] Lỗi khi lưu message: {e}")
+            log.info(f"Lỗi khi lưu message: {e}")
 
     # Note: We use a custom data channel ("lk.chat") for text input instead of relying on room_io.TextInputEvent,
     # because TextInputEvent may not be supported or reliable in all client implementations. By listening to data packets directly, we can ensure that text input works consistently regardless of the client.
     # THIS IS A TEXT STREAM implement
     async def handle_text_input(sess: AgentSession, ev: room_io.TextInputEvent) -> None:
         participant_id = ev.participant.identity if ev.participant else "unknown"
-        print(f"[Agent] Text input from {participant_id}: {ev.text}")
+        log.info(f"Text input from {participant_id}: {ev.text}")
         asyncio.create_task(asyncio.to_thread(_save_message, ev.text, True))
         await sess.interrupt()
         sess.generate_reply(user_input=ev.text)
 
     async def handle_data_input(text: str, participant_id: str | None) -> None:
-        print(f"[Agent] Data input from {participant_id or 'unknown'}: {text}")
+        log.info(f"Data input from {participant_id or 'unknown'}: {text}")
         asyncio.create_task(asyncio.to_thread(_save_message, text, True))
         await session.interrupt()
         session.generate_reply(user_input=text)
@@ -2315,7 +2597,7 @@ async def entrypoint(ctx: JobContext):
         try:
             text = packet.data.decode("utf-8")
         except Exception as exc:
-            print(f"[Agent] Data input decode failed: {exc}")
+            log.info(f"Data input decode failed: {exc}")
             return
         participant_id = packet.participant.identity if packet.participant else None
         asyncio.create_task(handle_data_input(text, participant_id))
@@ -2326,13 +2608,15 @@ async def entrypoint(ctx: JobContext):
     def on_user_speech(msg: LLMMessage):
         content = getattr(msg, "content", getattr(msg, "text", ""))
         if content:
-            asyncio.create_task(asyncio.to_thread(_save_message, str(content), True))
+            asyncio.create_task(asyncio.to_thread(
+                _save_message, str(content), True))
 
     @session.on("agent_speech_committed")
     def on_agent_speech(msg: LLMMessage):
         content = getattr(msg, "content", getattr(msg, "text", ""))
         if content:
-            asyncio.create_task(asyncio.to_thread(_save_message, str(content), False))
+            asyncio.create_task(asyncio.to_thread(
+                _save_message, str(content), False))
 
     await session.start(
         room=ctx.room,
@@ -2341,7 +2625,8 @@ async def entrypoint(ctx: JobContext):
             audio_input=room_io.AudioInputOptions(
                 noise_cancellation=lambda _: noise_cancellation.BVC(),
             ),
-            text_input=room_io.TextInputOptions(text_input_cb=handle_text_input),
+            text_input=room_io.TextInputOptions(
+                text_input_cb=handle_text_input),
             text_output=room_io.TextOutputOptions(
                 sync_transcription=False,
                 next_in_chain=ChatTextOutput(ctx.room, save_cb=_save_message),
@@ -2361,12 +2646,14 @@ async def entrypoint(ctx: JobContext):
         history_msgs = await asyncio.to_thread(_load_history)
         if hasattr(session, "chat_ctx") and session.chat_ctx:
             for msg in history_msgs:
-                session.chat_ctx.append(role="user" if msg.is_user else "assistant", text=msg.text)
+                session.chat_ctx.append(
+                    role="user" if msg.is_user else "assistant", text=msg.text)
     except Exception as e:
-        print(f"[Agent] Lỗi khi load history: {e}")
+        log.info(f"Lỗi khi load history: {e}")
 
     await session.generate_reply(
-        instructions=("Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này."),
+        instructions=(
+            "Chào bạn! Tôi là trợ lý ảo TRIAM. Tôi sẵn sàng hỗ trợ bạn ngay lúc này."),
     )
 
 
@@ -2398,9 +2685,9 @@ from app.core.exceptions import (
     NoReadingPlanError,
     ReadingPlanNotFoundError,
 )
-from app.helper.run_background_processing import run_switch_mode_processing
 from app.models.db_models import Book, Chapter, ChapterSegment, ReadingPlan
 from app.repositories.chapter_segment_repo import count_segments_by_book_and_mode
+from app.services.workers.book_pipeline import run_switch_mode_processing
 
 
 def _extract_json_content(raw_data: Any, mode: str) -> str:
@@ -2529,6 +2816,7 @@ from openai import AsyncOpenAI
 from sqlmodel import Session
 
 from app.core.config import settings
+from app.core.logger import log
 from app.models.db_models import BookKnowledge
 from app.repositories.book_knowledge_repo import bulk_create_knowledge
 
@@ -2574,7 +2862,7 @@ async def embed_and_save_chapter(
     ]
 
     bulk_create_knowledge(session, records)
-    print(f"✅ RAG: Saved {len(records)} vectors for chapter_id={chapter_id}")
+    log.info(f"RAG: Saved {len(records)} vectors for chapter_id={chapter_id}")
 
 ```
 
@@ -2644,17 +2932,18 @@ def get_token_for_thread(session: Session, thread_id: uuid.UUID) -> dict:
 
 ```py
 import json
-import re
 
 from openai import AsyncOpenAI
 
 from app.core.config import settings
 from app.core.constant import PlanMode
 
-# Sử dụng Gemini qua OpenAI-compatible API
-client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY, base_url=settings.GEMINI_BASE_URL)
+from app.core.logger import log as logger
 
-# Prompt được nâng cấp để trả về JSON và xử lý logic chia đoạn thông minh
+# Sử dụng Gemini qua OpenAI-compatible API
+client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY,
+                     base_url=settings.GEMINI_BASE_URL)
+
 SYSTEM_PROMPT_REWRITE_FULL = """
 Bạn là một Biên tập viên Sách nói & Chuyên gia Giáo dục (TRIAM AI).
 Nhiệm vụ: Chuyển đổi văn bản thô thành kịch bản nói (TTS Script) và trích xuất nội dung ôn tập.
@@ -2733,95 +3022,41 @@ Output: Chỉ trả về JSON thuần.
 """
 
 
-def _chunk_text_fallback(text: str, max_chars: int = 1200) -> list[str]:
-    """Phân chia văn bản thô dài thành các chunk nhỏ nếu LLM thất bại."""
-    paragraphs = re.split(r"\n+", text.strip())
-    chunks = []
-    current_chunk = []
-    current_length = 0
-
-    for p in paragraphs:
-        if len(p) > max_chars:
-            sentences = re.split(r"(?<=[.!?])\s+", p)
-            for s in sentences:
-                if current_length + len(s) > max_chars and current_chunk:
-                    chunks.append(" ".join(current_chunk))
-                    current_chunk = [s]
-                    current_length = len(s)
-                else:
-                    current_chunk.append(s)
-                    current_length += len(s)
-        else:
-            if current_length + len(p) > max_chars and current_chunk:
-                chunks.append("\n".join(current_chunk))
-                current_chunk = [p]
-                current_length = len(p)
-            else:
-                current_chunk.append(p)
-                current_length += len(p)
-
-    if current_chunk:
-        chunks.append("\n".join(current_chunk))
-
-    return chunks
-
-
 # ---------------------------------------------------------------------------
 # MAIN FUNCTION
 # ---------------------------------------------------------------------------
 
+
 async def normalize_text_for_speech(raw_text: str, mode: str) -> dict:
     """
-    Gửi text thô cho Gemini/GPT để biên tập và cấu trúc lại dữ liệu.
-    Trả về Dictionary: {"main_scripts": [], "review_script": ""}
-    """
-    # Sử dụng fallback phân rã động thay vì ném cả đoạn lớn vào 1 chuỗi.
-    # Ngăn chặn việc LLM lỗi làm file audio bị dài 18+ phút.
-    fallback_result = {"main_scripts": _chunk_text_fallback(raw_text), "review_script": "Không thể tạo tóm tắt do độ dài văn bản gốc quá lớn."}
+    Gửi text thô cho Gemini để biên tập và cấu trúc lại thành TTS script.
 
-    if mode.lower() == PlanMode.PARETO:
+    Returns:
+        {"main_scripts": [...], "review_script": "..."}
+
+    Raises:
+        Exception: Nếu LLM call thất bại hoặc response không parse được —
+                   caller (tts_worker) chịu trách nhiệm rollback chapter.
+    """
+    if mode.lower() == PlanMode.PARETO or mode.lower() == PlanMode.PARETO.value:
         mode_prompt = SYSTEM_PROMPT_REWRITE_PARETO
     else:
-        # Default fallback to FULL
         mode_prompt = SYSTEM_PROMPT_REWRITE_FULL
 
-    try:
-        response = await client.chat.completions.create(
-            model="gemini-2.5-flash-lite",
-            messages=[{"role": "system", "content": mode_prompt}, {"role": "user", "content": raw_text}],
-            temperature=0.3,  # Giảm sáng tạo để format JSON chuẩn
-            response_format={"type": "json_object"},
-        )
+    response = await client.chat.completions.create(
+        model=settings.GEMINI_MODEL_LLM,
+        messages=[{"role": "system", "content": mode_prompt},
+                  {"role": "user", "content": raw_text}],
+        temperature=0.3,
+        response_format={"type": "json_object"},
+    )
 
-        content = response.choices[0].message.content.strip()
+    content = response.choices[0].message.content.strip()
+    parsed_data = json.loads(content)
 
-        # Parse JSON
-        parsed_data = json.loads(content)
-
-        # Nếu LLM chia chuỗi dài quá, cưỡng chế cắt bằng tay thêm lần nữa
-        # để ngăn chặn issue của Edge TTS (Mặc dù prompt đã yêu cầu 3-5 câu / chunk).
-        final_main_scripts = []
-        for script in parsed_data.get("main_scripts", fallback_result["main_scripts"]):
-            if len(script) > 1800:
-                final_main_scripts.extend(_chunk_text_fallback(script))
-            else:
-                final_main_scripts.append(script)
-
-        parsed_data["main_scripts"] = final_main_scripts
-
-        return parsed_data
-
-    except json.JSONDecodeError as de:
-        print(f"Lỗi Parse JSON từ LLM ({de}). Raw content: Length {len(content)}")
-        # Cố gắng lấy vớt lại text nếu có thể
-        try:
-            return {"main_scripts": _chunk_text_fallback(content), "review_script": "Rất tiếc tóm tắt của đoạn văn này bị lỗi do bộ nhớ quá giới hạn."}
-        except:
-            return fallback_result
-
-    except Exception as e:
-        print(f"Lỗi LLM Service: {e}")
-        return fallback_result
+    logger.debug(
+        f"LLM parsed OK — {len(parsed_data.get('main_scripts', []))} scripts, mode={mode}")
+    return parsed_data
 
 ```
 
@@ -2831,6 +3066,8 @@ async def normalize_text_for_speech(raw_text: str, mode: str) -> dict:
 
 import pdfplumber
 from pypdf import PdfReader
+
+from app.core.logger import log
 
 
 def get_pdf_outline_structure(file_obj):
@@ -2855,7 +3092,8 @@ def get_pdf_outline_structure(file_obj):
                         # Lấy số trang (pypdf trả về page object, cần lấy index)
                         page_number = reader.get_destination_page_number(item)
                         # pypdf get đúng page number
-                        outline_data.append({"title": item.title, "page_start": page_number})
+                        outline_data.append(
+                            {"title": item.title, "page_start": page_number})
                     except Exception:
                         pass  # Bỏ qua nếu item bị lỗi link
 
@@ -2865,7 +3103,7 @@ def get_pdf_outline_structure(file_obj):
         outline_data.sort(key=lambda x: x["page_start"])
         return outline_data
     except Exception as e:
-        print(f"Lỗi đọc Outline: {e}")
+        log.warning(f"Lỗi đọc Outline: {e}")
         return []
 
 
@@ -2880,9 +3118,10 @@ async def extract_chapters_smart(file_obj):
     chapters = []
 
     if not outlines or len(outlines) <= 1:
-        raise ValueError("Tài liệu PDF không có Mục lục (Outline) ẩn. Hệ thống hiện chỉ hỗ trợ PDF có Mục lục chuẩn.")
+        raise ValueError(
+            "Tài liệu PDF không có Mục lục (Outline) ẩn. Hệ thống hiện chỉ hỗ trợ PDF có Mục lục chuẩn.")
 
-    print(">> Đã tìm thấy Mục lục Metadata (Outline). Sử dụng Level 1.")
+    log.info("Đã tìm thấy Mục lục Metadata (Outline). Sử dụng Level 1.")
 
     # Mở lại bằng pdfplumber để lấy text (pdfplumber extract text ngon hơn pypdf)
     file_obj.seek(0)
@@ -2910,7 +3149,8 @@ async def extract_chapters_smart(file_obj):
                     chap_text += text + "\n"
 
             if chap_text.strip():
-                chapters.append({"title": current_chap["title"], "text": chap_text, "page_start": start_p + 1, "page_end": end_p})
+                chapters.append(
+                    {"title": current_chap["title"], "text": chap_text, "page_start": start_p + 1, "page_end": end_p})
 
     return chapters
 
@@ -2931,7 +3171,8 @@ async def extract_text_from_pdf(file_obj, max_pages=None):
     extracted_text = ""
 
     with pdfplumber.open(file_obj) as pdf:
-        pages_to_read = len(pdf.pages) if max_pages is None else min(max_pages, len(pdf.pages))
+        pages_to_read = len(pdf.pages) if max_pages is None else min(
+            max_pages, len(pdf.pages))
 
         for i in range(pages_to_read):
             text = pdf.pages[i].extract_text()
@@ -2973,7 +3214,7 @@ def extract_text_by_page_range(pdf_obj, start_page: int, end_page: int):
             if text:
                 extracted_text += text + "\n"
         except Exception as e:
-            print(f"Lỗi đọc trang {i + 1}: {e}")
+            log.warning(f"Lỗi đọc trang {i + 1}: {e}")
 
     return extracted_text
 
@@ -3025,6 +3266,73 @@ async def search_book_knowledge(query: str, document_ids: list[str]):
         return "Không tìm thấy thông tin cụ thể trong sách."
 
     return result.data
+
+```
+
+### app\services\storage_service.py
+
+```py
+"""
+app/services/storage_service.py
+=================================
+Utility service để upload file lên Supabase Storage.
+
+Trước đây là app/helper/upload2supabase.py.
+Di chuyển vào services/ để thống nhất cấu trúc dự án.
+"""
+
+import asyncio
+
+import aiofiles
+
+from app.core.supabase import supabase
+
+from app.core.logger import log as logger
+
+
+async def upload_file_to_supabase(
+    local_path: str,
+    storage_path: str,
+    bucket: str,
+    content_type: str,
+    max_retries: int = 3,
+    upsert: bool = True,
+) -> str:
+    """
+    Upload file lên Supabase Storage và trả về public URL.
+
+    Args:
+        local_path: Đường dẫn file local cần upload.
+        storage_path: Đường dẫn đích trong bucket.
+        bucket: Tên bucket Supabase (vd: "raw_books", "audios").
+        content_type: MIME type của file.
+        max_retries: Số lần retry nếu upload thất bại (default 3).
+        upsert: Ghi đè nếu file đã tồn tại (default True — cần cho switch-mode).
+
+    Returns:
+        Public URL của file sau khi upload thành công.
+    """
+    for attempt in range(max_retries):
+        try:
+            async with aiofiles.open(local_path, "rb") as f:
+                file_bytes = await f.read()
+            supabase.storage.from_(bucket).upload(
+                path=storage_path,
+                file=file_bytes,
+                file_options={
+                    "content-type": content_type,
+                    "upsert": "true" if upsert else "false",
+                },
+            )
+            return supabase.storage.from_(bucket).get_public_url(storage_path)
+        except Exception as e:
+            if attempt < max_retries - 1:
+                wait = 2**attempt
+                logger.warning(f"Upload failed (attempt {attempt + 1}/{max_retries}), retrying in {wait}s...")
+                await asyncio.sleep(wait)
+            else:
+                logger.error(f"Upload failed after {max_retries} attempts: {e}")
+                raise
 
 ```
 
@@ -3151,6 +3459,7 @@ import edge_tts
 from openai import AsyncOpenAI
 
 from app.core.config import settings
+from app.core.logger import log
 
 client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
@@ -3170,7 +3479,7 @@ async def stream_text_to_speech(text: str, voice: str = "alloy"):
                     yield chunk
 
     except Exception as e:
-        print(f"Error in TTS Stream: {e}")
+        log.error(f"Error in TTS Stream: {e}")
 
 
 async def stream_text_to_speech_edge(text: str, voice: str = settings.EDGE_TTS_VOICE):
@@ -3190,9 +3499,9 @@ async def generate_audio_file_edge(text: str, filename: str, voice: str = settin
     try:
         communicate = edge_tts.Communicate(text, voice)
         await communicate.save(filename)
-        print(f"✓ Audio saved to {filename}")
+        log.info(f"Audio saved to {filename}")
     except Exception as e:
-        print(f"Error creating audio file: {e}")
+        log.error(f"Error creating audio file: {e}")
 
 
 # -----------------------------------------------------------------------
@@ -3225,7 +3534,8 @@ async def generate_audio_and_get_duration(
     # Clean and Valid text: too short (page numbers, special characters)
     cleaned = text.strip()
     if len(cleaned) < 10:
-        raise ValueError(f"Text too short for TTS ({len(cleaned)} chars): '{cleaned}'")
+        raise ValueError(
+            f"Text too short for TTS ({len(cleaned)} chars): '{cleaned}'")
 
     async with _tts_sem:
         for attempt in range(max_retries):
@@ -3248,13 +3558,14 @@ async def generate_audio_and_get_duration(
             except Exception as e:
                 if attempt < max_retries - 1:
                     wait = 3 * (2 ** attempt)  # 3s, 6s, 12s, 24s, 48s
-                    print(
-                        f"⚠️ TTS attempt {attempt + 1}/{max_retries} failed "
+                    log.warning(
+                        f"TTS attempt {attempt + 1}/{max_retries} failed "
                         f"({len(cleaned)} chars): {e}. Retry in {wait}s..."
                     )
                     await asyncio.sleep(wait)
                 else:
-                    print(f"❌ TTS failed after {max_retries} attempts ({len(cleaned)} chars): {e}")
+                    log.error(
+                        f"TTS failed after {max_retries} attempts ({len(cleaned)} chars): {e}")
                     raise
     return 0  # unreachable
 
@@ -3263,7 +3574,6 @@ async def generate_audio_and_get_duration(
 ### app\services\upload_service.py
 
 ```py
-import logging
 import os
 import uuid
 
@@ -3281,16 +3591,16 @@ from app.core.exceptions import (
     PdfExtractionError,
     UnsupportedFileTypeError,
 )
-from app.helper.run_background_processing import run_background_processing
-from app.helper.upload2supabase import upload_file_to_supabase
 from app.models.db_models import Book, Chapter, ReadingPlan
 from app.repositories.audiobook_repo import create_book, update_book_status
 from app.repositories.chapter_repo import create_chapter
 from app.repositories.plan_repo import create_reading_plan
 from app.schemas.plan import PlanInput
 from app.services.pdf_service import extract_chapters_smart
+from app.services.storage_service import upload_file_to_supabase
+from app.services.workers.book_pipeline import run_background_processing
 
-logger = logging.getLogger("upload_service")
+from app.core.logger import log as logger
 
 # TODO: REPLACE WITH JWT DECODE USER LATER
 MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
@@ -3356,7 +3666,7 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
             user_id=MOCK_USER_ID,
             title=title,
             total_chapters=len(chapters_data),
-            status="DRAFT",
+            status=BookStatus.DRAFT,
             file_url=file_url,
         )
         create_book(session, book)
@@ -3366,7 +3676,7 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
                 book_id=book_id,
                 chapter_index=i,
                 title=chap.get("title", "Empty Chapter"),
-                status="DRAFT",
+                status=BookStatus.DRAFT,
             )
             create_chapter(session, chapter)
 
@@ -3425,6 +3735,380 @@ async def handle_generate_plan(session: Session, background_tasks: BackgroundTas
 
 ```
 
+### app\services\workers\book_pipeline.py
+
+```py
+"""
+Pipeline điều phối xử lý toàn bộ sách ở background.
+
+Trách nhiệm:
+    - Fetch book data + draft chapters từ DB
+    - Download PDF từ Supabase Storage
+    - Re-extract text per-chapter
+    - Dispatch chapter tasks song song
+    - Cập nhật Book status khi hoàn tất hoặc lỗi
+
+Entry points (được gọi từ FastAPI BackgroundTasks):
+    - run_background_processing(): Xử lý sách mới (RAG + TTS)
+    - run_switch_mode_processing(): Sinh lại audio khi user đổi mode
+"""
+
+import asyncio
+import io
+import uuid
+
+from sqlmodel import Session, select
+
+from app.core.constant import BookStatus
+from app.core.supabase import supabase
+from app.db.database import engine
+from app.models.db_models import Book, Chapter
+from app.repositories.audiobook_repo import update_book_status
+from app.repositories.chapter_repo import get_draft_chapters_by_book
+from app.services.pdf_service import extract_chapters_smart
+from app.services.workers.chapter_worker import process_chapter, process_switch_mode_chapter
+
+from app.core.logger import log as logger
+
+
+async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
+    """
+    Điều phối xử lý tất cả chapters song song sau khi user upload sách.
+
+    Flow:
+        1. Fetch book + draft chapters từ DB
+        2. Download PDF từ Supabase Storage (file_url đã lưu lúc /upload)
+        3. Re-extract text per-chapter từ PDF
+        4. Chạy process_chapter() song song cho tất cả chapters
+        5. Cập nhật Book status → READY hoặc ERROR
+    """
+    try:
+        # ── 1. Fetch book + draft chapters ───────────────────────────────────
+        with Session(engine) as session:
+            book = session.get(Book, book_id)
+            draft_chapters = get_draft_chapters_by_book(session, book_id)
+
+        if not book:
+            logger.error(f"Book {book_id} not found")
+            return
+
+        if not draft_chapters:
+            with Session(engine) as session:
+                update_book_status(session, book_id, BookStatus.ERROR, "Không có chapter nào để xử lý.")
+            return
+
+        if not book.file_url:
+            with Session(engine) as session:
+                update_book_status(
+                    session, book_id, BookStatus.ERROR,
+                    "file_url chưa được lưu — PDF chưa upload lên Storage."
+                )
+            logger.error(f"book.file_url is missing for book {book_id}")
+            return
+
+        # ── 2. Download PDF từ Supabase Storage ──────────────────────────────
+        storage_path = f"{book_id}/original.pdf"
+        logger.info(f"⬇️  Downloading PDF from Storage: {storage_path}")
+        pdf_bytes: bytes = supabase.storage.from_("raw_books").download(storage_path)
+        pdf_file = io.BytesIO(pdf_bytes)
+
+        # ── 3. Re-extract chapters text từ PDF ───────────────────────────────
+        chapters_data = await extract_chapters_smart(pdf_file)
+        chapters_map: dict[int, str] = {i: chap.get("text", "") for i, chap in enumerate(chapters_data)}
+
+        # ── 4. Dispatch song song — bị giới hạn bởi Semaphore trong chapter_worker ──
+        tasks = []
+        for draft_chap in draft_chapters:
+            raw_text = chapters_map.get(draft_chap.chapter_index, "")
+            if not raw_text.strip():
+                logger.warning(
+                    f"⚠️ Chapter {draft_chap.chapter_index + 1} '{draft_chap.title}' "
+                    f"không có text — bỏ qua."
+                )
+                continue
+            tasks.append(
+                process_chapter(book_id, draft_chap.id, draft_chap.chapter_index, raw_text, mode)
+            )
+
+        await asyncio.gather(*tasks)
+
+        # ── 5. Cập nhật Book status → READY ──────────────────────────────────
+        with Session(engine) as session:
+            update_book_status(session, book_id, BookStatus.READY)
+        logger.info(f"🎉 Book {book_id} READY — tất cả chapters đã xử lý xong.")
+
+    except Exception as e:
+        with Session(engine) as session:
+            update_book_status(session, book_id, BookStatus.ERROR, str(e))
+        logger.error(f"❌ LỖI XỬ LÝ SÁCH {book_id}: {e}")
+
+
+async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str) -> None:
+    """
+    Sinh lại audio cho tất cả chapters khi user chuyển mode học.
+
+    Bỏ qua RAG — knowledge base không thay đổi theo mode.
+    Chỉ xóa segments cũ của mode mới và sinh TTS mới.
+    """
+    try:
+        # ── 1. Fetch book + all chapters ─────────────────────────────────────
+        with Session(engine) as session:
+            book = session.get(Book, book_id)
+            chapters = session.exec(select(Chapter).where(Chapter.book_id == book_id)).all()
+
+        if not book or not book.file_url:
+            logger.error(f"Cannot switch mode for book {book_id}: book missing or no file_url")
+            return
+
+        # ── 2. Download PDF + extract text ───────────────────────────────────
+        storage_path = f"{book_id}/original.pdf"
+        logger.info(f"⬇️  Downloading PDF for switch mode: {storage_path}")
+        pdf_bytes: bytes = supabase.storage.from_("raw_books").download(storage_path)
+        pdf_file = io.BytesIO(pdf_bytes)
+        chapters_data = await extract_chapters_smart(pdf_file)
+        chapters_map: dict[int, str] = {i: chap.get("text", "") for i, chap in enumerate(chapters_data)}
+
+        # ── 3. Dispatch song song ─────────────────────────────────────────────
+        tasks = [
+            process_switch_mode_chapter(book_id, chap.id, chap.chapter_index, raw_text, new_mode)
+            for chap in chapters
+            if (raw_text := chapters_map.get(chap.chapter_index, "")) and raw_text.strip()
+        ]
+
+        await asyncio.gather(*tasks)
+        logger.info(f"🎉 Book {book_id} đã gen xong audio cho mode: {new_mode}.")
+
+    except Exception as e:
+        logger.error(f"❌ LỖI SWITCH MODE SÁCH {book_id}: {e}")
+
+```
+
+### app\services\workers\chapter_worker.py
+
+```py
+"""
+Worker xử lý 1 chapter trong pipeline background.
+
+Trách nhiệm:
+    - Điều phối 2 pipeline song song: RAG (embed) + TTS
+    - Giới hạn concurrency qua Semaphore (tránh quá tải DB + external API)
+    - Xử lý rollback gọn gàng khi chapter thất bại
+    - Xử lý switch-mode (chỉ TTS, không RAG)
+
+Concurrency model:
+    sem = Semaphore(5) → tối đa 5 chapters xử lý song song cùng lúc.
+    Mỗi chapter trong normal path sử dụng tối đa 3 DB sessions:
+        - RAG pipeline: 1 session
+        - TTS pipeline: 1 session (gom từ 3 sessions cũ)
+        - Chapter status update: 1 session
+    → 5 chapters × 3 sessions = 15 connections tối đa (pool_size=10 + overflow=20 → an toàn)
+"""
+
+import asyncio
+import uuid
+
+from sqlmodel import Session
+
+from app.core.constant import BookStatus
+from app.db.database import engine
+from app.repositories.book_knowledge_repo import delete_knowledge_by_chapter
+from app.repositories.chapter_repo import delete_chapter, update_chapter_status
+from app.repositories.chapter_segment_repo import delete_segments_by_chapter_and_mode
+from app.services.embed_service import embed_and_save_chapter
+from app.services.workers.tts_worker import run_tts_pipeline
+
+from app.core.logger import log as logger
+
+# Tối đa 5 chapters xử lý song song — cân bằng giữa tốc độ và tải hệ thống
+sem = asyncio.Semaphore(5)
+
+
+async def _run_rag_pipeline(
+    book_id: uuid.UUID,
+    chapter_id: uuid.UUID,
+    raw_text: str,
+) -> None:
+    """Pipeline RAG: cắt chunks → embed → lưu book_knowledge (1 session)."""
+    with Session(engine) as session:
+        await embed_and_save_chapter(book_id, chapter_id, raw_text, session)
+
+
+async def process_chapter(
+    book_id: uuid.UUID,
+    chapter_id: uuid.UUID,
+    chapter_index: int,
+    raw_text: str,
+    mode: str,
+) -> None:
+    """
+    Xử lý đầy đủ 1 chapter: chạy RAG + TTS song song, cập nhật status.
+
+    Nếu thất bại: rollback book_knowledge + xóa chapter để đảm bảo
+    không còn dữ liệu không nhất quán.
+    """
+    async with sem:
+        try:
+            # RAG và TTS chạy song song — mỗi pipeline dùng session riêng
+            await asyncio.gather(
+                _run_rag_pipeline(book_id, chapter_id, raw_text),
+                run_tts_pipeline(book_id, chapter_id, chapter_index, raw_text, mode),
+            )
+            with Session(engine) as session:
+                update_chapter_status(session, chapter_id, BookStatus.READY)
+            logger.info(f"✅ Chapter {chapter_index + 1} READY")
+
+        except Exception as e:
+            logger.error(f"❌ Chapter {chapter_index + 1} thất bại: {e}")
+            # Rollback: xóa book_knowledge TRƯỚC (FK constraint) rồi mới xóa chapter
+            try:
+                with Session(engine) as session:
+                    delete_knowledge_by_chapter(session, chapter_id)
+                    delete_chapter(session, chapter_id)
+                logger.info(f"🗑️ Rollback chapter {chapter_index + 1} thành công.")
+            except Exception as rollback_err:
+                logger.error(f"Failed to rollback chapter {chapter_index + 1}: {rollback_err}")
+            raise
+
+
+async def process_switch_mode_chapter(
+    book_id: uuid.UUID,
+    chapter_id: uuid.UUID,
+    chapter_index: int,
+    raw_text: str,
+    new_mode: str,
+) -> None:
+    """
+    Switch mode 1 chapter: xóa segments cũ → chạy TTS mới (bỏ qua RAG).
+
+    Không cần RAG vì knowledge base không thay đổi theo mode.
+    """
+    async with sem:
+        try:
+            with Session(engine) as session:
+                delete_segments_by_chapter_and_mode(session, chapter_id, new_mode)
+
+            await run_tts_pipeline(book_id, chapter_id, chapter_index, raw_text, new_mode)
+            logger.info(f"✅ Chapter {chapter_index + 1} switch mode '{new_mode}' READY")
+
+        except Exception as e:
+            logger.error(f"❌ Chapter {chapter_index + 1} switch mode thất bại: {e}")
+            raise
+
+```
+
+### app\services\workers\tts_worker.py
+
+```py
+"""
+app/services/workers/tts_worker.py
+====================================
+Worker xử lý TTS (Text-to-Speech) cho 1 chapter.
+
+Trách nhiệm:
+    1. Gọi LLM rewrite text → main_scripts + review_script
+    2. TTS từng segment → upload audio lên Storage
+    3. Lưu tất cả kết quả vào DB trong **1 session duy nhất**
+       (thay vì 3 sessions riêng biệt như trước → giảm connection overhead)
+"""
+
+import os
+import uuid
+
+from sqlmodel import Session
+
+from app.db.database import engine
+from app.models.db_models import ChapterSegment
+from app.repositories.chapter_repo import update_chapter_review_audio, update_chapter_review_text
+from app.repositories.chapter_segment_repo import bulk_create_segments
+from app.services.llm_service import normalize_text_for_speech
+from app.services.storage_service import upload_file_to_supabase
+from app.services.tts_service import generate_audio_and_get_duration
+
+from app.core.logger import log as logger
+
+
+async def run_tts_pipeline(
+    book_id: uuid.UUID,
+    chapter_id: uuid.UUID,
+    chapter_index: int,
+    raw_text: str,
+    mode: str,
+) -> None:
+    """
+    Pipeline TTS đầy đủ cho 1 chapter:
+      LLM rewrite → TTS segments → upload → review audio → lưu DB (1 session).
+
+    Ghi chú về Session:
+        Tất cả DB writes (review_text, segments, review_audio) được gom vào
+        **1 Session duy nhất** ở cuối pipeline, tránh mở-đóng nhiều connections.
+    """
+    # ── Step 1: LLM Rewrite ──────────────────────────────────────────────────
+    obj_chapter = await normalize_text_for_speech(raw_text, mode)
+    main_scripts: list[str] = obj_chapter.get("main_scripts", [])
+    review_text: str = obj_chapter.get("review_script", "")
+
+    # ── Step 2: TTS + Upload segments ────────────────────────────────────────
+    segments: list[ChapterSegment] = []
+    for i, script in enumerate(main_scripts):
+        local_file = f"uploads/{uuid.uuid4()}.mp3"
+        os.makedirs("uploads", exist_ok=True)
+        try:
+            duration_ms = await generate_audio_and_get_duration(script, local_file)
+            storage_path = f"{book_id}/chap_{chapter_index + 1}/{mode}/part_{i + 1}.mp3"
+            audio_url = await upload_file_to_supabase(local_file, storage_path, "audios", "audio/mpeg")
+            segments.append(
+                ChapterSegment(
+                    chapter_id=chapter_id,
+                    segment_index=i,
+                    audio_url=audio_url,
+                    duration_ms=duration_ms,
+                    text_content=script,
+                    mode=mode,
+                )
+            )
+        except Exception as seg_err:
+            text_preview = script[:80] if script else "(empty)"
+            logger.warning(
+                f"⚠️ Segment {i + 1} chương {chapter_index + 1} lỗi TTS "
+                f"({len(script)} chars, text='{text_preview}...'): {seg_err}"
+            )
+        finally:
+            if os.path.exists(local_file):
+                os.remove(local_file)
+
+    # ── Step 3: TTS Review audio ─────────────────────────────────────────────
+    review_url: str | None = None
+    if review_text and review_text.strip():
+        local_review = f"uploads/{uuid.uuid4()}.mp3"
+        os.makedirs("uploads", exist_ok=True)
+        try:
+            await generate_audio_and_get_duration(review_text, local_review)
+            storage_path = f"{book_id}/chap_{chapter_index + 1}/{mode}/review.mp3"
+            review_url = await upload_file_to_supabase(local_review, storage_path, "audios", "audio/mpeg")
+        except Exception as rev_err:
+            logger.warning(f"⚠️ Review audio chương {chapter_index + 1} lỗi, bỏ qua: {rev_err}")
+        finally:
+            if os.path.exists(local_review):
+                os.remove(local_review)
+
+    # ── Step 4: Lưu tất cả vào DB — 1 Session duy nhất ──────────────────────
+    with Session(engine) as session:
+        if review_text:
+            update_chapter_review_text(session, chapter_id, review_text, mode)
+        if segments:
+            bulk_create_segments(session, segments)
+        if review_url:
+            update_chapter_review_audio(session, chapter_id, review_url, mode)
+
+```
+
+### app\services\workers\__init__.py
+
+```py
+"""Worker pipeline package cho background processing."""
+
+```
+
 ### app\services\__init__.py
 
 ```py
@@ -3438,64 +4122,3 @@ async def handle_generate_plan(session: Session, background_tasks: BackgroundTas
 # TRIAM Backend Application
 
 ```
-
-### Dockerfile
-
-```dockerfile
-FROM python:3.12-slim
-
-# Copy uv from Astral's official image (best way to install uv in Docker)
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
-
-# Create non-root user (required on Hugging Face Spaces)
-RUN useradd -m -u 1000 user
-USER user
-ENV HOME=/home/user \
-    PATH=/home/user/.local/bin:$PATH
-
-# Set working directory
-WORKDIR $HOME/app
-
-# Copy uv's dependency management files to cache
-COPY --chown=user pyproject.toml uv.lock ./
-
-# Install dependencies (using uv sync)
-RUN uv sync --frozen --no-dev
-
-# Copy all project source code into container
-COPY --chown=user . .
-
-# Run FastAPI application using uvicorn via uv, change port to 7860
-# CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
-
-# Provide access to execute and run start.sh
-RUN chmod +x ./start.sh
-ENV BACKEND_PORT=7860
-ENV AGENT_MODE=start
-CMD ["./start.sh"]
-```
-
-### start.sh
-
-```sh
-#!/usr/bin/env bash
-set -e
-
-# Bắt tín hiệu Ctrl+C để gửi lệnh tắt (TERM) cho worker, sau đó ĐỨNG CHỜ (wait) nó dọn dẹp an toàn
-trap 'echo "Đang tắt an toàn các tiến trình..."; kill -TERM $(jobs -p) 2>/dev/null; wait $(jobs -p) 2>/dev/null; echo "Đã tắt xong."; exit' INT TERM EXIT
-
-# Chạy Agent ngầm qua module path để tránh lỗi import package `app`.
-# Dùng mode `start` cho server; có thể đổi qua `dev` khi local debug.
-AGENT_MODE="${AGENT_MODE:-start}"
-export PYTHONUNBUFFERED=1
-uv run python -m app.services.agent_voice_service "$AGENT_MODE" > worker.log 2>&1 &
-
-# Chạy FastAPI chính
-BACKEND_PORT="${BACKEND_PORT:-8000}"
-uv run uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload
-
-```
-
-### pyproject.toml
-
-*(Unsupported file type)*

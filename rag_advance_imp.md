@@ -1,6 +1,6 @@
 # RAG Advance Implementation
 
-## 🛠️ Giai đoạn 1: Làm giàu dữ liệu (Data Enrichment & Smart Chunking)
+## 🛠️ Giai đoạn 1[DONE]: Làm giàu dữ liệu (Data Enrichment & Smart Chunking)
 
 **Vấn đề:** Các đoạn văn (chunks) thô thường bị mất ngữ cảnh nếu đứng một mình (ví dụ: đoạn văn nói về "ông ấy" nhưng không biết "ông ấy" là ai).
 

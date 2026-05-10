@@ -8,7 +8,8 @@ from app.core.constant import PlanMode
 from app.core.logger import log as logger
 
 # Sử dụng Gemini qua OpenAI-compatible API
-client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY, base_url=settings.GEMINI_BASE_URL)
+client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY,
+                     base_url=settings.GEMINI_BASE_URL)
 
 SYSTEM_PROMPT_REWRITE_FULL = """
 Bạn là một Biên tập viên Sách nói & Chuyên gia Giáo dục (TRIAM AI).
@@ -111,7 +112,8 @@ async def normalize_text_for_speech(raw_text: str, mode: str) -> dict:
 
     response = await client.chat.completions.create(
         model=settings.GEMINI_MODEL_LLM,
-        messages=[{"role": "system", "content": mode_prompt}, {"role": "user", "content": raw_text}],
+        messages=[{"role": "system", "content": mode_prompt},
+                  {"role": "user", "content": raw_text}],
         temperature=0.3,
         response_format={"type": "json_object"},
     )
@@ -119,5 +121,6 @@ async def normalize_text_for_speech(raw_text: str, mode: str) -> dict:
     content = response.choices[0].message.content.strip()
     parsed_data = json.loads(content)
 
-    logger.debug(f"LLM parsed OK — {len(parsed_data.get('main_scripts', []))} scripts, mode={mode}")
+    logger.debug(
+        f"LLM parsed OK — {len(parsed_data.get('main_scripts', []))} scripts, mode={mode}")
     return parsed_data

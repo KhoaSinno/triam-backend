@@ -87,7 +87,7 @@ async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
                 )
                 continue
             tasks.append(
-                process_chapter(book_id, draft_chap.id, draft_chap.chapter_index, raw_text, mode)
+                process_chapter(book_id, book.title, draft_chap.title, draft_chap.id, draft_chap.chapter_index, raw_text, mode)
             )
 
         await asyncio.gather(*tasks)

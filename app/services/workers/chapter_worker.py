@@ -38,15 +38,19 @@ sem = asyncio.Semaphore(5)
 async def _run_rag_pipeline(
     book_id: uuid.UUID,
     chapter_id: uuid.UUID,
+    book_title: str,
+    chapter_title: str,
     raw_text: str,
 ) -> None:
     """Pipeline RAG: cắt chunks → embed → lưu book_knowledge (1 session)."""
     with Session(engine) as session:
-        await embed_and_save_chapter(book_id, chapter_id, raw_text, session)
+        await embed_and_save_chapter(book_id, chapter_id, book_title, chapter_title, raw_text, session)
 
 
 async def process_chapter(
     book_id: uuid.UUID,
+    book_title: str,
+    chapter_title: str,
     chapter_id: uuid.UUID,
     chapter_index: int,
     raw_text: str,
@@ -62,7 +66,7 @@ async def process_chapter(
         try:
             # RAG và TTS chạy song song — mỗi pipeline dùng session riêng
             await asyncio.gather(
-                _run_rag_pipeline(book_id, chapter_id, raw_text),
+                _run_rag_pipeline(book_id, chapter_id, book_title, chapter_title, raw_text),
                 run_tts_pipeline(book_id, chapter_id, chapter_index, raw_text, mode),
             )
             with Session(engine) as session:
