@@ -8,7 +8,10 @@ trap 'echo "Đang tắt an toàn các tiến trình..."; kill -TERM $(jobs -p) 2
 # Dùng mode `start` cho server; có thể đổi qua `dev` khi local debug.
 AGENT_MODE="${AGENT_MODE:-start}"
 export PYTHONUNBUFFERED=1
-uv run python -m app.services.agent_voice_service "$AGENT_MODE" > worker.log 2>&1 &
+# uv run python -m app.services.agent_voice_service "$AGENT_MODE" > worker.log 2>&1 &
+uv run python -m app.services.agent_voice_gpt_realtime "$AGENT_MODE" > worker.log 2>&1 &
+# uv run python -m app.services.agent_voice_test_gemini "$AGENT_MODE" > worker.log 2>&1 &
+
 
 # Chạy FastAPI chính
 BACKEND_PORT="${BACKEND_PORT:-8000}"

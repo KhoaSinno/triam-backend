@@ -17,3 +17,7 @@ uploads/
 *.pdf
 _log_extracted_json/
 script_ouputs/
+
+# Runtime logs
+logs/
+*.log

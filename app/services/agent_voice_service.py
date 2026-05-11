@@ -20,14 +20,13 @@ from livekit.agents.voice import io as voice_io
 from livekit.plugins import noise_cancellation, silero, openai, deepgram, google
 from sqlmodel import Session, select
 from supabase import Client, create_client
-from tavily import TavilyClient
 
 from app.core.config import settings
+from app.core.logger import log
 from app.db.database import engine
 from app.models.db_models import ChatMessage
 from app.services.rag_service import search_book_knowledge
-
-tavily_client = TavilyClient(api_key=settings.TAVILY_API_KEY)
+from app.services.web_search_service import search_web as web_search
 
 # Supabase (RAG)
 supabase: Client = create_client(
@@ -85,11 +84,15 @@ class TriamAssistant(Agent):
         super().__init__(
             instructions=(
                 "Bạn là trợ lý AI sách nói TRIAM - Trợ lý đọc sách nói thông minh.\n"
-                "1. Bạn đang ở trong một 'Study Context' (Ngữ cảnh học tập) chứa các sách mà User đã chọn.\n"
-                "2. Khi User hỏi về kiến thức, hoặc nhắc tới 'quyển sách này', TUYỆT ĐỐI PHẢI GỌI hàm 'search_book_knowledge' để tìm kiếm. Truyền thẳng câu hỏi của User vào biến query (không cần hỏi lại tên sách vì hệ thống đã tự động giới hạn vùng tìm kiếm).\n"
-                "3. Trả lời cực kỳ NGẮN GỌN (dưới 2-3 câu), tự nhiên rành mạch, đi thẳng vào trọng tâm câu hỏi.\n"
-                "4. Tuyệt đối KHÔNG SỬ DỤNG Markdown (không dùng dấu **, *, #, -) và KHÔNG SỬ DỤNG EMOJI trong câu trả lời.\n"
-                "5. Chỉ dùng 'search_web' nếu nội dung không có trong sách."
+                "\n"
+                "## QUY TẮC SỬ DỤNG TOOL (BẮT BUỘC):\n"
+                "- LUÔN LUÔN gọi 'search_book_knowledge' TRƯỚC TIÊN cho MỌI câu hỏi về kiến thức, nội dung, khái niệm, chương, đoạn văn hoặc bất kỳ thông tin nào liên quan đến sách.\n"
+                "- CHỈ gọi 'search_web' khi: (a) 'search_book_knowledge' trả về không có dữ liệu, HOẶC (b) User hỏi về tin tức, sự kiện hiện tại, thông tin ngoài sách rõ ràng.\n"
+                "- KHÔNG được tự trả lời từ bộ nhớ mà không gọi tool khi User hỏi về nội dung sách.\n"
+                "\n"
+                "## PHONG CÁCH TRẢ LỜI:\n"
+                "- Trả lời cực kỳ NGẮN GỌN (2-3 câu), tự nhiên, đi thẳng vào trọng tâm.\n"
+                "- Tuyệt đối KHÔNG dùng Markdown (**, *, #, -) và KHÔNG dùng EMOJI."
             )
         )
         self.document_ids = document_ids
@@ -99,6 +102,15 @@ class TriamAssistant(Agent):
         self,
         query: Annotated[str, "Câu hỏi hoặc nội dung cần tìm trong sách"],
     ) -> str:
+        """
+        Tìm kiếm kiến thức, nội dung, khái niệm trong các quyển sách thuộc Study Context hiện tại.
+        PHẢI gọi tool này trước tiên cho bất kỳ câu hỏi nào liên quan đến:
+        - Nội dung, chương, đoạn văn trong sách
+        - Khái niệm, định nghĩa, giải thích thuật ngữ
+        - Tóm tắt, phân tích nội dung sách
+        - Câu hỏi kiến thức mà User đang học từ sách
+        Hệ thống tự động giới hạn tìm kiếm trong tài liệu User đã chọn.
+        """
         try:
             data = await search_book_knowledge(query, self.document_ids)
 
@@ -129,20 +141,8 @@ class TriamAssistant(Agent):
         self,
         query: Annotated[str, "Nội dung cần tìm kiếm trên internet"],
     ) -> str:
-        import asyncio
-
-        loop = asyncio.get_event_loop()
-        search_result = await loop.run_in_executor(
-            None,
-            lambda: tavily_client.search(
-                query=query,
-                search_depth="basic",
-                max_results=3,
-            ),
-        )
-        result_text = "\n".join(
-            [f"- {r['content']}" for r in search_result["results"]])
-        return result_text
+        """Tìm kiếm thông tin trên internet khi nội dung không có trong sách."""
+        return await web_search(query)
 
 
 async def entrypoint(ctx: JobContext):
@@ -198,6 +198,7 @@ async def entrypoint(ctx: JobContext):
     #     ),
     #     vad=silero.VAD.load(),
     # )
+    
     session = AgentSession(
         stt=deepgram.STT(
             api_key=settings.DEEPGRAM_API_KEY,
