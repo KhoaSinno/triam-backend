@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     DEEPGRAM_API_KEY: str
     CARTESIA_API_KEY_TTS: str
     ELEVENLABS_API_KEY_TTS: str
+    OPENAI_STREAM_MODEL_NAME: str = "gpt-4o-mini-realtime-preview"
 
     # Upload file
     MAX_FILE_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB

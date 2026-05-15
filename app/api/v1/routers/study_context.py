@@ -75,6 +75,3 @@ async def create_chat_thread_api(context_id: uuid.UUID, payload: ChatThreadInput
     return study_context_service.create_thread(session, MOCK_USER_ID, context_id, payload)
 
 
-@router.get("/threads/{thread_id}/messages", response_model=List[ChatMessageResponse])
-async def get_thread_messages_api(thread_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
-    return get_chat_history_by_thread_id(session, thread_id)

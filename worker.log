@@ -1,58 +1,28 @@
-[32m2026-05-11 15:46:46.229[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mstarting worker[0m
-{"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.5.8", "rtc-version": "1.1.7", "timestamp": "2026-05-11T08:46:46.229826+00:00"}
-[32m2026-05-11 15:46:46.231[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mplugin registered[0m
-{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.openai", "version": "1.5.8", "timestamp": "2026-05-11T08:46:46.231333+00:00"}
-[32m2026-05-11 15:46:46.232[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mHTTP server listening on :8081[0m
-{"message": "HTTP server listening on :8081", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-05-11T08:46:46.232338+00:00"}
-[32m2026-05-11 15:46:46.236[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 8716, "timestamp": "2026-05-11T08:46:46.236734+00:00"}
-[32m2026-05-11 15:46:46.237[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 11100, "timestamp": "2026-05-11T08:46:46.237238+00:00"}
-[32m2026-05-11 15:46:46.237[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 5576, "timestamp": "2026-05-11T08:46:46.237238+00:00"}
-[32m2026-05-11 15:46:46.237[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 16792, "timestamp": "2026-05-11T08:46:46.237238+00:00"}
-[32m2026-05-11 15:46:46.239[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 8716, "elapsed_time": 0.0, "timestamp": "2026-05-11T08:46:46.239546+00:00"}
-[32m2026-05-11 15:46:46.239[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 11100, "elapsed_time": 0.0, "timestamp": "2026-05-11T08:46:46.239546+00:00"}
-[32m2026-05-11 15:46:46.241[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 5576, "elapsed_time": 0.0, "timestamp": "2026-05-11T08:46:46.241545+00:00"}
-[32m2026-05-11 15:46:46.241[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 16792, "elapsed_time": 0.0, "timestamp": "2026-05-11T08:46:46.241545+00:00"}
-[32m2026-05-11 15:46:46.893[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mregistered worker[0m
-{"message": "registered worker", "level": "INFO", "name": "livekit.agents", "agent_name": "triam-voice-agent", "id": "AW_KLGqJToM5Hvp", "url": "wss://tri-am-bmdl413w.livekit.cloud", "region": "India South", "protocol": 17, "timestamp": "2026-05-11T08:46:46.893212+00:00"}
-[32m2026-05-11 15:46:54.358[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mreceived job request[0m
-{"message": "received job request", "level": "INFO", "name": "livekit.agents", "job_id": "AJ_qUPMfvoQo5VW", "dispatch_id": "AD_aVspECR5ZnPd", "room": "triam_1b893d40_5ba467", "room_id": "RM_pPVbe63kH6at", "agent_name": "triam-voice-agent", "resuming": false, "enable_recording": false, "timestamp": "2026-05-11T08:46:54.358401+00:00"}
-[32m2026-05-11 15:46:54.584[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 18096, "timestamp": "2026-05-11T08:46:54.584120+00:00"}
-[32m2026-05-11 15:46:54.585[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 18096, "elapsed_time": 0.0, "timestamp": "2026-05-11T08:46:54.585119+00:00"}
-[32m2026-05-11 15:46:56.201[0m | [1mINFO    [0m | [36m__main__[0m:[36mentrypoint[0m:[36m164[0m - [1m✅ Document IDs từ metadata: ['1b893d40-e0cc-4ee3-ae5f-a7809834e6dd'][0m
-[32m2026-05-11 15:46:56.202[0m | [1mINFO    [0m | [36m__main__[0m:[36mentrypoint[0m:[36m165[0m - [1m🏠 Room Name (session): triam_1b893d40_5ba467[0m
-[32m2026-05-11 15:46:56.202[0m | [1mINFO    [0m | [36m__main__[0m:[36mentrypoint[0m:[36m166[0m - [1mBat dau phien doc sach cho Thread ID: f25f309f-1dbb-4517-90b9-5fbbc88e3070[0m
-[32m2026-05-11 15:46:59.534[0m | [1mINFO    [0m | [36m__main__[0m:[36mflush[0m:[36m56[0m - [1mText output (83 chars): Chào bạn! Bạn muốn tìm hiểu thêm về nội dung hoặc khái niệm nào trong sách hôm nay?[0m
-[32m2026-05-11 15:47:49.753[0m | [33m[1mWARNING [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [33m[1mentrypoint did not exit in time, cancelling[0m
-{"message": "entrypoint did not exit in time, cancelling", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-05-11T08:47:49.753014+00:00"}
-[32m2026-05-11 15:48:02.152[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mreceived job request[0m
-{"message": "received job request", "level": "INFO", "name": "livekit.agents", "job_id": "AJ_J76LgcaaRQCV", "dispatch_id": "AD_F7SpV57JB6w6", "room": "triam_1b893d40_64df3d", "room_id": "RM_5kBde7ecJw4Z", "agent_name": "triam-voice-agent", "resuming": false, "enable_recording": false, "timestamp": "2026-05-11T08:48:02.152509+00:00"}
-[32m2026-05-11 15:48:02.409[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 9052, "timestamp": "2026-05-11T08:48:02.409025+00:00"}
-[32m2026-05-11 15:48:02.410[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 9052, "elapsed_time": 0.0, "timestamp": "2026-05-11T08:48:02.410025+00:00"}
-[32m2026-05-11 15:48:03.461[0m | [1mINFO    [0m | [36m__main__[0m:[36mentrypoint[0m:[36m164[0m - [1m✅ Document IDs từ metadata: ['1b893d40-e0cc-4ee3-ae5f-a7809834e6dd'][0m
-[32m2026-05-11 15:48:03.463[0m | [1mINFO    [0m | [36m__main__[0m:[36mentrypoint[0m:[36m165[0m - [1m🏠 Room Name (session): triam_1b893d40_64df3d[0m
-[32m2026-05-11 15:48:03.464[0m | [1mINFO    [0m | [36m__main__[0m:[36mentrypoint[0m:[36m166[0m - [1mBat dau phien doc sach cho Thread ID: f25f309f-1dbb-4517-90b9-5fbbc88e3070[0m
-[32m2026-05-11 15:48:03.693[0m | [1mINFO    [0m | [36m__main__[0m:[36mhandle_data_input[0m:[36m195[0m - [1mData input from user_cc5dfe: alo[0m
-[32m2026-05-11 15:48:06.214[0m | [1mINFO    [0m | [36m__main__[0m:[36mflush[0m:[36m56[0m - [1mText output (38 chars): Chào bạn! Bạn cần tôi giúp gì hôm nay?[0m
-[32m2026-05-11 15:48:12.537[0m | [1mINFO    [0m | [36m__main__[0m:[36mhandle_data_input[0m:[36m195[0m - [1mData input from user_cc5dfe: bạn là ai[0m
-[32m2026-05-11 15:48:18.444[0m | [1mINFO    [0m | [36m__main__[0m:[36mflush[0m:[36m56[0m - [1mText output (156 chars): Tôi là trợ lý AI sách nói TRIAM, được thiết kế để giúp bạn tra cứu và tìm hiểu thông tin từ các cuốn sách mà bạn đang họ...[0m
-[32m2026-05-11 15:48:42.327[0m | [1mINFO    [0m | [36m__main__[0m:[36mflush[0m:[36m56[0m - [1mText output (202 chars): Tôi không tìm thấy thông tin về khái niệm "engagement" trong nội dung sách hiện tại. Bạn có thể cung cấp thêm chi tiết h...[0m
-[32m2026-05-11 15:48:46.681[0m | [1mINFO    [0m | [36mapp.services.web_search_service[0m:[36msearch_web[0m:[36m24[0m - [1mWeb Search (Tavily): concept of engagement[0m
-[32m2026-05-11 15:48:58.892[0m | [1mINFO    [0m | [36m__main__[0m:[36mflush[0m:[36m56[0m - [1mText output (200 chars): Tôi không thể tra cứu thông tin về nội dung cuốn sách hoặc số chương hiện tại. Bạn có thể cung cấp thêm thông tin chi ti...[0m
-[32m2026-05-11 15:49:16.264[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mclosing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)[0m
-{"message": "closing agent session due to participant disconnect (disable via `RoomInputOptions.close_on_disconnect=False`)", "level": "INFO", "name": "livekit.agents", "room": "triam_1b893d40_64df3d", "participant": "user_cc5dfe", "reason": "CLIENT_INITIATED", "timestamp": "2026-05-11T08:49:16.264858+00:00"}
-[32m2026-05-11 15:53:31.616[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mdraining worker[0m
-{"message": "draining worker", "level": "INFO", "name": "livekit.agents", "id": "AW_KLGqJToM5Hvp", "timeout": 1800, "timestamp": "2026-05-11T08:53:31.616827+00:00"}
-[32m2026-05-11 15:53:31.616[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mshutting down worker[0m
-{"message": "shutting down worker", "level": "INFO", "name": "livekit.agents", "id": "AW_KLGqJToM5Hvp", "timestamp": "2026-05-11T08:53:31.616827+00:00"}
+[32m2026-05-15 14:19:54.477[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mstarting worker[0m
+{"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.5.8", "rtc-version": "1.1.7", "timestamp": "2026-05-15T07:19:54.477784+00:00"}
+[32m2026-05-15 14:19:54.477[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mplugin registered[0m
+{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.openai", "version": "1.5.8", "timestamp": "2026-05-15T07:19:54.477784+00:00"}
+[32m2026-05-15 14:19:54.478[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mHTTP server listening on :8081[0m
+{"message": "HTTP server listening on :8081", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-05-15T07:19:54.478803+00:00"}
+[32m2026-05-15 14:19:54.482[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 2368, "timestamp": "2026-05-15T07:19:54.482935+00:00"}
+[32m2026-05-15 14:19:54.482[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 10912, "timestamp": "2026-05-15T07:19:54.482935+00:00"}
+[32m2026-05-15 14:19:54.484[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 17724, "timestamp": "2026-05-15T07:19:54.484454+00:00"}
+[32m2026-05-15 14:19:54.484[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 11396, "timestamp": "2026-05-15T07:19:54.484981+00:00"}
+[32m2026-05-15 14:19:54.486[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 2368, "elapsed_time": 0.0, "timestamp": "2026-05-15T07:19:54.486002+00:00"}
+[32m2026-05-15 14:19:54.487[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 10912, "elapsed_time": 0.0, "timestamp": "2026-05-15T07:19:54.487062+00:00"}
+[32m2026-05-15 14:19:54.488[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 17724, "elapsed_time": 0.0, "timestamp": "2026-05-15T07:19:54.488593+00:00"}
+[32m2026-05-15 14:19:54.489[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 11396, "elapsed_time": 0.0, "timestamp": "2026-05-15T07:19:54.489120+00:00"}
+[32m2026-05-15 14:19:55.431[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mregistered worker[0m
+{"message": "registered worker", "level": "INFO", "name": "livekit.agents", "agent_name": "triam-voice-agent", "id": "AW_gUJvYMHBJkhk", "url": "wss://tri-am-bmdl413w.livekit.cloud", "region": "India South", "protocol": 17, "timestamp": "2026-05-15T07:19:55.431956+00:00"}
+[32m2026-05-15 14:25:59.704[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mdraining worker[0m
+{"message": "draining worker", "level": "INFO", "name": "livekit.agents", "id": "AW_gUJvYMHBJkhk", "timeout": 1800, "timestamp": "2026-05-15T07:25:59.704159+00:00"}
+[32m2026-05-15 14:25:59.705[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mshutting down worker[0m
+{"message": "shutting down worker", "level": "INFO", "name": "livekit.agents", "id": "AW_gUJvYMHBJkhk", "timestamp": "2026-05-15T07:25:59.705103+00:00"}

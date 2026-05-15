@@ -1,14 +1,15 @@
 import uuid
 from datetime import datetime, timezone
 
+from opentelemetry import context
 from sqlmodel import Session
 
-from app.core.exceptions import BookNotFoundError, StudyContextNotFoundError
+from app.core.exceptions import AppException, BookNotFoundError, StudyContextNotFoundError
 from app.models.db_models import ChatThread, StudyContext, StudyContextDocumentLink
 from app.repositories.audiobook_repo import get_book_by_id
 from app.repositories.study_context_document_link_repo import create_new_context_document
 from app.repositories.study_context_repo import create_study_context, get_study_context
-from app.repositories.study_context_thread_repo import create_new_thread
+from app.repositories.study_context_thread_repo import create_new_thread, get_or_create_thread_for_book_repo
 from app.schemas.study_context import ChatThreadInput, StudyContextDocumentInput, StudyContextInput
 
 
@@ -66,7 +67,8 @@ def add_document_to_context(
 
     _get_owned_context(session, context_id, user_id)
 
-    link = StudyContextDocumentLink(context_id=context_id, book_id=payload.book_id)
+    link = StudyContextDocumentLink(
+        context_id=context_id, book_id=payload.book_id)
     return create_new_context_document(session, link)
 
 
@@ -98,6 +100,11 @@ def create_thread(
     """Validate context ownership rồi tạo mới ChatThread."""
     _get_owned_context(session, context_id, user_id)
 
+    context = _get_owned_context(session, context_id, user_id)
+    if context.is_auto_generated:
+        raise AppException(
+            status_code=400, detail="Không thể tạo thêm thread cho Direct Book Context.")
+
     thread = ChatThread(
         context_id=context_id,
         title=payload.title,
@@ -105,3 +112,9 @@ def create_thread(
         updated_at=datetime.now(timezone.utc),
     )
     return create_new_thread(session, thread)
+
+
+def get_or_create_thread_for_book(session: Session, user_id: uuid.UUID, book_id: uuid.UUID, title: str):
+    ctx_id, thread_id = get_or_create_thread_for_book_repo(
+        session, user_id, book_id, title=title)
+    return {'context_id': str(ctx_id), 'thread_id': str(thread_id), 'is_auto_generated': True}

@@ -48,12 +48,12 @@ Vì giá/latency có thể thay đổi theo thời điểm và theo tài khoản
 
 Cách triển khai đề xuất:
 
-- Đọc model từ env `OPENAI_REALTIME_MODEL`.
-- Cho phép fallback list nếu model không được cấp quyền.
+- Đọc model từ env/setting `OPENAI_STREAM_MODEL_NAME` (trong codebase Triam đang dùng `settings.OPENAI_STREAM_MODEL_NAME`).
+- Cho phép fallback nếu model không được cấp quyền (tối thiểu fallback sang `gpt-realtime-1.5`).
 
 Pseudo:
 
-- candidates = [env, "gpt-realtime-2025-08-28", "gpt-realtime-1.5", "gpt-realtime"]
+- candidates = [OPENAI_STREAM_MODEL_NAME, "gpt-realtime-2025-08-28", "gpt-realtime-1.5", "gpt-realtime"]
 - thử lần lượt, nếu lỗi NOT_FOUND/permission thì fallback.
 
 ---
@@ -70,35 +70,45 @@ Dù bạn đã ghi instruction rất rõ, LLM đôi khi vẫn:
 - gọi `search_web` quá sớm
 - hoặc trả lời từ “nhớ” mà không gọi tool
 
-### Best-practice: Giảm degrees-of-freedom của model
+### Best-practice (scale): Tách “policy layer” khỏi số lượng tool
 
-Cách chắc nhất để model không “chọn nhầm” là:
+Nhận xét của bạn đúng: về sau sẽ có nhiều tool, nên hướng “gộp thành 1 tool lookup()” là giải pháp nhanh nhưng dễ thành hard-code và kém scale.
 
-1. Chỉ expose 1 tool duy nhất (ví dụ: `lookup(query)`)
-2. Tool `lookup()` tự enforce policy:
-   - luôn gọi RAG trước
-   - nếu RAG rỗng thì mới gọi Web
+Giải pháp bền vững hơn là thiết kế 2 lớp:
 
-Ưu điểm:
+1. Tool execution layer (các tool thật)
 
-- Model không còn cơ hội chọn nhầm tool.
-- Logic routing nằm ở code, deterministic, testable.
+- Mỗi tool chỉ làm đúng 1 việc (RAG, web, summarize, planner, calc, v.v.).
 
-Cách implement:
+2. Tool policy & routing layer (deterministic, config-driven)
 
-- Gộp 2 tool thành 1 tool (hoặc giữ hàm nội bộ nhưng chỉ decorate 1 tool).
+- Định nghĩa quy tắc gọi tool bằng dữ liệu (config), không nhét rải rác trong prompt.
+- Khi LLM gọi tool, hệ thống kiểm tra policy:
+  - Nếu vi phạm (ví dụ: gọi web trước khi thử RAG cho câu hỏi “trong sách”) => hệ thống tự động chặn/reroute/insert bước bắt buộc.
 
-Pseudo:
+Vì sao cần policy layer (lý do mang tính “chứng minh” hệ thống):
 
-async def lookup(query: str) -> str:
-rag = await search_book_knowledge(query, document_ids)
-if rag has data:
-return rag
-return await search_web(query)
+- Function-calling là hành vi suy luận, không có guarantee 100% tuân thủ instruction.
+- Khi tool tăng, prompt không thể bao phủ hết rule + edge case và càng khó maintain.
+- Nếu muốn correctness ở mức hệ thống, enforcement phải nằm ở code.
 
-Lưu ý:
+Pattern scale tốt (không hard-code theo từng tool): Tool Registry + Policy Rules
 
-- Trong instruction vẫn giữ quy tắc để model hiểu mong muốn, nhưng enforcement chính nằm ở code.
+- Mỗi tool có metadata (tags/capabilities): ví dụ {domain: book}, {domain: web}, {freshness: current}, {cost: low}.
+- Policy rules dựa trên metadata:
+  - Nếu query liên quan sách + có document_ids => bắt buộc chạy tool tag=book trước.
+  - Chỉ cho phép web nếu (rag_empty == true) hoặc (intent == current-events).
+
+Hệ quả tích cực:
+
+- Thêm tool mới = thêm metadata + rule (dễ test, dễ log, dễ quan sát).
+- Không phụ thuộc vào “LLM nhớ rule” nữa; LLM chỉ là planner/assistant, còn hệ thống enforce.
+
+Gợi ý MVP để chuyển dần (không làm quá phức tạp ngay):
+
+- Giữ 2 tool như hiện tại.
+- Implement 1 router/policy tối thiểu trong code để luôn thử RAG trước, chỉ fallback web khi đủ điều kiện.
+- Khi tool tăng, mở rộng registry/rules thay vì viết if-else rải rác.
 
 ---
 
@@ -139,6 +149,44 @@ Vì sao nên “text-only path” thay vì cố ép realtime chỉ trả text?
 "type": "pref",
 "audio_for_text_chat": false
 }
+
+#### `lk.pref` có làm chậm hệ thống không?
+
+Gần như không đáng kể:
+
+- Message nhỏ (vài chục đến vài trăm bytes JSON).
+- Không gửi liên tục, chỉ gửi khi user đổi toggle hoặc ngay sau khi join room.
+- So với audio streaming và LLM tokens thì overhead này là không đáng kể.
+
+#### Đồng bộ UI và backend lâu dài (thoát app, mở lại)
+
+Realtime session không tự “nhớ” preference cho lần join mới. Có 2 hướng best-practice:
+
+Option A (đơn giản, thường đủ dùng): FE source-of-truth
+
+- Flutter lưu toggle vào local storage (SharedPreferences).
+- Mỗi lần join room, Flutter gửi lại preference qua `lk.pref`.
+- Backend giữ preference trong RAM theo participant cho phiên đó.
+
+Option B (đa thiết bị/bền hơn): BE persistence
+
+- Backend lưu preference theo user_id/participant identity vào DB/Redis.
+- Khi user join, backend có thể push lại pref (broadcast kèm participant identity) hoặc FE call API lấy state rồi publish vào room.
+
+#### So với call API: DataChannel preference có ổn hơn không?
+
+DataChannel phù hợp cho “room-scoped controls” vì:
+
+- Latency thấp, không cần thêm endpoint, gắn đúng vào room/session.
+- Ít plumbing hơn REST (auth/route/DTO riêng) cho những knob nhỏ.
+
+Nhưng nếu mục tiêu là persistence đa session/đa thiết bị, bạn vẫn cần DB/Redis hoặc local storage.
+
+Tối ưu hơn nữa (ít topic hơn): dùng participant metadata/attributes
+
+- Flutter set attribute `audio_for_text_chat=false` lúc join.
+- Backend đọc attribute để quyết định.
+- Vẫn phải set lại mỗi lần join, nhưng không cần custom `lk.pref`.
 
 ---
 
@@ -234,7 +282,12 @@ Backend (Python):
 1. Thêm listener topic `lk.pref` để cập nhật preference theo participant.
 2. Với text input (`lk.chat`): nếu audio_for_text_chat=false => generate text-only và publish text về `lk.chat`.
 3. Với voice events: publish transcript lên `lk.transcript` cho cả user và assistant.
-4. Đổi model realtime sang env + fallback theo danh sách `RealtimeModels`.
+4. Đổi model realtime sang setting/env + fallback `gpt-realtime-1.5`.
+
+Gợi ý khớp với codebase hiện tại:
+
+- Import settings và dùng `settings.OPENAI_STREAM_MODEL_NAME`.
+- Nếu model đó lỗi NOT_FOUND/permission => fallback sang `gpt-realtime-1.5`.
 
 Flutter:
 
