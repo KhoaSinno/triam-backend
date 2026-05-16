@@ -277,6 +277,22 @@ async def entrypoint(ctx: JobContext):
         except Exception as e:
             log.info(f"Lỗi khi lưu message: {e}")
 
+    saved_user_transcripts: set[str] = set()
+
+    async def _save_and_publish_user_transcript(text: str) -> None:
+        normalized = " ".join(text.split())
+        if not normalized:
+            return
+
+        # LiveKit realtime transcription can arrive through multiple event paths.
+        # Keep user voice persistence idempotent for this in-memory session.
+        if normalized in saved_user_transcripts:
+            return
+        saved_user_transcripts.add(normalized)
+
+        await asyncio.to_thread(_save_message, normalized, True)
+        await _publish_transcript("user", normalized)
+
     # Note: We use a custom data channel ("lk.chat") for text input instead of relying on room_io.TextInputEvent
 
     async def _chat_naive_rag(user_text: str) -> str:
@@ -455,13 +471,22 @@ async def entrypoint(ctx: JobContext):
     ctx.room.on("data_received", on_data_received)
 
     def _attach_session_handlers(sess: AgentSession) -> None:
+        @sess.on("user_input_transcribed")  # type: ignore[arg-type]
+        def on_user_input_transcribed(ev):
+            is_final = bool(getattr(ev, "is_final", False))
+            transcript = str(getattr(ev, "transcript", "") or "").strip()
+            log.info(
+                f"user_input_transcribed received: final={is_final}, chars={len(transcript)}"
+            )
+            if is_final and transcript:
+                asyncio.create_task(_save_and_publish_user_transcript(transcript))
+
         @sess.on("user_speech_committed")  # type: ignore[arg-type]
         def on_user_speech(msg: LLMMessage):
             content = getattr(msg, "content", getattr(msg, "text", ""))
             if content:
                 text = str(content)
-                asyncio.create_task(asyncio.to_thread(_save_message, text, True))
-                asyncio.create_task(_publish_transcript("user", text))
+                asyncio.create_task(_save_and_publish_user_transcript(text))
                 # Ghi vào session.history để gpt-4o-mini (text chat) cũng thấy
                 sess.history.add_message(role="user", content=text)
 

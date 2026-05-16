@@ -1,28 +1,32 @@
-[32m2026-05-15 14:19:54.477[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mstarting worker[0m
-{"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.5.8", "rtc-version": "1.1.7", "timestamp": "2026-05-15T07:19:54.477784+00:00"}
-[32m2026-05-15 14:19:54.477[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mplugin registered[0m
-{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.openai", "version": "1.5.8", "timestamp": "2026-05-15T07:19:54.477784+00:00"}
-[32m2026-05-15 14:19:54.478[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mHTTP server listening on :8081[0m
-{"message": "HTTP server listening on :8081", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-05-15T07:19:54.478803+00:00"}
-[32m2026-05-15 14:19:54.482[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 2368, "timestamp": "2026-05-15T07:19:54.482935+00:00"}
-[32m2026-05-15 14:19:54.482[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 10912, "timestamp": "2026-05-15T07:19:54.482935+00:00"}
-[32m2026-05-15 14:19:54.484[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 17724, "timestamp": "2026-05-15T07:19:54.484454+00:00"}
-[32m2026-05-15 14:19:54.484[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
-{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 11396, "timestamp": "2026-05-15T07:19:54.484981+00:00"}
-[32m2026-05-15 14:19:54.486[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 2368, "elapsed_time": 0.0, "timestamp": "2026-05-15T07:19:54.486002+00:00"}
-[32m2026-05-15 14:19:54.487[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 10912, "elapsed_time": 0.0, "timestamp": "2026-05-15T07:19:54.487062+00:00"}
-[32m2026-05-15 14:19:54.488[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 17724, "elapsed_time": 0.0, "timestamp": "2026-05-15T07:19:54.488593+00:00"}
-[32m2026-05-15 14:19:54.489[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
-{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 11396, "elapsed_time": 0.0, "timestamp": "2026-05-15T07:19:54.489120+00:00"}
-[32m2026-05-15 14:19:55.431[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mregistered worker[0m
-{"message": "registered worker", "level": "INFO", "name": "livekit.agents", "agent_name": "triam-voice-agent", "id": "AW_gUJvYMHBJkhk", "url": "wss://tri-am-bmdl413w.livekit.cloud", "region": "India South", "protocol": 17, "timestamp": "2026-05-15T07:19:55.431956+00:00"}
-[32m2026-05-15 14:25:59.704[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mdraining worker[0m
-{"message": "draining worker", "level": "INFO", "name": "livekit.agents", "id": "AW_gUJvYMHBJkhk", "timeout": 1800, "timestamp": "2026-05-15T07:25:59.704159+00:00"}
-[32m2026-05-15 14:25:59.705[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mshutting down worker[0m
-{"message": "shutting down worker", "level": "INFO", "name": "livekit.agents", "id": "AW_gUJvYMHBJkhk", "timestamp": "2026-05-15T07:25:59.705103+00:00"}
+[32m2026-05-16 18:09:37.180[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mstarting worker[0m
+{"message": "starting worker", "level": "INFO", "name": "livekit.agents", "version": "1.5.8", "rtc-version": "1.1.7", "timestamp": "2026-05-16T11:09:37.180205+00:00"}
+[32m2026-05-16 18:09:37.181[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mplugin registered[0m
+{"message": "plugin registered", "level": "INFO", "name": "livekit.agents", "plugin": "livekit.plugins.openai", "version": "1.5.8", "timestamp": "2026-05-16T11:09:37.181204+00:00"}
+[32m2026-05-16 18:09:37.182[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mHTTP server listening on :8081[0m
+{"message": "HTTP server listening on :8081", "level": "INFO", "name": "livekit.agents", "timestamp": "2026-05-16T11:09:37.182203+00:00"}
+[32m2026-05-16 18:09:37.186[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 12984, "timestamp": "2026-05-16T11:09:37.186172+00:00"}
+[32m2026-05-16 18:09:37.187[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 21272, "timestamp": "2026-05-16T11:09:37.187185+00:00"}
+[32m2026-05-16 18:09:37.187[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 20548, "timestamp": "2026-05-16T11:09:37.187185+00:00"}
+[32m2026-05-16 18:09:37.188[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1minitializing job runner[0m
+{"message": "initializing job runner", "level": "INFO", "name": "livekit.agents", "tid": 20088, "timestamp": "2026-05-16T11:09:37.188181+00:00"}
+[32m2026-05-16 18:09:37.189[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 12984, "elapsed_time": 0.0, "timestamp": "2026-05-16T11:09:37.189180+00:00"}
+[32m2026-05-16 18:09:37.191[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 21272, "elapsed_time": 0.0, "timestamp": "2026-05-16T11:09:37.191427+00:00"}
+[32m2026-05-16 18:09:37.192[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 20548, "elapsed_time": 0.0, "timestamp": "2026-05-16T11:09:37.192411+00:00"}
+[32m2026-05-16 18:09:37.193[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mjob runner initialized[0m
+{"message": "job runner initialized", "level": "INFO", "name": "livekit.agents", "tid": 20088, "elapsed_time": 0.01, "timestamp": "2026-05-16T11:09:37.193836+00:00"}
+[32m2026-05-16 18:09:38.190[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mregistered worker[0m
+{"message": "registered worker", "level": "INFO", "name": "livekit.agents", "agent_name": "triam-voice-agent", "id": "AW_qtr8UcUpJXuv", "url": "wss://tri-am-bmdl413w.livekit.cloud", "region": "India South", "protocol": 17, "timestamp": "2026-05-16T11:09:38.190669+00:00"}
+[32m2026-05-16 18:14:44.137[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mdraining worker[0m
+{"message": "draining worker", "level": "INFO", "name": "livekit.agents", "id": "AW_qtr8UcUpJXuv", "timeout": 1800, "timestamp": "2026-05-16T11:14:44.137793+00:00"}
+[32m2026-05-16 18:14:44.139[0m | [1mINFO    [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [1mshutting down worker[0m
+{"message": "shutting down worker", "level": "INFO", "name": "livekit.agents", "id": "AW_qtr8UcUpJXuv", "timestamp": "2026-05-16T11:14:44.139179+00:00"}
+[32m2026-05-16 18:14:54.147[0m | [31m[1mERROR   [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [31m[1mjob did not ack shutdown in time[0m
+{"message": "job did not ack shutdown in time", "level": "ERROR", "name": "livekit.agents", "tid": 20088, "timestamp": "2026-05-16T11:14:54.147245+00:00"}
+[32m2026-05-16 18:21:13.871[0m | [33m[1mWARNING [0m | [36mlogging[0m:[36mcallHandlers[0m:[36m1762[0m - [33m[1mexiting forcefully[0m
+{"message": "exiting forcefully", "level": "WARNING", "name": "livekit.agents", "timestamp": "2026-05-16T11:21:13.871075+00:00"}
