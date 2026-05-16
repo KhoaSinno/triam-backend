@@ -200,8 +200,10 @@ async def entrypoint(ctx: JobContext):
     try:
         job_meta = json.loads(ctx.job.metadata or "{}")
         # TODO: Hardcoded to test console => My intention
-        book_id = job_meta.get("book_id", "9cda7cbc-c9e4-4325-9fc9-cb74d71e14b3")
-        thread_id = job_meta.get("thread_id", "f25f309f-1dbb-4517-90b9-5fbbc88e3070")
+        # book_id = job_meta.get("book_id", "9cda7cbc-c9e4-4325-9fc9-cb74d71e14b3")
+        # thread_id = job_meta.get("thread_id", "f25f309f-1dbb-4517-90b9-5fbbc88e3070")
+        book_id = job_meta.get("book_id", "")
+        thread_id = job_meta.get("thread_id", "")
         document_ids = job_meta.get("document_ids", [])
 
         if book_id and not document_ids:

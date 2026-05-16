@@ -21,3 +21,5 @@ script_ouputs/
 # Runtime logs
 logs/
 *.log
+
+tests/fixtures/*.wav
