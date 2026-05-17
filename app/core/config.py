@@ -26,7 +26,15 @@ class Settings(BaseSettings):
     DEEPGRAM_API_KEY: str
     CARTESIA_API_KEY_TTS: str
     ELEVENLABS_API_KEY_TTS: str
-    OPENAI_STREAM_MODEL_NAME: str = "gpt-4o-mini-realtime-preview"
+    OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime"
+    OPENAI_REALTIME_VOICE: str = "cedar"
+    OPENAI_REALTIME_TRANSCRIPTION_MODEL: str = "gpt-4o-transcribe"
+    OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE: str = "vi"
+    OPENAI_REALTIME_TRANSCRIPTION_PROMPT: str = (
+        "Cuộc trò chuyện bằng tiếng Việt trong ứng dụng sách nói TRIAM. "
+        "Người dùng hỏi về sách, chương, nội dung học tập, phương pháp nghiên cứu, "
+        "hình học Euclid và có thể nói các từ như Tri Âm, chương, sách, định lý."
+    )
 
     # Upload file
     MAX_FILE_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB

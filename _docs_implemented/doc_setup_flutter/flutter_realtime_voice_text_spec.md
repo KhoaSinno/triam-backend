@@ -357,5 +357,5 @@ Lưu ý:
 ## 7) Notes / Known constraints (đúng theo backend hiện tại)
 
 - Study context API đang dùng `MOCK_USER_ID` (chưa có auth). Khi backend bật JWT, Flutter sẽ phải gửi access token.
-- Backend currently always publishes assistant audio (modalities audio+text). Nếu muốn “text-only chat không phát audio”, cần design thêm preference/attribute (chưa nằm trong scope doc này).
+- Backend dùng RealtimeModel cho audio voice; text chat tay qua `lk.chat` được xử lý bằng LLM text riêng và không phát audio. Assistant voice vẫn publish text transcript qua `lk.chat`/`lk.transcript` để UI hiển thị.
 - Topic names là contract cứng: `lk.chat`, `lk.transcript`, `lk.control`.

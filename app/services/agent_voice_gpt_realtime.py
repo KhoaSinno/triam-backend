@@ -22,6 +22,7 @@ from livekit.agents.voice import io as voice_io
 from livekit.plugins import noise_cancellation
 from livekit.plugins.openai import LLM as OpenAILLM
 from livekit.plugins.openai.realtime import RealtimeModel
+from openai.types.realtime import AudioTranscription
 from sqlmodel import Session, select
 
 from app.core.config import settings
@@ -200,10 +201,10 @@ async def entrypoint(ctx: JobContext):
     try:
         job_meta = json.loads(ctx.job.metadata or "{}")
         # TODO: Hardcoded to test console => My intention
-        # book_id = job_meta.get("book_id", "9cda7cbc-c9e4-4325-9fc9-cb74d71e14b3")
-        # thread_id = job_meta.get("thread_id", "f25f309f-1dbb-4517-90b9-5fbbc88e3070")
-        book_id = job_meta.get("book_id", "")
-        thread_id = job_meta.get("thread_id", "")
+        book_id = job_meta.get("book_id", "1b893d40-e0cc-4ee3-ae5f-a7809834e6dd")
+        thread_id = job_meta.get("thread_id", "5bb8da1d-7326-4d67-b0b3-0b4dd9bb17d7")
+        # book_id = job_meta.get("book_id", "")
+        # thread_id = job_meta.get("thread_id", "")
         document_ids = job_meta.get("document_ids", [])
 
         if book_id and not document_ids:
@@ -478,7 +479,7 @@ async def entrypoint(ctx: JobContext):
             is_final = bool(getattr(ev, "is_final", False))
             transcript = str(getattr(ev, "transcript", "") or "").strip()
             log.info(
-                f"user_input_transcribed received: final={is_final}, chars={len(transcript)}"
+                f"user_input_transcribed received: final={is_final}, chars={len(transcript)}, transcript={transcript!r}"
             )
             if is_final and transcript:
                 asyncio.create_task(_save_and_publish_user_transcript(transcript))
@@ -506,12 +507,20 @@ async def entrypoint(ctx: JobContext):
     last_start_exc: Exception | None = None
     for model_name in model_candidates:
         try:
-            log.info(f"Starting realtime session with model: {model_name}")
+            log.info(
+                f"Starting realtime session with model: {model_name}, voice: {settings.OPENAI_REALTIME_VOICE}"
+            )
             model = RealtimeModel(
                 model=model_name,
-                voice="alloy",
+                voice=settings.OPENAI_REALTIME_VOICE,
                 temperature=0.8,
-                modalities=["audio", "text"],
+                modalities=["audio"],
+                input_audio_transcription=AudioTranscription(
+                    model=settings.OPENAI_REALTIME_TRANSCRIPTION_MODEL,
+                    language=settings.OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE,
+                    prompt=settings.OPENAI_REALTIME_TRANSCRIPTION_PROMPT,
+                ),
+                input_audio_noise_reduction="near_field",
             )
             session = AgentSession(llm=model)
             _attach_session_handlers(session)
@@ -530,9 +539,7 @@ async def entrypoint(ctx: JobContext):
                         sync_transcription=False,
                         next_in_chain=ChatTextOutput(
                             ctx.room,
-                            save_cb=_save_message,
                             topic="lk.chat",
-                            transcript_topic="lk.transcript",
                         ),
                     ),
                     close_on_disconnect=True,
