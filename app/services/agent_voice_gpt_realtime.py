@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Annotated, Any, cast
 
@@ -36,21 +37,57 @@ from app.services.web_search_service import search_web as web_search
 os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
 
 
+@dataclass(frozen=True)
+class VoiceJobMetadata:
+    thread_id: str
+    document_ids: list[str]
+
+
+def _coerce_string_list(value: Any) -> list[str]:
+    if not isinstance(value, list):
+        return []
+    return [str(item) for item in value if item]
+
+
+def _parse_job_metadata(raw_metadata: str | None, room_name: str) -> VoiceJobMetadata:
+    try:
+        payload = json.loads(raw_metadata or "{}")
+    except (json.JSONDecodeError, TypeError):
+        payload = {}
+
+    thread_id = str(payload.get("thread_id") or "")
+    document_ids = _coerce_string_list(payload.get("document_ids"))
+    book_id = str(payload.get("book_id") or "")
+
+    if book_id and not document_ids:
+        document_ids = [book_id]
+
+    if room_name == "console":
+        if not thread_id:
+            thread_id = settings.VOICE_AGENT_CONSOLE_THREAD_ID
+        if not document_ids and settings.VOICE_AGENT_CONSOLE_BOOK_ID:
+            document_ids = [settings.VOICE_AGENT_CONSOLE_BOOK_ID]
+
+    return VoiceJobMetadata(thread_id=thread_id, document_ids=document_ids)
+
+
+def _trim_text(text: str, max_chars: int) -> str:
+    if max_chars <= 0 or len(text) <= max_chars:
+        return text
+    return f"{text[:max_chars].rstrip()}\n...[truncated]"
+
+
 class ChatTextOutput(voice_io.TextOutput):
     def __init__(
         self,
         room: rtc.Room,
-        save_cb=None,
         topic: str = "lk.chat",
-        transcript_topic: str | None = None,
     ) -> None:
         super().__init__(label="ChatTextOutput", next_in_chain=None)
         self._room = room
         self._topic = topic
-        self._transcript_topic = transcript_topic
         self._buffer: list[str] = []
         self._flush_task: asyncio.Task[None] | None = None
-        self._save_cb = save_cb
 
     async def capture_text(self, text: str) -> None:
         if not text:
@@ -67,9 +104,6 @@ class ChatTextOutput(voice_io.TextOutput):
         preview = message if len(message) <= 120 else f"{message[:120]}..."
         log.info(f"Text output ({len(message)} chars): {preview}")
 
-        if self._save_cb:
-            asyncio.create_task(asyncio.to_thread(self._save_cb, message, False))
-
         async def _publish(topic: str, payload: str) -> None:
             if not self._room.isconnected():
                 return
@@ -84,22 +118,6 @@ class ChatTextOutput(voice_io.TextOutput):
 
         # Flush is sync; schedule async publish.
         self._flush_task = asyncio.create_task(_publish(self._topic, message))
-
-        if self._transcript_topic:
-            transcript_payload = {
-                "v": 1,
-                "type": "transcript",
-                "role": "assistant",
-                "text": message,
-                "id": str(uuid.uuid4()),
-                "ts": datetime.now(timezone.utc).isoformat(),
-            }
-            self._flush_task = asyncio.create_task(
-                _publish(
-                    self._transcript_topic,
-                    json.dumps(transcript_payload, ensure_ascii=False).encode("utf-8"),
-                )
-            )
 
 
 class TriamAssistant(Agent):
@@ -147,15 +165,19 @@ class TriamAssistant(Agent):
                 return "RAG invalid RAG data format"
 
             formatted_chunks = []
+            remaining_chars = settings.VOICE_AGENT_RAG_MAX_CHARS
             for i, item in enumerate(data):
                 if not isinstance(item, dict):
                     continue
+                if remaining_chars <= 0:
+                    break
                 chapter_id = str(item.get("chapter_id", ""))
                 chunk_index = item.get("chunk_index", "N/A")
-                content = item.get("content", "")
+                content = _trim_text(str(item.get("content", "")), remaining_chars)
 
                 chunk_text = f"--- Segment {i + 1} (Chapter ID: ...{chapter_id[-6:]}, Index: {chunk_index}) ---\n{content}"
                 formatted_chunks.append(chunk_text)
+                remaining_chars -= len(content)
 
             context = "\n\n".join(formatted_chunks)
             return f"Book Knowledge: {context}"
@@ -195,24 +217,12 @@ class TriamAssistant(Agent):
         )
 
 
-async def entrypoint(ctx: JobContext):
+async def entrypoint(ctx: JobContext):  # noqa: C901
     await ctx.connect()
 
-    try:
-        job_meta = json.loads(ctx.job.metadata or "{}")
-        # TODO: Hardcoded to test console => My intention
-        book_id = job_meta.get("book_id", "1b893d40-e0cc-4ee3-ae5f-a7809834e6dd")
-        thread_id = job_meta.get("thread_id", "5bb8da1d-7326-4d67-b0b3-0b4dd9bb17d7")
-        # book_id = job_meta.get("book_id", "")
-        # thread_id = job_meta.get("thread_id", "")
-        document_ids = job_meta.get("document_ids", [])
-
-        if book_id and not document_ids:
-            document_ids = [book_id]
-
-    except (json.JSONDecodeError, AttributeError, TypeError):
-        thread_id = ""
-        document_ids = []
+    job_meta = _parse_job_metadata(ctx.job.metadata, ctx.room.name)
+    thread_id = job_meta.thread_id
+    document_ids = job_meta.document_ids
 
     if not document_ids:
         log.info("❌ Không tìm thấy document_ids trong metadata! Thoát.")
@@ -234,8 +244,7 @@ async def entrypoint(ctx: JobContext):
         msg = str(exc)
         return "NOT_FOUND" in msg or "404" in msg or "model" in msg.lower() and "not" in msg.lower() and "found" in msg.lower()
 
-    configured_model_name = settings.OPENAI_STREAM_MODEL_NAME
-    model_candidates = [configured_model_name, "gpt-realtime-1.5"]
+    model_candidates = [settings.OPENAI_STREAM_MODEL_NAME, "gpt-realtime-1.5"]
     # de-dupe while preserving order
     seen_models: set[str] = set()
     model_candidates = [m for m in model_candidates if not (m in seen_models or seen_models.add(m))]
@@ -248,6 +257,11 @@ async def entrypoint(ctx: JobContext):
     web_search_enabled: bool = False
 
     session: AgentSession
+    text_turn_lock = asyncio.Lock()
+
+    def _truncate_session_history() -> None:
+        if hasattr(session, "history") and session.history is not None:
+            session.history.truncate(max_items=settings.VOICE_AGENT_HISTORY_LIMIT)
 
     async def _publish_transcript(role: str, text: str) -> None:
         if not text or not ctx.room.isconnected():
@@ -280,7 +294,7 @@ async def entrypoint(ctx: JobContext):
         except Exception as e:
             log.info(f"Lỗi khi lưu message: {e}")
 
-    saved_user_transcripts: set[str] = set()
+    saved_user_transcripts: dict[str, datetime] = {}
 
     async def _save_and_publish_user_transcript(text: str) -> None:
         normalized = " ".join(text.split())
@@ -288,10 +302,12 @@ async def entrypoint(ctx: JobContext):
             return
 
         # LiveKit realtime transcription can arrive through multiple event paths.
-        # Keep user voice persistence idempotent for this in-memory session.
-        if normalized in saved_user_transcripts:
+        # Keep user voice persistence idempotent for near-duplicate event paths only.
+        now = datetime.now(timezone.utc)
+        last_seen = saved_user_transcripts.get(normalized)
+        if last_seen and (now - last_seen).total_seconds() < 3:
             return
-        saved_user_transcripts.add(normalized)
+        saved_user_transcripts[normalized] = now
 
         await asyncio.to_thread(_save_message, normalized, True)
         await _publish_transcript("user", normalized)
@@ -391,46 +407,54 @@ async def entrypoint(ctx: JobContext):
         return response.text
 
     async def handle_data_input(text: str, participant_id: str | None) -> None:
-        log.info(f"Data input from {participant_id or 'unknown'}: {text}")
+        normalized_text = " ".join(text.split())
+        if not normalized_text:
+            return
 
-        # Save DB and update transcript immediately (await to guarantee insertion order)
-        await asyncio.to_thread(_save_message, text, True)
-        asyncio.create_task(_publish_transcript("user", text))
+        async with text_turn_lock:
+            log.info(f"Data input from {participant_id or 'unknown'}: {normalized_text}")
 
-        # Interrupt if livekit is currently speaking
-        await session.interrupt()
+            # Save DB and update transcript immediately (await to guarantee insertion order)
+            await asyncio.to_thread(_save_message, normalized_text, True)
+            await _publish_transcript("user", normalized_text)
 
-        # Put input into shared memory
-        session.history.add_message(role="user", content=text)
+            # Interrupt if livekit is currently speaking
+            await session.interrupt()
 
-        try:
-            # Phân nhánh dựa theo toggle web_search_enabled
-            if web_search_enabled:
-                full_reply = await _chat_with_agentic_loop(text)
-            else:
-                full_reply = await _chat_naive_rag(text)
+            # Put input into shared memory
+            session.history.add_message(role="user", content=normalized_text)
+            _truncate_session_history()
 
-            log.info(f"LLM Reply completed. Length: {len(full_reply)}")
+            try:
+                # Phân nhánh dựa theo toggle web_search_enabled
+                if web_search_enabled:
+                    full_reply = await _chat_with_agentic_loop(normalized_text)
+                else:
+                    full_reply = await _chat_naive_rag(normalized_text)
 
-            if full_reply:
-                # Save DB and update transcript immediately
-                await asyncio.to_thread(_save_message, full_reply, False)
-                asyncio.create_task(_publish_transcript("assistant", full_reply))
+                full_reply = full_reply.strip()
+                log.info(f"LLM Reply completed. Length: {len(full_reply)}")
 
-                # Publish raw text to data channel for UI
-                try:
-                    await ctx.room.local_participant.publish_data(
-                        full_reply.encode("utf-8"),
-                        reliable=True,
-                        topic="lk.chat",
-                    )
-                except Exception as exc:
-                    log.info(f"Data output publish failed: {exc}")
+                if full_reply:
+                    # Save DB and update transcript immediately
+                    await asyncio.to_thread(_save_message, full_reply, False)
+                    await _publish_transcript("assistant", full_reply)
 
-            # Update shared memory with assistant reply
-            session.history.add_message(role="assistant", content=full_reply)
-        except Exception as e:
-            log.error(f"Error in handle_data_input: {e}")
+                    # Publish raw text to data channel for UI
+                    try:
+                        await ctx.room.local_participant.publish_data(
+                            full_reply.encode("utf-8"),
+                            reliable=True,
+                            topic="lk.chat",
+                        )
+                    except Exception as exc:
+                        log.info(f"Data output publish failed: {exc}")
+
+                    # Update shared memory with assistant reply
+                    session.history.add_message(role="assistant", content=full_reply)
+                    _truncate_session_history()
+            except Exception as e:
+                log.error(f"Error in handle_data_input: {e}")
 
     async def handle_text_input(sess: AgentSession, ev: room_io.TextInputEvent) -> None:
         participant_id = ev.participant.identity if ev.participant else "unknown"
@@ -492,6 +516,7 @@ async def entrypoint(ctx: JobContext):
                 asyncio.create_task(_save_and_publish_user_transcript(text))
                 # Ghi vào session.history để gpt-4o-mini (text chat) cũng thấy
                 sess.history.add_message(role="user", content=text)
+                sess.history.truncate(max_items=settings.VOICE_AGENT_HISTORY_LIMIT)
 
         @sess.on("agent_speech_committed")  # type: ignore[arg-type]
         def on_agent_speech(msg: LLMMessage):
@@ -502,6 +527,7 @@ async def entrypoint(ctx: JobContext):
                 asyncio.create_task(_publish_transcript("assistant", text))
                 # Ghi vào session.history để gpt-4o-mini (text chat) cũng thấy
                 sess.history.add_message(role="assistant", content=text)
+                sess.history.truncate(max_items=settings.VOICE_AGENT_HISTORY_LIMIT)
 
     # Start session with fallback when a configured model is unavailable.
     last_start_exc: Exception | None = None
@@ -513,7 +539,6 @@ async def entrypoint(ctx: JobContext):
             model = RealtimeModel(
                 model=model_name,
                 voice=settings.OPENAI_REALTIME_VOICE,
-                temperature=0.8,
                 modalities=["audio"],
                 input_audio_transcription=AudioTranscription(
                     model=settings.OPENAI_REALTIME_TRANSCRIPTION_MODEL,
@@ -546,7 +571,6 @@ async def entrypoint(ctx: JobContext):
                 ),
             )
 
-            configured_model_name = model_name
             break
         except Exception as exc:
             last_start_exc = exc
@@ -564,8 +588,14 @@ async def entrypoint(ctx: JobContext):
         if not thread_uuid:
             return []
         with Session(engine) as db:
-            # SQLModel typing sometimes marks timestamp as datetime; avoid .asc() to reduce type-check noise.
-            return db.exec(select(ChatMessage).where(ChatMessage.thread_id == thread_uuid).order_by(cast(Any, ChatMessage.timestamp))).all()
+            # Load only the recent window into model memory; full history remains in DB for UI.
+            messages = db.exec(
+                select(ChatMessage)
+                .where(ChatMessage.thread_id == thread_uuid)
+                .order_by(cast(Any, ChatMessage.timestamp).desc())
+                .limit(settings.VOICE_AGENT_HISTORY_LIMIT)
+            ).all()
+            return list(reversed(messages))
 
     try:
         history_msgs = await asyncio.to_thread(_load_history)
@@ -574,6 +604,7 @@ async def entrypoint(ctx: JobContext):
             for msg in history_msgs:
                 # type: ignore[attr-defined]
                 session.history.add_message(role="user" if msg.is_user else "assistant", content=msg.text)
+            _truncate_session_history()
     except Exception as e:
         log.info(f"Lỗi khi load history: {e}")
 
