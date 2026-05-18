@@ -8,7 +8,7 @@
   - **Backend (API `POST /api/v1/upload`):**
     - Validate type (pdf, docx, epub), size (≤ 50MB).
     - Lưu file tạm vào thư mục `uploads/` với tên unique (UUID).
-    - Gọi `extract_chapters_smart()` để phân tích outline (danh sách tiêu đề chương).
+    - Gọi `extract_pdf_chapters()` để phân tích outline (danh sách tiêu đề chương).
     - SaveDB (DRAFT):
       - `books(id, user_id, title, total_chapters, status='DRAFT', file_url='pending', created_at)` — `user_id` lấy từ JWT Token (mock: `862d7c26-3160-4f76-9e77-07d91f7317cc`).
       - `chapters(book_id, chapter_index, title, status='DRAFT')` — Lưu ngay để Backend có thể fetch lại sau.

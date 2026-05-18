@@ -1,6 +1,6 @@
 import asyncio
 
-from app.services.pdf_service import extract_chapters_smart, extract_text_from_pdf
+from app.services.pdf_service import extract_pdf_chapters, extract_text_from_pdf
 
 
 async def test_pdf_extraction():
@@ -16,10 +16,10 @@ async def test_pdf_extraction():
         print(f"✓ Extracted {len(text)} characters")
         print(f"Preview: {text[:200]}...")
 
-    # Test 2: extract_chapters_smart (3-level smart extraction)
-    print("\n[TEST 2] Testing extract_chapters_smart...")
+    # Test 2: extract_pdf_chapters (3-level smart extraction)
+    print("\n[TEST 2] Testing extract_pdf_chapters...")
     with open("uploads/bi_mat_cua_mot_tri_nho.pdf", "rb") as f:
-        chapters = await extract_chapters_smart(f, pages_per_chunk=5)
+        chapters = await extract_pdf_chapters(f, pages_per_chunk=5)
         print(f"✓ Found {len(chapters)} chapters/sections")
 
         for i, ch in enumerate(chapters[:5], 1):

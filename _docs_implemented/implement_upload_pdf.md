@@ -63,7 +63,7 @@ def get_pdf_outline_structure(file_obj):
         print(f"Lỗi đọc Outline: {e}")
         return []
 
-async def extract_chapters_smart(file_obj, pages_per_chunk=10):
+async def extract_pdf_chapters(file_obj, pages_per_chunk=10):
     """
     Hàm xử lý thông minh 3 cấp độ:
     Level 1: Dùng Outline (Mục lục ẩn).

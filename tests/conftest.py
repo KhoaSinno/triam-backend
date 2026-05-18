@@ -16,7 +16,7 @@ SAMPLE_PDF_PATH = os.getenv("TEST_PDF_PATH", "tests/sample.pdf")
 def _build_test_pdf(pdf_path: str):
     """
     Tạo file PDF có 2 chương với bookmarks và nội dung tiếng Anh
-    để pipeline extract_chapters_smart → LLM → TTS hoạt động đúng.
+    để pipeline extract_pdf_chapters → LLM → TTS hoạt động đúng.
     """
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
@@ -25,7 +25,8 @@ def _build_test_pdf(pdf_path: str):
     pdf.add_page()
     pdf.start_section("Chapter 1: The Science of Memory", level=0)
     pdf.set_font("Helvetica", "B", size=18)
-    pdf.cell(0, 15, "Chapter 1: The Science of Memory", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 15, "Chapter 1: The Science of Memory",
+             new_x="LMARGIN", new_y="NEXT")
     pdf.ln(5)
 
     pdf.set_font("Helvetica", size=12)
@@ -55,7 +56,8 @@ def _build_test_pdf(pdf_path: str):
     pdf.add_page()
     pdf.start_section("Chapter 2: Effective Learning Techniques", level=0)
     pdf.set_font("Helvetica", "B", size=18)
-    pdf.cell(0, 15, "Chapter 2: Effective Learning Techniques", new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(0, 15, "Chapter 2: Effective Learning Techniques",
+             new_x="LMARGIN", new_y="NEXT")
     pdf.ln(5)
 
     pdf.set_font("Helvetica", size=12)
@@ -81,7 +83,8 @@ def _build_test_pdf(pdf_path: str):
     )
     pdf.multi_cell(0, 8, body2)
 
-    os.makedirs(os.path.dirname(pdf_path) if os.path.dirname(pdf_path) else ".", exist_ok=True)
+    os.makedirs(os.path.dirname(pdf_path) if os.path.dirname(
+        pdf_path) else ".", exist_ok=True)
     pdf.output(pdf_path)
     print(f"\n  📄 Test PDF đã được tạo tại: {pdf_path}")
 

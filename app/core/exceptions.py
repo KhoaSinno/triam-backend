@@ -91,6 +91,14 @@ class PdfExtractionError(AppException):
     detail = "Không thể trích xuất nội dung từ file. File có thể bị lỗi hoặc là scan ảnh."
 
 
+class DocumentOutlineRequiredError(AppException):
+    status_code = 422
+    detail = (
+        "Tài liệu không có cấu trúc chương hợp lệ. "
+        "Vui lòng upload PDF có bookmark/outline, EPUB có mục lục, hoặc DOCX có heading."
+    )    
+
+
 # ---------------------------------------------------------------------------
 # 500 Internal Server Error
 # ---------------------------------------------------------------------------

@@ -3,89 +3,93 @@ import pdfplumber
 from pypdf import PdfReader
 
 from app.core.logger import log
+from app.core.exceptions import DocumentOutlineRequiredError, PdfExtractionError
 
-
-def get_pdf_outline_structure(file_obj):
-    """
-    Hàm này cố gắng đọc Mục lục (Bookmarks) từ metadata của PDF.
-    Trả về: List [{"title": "Chapter 1", "page_start": 5}, ...] hoặc [] nếu không có.
-    """
+def get_pdf_outline_structure(file_obj) -> list[dict]:
     outline_data = []
     try:
         reader = PdfReader(file_obj)
-        # reader.outline chứa cấu trúc mục lục
         if not reader.outline:
             return []
 
         def _parse_outline(outline_items):
             for item in outline_items:
                 if isinstance(item, list):
-                    # Đệ quy nếu có mục lục con (Sub-chapter)
                     _parse_outline(item)
-                else:
-                    try:
-                        # Lấy số trang (pypdf trả về page object, cần lấy index)
-                        page_number = reader.get_destination_page_number(item)
-                        # pypdf get đúng page number
+                    continue
+
+                try:
+                    page_index = reader.get_destination_page_number(item)
+                    title = str(getattr(item, "title", "") or "").strip()
+                    if title:
                         outline_data.append(
-                            {"title": item.title, "page_start": page_number})
-                    except Exception:
-                        pass  # Bỏ qua nếu item bị lỗi link
+                            {
+                                "title": title,
+                                "page_index": page_index,
+                            }
+                        )
+                except Exception as exc:
+                    log.warning(f"Bỏ qua outline item lỗi: {exc}")
 
         _parse_outline(reader.outline)
-
-        # Sắp xếp lại theo số trang để chắc chắn thứ tự đúng
-        outline_data.sort(key=lambda x: x["page_start"])
+        outline_data.sort(key=lambda x: x["page_index"])
         return outline_data
-    except Exception as e:
-        log.warning(f"Lỗi đọc Outline: {e}")
+    except Exception as exc:
+        log.warning(f"Lỗi đọc PDF outline: {exc}")
         return []
 
 
-async def extract_chapters_smart(file_obj):
-    """
-    Hàm xử lý thông minh Dùng Outline (Mục lục ẩn).
-    """
-    # Lưu ý: Phải reset pointer file về 0 trước khi đọc
+async def extract_pdf_chapters(file_obj) -> list[dict]:
     file_obj.seek(0)
     outlines = get_pdf_outline_structure(file_obj)
 
+    if not outlines or len(outlines) <= 1:
+        raise DocumentOutlineRequiredError(
+            "PDF không có bookmark/outline ẩn. Vui lòng upload PDF có mục lục chuẩn."
+        )
+
+    file_obj.seek(0)
     chapters = []
 
-    if not outlines or len(outlines) <= 1:
-        raise ValueError(
-            "Tài liệu PDF không có Mục lục (Outline) ẩn. Hệ thống hiện chỉ hỗ trợ PDF có Mục lục chuẩn.")
+    try:
+        with pdfplumber.open(file_obj) as pdf:
+            total_pages = len(pdf.pages)
 
-    log.info("Đã tìm thấy Mục lục Metadata (Outline). Sử dụng Level 1.")
+            for i, current_chap in enumerate(outlines):
+                start_idx = max(0, int(current_chap["page_index"]))
+                if i < len(outlines) - 1:
+                    end_idx = int(outlines[i + 1]["page_index"])
+                else:
+                    end_idx = total_pages
 
-    # Mở lại bằng pdfplumber để lấy text (pdfplumber extract text ngon hơn pypdf)
-    file_obj.seek(0)
-    with pdfplumber.open(file_obj) as pdf:
-        total_pages = len(pdf.pages)
+                end_idx = min(max(end_idx, start_idx + 1), total_pages)
 
-        for i in range(len(outlines)):
-            current_chap = outlines[i]
-            start_p = current_chap["page_start"] - 1  # index từ 0
+                chapter_text_parts = []
+                for page_idx in range(start_idx, end_idx):
+                    text = pdf.pages[page_idx].extract_text() or ""
+                    if text.strip():
+                        chapter_text_parts.append(text)
 
-            # Xác định trang kết thúc (là trang bắt đầu của chương sau - 1)
-            if i < len(outlines) - 1:
-                end_p = outlines[i + 1]["page_start"] - 1
-            else:
-                end_p = total_pages  # Chương cuối thì lấy hết
+                chapter_text = "\n".join(chapter_text_parts).strip()
+                if chapter_text:
+                    chapters.append(
+                        {
+                            "title": current_chap["title"],
+                            "text": chapter_text,
+                            "page_start": start_idx + 1,
+                            "page_end": end_idx,
+                        }
+                    )
 
-            # Đảm bảo không vượt quá file
-            end_p = min(end_p, total_pages)
+    except DocumentOutlineRequiredError:
+        raise
+    except Exception as exc:
+        raise PdfExtractionError(f"Không thể đọc nội dung PDF: {exc}") from exc
 
-            # Gom text từ start_p đến end_p
-            chap_text = ""
-            for p_idx in range(start_p, end_p):
-                text = pdf.pages[p_idx].extract_text()
-                if text:
-                    chap_text += text + "\n"
-
-            if chap_text.strip():
-                chapters.append(
-                    {"title": current_chap["title"], "text": chap_text, "page_start": start_p + 1, "page_end": end_p})
+    if not chapters:
+        raise PdfExtractionError(
+            "PDF có outline nhưng không trích xuất được text. File có thể là scan ảnh hoặc bị lỗi."
+        )
 
     return chapters
 

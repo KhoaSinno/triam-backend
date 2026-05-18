@@ -25,7 +25,7 @@ from app.db.database import engine
 from app.models.db_models import Book, Chapter
 from app.repositories.audiobook_repo import update_book_status
 from app.repositories.chapter_repo import get_draft_chapters_by_book
-from app.services.pdf_service import extract_chapters_smart
+from app.services.pdf_service import extract_pdf_chapters
 from app.services.workers.chapter_worker import process_chapter, process_switch_mode_chapter
 
 from app.core.logger import log as logger
@@ -54,7 +54,8 @@ async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
 
         if not draft_chapters:
             with Session(engine) as session:
-                update_book_status(session, book_id, BookStatus.ERROR, "Không có chapter nào để xử lý.")
+                update_book_status(
+                    session, book_id, BookStatus.ERROR, "Không có chapter nào để xử lý.")
             return
 
         if not book.file_url:
@@ -69,12 +70,14 @@ async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
         # ── 2. Download PDF từ Supabase Storage ──────────────────────────────
         storage_path = f"{book_id}/original.pdf"
         logger.info(f"⬇️  Downloading PDF from Storage: {storage_path}")
-        pdf_bytes: bytes = supabase.storage.from_("raw_books").download(storage_path)
+        pdf_bytes: bytes = supabase.storage.from_(
+            "raw_books").download(storage_path)
         pdf_file = io.BytesIO(pdf_bytes)
 
         # ── 3. Re-extract chapters text từ PDF ───────────────────────────────
-        chapters_data = await extract_chapters_smart(pdf_file)
-        chapters_map: dict[int, str] = {i: chap.get("text", "") for i, chap in enumerate(chapters_data)}
+        chapters_data = await extract_pdf_chapters(pdf_file)
+        chapters_map: dict[int, str] = {i: chap.get(
+            "text", "") for i, chap in enumerate(chapters_data)}
 
         # ── 4. Dispatch song song — bị giới hạn bởi Semaphore trong chapter_worker ──
         tasks = []
@@ -87,7 +90,8 @@ async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
                 )
                 continue
             tasks.append(
-                process_chapter(book_id, book.title, draft_chap.title, draft_chap.id, draft_chap.chapter_index, raw_text, mode)
+                process_chapter(book_id, book.title, draft_chap.title,
+                                draft_chap.id, draft_chap.chapter_index, raw_text, mode)
             )
 
         await asyncio.gather(*tasks)
@@ -114,29 +118,35 @@ async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str) -> None:
         # ── 1. Fetch book + all chapters ─────────────────────────────────────
         with Session(engine) as session:
             book = session.get(Book, book_id)
-            chapters = session.exec(select(Chapter).where(Chapter.book_id == book_id)).all()
+            chapters = session.exec(select(Chapter).where(
+                Chapter.book_id == book_id)).all()
 
         if not book or not book.file_url:
-            logger.error(f"Cannot switch mode for book {book_id}: book missing or no file_url")
+            logger.error(
+                f"Cannot switch mode for book {book_id}: book missing or no file_url")
             return
 
         # ── 2. Download PDF + extract text ───────────────────────────────────
         storage_path = f"{book_id}/original.pdf"
         logger.info(f"⬇️  Downloading PDF for switch mode: {storage_path}")
-        pdf_bytes: bytes = supabase.storage.from_("raw_books").download(storage_path)
+        pdf_bytes: bytes = supabase.storage.from_(
+            "raw_books").download(storage_path)
         pdf_file = io.BytesIO(pdf_bytes)
-        chapters_data = await extract_chapters_smart(pdf_file)
-        chapters_map: dict[int, str] = {i: chap.get("text", "") for i, chap in enumerate(chapters_data)}
+        chapters_data = await extract_pdf_chapters(pdf_file)
+        chapters_map: dict[int, str] = {i: chap.get(
+            "text", "") for i, chap in enumerate(chapters_data)}
 
         # ── 3. Dispatch song song ─────────────────────────────────────────────
         tasks = [
-            process_switch_mode_chapter(book_id, chap.id, chap.chapter_index, raw_text, new_mode)
+            process_switch_mode_chapter(
+                book_id, chap.id, chap.chapter_index, raw_text, new_mode)
             for chap in chapters
             if (raw_text := chapters_map.get(chap.chapter_index, "")) and raw_text.strip()
         ]
 
         await asyncio.gather(*tasks)
-        logger.info(f"🎉 Book {book_id} đã gen xong audio cho mode: {new_mode}.")
+        logger.info(
+            f"🎉 Book {book_id} đã gen xong audio cho mode: {new_mode}.")
 
     except Exception as e:
         logger.error(f"❌ LỖI SWITCH MODE SÁCH {book_id}: {e}")

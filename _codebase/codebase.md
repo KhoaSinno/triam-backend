@@ -392,21 +392,21 @@ async def generate_plan(
 
 ```
 
-### app\api\v1\routers\__init__.py
+### app\api\v1\routers\_\_init\_\_.py
 
 ```py
 # API Endpoints module
 
 ```
 
-### app\api\v1\__init__.py
+### app\api\v1\_\_init\_\_.py
 
 ```py
 # API v1 module
 
 ```
 
-### app\api\__init__.py
+### app\api\_\_init\_\_.py
 
 ```py
 # API v1 module
@@ -717,7 +717,7 @@ supabase: Client = create_client(url, key)
 
 ```
 
-### app\core\__init__.py
+### app\core\_\_init\_\_.py
 
 ```py
 # Core module
@@ -846,13 +846,13 @@ else:
 
 ### app\db\migrations\README
 
-*(Unsupported file type)*
+_(Unsupported file type)_
 
 ### app\db\migrations\script.py.mako
 
-*(Unsupported file type)*
+_(Unsupported file type)_
 
-### app\db\migrations\versions\054450a4d3fc_added_new_logic_context_conversation_.py
+### app\db\migrations\versions\054450a4d3fc*added_new_logic_context_conversation*.py
 
 ```py
 """added new logic context conversation, optimized type/relationship
@@ -1032,7 +1032,7 @@ def upgrade() -> None:
     op.execute("""
         DELETE FROM book_knowledge bk
         WHERE NOT EXISTS (
-            SELECT 1 FROM chapters c 
+            SELECT 1 FROM chapters c
             WHERE c.book_id = bk.book_id AND c.chapter_index = bk.chapter_index
         )
     """)
@@ -1076,7 +1076,7 @@ def downgrade() -> None:
 
 ```
 
-### app\db\migrations\versions\78b35db4eddb_add_server_default_to_created_at_and_.py
+### app\db\migrations\versions\78b35db4eddb*add_server_default_to_created_at_and*.py
 
 ```py
 """Add server_default to created_at and updated_at
@@ -1182,7 +1182,7 @@ def downgrade() -> None:
 """added error_message to book
 
 Revision ID: 7c1f860609e9
-Revises: 
+Revises:
 Create Date: 2026-04-07 22:49:48.167966
 
 """
@@ -1313,7 +1313,7 @@ def downgrade() -> None:
 
 ```
 
-### app\db\migrations\versions\91b0326bdf19_added_directbookcontext_to_update_logic_.py
+### app\db\migrations\versions\91b0326bdf19*added_directbookcontext_to_update_logic*.py
 
 ```py
 """added DirectBookContext to update logic direct book detail discussion
@@ -1440,13 +1440,13 @@ def upgrade() -> None:
                nullable=False)
     planmode_enum = sa.Enum('FULL', 'PARETO', name='planmode')
     planmode_enum.create(op.get_bind(), checkfirst=True)
-    
+
     op.execute("UPDATE chapter_segments SET mode = 'PARETO' WHERE UPPER(mode) = 'PARETO_MODE'")
     op.execute("UPDATE chapter_segments SET mode = 'FULL' WHERE UPPER(mode) = 'FULL_MODE'")
     op.execute("UPDATE chapter_segments SET mode = UPPER(mode)")
-    
+
     op.alter_column('chapter_segments', 'mode', server_default=None)
-    
+
     op.alter_column('chapter_segments', 'mode',
                existing_type=sa.TEXT(),
                type_=planmode_enum,
@@ -1461,7 +1461,7 @@ def upgrade() -> None:
     op.add_column('reading_plans', sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True))
     op.execute("UPDATE reading_plans SET updated_at = NOW()")
     op.alter_column('reading_plans', 'updated_at', nullable=False)
-    
+
     op.execute("UPDATE reading_plans SET mode = 'PARETO' WHERE UPPER(mode) = 'PARETO_MODE'")
     op.execute("UPDATE reading_plans SET mode = 'FULL' WHERE UPPER(mode) = 'FULL_MODE'")
     op.execute("UPDATE reading_plans SET mode = UPPER(mode)")
@@ -1843,7 +1843,7 @@ class DirectBookContext(SQLModel, table=True):
 
     user_id: uuid.UUID = Field(sa_column=Column(
         UUID(as_uuid=True), index=True, nullable=False))
-    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey( 
+    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey(
         "books.id", ondelete="CASCADE"), index=True, nullable=False))
     context_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey(
         "study_contexts.id", ondelete="CASCADE"), index=True, nullable=False))
@@ -2503,7 +2503,7 @@ class ContextDocumentResponse(BaseModel):
 
 ```
 
-### app\schemas\responses\__init__.py
+### app\schemas\responses\_\_init\_\_.py
 
 ```py
 # Response DTO schemas — import từ đây cho gọn
@@ -3346,7 +3346,7 @@ async def entrypoint(ctx: JobContext):
     #     ),
     #     vad=silero.VAD.load(),
     # )
-    
+
     session = AgentSession(
         stt=deepgram.STT(
             api_key=settings.DEEPGRAM_API_KEY,
@@ -3791,7 +3791,7 @@ async def entrypoint(ctx: JobContext):
 
     # Khởi tạo Model (Sử dụng stream realtime modal như user yêu cầu)
     # model = RealtimeModel(model="gpt-4o-mini-realtime-preview", voice="alloy", temperature=0.8, modalities=["audio", "text"])
-    
+
     async def _resolve_live_modalities(model_name: str) -> list[Modality]:
         """Try to keep voice+chat in one session.
 
@@ -4566,7 +4566,7 @@ def get_pdf_outline_structure(file_obj):
         return []
 
 
-async def extract_chapters_smart(file_obj):
+async def extract_pdf_chapters(file_obj):
     """
     Hàm xử lý thông minh Dùng Outline (Mục lục ẩn).
     """
@@ -5062,7 +5062,7 @@ from app.repositories.audiobook_repo import create_book, update_book_status
 from app.repositories.chapter_repo import create_chapter
 from app.repositories.plan_repo import create_reading_plan
 from app.schemas.plan import PlanInput
-from app.services.pdf_service import extract_chapters_smart
+from app.services.pdf_service import extract_pdf_chapters
 from app.services.storage_service import upload_file_to_supabase
 from app.services.workers.book_pipeline import run_background_processing
 
@@ -5104,7 +5104,7 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
 
         # 3. Extract outline từ PDF
         with open(tmp_filename, "rb") as f:
-            chapters_data = await extract_chapters_smart(f)
+            chapters_data = await extract_pdf_chapters(f)
 
         if not chapters_data:
             raise PdfExtractionError()
@@ -5283,7 +5283,7 @@ from app.db.database import engine
 from app.models.db_models import Book, Chapter
 from app.repositories.audiobook_repo import update_book_status
 from app.repositories.chapter_repo import get_draft_chapters_by_book
-from app.services.pdf_service import extract_chapters_smart
+from app.services.pdf_service import extract_pdf_chapters
 from app.services.workers.chapter_worker import process_chapter, process_switch_mode_chapter
 
 from app.core.logger import log as logger
@@ -5331,7 +5331,7 @@ async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
         pdf_file = io.BytesIO(pdf_bytes)
 
         # ── 3. Re-extract chapters text từ PDF ───────────────────────────────
-        chapters_data = await extract_chapters_smart(pdf_file)
+        chapters_data = await extract_pdf_chapters(pdf_file)
         chapters_map: dict[int, str] = {i: chap.get("text", "") for i, chap in enumerate(chapters_data)}
 
         # ── 4. Dispatch song song — bị giới hạn bởi Semaphore trong chapter_worker ──
@@ -5383,7 +5383,7 @@ async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str) -> None:
         logger.info(f"⬇️  Downloading PDF for switch mode: {storage_path}")
         pdf_bytes: bytes = supabase.storage.from_("raw_books").download(storage_path)
         pdf_file = io.BytesIO(pdf_bytes)
-        chapters_data = await extract_chapters_smart(pdf_file)
+        chapters_data = await extract_pdf_chapters(pdf_file)
         chapters_map: dict[int, str] = {i: chap.get("text", "") for i, chap in enumerate(chapters_data)}
 
         # ── 3. Dispatch song song ─────────────────────────────────────────────
@@ -5624,21 +5624,21 @@ async def run_tts_pipeline(
 
 ```
 
-### app\services\workers\__init__.py
+### app\services\workers\_\_init\_\_.py
 
 ```py
 """Worker pipeline package cho background processing."""
 
 ```
 
-### app\services\__init__.py
+### app\services\_\_init\_\_.py
 
 ```py
 # Services module
 
 ```
 
-### app\__init__.py
+### app\_\_init\_\_.py
 
 ```py
 # TRIAM Backend Application
