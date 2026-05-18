@@ -39,6 +39,9 @@ dependencies = [
     "websockets>=15.0.1",
     "loguru>=0.7.2",
     "livekit-plugins-elevenlabs>=1.5.8",
+    "ebooklib>=0.20",
+    "beautifulsoup4>=4.14.3",
+    "python-docx>=1.2.0",
 ]
 
 [dependency-groups]

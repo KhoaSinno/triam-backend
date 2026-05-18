@@ -11,21 +11,19 @@ from app.core.exceptions import (
     BookNotFoundError,
     BookStatusConflictError,
     DatabaseError,
-    DocumentOutlineRequiredError,
+    DocumentExtractionError,
     FileTooLargeError,
-    PdfExtractionError,
     UnsupportedFileTypeError,
 )
+from app.core.logger import log as logger
 from app.models.db_models import Book, Chapter, ReadingPlan
 from app.repositories.audiobook_repo import create_book, update_book_status
 from app.repositories.chapter_repo import create_chapter
 from app.repositories.plan_repo import create_reading_plan
 from app.schemas.plan import PlanInput
-from app.services.pdf_service import extract_pdf_chapters
+from app.services.document_parser_service import extract_chapters_by_document_type
 from app.services.storage_service import upload_file_to_supabase
 from app.services.workers.book_pipeline import run_background_processing
-
-from app.core.logger import log as logger
 
 # TODO: REPLACE WITH JWT DECODE USER LATER
 MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
@@ -55,27 +53,14 @@ def _detect_document_type(file: UploadFile) -> str:
 # Dispatcher function to extract chapters based on document type
 async def _extract_chapters_by_type(tmp_filename: str, document_type: str) -> list[dict]:
     with open(tmp_filename, "rb") as f:
-        if document_type == "pdf":
-            return await extract_pdf_chapters(f)
-
-        if document_type == "epub":
-            # TODO: implement extract_epub_chapters(f)
-            raise DocumentOutlineRequiredError(
-                "EPUB parser chưa được bật hoặc EPUB không có mục lục hợp lệ."
-            )
-
-        if document_type == "docx":
-            # TODO: implement extract_docx_chapters(f)
-            raise DocumentOutlineRequiredError(
-                "DOCX parser chưa được bật hoặc DOCX không có heading/mục lục hợp lệ."
-            )
+        return await extract_chapters_by_document_type(f, document_type)
 
     raise UnsupportedFileTypeError()
 
 
 async def handle_upload_document(session: Session, file: UploadFile) -> dict:
     """
-    Bước 1: Validate file, extract outline từ PDF, upload lên Supabase Storage,
+    Bước 1: Validate file, extract outline từ tài liệu, upload lên Supabase Storage,
     lưu Book + Chapter (DRAFT) vào DB, trả về outline cho Flutter.
     """
     # 1. Validate MIME Type hoặc đuôi file
@@ -108,7 +93,7 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
         chapters_data = await _extract_chapters_by_type(tmp_filename, document_type)
 
         if not chapters_data:
-            raise PdfExtractionError()
+            raise DocumentExtractionError()
 
         # 4. Upload PDF lên Supabase Storage bucket 'raw_books'
         storage_path = f"{book_id}/original.{document_type}"
@@ -162,12 +147,18 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
         raise DatabaseError(f"Lỗi lưu DB: {str(e)}") from e
 
     # 6. Trả về outline để Flutter hiển thị
-    outline = [{"title": c.get("title", f"Chương {i + 1}"), "page_start": c.get(
-        "page_start", 0)} for i, c in enumerate(chapters_data)]
+    outline = [
+        {
+            "title": c.get("title", f"Chương {i + 1}"),
+            "page_start": c.get("page_start"),
+        }
+        for i, c in enumerate(chapters_data)
+    ]
 
     return {
         "book_id": str(book_id),
         "total_chapters": len(chapters_data),
+        "document_type": document_type,
         "outline": outline,
     }
 

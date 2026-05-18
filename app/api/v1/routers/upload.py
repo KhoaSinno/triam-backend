@@ -19,7 +19,7 @@ async def upload_document(
     file: Annotated[UploadFile, File(...)],
 ):
     """
-    Bước 1: Nhận file, extract outline, upload PDF lên Supabase Storage,
+    Bước 1: Nhận file, extract outline, upload tài liệu lên Supabase Storage,
     lưu Book + Chapter (DRAFT), trả về outline cho Flutter.
     """
     return await handle_upload_document(session, file)

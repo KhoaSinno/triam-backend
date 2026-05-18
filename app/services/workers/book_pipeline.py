@@ -16,19 +16,36 @@ Entry points (được gọi từ FastAPI BackgroundTasks):
 import asyncio
 import io
 import uuid
+from urllib.parse import urlparse
 
 from sqlmodel import Session, select
 
 from app.core.constant import BookStatus
+from app.core.exceptions import UnsupportedFileTypeError
+from app.core.logger import log as logger
 from app.core.supabase import supabase
 from app.db.database import engine
 from app.models.db_models import Book, Chapter
 from app.repositories.audiobook_repo import update_book_status
 from app.repositories.chapter_repo import get_draft_chapters_by_book
-from app.services.pdf_service import extract_pdf_chapters
+from app.services.document_parser_service import extract_chapters_by_document_type, infer_document_type_from_url
 from app.services.workers.chapter_worker import process_chapter, process_switch_mode_chapter
 
-from app.core.logger import log as logger
+
+def _storage_path_for_book(book_id: uuid.UUID, file_url: str | None) -> tuple[str, str]:
+    document_type = infer_document_type_from_url(file_url)
+    storage_path = f"{book_id}/original.{document_type}"
+
+    if file_url:
+        parsed_path = urlparse(file_url).path
+        marker = "/raw_books/"
+        if marker in parsed_path:
+            storage_path = parsed_path.split(marker, 1)[1]
+
+    if not storage_path.endswith(tuple(f".{ext}" for ext in ("pdf", "epub", "docx"))):
+        raise UnsupportedFileTypeError("Không xác định được định dạng tài liệu trong Storage.")
+
+    return storage_path, document_type
 
 
 async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
@@ -67,15 +84,14 @@ async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
             logger.error(f"book.file_url is missing for book {book_id}")
             return
 
-        # ── 2. Download PDF từ Supabase Storage ──────────────────────────────
-        storage_path = f"{book_id}/original.pdf"
-        logger.info(f"⬇️  Downloading PDF from Storage: {storage_path}")
-        pdf_bytes: bytes = supabase.storage.from_(
-            "raw_books").download(storage_path)
-        pdf_file = io.BytesIO(pdf_bytes)
+        # ── 2. Download document từ Supabase Storage ─────────────────────────
+        storage_path, document_type = _storage_path_for_book(book_id, book.file_url)
+        logger.info(f"⬇️  Downloading {document_type.upper()} from Storage: {storage_path}")
+        document_bytes: bytes = supabase.storage.from_("raw_books").download(storage_path)
+        document_file = io.BytesIO(document_bytes)
 
-        # ── 3. Re-extract chapters text từ PDF ───────────────────────────────
-        chapters_data = await extract_pdf_chapters(pdf_file)
+        # ── 3. Re-extract chapters text từ document ──────────────────────────
+        chapters_data = await extract_chapters_by_document_type(document_file, document_type)
         chapters_map: dict[int, str] = {i: chap.get(
             "text", "") for i, chap in enumerate(chapters_data)}
 
@@ -126,13 +142,12 @@ async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str) -> None:
                 f"Cannot switch mode for book {book_id}: book missing or no file_url")
             return
 
-        # ── 2. Download PDF + extract text ───────────────────────────────────
-        storage_path = f"{book_id}/original.pdf"
-        logger.info(f"⬇️  Downloading PDF for switch mode: {storage_path}")
-        pdf_bytes: bytes = supabase.storage.from_(
-            "raw_books").download(storage_path)
-        pdf_file = io.BytesIO(pdf_bytes)
-        chapters_data = await extract_pdf_chapters(pdf_file)
+        # ── 2. Download document + extract text ──────────────────────────────
+        storage_path, document_type = _storage_path_for_book(book_id, book.file_url)
+        logger.info(f"⬇️  Downloading {document_type.upper()} for switch mode: {storage_path}")
+        document_bytes: bytes = supabase.storage.from_("raw_books").download(storage_path)
+        document_file = io.BytesIO(document_bytes)
+        chapters_data = await extract_chapters_by_document_type(document_file, document_type)
         chapters_map: dict[int, str] = {i: chap.get(
             "text", "") for i, chap in enumerate(chapters_data)}
 

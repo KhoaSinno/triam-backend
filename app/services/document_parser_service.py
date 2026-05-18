@@ -1,0 +1,44 @@
+from __future__ import annotations
+
+from urllib.parse import unquote, urlparse
+
+from app.core.exceptions import UnsupportedFileTypeError
+from app.services.docx_service import extract_docx_chapters
+from app.services.epub_service import extract_epub_chapters
+from app.services.pdf_service import extract_pdf_chapters
+
+SUPPORTED_DOCUMENT_TYPES = {"pdf", "epub", "docx"}
+
+
+def normalize_document_type(document_type: str | None) -> str:
+    normalized = (document_type or "").strip().lower().lstrip(".")
+    if normalized not in SUPPORTED_DOCUMENT_TYPES:
+        raise UnsupportedFileTypeError(f"Loại file không hỗ trợ ({document_type}). Chỉ chấp nhận PDF, EPUB, DOCX.")
+    return normalized
+
+
+def infer_document_type_from_url(file_url: str | None) -> str:
+    if not file_url:
+        return "pdf"
+
+    path = unquote(urlparse(file_url).path).lower()
+    for document_type in SUPPORTED_DOCUMENT_TYPES:
+        if path.endswith(f".{document_type}"):
+            return document_type
+
+    return "pdf"
+
+
+async def extract_chapters_by_document_type(file_obj, document_type: str) -> list[dict]:
+    normalized_type = normalize_document_type(document_type)
+
+    if normalized_type == "pdf":
+        return await extract_pdf_chapters(file_obj)
+
+    if normalized_type == "epub":
+        return await extract_epub_chapters(file_obj)
+
+    if normalized_type == "docx":
+        return await extract_docx_chapters(file_obj)
+
+    raise UnsupportedFileTypeError()

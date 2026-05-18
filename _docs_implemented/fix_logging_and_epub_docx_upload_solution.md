@@ -11,6 +11,332 @@ Muc tieu: fix theo huong production-safe, deterministic, de debug, khong fallbac
 
 ---
 
+## 0. Sau Khi Implement: Senior Review Notes
+
+Phan nay la ghi chu training sau khi da implement that trong source code. Muc tieu khong chi la "da sua cai gi", ma la giup ban hieu tai sao sua nhu vay, moi doan code giai quyet rui ro nao, va cac lua chon khac vi sao khong phu hop bang.
+
+### Ket qua implement
+
+Da implement cac file chinh:
+
+- [app/core/config.py](../app/core/config.py): them `LOG_LEVEL`, `LOG_THIRD_PARTY_LEVEL`.
+- [app/core/logger.py](../app/core/logger.py): ha log level, chan noisy third-party loggers, redact secret.
+- [app/core/exceptions.py](../app/core/exceptions.py): them `DocumentExtractionError`, giu `PdfExtractionError` ke thua de khong break code cu.
+- [app/services/document_parser_service.py](../app/services/document_parser_service.py): dispatcher chung cho PDF/EPUB/DOCX.
+- [app/services/epub_service.py](../app/services/epub_service.py): parse EPUB theo TOC.
+- [app/services/docx_service.py](../app/services/docx_service.py): parse DOCX theo Heading style.
+- [app/services/upload_service.py](../app/services/upload_service.py): upload flow dung parser chung, response them `document_type`, `page_start` co the `null`.
+- [app/services/workers/book_pipeline.py](../app/services/workers/book_pipeline.py): background worker khong con hard-code PDF; co the xu ly lai PDF/EPUB/DOCX tu Storage.
+- [tests/test_document_parsers.py](../tests/test_document_parsers.py): test parser va logging redaction.
+
+Da them dependencies:
+
+```toml
+"ebooklib>=0.20",
+"beautifulsoup4>=4.14.3",
+"python-docx>=1.2.0",
+```
+
+Da test:
+
+- `uv run pytest tests\test_document_parsers.py -q` -> `7 passed`
+- `uv run ruff check ...` -> pass
+- Upload PDF khong outline -> `422`
+- Upload PDF co outline -> `200`
+- Upload DOCX co Heading -> `200`
+- Upload DOCX khong Heading -> `422`
+- Upload EPUB co TOC -> `200`
+- Scan log secret -> khong thay raw `authorization`, `apikey`, `service_role`, `Bearer`, `eyJ`
+
+### Bai hoc kien truc so 1: Fix logging truoc parser
+
+Logging leak la security issue. Parser EPUB/DOCX la feature gap. Khi co 2 van de cung luc, minh uu tien security truoc vi:
+
+- Security issue co the gay lo Supabase service role key.
+- Fix logging doc lap, it anh huong business logic.
+- Neu tiep tuc test parser trong luc log con leak, moi lan upload thanh cong co the lai ghi secret vao file log.
+
+Day la mindset quan trong khi lam do an that: viec nao co blast radius cao va doc lap thi xu ly truoc.
+
+### Bai hoc kien truc so 2: Khong chi sua upload endpoint
+
+Luc dau nhin vao loi, ta co the nghi chi can sua [upload_service.py](../app/services/upload_service.py). Nhung khi doc tiep [book_pipeline.py](../app/services/workers/book_pipeline.py), minh thay background worker dang:
+
+```python
+storage_path = f"{book_id}/original.pdf"
+chapters_data = await extract_pdf_chapters(pdf_file)
+```
+
+Neu chi sua upload, thi DOCX/EPUB upload `200` nhung den luc user bam generate plan, pipeline van download `original.pdf` va parse PDF. Nghia la feature nhin nhu xong nhung fail o buoc sau.
+
+Vi vay minh tao [document_parser_service.py](../app/services/document_parser_service.py) lam dispatcher chung:
+
+```python
+async def extract_chapters_by_document_type(file_obj, document_type: str) -> list[dict]:
+    normalized_type = normalize_document_type(document_type)
+
+    if normalized_type == "pdf":
+        return await extract_pdf_chapters(file_obj)
+
+    if normalized_type == "epub":
+        return await extract_epub_chapters(file_obj)
+
+    if normalized_type == "docx":
+        return await extract_docx_chapters(file_obj)
+```
+
+Y nghia:
+
+- Upload va background worker dung cung 1 contract.
+- Sau nay them `txt`, `md`, `pptx` thi chi them parser + them branch o dispatcher.
+- Khong lap logic `if pdf/epub/docx` o nhieu noi.
+
+Alternative khong chon:
+
+- **Chi implement trong `upload_service.py`**: nhanh nhung worker van fail khi generate plan.
+- **Them ngay cot `document_type` vao DB**: sach hon ve data model, nhung can migration va co rui ro lon hon trong luc minh dang fix feature. Lan nay minh infer tu `file_url` vi storage path da co `original.pdf|epub|docx`. Sau nay neu product lon hon, nen them cot `document_type` bang Alembic.
+- **Luu extracted text vao DB ngay khi upload**: giam viec re-extract o worker, nhung doi schema/storage va co the lam upload cham hon. Hien tai giu flow cu: upload nhanh tao DRAFT, generate plan moi xu ly nang.
+
+### Bai hoc kien truc so 3: Parser phai deterministic
+
+Rule san pham cua ban: khong co outline/TOC/Heading thi bao FE ngay, khong fallback. Minh giu rule nay vi ung dung hoc tap can chia chuong dung. Neu chia sai, RAG/TTS/reading plan se sai ca downstream.
+
+Voi PDF:
+
+- Dung hidden outline/bookmark.
+- Khong co outline -> `DocumentOutlineRequiredError` -> HTTP `422`.
+
+Voi EPUB:
+
+- Dung EPUB TOC (`book.toc`) qua `ebooklib`.
+- Map TOC href sang XHTML document.
+- Convert HTML sang text bang BeautifulSoup.
+- Khong scan regex trong body.
+
+Voi DOCX:
+
+- Dung style `Heading 1`, `Heading 2`, `Heading 3`.
+- Co them support style custom co `outlineLvl` trong XML.
+- Khong scan regex "Chuong 1", "Chapter 1".
+
+Alternative khong chon:
+
+- **Regex theo text nhu `^Chương \d+`**: co ve tien, nhung sai voi sach co muc "Chuong trinh", heading bi xuong dong, ngon ngu khac, hoac tai lieu co so thu tu trong body.
+- **Chia theo so ky tu/token**: tot cho chunking RAG, khong tot cho chapter structure. FE dang can outline chuong, khong phai chunk noi bo.
+- **OCR cho scanned PDF**: day la feature rieng, ton chi phi va latency. Neu upload scan thi nen bao user doi file text-based truoc.
+
+### Giai thich logging code
+
+Trong [logger.py](../app/core/logger.py), minh them:
+
+```python
+SENSITIVE_PATTERNS = (
+    re.compile(r"(?i)(authorization['\"]?\s*[:=]\s*['\"]?Bearer\s+)[^'\",\s}]+"),
+    re.compile(r"(?i)(apikey['\"]?\s*[:=]\s*['\"]?)[^'\",\s}]+"),
+    re.compile(r"(?i)(service_role['\"]?\s*[:=]\s*['\"]?)[^'\",\s}]+"),
+)
+```
+
+Y nghia:
+
+- Bat cac dang log pho bien: dict string, JSON-ish, key-value.
+- Giu lai key de debug biet co header nao xuat hien.
+- Thay value bang `[REDACTED]`.
+
+Minh them:
+
+```python
+NOISY_LOGGERS = (
+    "httpx",
+    "httpcore",
+    "hpack",
+    "h11",
+    "supabase",
+    "postgrest",
+    "storage3",
+    "gotrue",
+)
+```
+
+Y nghia:
+
+- Cac logger nay hay log HTTP internals.
+- App khong can xem frame/header o moi request.
+- Day len `WARNING` de van thay loi that, nhung khong thay request debug.
+
+Minh sua:
+
+```python
+logging.basicConfig(handlers=[InterceptHandler()], level=logging.INFO, force=True)
+```
+
+Truoc do `level=0` nghia la bat tat ca, gom ca DEBUG cua thu vien ben ngoai. Dung `INFO` de root logger khong hut het debug noise.
+
+Minh van giu `InterceptHandler` vi project dang dung Loguru, nhung nhieu thu vien Python dung standard `logging`. Intercept giup log di ve mot format chung.
+
+Alternative khong chon:
+
+- **Tat hoan toan third-party logger bang `disabled=True`**: co the mat log loi quan trong khi Supabase/httpx that bai.
+- **Chi redact ma van de DEBUG**: van qua on, log nang, latency/log file phinh to, va regex redact khong bao gio nen la lop bao ve duy nhat.
+- **Bo Loguru, chuyen het sang standard logging**: sach trong dai han neu lam lai logging, nhung thay doi lon, khong can cho bug hien tai.
+
+### Giai thich EPUB parser
+
+File [epub_service.py](../app/services/epub_service.py) co 3 y chinh.
+
+1. `_flatten_epub_toc`
+
+EPUB TOC co the la list long nhau. Ham nay bien TOC thanh list phang:
+
+```python
+[("Chương 1", "chap_01.xhtml"), ("Chương 2", "chap_02.xhtml")]
+```
+
+No cung bo fragment sau dau `#`, vi giai doan nay minh parse theo document-level:
+
+```python
+href.split("#", 1)[0]
+```
+
+2. `_html_to_text`
+
+EPUB chapter thuc chat la XHTML/HTML. Minh dung BeautifulSoup de:
+
+- Xoa `script`, `style`, `nav`.
+- Lay text co newline.
+- Strip dong rong.
+
+3. `extract_epub_chapters`
+
+Flow:
+
+- `epub.read_epub(...)`
+- Lay `book.toc`; khong co thi raise `DocumentOutlineRequiredError`.
+- Tao map `href -> content`.
+- Duyet TOC va lay text theo href.
+- Khong co chapter text thi raise `DocumentExtractionError`.
+
+Alternative khong chon:
+
+- **Doc tat ca XHTML theo spine**: co the lay duoc noi dung nhung khong dam bao outline. User yeu cau khong fallback neu khong co TOC.
+- **Dung nav.xhtml parse tay**: duoc, nhung `ebooklib` da expose `book.toc`, dung API thu vien se on dinh hon.
+- **Parse anchor-level section ngay**: phuc tap hon, can crop HTML theo id anchor. Chua can cho MVP.
+
+### Giai thich DOCX parser
+
+File [docx_service.py](../app/services/docx_service.py) dung `python-docx`.
+
+`_is_heading(paragraph)` check 2 truong hop:
+
+- Style name la `Heading 1`, `Heading 2`, `Heading 3`.
+- Style custom co `w:outlineLvl` trong XML.
+
+Ly do them `outlineLvl`: nhieu file Word tieng Viet/custom template co style ten khac, nhung ve mat Word outline van la heading. Neu chi check style name, se reject nham mot so DOCX hop le.
+
+`extract_docx_chapters` dung state machine don gian:
+
+- Gap heading -> bat dau chapter moi.
+- Paragraph sau heading -> gom vao chapter hien tai.
+- Gap heading tiep theo -> dong chapter cu, mo chapter moi.
+- Khong co chapter nao -> `DocumentOutlineRequiredError`.
+
+Alternative khong chon:
+
+- **Doc built-in Table of Contents trong DOCX**: TOC trong Word thuong la field/rendered text, khong dang tin bang Heading style.
+- **Lay page number DOCX**: DOCX khong co page number on dinh neu khong render bang Word engine. Page phu thuoc font/margin/device. Vi vay `page_start = None`.
+- **Chap nhan Title style la chapter**: minh khong chon trong code final vi `Title` thuong la ten sach, khong phai chapter. Neu can, co the mo rong sau.
+
+### Giai thich response contract
+
+Truoc day outline co:
+
+```json
+{"title": "...", "page_start": 1}
+```
+
+Voi EPUB/DOCX, page number khong co nghia on dinh. Vi vay response moi:
+
+```json
+{
+  "book_id": "...",
+  "total_chapters": 2,
+  "document_type": "docx",
+  "outline": [
+    {"title": "Chương 1", "page_start": null}
+  ]
+}
+```
+
+Y nghia cho FE:
+
+- Neu `page_start` la number -> hien "Trang X".
+- Neu `page_start` la `null` -> chi hien title.
+- FE co the dung `document_type` de hien icon/label file.
+
+Alternative khong chon:
+
+- **Gan page_start = 0 cho EPUB/DOCX**: gay hieu nham, FE co the hien "Trang 0".
+- **Bo field page_start khoi EPUB/DOCX**: lam response shape khong dong nhat.
+- **Tinh page DOCX bang library khac**: khong on dinh neu khong render document that su.
+
+### Giai thich background worker fix
+
+Trong [book_pipeline.py](../app/services/workers/book_pipeline.py), minh them `_storage_path_for_book`.
+
+Ly do: upload da luu file theo:
+
+```python
+storage_path = f"{book_id}/original.{document_type}"
+```
+
+Nhung worker cu hard-code:
+
+```python
+storage_path = f"{book_id}/original.pdf"
+```
+
+Neu file la DOCX/EPUB thi worker fail. Ham moi:
+
+- Infer document type tu `file_url`.
+- Neu public URL co path sau `/raw_books/`, lay dung storage path.
+- Fallback ve `{book_id}/original.{document_type}`.
+
+Day la fix it rui ro vi khong them DB migration. Sau nay ban nen can nhac them cot `document_type` vao bang `books`, vi infer tu URL la chap nhan duoc cho MVP nhung khong phai domain model dep nhat.
+
+### Giai thich tests
+
+[tests/test_document_parsers.py](../tests/test_document_parsers.py) co 7 test:
+
+- PDF sample co outline parse duoc.
+- DOCX co Heading parse duoc.
+- DOCX khong Heading fail 422 domain.
+- EPUB co TOC parse duoc.
+- EPUB khong TOC fail 422 domain.
+- Redaction an secret.
+- Noisy HTTP loggers o `WARNING` tro len.
+
+Tai sao test parser truoc integration?
+
+- Parser la core business rule cua upload.
+- Test nhanh, khong can Supabase, khong tao DB/storage that.
+- Integration upload van can test manual voi server, nhung khong nen de moi bug parser phai can server that moi phat hien.
+
+Alternative khong chon:
+
+- **Chi manual test curl**: nhanh luc dau, nhung regressions sau nay de quay lai.
+- **Mock toan bo upload service**: co the qua xa voi bug that; bug o day nam trong parser va logging.
+- **Test Supabase storage trong unit test**: cham, phu thuoc network/key, khong phu hop unit.
+
+### Dieu can canh giac tiep theo
+
+1. Upload success hien tai tao DRAFT book va upload file that. Khi test local, can co cleanup script rieng cho test data.
+2. Nen them cot `document_type` vao `books` bang Alembic trong mot task rieng.
+3. Nen can nhac luu chapter text sau upload neu muon giam viec re-extract o background worker.
+4. AppException handler hien log 422 bang `error`. Voi validation/domain error, co the giam thanh `warning` de log sach hon.
+5. Neu sau nay support OCR, tach thanh flow rieng: user explicit chon OCR, bao chi phi/latency, khong ngam fallback.
+
+---
+
 ## 1. Logging Leak Supabase Secret
 
 ### Nhan dinh

@@ -1,143 +1,158 @@
 ---
 name: fastapi-sqlmodel-clean-architecture
-description: Project-specific guidelines for Triam Backend. Use this skill when developing new features, creating API endpoints, working with SQLModel/PostgreSQL, or handling background AI/TTS tasks in this specific codebase.
+description: Project-specific backend engineering rules for Triam Backend. Use when adding, refactoring, reviewing, or debugging FastAPI routers, services, repositories, SQLModel models, Alembic migrations, Supabase/Postgres access, background workers, upload/document parsing, logging, exceptions, or tests in this codebase.
 ---
 
-# Triam Backend: FastAPI + SQLModel Architecture Guide
+# Triam Backend Engineering Rules
 
-This project follows a strict layered **Clean Architecture** using **FastAPI** and **SQLModel**.
-To ensure code maintainability, you must adhere to the specific structure and patterns defined below when adding new features or modifying existing ones.
+Use this skill to keep backend changes consistent with the current Triam architecture. The project is a layered FastAPI backend using SQLModel, Alembic, Supabase/Postgres, service/repository separation, and background AI/TTS workers.
 
----
+## 1. Current Architecture
 
-## 1. Directory Structure & Responsibilities
+Triam is not pure MVC, but it maps closely:
 
-Do not mix responsibilities. Code must be placed in the correct layer.
+| MVC idea | Triam layer | Rule |
+| --- | --- | --- |
+| Controller | `app/api/v1/routers/` | Thin FastAPI routes only. Parse input, inject dependencies, call services, return response. |
+| Model | `app/models/db_models.py` | SQLModel table definitions only. Keep schema truth here. |
+| View/DTO | `app/schemas/` | Request/response DTOs. Do not expose DB models blindly for complex endpoints. |
+| Service | `app/services/` | Business logic, external APIs, parsing, orchestration. Raise domain exceptions. |
+| Repository | `app/repositories/` | Database reads/writes only. No HTTP, no LLM, no Supabase Storage side effects. |
+| Worker | `app/services/workers/` | Long-running chapter/book/TTS/RAG processing. Create its own DB session. |
+| Core | `app/core/` | Config, logging, exceptions, Supabase client, constants. |
+| DB runtime | `app/db/` | Engine/session dependency and Alembic migrations. |
 
-| Directory                 | Responsibility             | Implementation Rules                                                                                                          |
-| :------------------------ | :------------------------- | :---------------------------------------------------------------------------------------------------------------------------- |
-| `app/models/db_models.py` | **Database Schema**        | Contains `SQLModel(table=True)` classes. This is the single source of truth for the database schema.                          |
-| `app/schemas/`            | **Data Validation (DTOs)** | Contains `SQLModel(table=False)` or Pydantic `BaseModel` classes used for API Request/Response validation.                    |
-| `app/crud/`               | **Database Operations**    | Contains repository functions that interact with the database using `sqlmodel.Session`. **No HTTP logic here.**               |
-| `app/services/`           | **Core Business Logic**    | Handles external integrations (LLM, TTS, PDF parsing) and heavy data processing.                                              |
-| `app/api/v1/endpoints/`   | **API Routers**            | Defines FastAPI routes. Routes should be thin: validate input, call CRUD/Services, return response.                           |
-| `app/helper/`             | **Utilities & Background** | Shared utility functions (e.g., Supabase uploaders) and heavy background task orchestrators (`run_background_processing.py`). |
-| `app/core/`               | **Configuration**          | Setup for Database, Supabase client, and environment variables.                                                               |
+Prefer existing folders and naming. Do not introduce new architectural styles unless the existing layer cannot express the feature cleanly.
 
----
+## 2. Request Flow
 
-## 2. Database Modeling (SQLModel)
+Use this flow for API features:
 
-When adding or modifying tables, always use SQLModel.
-
-- **Primary Keys:** Always use `uuid.UUID` with `default_factory=uuid.uuid4` for primary keys unless there is a specific reason not to.
-- **Foreign Keys:** Define explicit foreign keys using `Field(foreign_key="table_name.id")`.
-
-```python
-# app/models/db_models.py
-import uuid
-from sqlmodel import SQLModel, Field
-
-class ExampleEntity(SQLModel, table=True):
-    __tablename__ = "example_entities"
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    name: str
-    book_id: uuid.UUID = Field(foreign_key="books.id")
-    mode: str = Field(default="full")
+```text
+router -> service -> repository -> model/database
+       -> external integrations when needed
+       -> domain exception -> global exception handler
 ```
 
----
+Rules:
 
-## 3. CRUD Operations Pattern
+- Routers must stay thin; no parsing PDFs, no LLM prompts, no multi-step DB orchestration in routes.
+- Services own business decisions and may call several repositories or external services.
+- Repositories accept `session: Session` as their first argument and never create sessions internally.
+- Services should raise `AppException` subclasses from `app/core/exceptions.py`; avoid `HTTPException` outside routers.
+- Avoid catching broad `Exception` unless converting to a domain exception with useful context.
 
-All database queries must be isolated in the `app/crud/` directory.
+## 3. FastAPI Rules
 
-- **Always** pass `session: Session` as the first argument to CRUD functions.
-- **Do not** create database sessions inside the CRUD functions themselves.
+- Inject DB sessions with `Depends(get_session)` in routers.
+- Use `Annotated[..., Depends(...)]`, `Annotated[..., Body(...)]`, and `Annotated[..., File(...)]` where the file already follows that style.
+- Return explicit response dictionaries or schema instances; keep response shape stable for FE.
+- Use `BackgroundTasks` only for tasks that can safely run in-process and can tolerate app restart loss.
+- For durable/long-running production jobs, prefer a worker/queue design; do not hide a multi-minute critical workflow inside a request handler.
+- Keep upload endpoints fail-fast: validate type/size/structure before Storage and DB writes.
+- Do not log request headers, tokens, raw file bytes, or full external API payloads.
 
-```python
-# app/crud/example.py
-import uuid
-from typing import Optional
-from sqlmodel import Session, select
-from app.models.db_models import ExampleEntity
+## 4. SQLModel and Repository Rules
 
-def get_entity_by_id(session: Session, entity_id: uuid.UUID) -> Optional[ExampleEntity]:
-    return session.get(ExampleEntity, entity_id)
-
-def get_entities_by_book(session: Session, book_id: uuid.UUID) -> list[ExampleEntity]:
-    return session.exec(select(ExampleEntity).where(ExampleEntity.book_id == book_id)).all()
-
-def create_entity(session: Session, entity: ExampleEntity) -> ExampleEntity:
-    session.add(entity)
-    session.commit()
-    session.refresh(entity)
-    return entity
-```
-
----
-
-## 4. API Endpoints & Dependency Injection
-
-API Routers in `app/api/v1/endpoints/` must follow these rules:
-
-1.  **Session Injection:** Inject the database session using `Depends(get_session)`.
-2.  **Thin Controllers:** Endpoints should primarily handle HTTP requests, validate via Pydantic/Schemas, call CRUD/Services, and return HTTP responses.
-3.  **Background Tasks:** For heavy AI/TTS operations, ALWAYS return a fast HTTP response (`200 OK` or `202 Accepted`) and delegate the heavy lifting to FastAPI's `BackgroundTasks`.
+- Define tables in `app/models/db_models.py` with explicit `__tablename__`.
+- Use `uuid.UUID` primary keys with `default_factory=uuid.uuid4` unless there is a strong reason not to.
+- Use explicit foreign keys and indexes for lookup paths used by endpoints/workers.
+- Keep relationships in models when they clarify ownership/cascade behavior.
+- Use repository functions for reusable queries and mutations:
 
 ```python
-# app/api/v1/endpoints/example.py
-import uuid
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from sqlmodel import Session
-from app.db import get_session
-from app.repositories.example import get_entity_by_id
-from app.helper.run_background_processing import some_heavy_task
-
-router = APIRouter()
-
-@router.post("/process/{entity_id}")
-def process_entity(
-    entity_id: uuid.UUID,
-    background_tasks: BackgroundTasks,
-    session: Session = Depends(get_session)
-):
-    entity = get_entity_by_id(session, entity_id)
-    if not entity:
-        raise HTTPException(status_code=404, detail="Entity not found")
-
-    # Delegate heavy work to background
-    background_tasks.add_task(some_heavy_task, entity_id)
-
-    return {"message": "Processing started in background."}
+def get_book_by_id(session: Session, book_id: uuid.UUID) -> Book | None:
+    return session.get(Book, book_id)
 ```
 
----
+- Do not commit in both service and repository for the same transaction. Pick one ownership model per flow. Existing simple create repositories may commit; for multi-step workflows prefer the service controls final commit.
+- Avoid N+1 query patterns. If a service loops and queries per item, consider one repository query that fetches all needed rows.
 
-## 5. Storage & External Integrations
+## 5. Alembic Rules
 
-### Supabase Storage
+Schema changes require Alembic. Do not rely on `SQLModel.metadata.create_all()` to evolve existing tables.
 
-For file uploads (PDFs, Audio), use the established Supabase client in `app.core.supabase`.
+Workflow:
 
-- **Upserting:** When overwriting files (e.g., during a mode switch), ensure you pass `upsert="true"` in the `file_options` to avoid `409 Duplicate` errors.
-- **Path Isolation:** Always isolate file paths logically, especially for different AI modes (e.g., `/{book_id}/chap_1/full/part_1.mp3` vs `/{book_id}/chap_1/pareto/part_1.mp3`).
+```powershell
+uv run alembic revision --autogenerate -m "short descriptive message"
+uv run alembic upgrade head
+```
 
-### Background AI Processing (LLM & TTS)
+After autogenerate:
 
-- Do not run LLM calls or TTS generation directly in the API request thread.
-- Background workers (in `app/helper/run_background_processing.py`) should use `asyncio.Semaphore` to limit concurrency and avoid hitting API rate limits.
-- Update database status (e.g., `status="READY"` or `status="ERROR"`) within the background task so the frontend can poll for updates.
+- Read the generated migration before running it.
+- Check for accidental `drop_table`, `drop_column`, enum rewrites, or destructive operations.
+- Add data backfill steps manually when adding non-null columns to tables with existing rows.
+- Keep downgrade reasonable for simple schema changes.
+- Make sure `app/db/migrations/env.py` imports all models before `target_metadata = SQLModel.metadata`.
+- For Supabase/Postgres, be careful with locks on large tables; add indexes and constraints deliberately.
 
----
+## 6. Background Worker Rules
 
-## 6. Development Workflow Checklist
+- Worker functions in `app/services/workers/` must open their own `Session(engine)`; never reuse the request session after the response.
+- Update status fields (`PROCESSING`, `READY`, `ERROR`) so FE can poll.
+- Limit concurrency with `asyncio.Semaphore` or bounded task lists for LLM/TTS/embedding calls.
+- Log book/chapter ids and status, not secrets or large text.
+- Make worker code resumable where practical: repeated calls should not corrupt storage or duplicate DB rows.
+- If a worker supports multiple document types, use shared parser/dispatcher code, not hard-coded `.pdf` paths.
 
-When asked to implement a new feature in this project, follow this exact sequence:
+## 7. Document Upload and Parsing Rules
 
-- [ ] **1. Schema (Models):** Update or create tables in `app/models/db_models.py`.
-- [ ] **2. Validation (Schemas):** Create Pydantic input/output models in `app/schemas/`.
-- [ ] **3. Data Access (CRUD):** Write robust database operations in `app/crud/`.
-- [ ] **4. Business Logic (Services):** Write AI prompts, TTS logic, or storage handlers in `app/services/` or `app/helper/`.
-- [ ] **5. Routing (API):** Wire everything together in `app/api/v1/endpoints/`, ensuring background tasks are used for slow operations.
-- [ ] **6. Database Sync:** If schema changed, remind the user to run Alembic migrations (`alembic revision --autogenerate` and `alembic upgrade head`).
+- Supported upload types must be supported end-to-end: upload endpoint, parser, storage path, background worker.
+- PDF requires hidden outline/bookmarks. No outline means `DocumentOutlineRequiredError` and HTTP 422.
+- EPUB requires TOC/navigation. No TOC means HTTP 422.
+- DOCX requires Heading/outline styles. No Heading means HTTP 422.
+- Do not fallback to regex chapter detection, token-length splitting, or OCR unless the product explicitly adds that mode.
+- EPUB/DOCX have no stable page numbers; return `page_start: None`.
+- Validate before upload to Storage and DB whenever possible.
+
+## 8. Exceptions and Logging
+
+- Add domain errors as `AppException` subclasses in `app/core/exceptions.py`.
+- Use 400 for bad input type/size, 404 for missing resources, 409 for state conflicts, 422 for semantically invalid documents, 500 for real internal failures.
+- Let `app/main.py` global handlers format responses.
+- Log domain validation failures as warning/error only when operationally useful.
+- Default app logs should be `INFO`; third-party HTTP libraries should stay `WARNING` or higher.
+- Redact `Authorization`, `apikey`, `service_role`, JWTs, and user secrets before logs are written.
+
+## 9. Python Clean Code Rules
+
+- Prefer small functions with one reason to change.
+- Use type hints on service/repository boundaries.
+- Use constants/enums from `app/core/constant.py` instead of repeated strings for statuses/modes.
+- Avoid boolean flags that create two different workflows inside one function; split functions when behavior diverges.
+- Avoid broad utility modules that become junk drawers.
+- Keep comments for business rules or non-obvious constraints, not for line-by-line narration.
+- Preserve existing Vietnamese user-facing messages when they are part of FE contract.
+
+## 10. Testing Rules
+
+Add tests proportional to risk:
+
+- Parser/business rule changes: unit tests.
+- Router contract changes: API tests with dependency overrides where possible.
+- Worker changes: test pure helper logic and status transitions separately from external services.
+- External services/Supabase: mock in unit tests; use manual integration tests only when needed.
+- Add regression tests for every bug that reached manual testing.
+
+Preferred checks:
+
+```powershell
+uv run ruff check <changed files>
+uv run pytest <focused tests> -q
+uv run python -m py_compile <changed python files>
+```
+
+## 11. Review Checklist
+
+Before finalizing a backend change, verify:
+
+- The route is thin and the service owns business logic.
+- DB access is isolated in repositories unless the existing local pattern is service-owned and simple.
+- All new schema changes have Alembic migrations.
+- Background work does not reuse request sessions.
+- Upload/storage paths match worker download paths.
+- No secrets can appear in logs.
+- FE response contract is stable and documented when changed.
+- Targeted tests and ruff pass, or any skipped check is explained.

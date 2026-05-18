@@ -47,6 +47,8 @@ class Settings(BaseSettings):
         "application/epub+zip",
         "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
     }
+    LOG_LEVEL: str = "INFO"
+    LOG_THIRD_PARTY_LEVEL: str = "WARNING"
 
     class Config:
         env_file = ".env"

@@ -86,9 +86,13 @@ class BookStatusConflictError(AppException):
 # ---------------------------------------------------------------------------
 
 
-class PdfExtractionError(AppException):
+class DocumentExtractionError(AppException):
     status_code = 422
-    detail = "Không thể trích xuất nội dung từ file. File có thể bị lỗi hoặc là scan ảnh."
+    detail = "Không thể trích xuất nội dung từ file. File có thể bị lỗi, là scan ảnh, hoặc không có text."
+
+
+class PdfExtractionError(DocumentExtractionError):
+    detail = "Không thể trích xuất nội dung từ PDF. File có thể bị lỗi hoặc là scan ảnh."
 
 
 class DocumentOutlineRequiredError(AppException):
@@ -96,7 +100,7 @@ class DocumentOutlineRequiredError(AppException):
     detail = (
         "Tài liệu không có cấu trúc chương hợp lệ. "
         "Vui lòng upload PDF có bookmark/outline, EPUB có mục lục, hoặc DOCX có heading."
-    )    
+    )
 
 
 # ---------------------------------------------------------------------------
