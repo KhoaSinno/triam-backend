@@ -1,10 +1,9 @@
 import uuid
 from datetime import datetime, timezone
 
-from opentelemetry import context
 from sqlmodel import Session
 
-from app.core.exceptions import AppException, BookNotFoundError, StudyContextNotFoundError
+from app.core.exceptions import BadRequestError, BookNotFoundError, StudyContextNotFoundError
 from app.models.db_models import ChatThread, StudyContext, StudyContextDocumentLink
 from app.repositories.audiobook_repo import get_book_by_id
 from app.repositories.study_context_document_link_repo import create_new_context_document
@@ -102,8 +101,7 @@ def create_thread(
 
     context = _get_owned_context(session, context_id, user_id)
     if context.is_auto_generated:
-        raise AppException(
-            status_code=400, detail="Không thể tạo thêm thread cho Direct Book Context.")
+        raise BadRequestError("Không thể tạo thêm thread cho Direct Book Context.")
 
     thread = ChatThread(
         context_id=context_id,

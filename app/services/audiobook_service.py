@@ -13,8 +13,28 @@ from app.core.exceptions import (
     ReadingPlanNotFoundError,
 )
 from app.models.db_models import Book, Chapter, ChapterSegment, ReadingPlan
+from app.repositories import audiobook_repo
 from app.repositories.chapter_segment_repo import count_segments_by_book_and_mode
 from app.services.workers.book_pipeline import run_switch_mode_processing
+
+
+def list_books(session: Session) -> list[Book]:
+    return audiobook_repo.get_audiobooks(session)
+
+
+def get_book(session: Session, book_id: uuid.UUID) -> Book:
+    book = audiobook_repo.get_book_by_id(session, book_id)
+    if not book:
+        raise BookNotFoundError()
+    return book
+
+
+def create_new_book(session: Session, book: Book) -> Book:
+    return audiobook_repo.create_book(session, book)
+
+
+async def delete_book_and_assets(session: Session, book_id: uuid.UUID) -> None:
+    await audiobook_repo.delete_book_storage(session, book_id)
 
 
 def _extract_json_content(raw_data: Any, mode: str) -> str:

@@ -4,6 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
+from app.core.exceptions import DirectBookContextConflictError
 from app.models.db_models import ChatMessage, ChatThread, DirectBookContext, StudyContext, StudyContextDocumentLink
 
 
@@ -72,9 +73,7 @@ def get_or_create_thread_for_book_repo(session: Session, user_id: uuid.UUID, boo
 
     except IntegrityError:
         session.rollback()
-        # Throw bug
-        raise Exception(
-            "Data integrity error: Possible concurrent creation of thread for the same book. Please retry.")
+        raise DirectBookContextConflictError() from None
 
 
 def create_new_thread(session: Session, thread: ChatThread) -> ChatThread:

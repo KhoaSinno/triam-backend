@@ -1,9 +1,9 @@
 import json
 import uuid
 
-from fastapi import HTTPException
 from sqlmodel import Session, col, select
 
+from app.core.exceptions import DataIntegrityError
 from app.core.logger import log
 from app.models.db_models import Chapter
 
@@ -30,8 +30,7 @@ def update_chapter_review_audio(session: Session, chapter_id: uuid.UUID, review_
                 chapter.review_audio_url) if chapter.review_audio_url else {}
         except (json.JSONDecodeError, TypeError) as e:
             log.error(f"Data integrity error: {e}")
-            raise HTTPException(
-                status_code=500, detail="Data integrity error") from e
+            raise DataIntegrityError("Chapter review_audio_url không phải JSON hợp lệ.") from e
 
         reviews_audio[mode] = review_audio_url
         chapter.review_audio_url = json.dumps(
@@ -56,8 +55,7 @@ def update_chapter_review_text(session: Session, chapter_id: uuid.UUID, review_t
                 chapter.review_text) if chapter.review_text else {}
         except (json.JSONDecodeError, TypeError) as e:
             log.error(f"Data integrity error: {e}")
-            raise HTTPException(
-                status_code=500, detail="Data integrity error") from e
+            raise DataIntegrityError("Chapter review_text không phải JSON hợp lệ.") from e
 
         reviews_text[mode] = review_text
         chapter.review_text = json.dumps(reviews_text, ensure_ascii=False)

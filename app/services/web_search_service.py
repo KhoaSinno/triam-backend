@@ -1,6 +1,7 @@
 from tavily import AsyncTavilyClient
 
 from app.core.config import settings
+from app.core.exceptions import ExternalServiceError
 from app.core.logger import log
 
 # Singleton async client
@@ -11,7 +12,7 @@ def get_tavily_client() -> AsyncTavilyClient:
     global _tavily_client
     if _tavily_client is None:
         if not settings.TAVILY_API_KEY:
-            raise RuntimeError("Thiếu TAVILY_API_KEY trong cấu hình!")
+            raise ExternalServiceError("Thiếu TAVILY_API_KEY trong cấu hình.")
         _tavily_client = AsyncTavilyClient(api_key=settings.TAVILY_API_KEY)
     return _tavily_client
 

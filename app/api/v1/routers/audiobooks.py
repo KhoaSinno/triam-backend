@@ -4,14 +4,18 @@ from typing import Annotated
 from fastapi import APIRouter, BackgroundTasks, Depends
 from sqlmodel import Session
 
-from app.api.dependencies.auth import get_current_user
 from app.db.database import get_session
 from app.models.db_models import Book
-from app.repositories import audiobook_repo
 from app.schemas.plan import SwitchModeRequest
 from app.schemas.responses import BookDetailResponse, BookResponse, SwitchModeResponse
-from app.schemas.user import UserTokenPayload
-from app.services.audiobook_service import get_book_details, switch_book_mode
+from app.services.audiobook_service import (
+    create_new_book,
+    delete_book_and_assets,
+    get_book,
+    get_book_details,
+    list_books,
+    switch_book_mode,
+)
 
 router = APIRouter()
 
@@ -24,22 +28,22 @@ router = APIRouter()
 
 @router.get("/books", response_model=list[BookResponse])
 def read_all_books(session: Annotated[Session, Depends(get_session)]):
-    return audiobook_repo.get_audiobooks(session)
+    return list_books(session)
 
 
 @router.get("/books/{book_id}", response_model=BookResponse)
 def read_book(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
-    return audiobook_repo.get_book_by_id(session, book_id)
+    return get_book(session, book_id)
 
 
 @router.post("/books", response_model=BookResponse)
 def add_new_book(book: Book, session: Annotated[Session, Depends(get_session)]):
-    return audiobook_repo.create_book(session, book)
+    return create_new_book(session, book)
 
 
 @router.delete("/book/{book_id}")
 async def delete_book(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
-    await audiobook_repo.delete_book_storage(session, book_id)
+    await delete_book_and_assets(session, book_id)
     return {"message": "Book deleted"}
 
 

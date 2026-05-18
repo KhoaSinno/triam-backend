@@ -29,7 +29,11 @@ app = FastAPI(title="TRIAM Assistant API", lifespan=lifespan)
 # ---------------------------------------------------------------------------
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
-    log.error(f"AppException: {exc.detail} - Status Code: {exc.status_code}")
+    message = f"AppException: {exc.detail} - Status Code: {exc.status_code}"
+    if exc.status_code >= 500:
+        log.error(message)
+    else:
+        log.warning(message)
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 

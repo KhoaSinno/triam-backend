@@ -5,6 +5,7 @@ import edge_tts
 from openai import AsyncOpenAI
 
 from app.core.config import settings
+from app.core.exceptions import TTSInputTooShortError
 from app.core.logger import log
 
 client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
@@ -80,8 +81,7 @@ async def generate_audio_and_get_duration(
     # Clean and Valid text: too short (page numbers, special characters)
     cleaned = text.strip()
     if len(cleaned) < 10:
-        raise ValueError(
-            f"Text too short for TTS ({len(cleaned)} chars): '{cleaned}'")
+        raise TTSInputTooShortError(f"Nội dung quá ngắn để tạo audio ({len(cleaned)} ký tự).")
 
     async with _tts_sem:
         for attempt in range(max_retries):

@@ -3,6 +3,7 @@ from typing import Optional
 
 from sqlmodel import Session, select
 
+from app.core.exceptions import BookNotFoundError, StorageOperationError
 from app.core.logger import log
 from app.core.supabase import supabase
 from app.models.db_models import Book
@@ -44,6 +45,10 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID):
     """
     Xóa sạch assets trong Storage và bản ghi trong Database.
     """
+    book = get_book_by_id(session, book_id)
+    if not book:
+        raise BookNotFoundError()
+
     str_book_id = str(book_id)
     target_buckets = ["audios", "raw_books"]
 
@@ -73,4 +78,4 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID):
         # Rollback session nếu có lỗi ở tầng DB để tránh mất dữ liệu không đồng bộ
         session.rollback()
         log.exception(f"Lỗi nghiêm trọng khi xóa book {str_book_id}: {e}")
-        raise e
+        raise StorageOperationError("Không thể xóa tài nguyên sách trong Storage.") from e

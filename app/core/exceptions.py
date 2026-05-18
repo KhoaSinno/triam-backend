@@ -61,6 +61,16 @@ class ThreadNotFoundError(AppException):
 # ---------------------------------------------------------------------------
 
 
+class BadRequestError(AppException):
+    status_code = 400
+    detail = "Yêu cầu không hợp lệ."
+
+
+class AuthTokenInvalidError(AppException):
+    status_code = 401
+    detail = "Token không hợp lệ hoặc đã hết hạn."
+
+
 class UnsupportedFileTypeError(AppException):
     status_code = 400
     detail = "Loại file không hỗ trợ. Chỉ chấp nhận PDF, EPUB, DOCX."
@@ -79,6 +89,11 @@ class FileTooLargeError(AppException):
 class BookStatusConflictError(AppException):
     status_code = 409
     detail = "Sách đang ở trạng thái không hợp lệ để thực hiện thao tác này."
+
+
+class DirectBookContextConflictError(AppException):
+    status_code = 409
+    detail = "Direct Book Context đã được tạo đồng thời. Vui lòng thử lại."
 
 
 # ---------------------------------------------------------------------------
@@ -103,6 +118,11 @@ class DocumentOutlineRequiredError(AppException):
     )
 
 
+class TTSInputTooShortError(AppException):
+    status_code = 422
+    detail = "Nội dung quá ngắn để tạo audio."
+
+
 # ---------------------------------------------------------------------------
 # 500 Internal Server Error
 # ---------------------------------------------------------------------------
@@ -118,3 +138,13 @@ class DatabaseError(AppException):
     """Lỗi khi thực hiện thao tác ghi vào DB."""
     status_code = 500
     detail = "Database operation failed."
+
+
+class ExternalServiceError(AppException):
+    """Lỗi khi gọi dịch vụ bên ngoài."""
+    status_code = 502
+    detail = "External service operation failed."
+
+
+class StorageOperationError(ExternalServiceError):
+    detail = "Storage operation failed."

@@ -1,13 +1,16 @@
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from typing import Annotated
 from uuid import UUID
+
+from fastapi import Depends, HTTPException, status
+from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
+
 from app.core.supabase import supabase
 from app.schemas.user import UserTokenPayload
 
 security = HTTPBearer()
 
 
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> UserTokenPayload:
+def get_current_user(credentials: Annotated[HTTPAuthorizationCredentials, Depends(security)]) -> UserTokenPayload:
     """
     Dependency lấy và verify JWT token từ Header sử dụng Supabase Python SDK.
     Dùng Depends(get_current_user) trong mọi endpoint cần bảo mật.
@@ -19,7 +22,11 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
         user_response = supabase.auth.get_user(token)
 
         if not user_response or not user_response.user:
-            raise ValueError("Không thể lấy thông tin người dùng")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Token không hợp lệ hoặc đã hết hạn.",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
 
         user = user_response.user
 
@@ -30,10 +37,12 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             aud=user.aud,
         )
 
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
         # Bắt mọi lỗi decode, hết hạn auth hoặc token rác
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Token không hợp lệ hoặc đã hết hạn: {str(e)}",
+            detail="Token không hợp lệ hoặc đã hết hạn.",
             headers={"WWW-Authenticate": "Bearer"},
-        )
+        ) from None
