@@ -8,7 +8,7 @@ from app.models.db_models import ChatThread, StudyContext, StudyContextDocumentL
 from app.repositories.audiobook_repo import get_book_by_id
 from app.repositories.study_context_document_link_repo import create_new_context_document
 from app.repositories.study_context_repo import create_study_context, get_study_context
-from app.repositories.study_context_thread_repo import create_new_thread, get_or_create_thread_for_book_repo
+from app.repositories.study_context_thread_repo import create_new_thread, get_or_create_thread_for_book_repo, update_thread_by_id_repo
 from app.schemas.study_context import ChatThreadInput, StudyContextDocumentInput, StudyContextInput
 
 
@@ -29,6 +29,18 @@ def create_context(session: Session, user_id: uuid.UUID, payload: StudyContextIn
         updated_at=datetime.now(timezone.utc),
     )
     return create_study_context(session, context)
+
+
+def update_thread_by_id(session: Session, thread_id: uuid.UUID, title: str) -> ChatThread:
+    thread = session.get(ChatThread, thread_id)
+    # Check if thread exists    thread = session.get(ChatThread, thread_id)
+    if not thread:
+        raise StudyContextNotFoundError("Đoạn chat này không tồn tại.")
+
+    updated = update_thread_by_id_repo(session, thread_id, title)
+    if not updated:
+        raise StudyContextNotFoundError("Không thể cập nhật thread.")
+    return updated
 
 
 def get_context(session: Session, user_id: uuid.UUID, context_id: uuid.UUID) -> StudyContext:
@@ -101,7 +113,8 @@ def create_thread(
 
     context = _get_owned_context(session, context_id, user_id)
     if context.is_auto_generated:
-        raise BadRequestError("Không thể tạo thêm thread cho Direct Book Context.")
+        raise BadRequestError(
+            "Không thể tạo thêm thread cho Direct Book Context.")
 
     thread = ChatThread(
         context_id=context_id,

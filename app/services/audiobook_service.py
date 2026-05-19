@@ -15,6 +15,7 @@ from app.core.exceptions import (
 from app.models.db_models import Book, Chapter, ChapterSegment, ReadingPlan
 from app.repositories import audiobook_repo
 from app.repositories.chapter_segment_repo import count_segments_by_book_and_mode
+from app.schemas.audiobook import BookInput
 from app.services.workers.book_pipeline import run_switch_mode_processing
 
 
@@ -32,6 +33,8 @@ def get_book(session: Session, book_id: uuid.UUID) -> Book:
 def create_new_book(session: Session, book: Book) -> Book:
     return audiobook_repo.create_book(session, book)
 
+def update_book_by_id(session: Session, book_data: BookInput, book_id: uuid.UUID) -> Book:
+    return audiobook_repo.update_book_by_id(session, book_data, book_id)
 
 async def delete_book_and_assets(session: Session, book_id: uuid.UUID) -> None:
     await audiobook_repo.delete_book_storage(session, book_id)
@@ -133,7 +136,7 @@ def switch_book_mode(
             return {"message": f"Mode {payload_mode} chưa có audio, đang gen lại.", "needs_generation": True}
 
     # 3. Cập nhật mode mới vào ReadingPlan
-    plan.mode = payload_mode
+    plan.mode = PlanMode(payload_mode)
     session.add(plan)
     session.commit()
 

@@ -7,6 +7,7 @@ from app.core.exceptions import BookNotFoundError, StorageOperationError
 from app.core.logger import log
 from app.core.supabase import supabase
 from app.models.db_models import Book
+from app.schemas.audiobook import BookInput
 
 
 def get_audiobooks(session: Session) -> list[Book]:
@@ -32,6 +33,21 @@ def update_book_status(session: Session, book_id: uuid.UUID, status: str, error_
             book.error_message = error_message
         session.add(book)
         session.commit()
+
+
+def update_book_by_id(session: Session, book_data: BookInput, book_id: uuid.UUID) -> Book:
+    book = session.get(Book, book_id)
+    if not book:
+        raise BookNotFoundError()
+    # Update title, author
+    book.title = book_data.title
+    if book_data.author is not None:
+        book.author = book_data.author
+        
+    session.add(book)
+    session.commit()
+    session.refresh(book)
+    return book
 
 
 def delete_book(session: Session, book_id: uuid.UUID) -> None:
@@ -78,4 +94,5 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID):
         # Rollback session nếu có lỗi ở tầng DB để tránh mất dữ liệu không đồng bộ
         session.rollback()
         log.exception(f"Lỗi nghiêm trọng khi xóa book {str_book_id}: {e}")
-        raise StorageOperationError("Không thể xóa tài nguyên sách trong Storage.") from e
+        raise StorageOperationError(
+            "Không thể xóa tài nguyên sách trong Storage.") from e

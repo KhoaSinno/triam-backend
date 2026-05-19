@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from app.core.exceptions import DirectBookContextConflictError
 from app.models.db_models import ChatMessage, ChatThread, DirectBookContext, StudyContext, StudyContextDocumentLink
 
-
+    
 def get_chat_threads_for_context(session: Session, context_id: uuid.UUID) -> list[ChatThread]:
     threads = session.exec(select(ChatThread).where(
         ChatThread.context_id == context_id)).all()
@@ -18,6 +18,18 @@ def get_chat_history_by_thread_id(session: Session, thread_id: uuid.UUID) -> lis
     messages = session.exec(select(ChatMessage).where(
         ChatMessage.thread_id == thread_id).order_by(ChatMessage.timestamp.asc())).all()
     return messages
+
+
+def update_thread_by_id_repo(session: Session, thread_id: uuid.UUID, title: str) -> ChatThread | None:
+    thread = session.get(ChatThread, thread_id)
+    if thread:
+        thread.title = title
+        thread.updated_at = datetime.now(timezone.utc)
+        session.add(thread)
+        session.commit()
+        session.refresh(thread)
+        return thread
+    return None
 
 
 def get_or_create_thread_for_book_repo(session: Session, user_id: uuid.UUID, book_id: uuid.UUID, title: str) -> tuple[uuid.UUID, uuid.UUID]:
