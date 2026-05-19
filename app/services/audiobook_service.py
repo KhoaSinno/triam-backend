@@ -15,29 +15,36 @@ from app.core.exceptions import (
 from app.models.db_models import Book, Chapter, ChapterSegment, ReadingPlan
 from app.repositories import audiobook_repo
 from app.repositories.chapter_segment_repo import count_segments_by_book_and_mode
-from app.schemas.audiobook import BookInput
+from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
 from app.services.workers.book_pipeline import run_switch_mode_processing
 
 
-def list_books(session: Session) -> list[Book]:
-    return audiobook_repo.get_audiobooks(session)
+def list_books(session: Session, user_id: uuid.UUID) -> list[Book]:
+    return audiobook_repo.get_audiobooks_by_user(session, user_id)
 
 
-def get_book(session: Session, book_id: uuid.UUID) -> Book:
-    book = audiobook_repo.get_book_by_id(session, book_id)
+def get_book(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> Book:
+    book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
     return book
 
 
-def create_new_book(session: Session, book: Book) -> Book:
+def create_new_book(session: Session, user_id: uuid.UUID, payload: BookCreateRequest) -> Book:
+    book = Book(
+        user_id=user_id,
+        title=payload.title,
+        author=payload.author,
+    )
     return audiobook_repo.create_book(session, book)
 
-def update_book_by_id(session: Session, book_data: BookInput, book_id: uuid.UUID) -> Book:
-    return audiobook_repo.update_book_by_id(session, book_data, book_id)
 
-async def delete_book_and_assets(session: Session, book_id: uuid.UUID) -> None:
-    await audiobook_repo.delete_book_storage(session, book_id)
+def update_book_by_id(session: Session, book_data: BookUpdateRequest, book_id: uuid.UUID, user_id: uuid.UUID) -> Book:
+    return audiobook_repo.update_book_by_id(session, book_data, book_id, user_id)
+
+
+async def delete_book_and_assets(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    await audiobook_repo.delete_book_storage(session, book_id, user_id)
 
 
 def _extract_json_content(raw_data: Any, mode: str) -> str:
@@ -51,12 +58,12 @@ def _extract_json_content(raw_data: Any, mode: str) -> str:
         raise DataIntegrityError() from e
 
 
-def get_book_details(session: Session, book_id: uuid.UUID) -> dict:
+def get_book_details(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> dict:
     """
     Lấy chi tiết sách kèm chapters và segments theo active mode.
     Tối ưu N+1 bằng cách query TẤT CẢ segments một lần duy nhất.
     """
-    book = session.get(Book, book_id)
+    book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
 
@@ -71,16 +78,10 @@ def get_book_details(session: Session, book_id: uuid.UUID) -> dict:
         raise DataIntegrityError() from e
 
     # 2. Query tất cả chapters và segments một lần — tránh N+1
-    chapters = session.exec(
-        select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_index)
-    ).all()
+    chapters = session.exec(select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_index)).all()
 
     chapter_ids = [c.id for c in chapters]
-    all_segments = session.exec(
-        select(ChapterSegment)
-        .where(ChapterSegment.chapter_id.in_(chapter_ids), ChapterSegment.mode == active_mode)
-        .order_by(ChapterSegment.segment_index)
-    ).all()
+    all_segments = session.exec(select(ChapterSegment).where(ChapterSegment.chapter_id.in_(chapter_ids), ChapterSegment.mode == active_mode).order_by(ChapterSegment.segment_index)).all()
 
     # 3. Nhóm segments theo chapter_id để truy xuất O(1)
     segments_map: dict = {}
@@ -108,12 +109,13 @@ def switch_book_mode(
     session: Session,
     background_tasks: BackgroundTasks,
     book_id: uuid.UUID,
+    user_id: uuid.UUID,
     payload_mode: str,
 ) -> dict:
     """
     Đổi mode active trên ReadingPlan và sinh audio mới nếu mode chưa từng được gen.
     """
-    book = session.get(Book, book_id)
+    book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
 

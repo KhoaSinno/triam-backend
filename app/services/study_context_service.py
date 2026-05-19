@@ -3,13 +3,20 @@ from datetime import datetime, timezone
 
 from sqlmodel import Session
 
-from app.core.exceptions import BadRequestError, BookNotFoundError, StudyContextNotFoundError
-from app.models.db_models import ChatThread, StudyContext, StudyContextDocumentLink
+from app.core.exceptions import BadRequestError, BookNotFoundError, StudyContextNotFoundError, ThreadNotFoundError
+from app.models.db_models import ChatMessage, ChatThread, StudyContext, StudyContextDocumentLink
 from app.repositories.audiobook_repo import get_book_by_id
 from app.repositories.study_context_document_link_repo import create_new_context_document
-from app.repositories.study_context_repo import create_study_context, get_study_context
-from app.repositories.study_context_thread_repo import create_new_thread, get_or_create_thread_for_book_repo, update_thread_by_id_repo
-from app.schemas.study_context import ChatThreadInput, StudyContextDocumentInput, StudyContextInput
+from app.repositories.study_context_repo import create_study_context, get_study_context, get_study_contexts
+from app.repositories.study_context_thread_repo import (
+    create_new_thread,
+    delete_thread,
+    get_chat_history_by_thread_id,
+    get_chat_threads_for_context,
+    get_or_create_thread_for_book_repo,
+    update_thread_by_id_repo,
+)
+from app.schemas.study_context import ChatThreadInput, StudyContextDocumentInput, StudyContextInput, StudyContextUpdate
 
 
 def _get_owned_context(session: Session, context_id: uuid.UUID, user_id: uuid.UUID) -> StudyContext:
@@ -18,6 +25,18 @@ def _get_owned_context(session: Session, context_id: uuid.UUID, user_id: uuid.UU
     if not context or context.user_id != user_id:
         raise StudyContextNotFoundError()
     return context
+
+
+def _get_owned_thread(session: Session, thread_id: uuid.UUID, user_id: uuid.UUID) -> ChatThread:
+    thread = session.get(ChatThread, thread_id)
+    if not thread:
+        raise ThreadNotFoundError()
+    _get_owned_context(session, thread.context_id, user_id)
+    return thread
+
+
+def list_contexts(session: Session, user_id: uuid.UUID) -> list[StudyContext]:
+    return get_study_contexts(session, user_id)
 
 
 def create_context(session: Session, user_id: uuid.UUID, payload: StudyContextInput) -> StudyContext:
@@ -31,16 +50,22 @@ def create_context(session: Session, user_id: uuid.UUID, payload: StudyContextIn
     return create_study_context(session, context)
 
 
-def update_thread_by_id(session: Session, thread_id: uuid.UUID, title: str) -> ChatThread:
-    thread = session.get(ChatThread, thread_id)
-    # Check if thread exists    thread = session.get(ChatThread, thread_id)
-    if not thread:
-        raise StudyContextNotFoundError("Đoạn chat này không tồn tại.")
-
+def update_thread_by_id(session: Session, user_id: uuid.UUID, thread_id: uuid.UUID, title: str) -> ChatThread:
+    _get_owned_thread(session, thread_id, user_id)
     updated = update_thread_by_id_repo(session, thread_id, title)
     if not updated:
-        raise StudyContextNotFoundError("Không thể cập nhật thread.")
+        raise ThreadNotFoundError("Không thể cập nhật thread.")
     return updated
+
+
+def delete_thread_by_id(session: Session, user_id: uuid.UUID, thread_id: uuid.UUID) -> None:
+    _get_owned_thread(session, thread_id, user_id)
+    delete_thread(session, thread_id)
+
+
+def get_thread_messages(session: Session, user_id: uuid.UUID, thread_id: uuid.UUID) -> list[ChatMessage]:
+    thread = _get_owned_thread(session, thread_id, user_id)
+    return get_chat_history_by_thread_id(session, thread.id)
 
 
 def get_context(session: Session, user_id: uuid.UUID, context_id: uuid.UUID) -> StudyContext:
@@ -48,11 +73,14 @@ def get_context(session: Session, user_id: uuid.UUID, context_id: uuid.UUID) -> 
     return _get_owned_context(session, context_id, user_id)
 
 
-def update_context_title(session: Session, user_id: uuid.UUID, context_id: uuid.UUID, title: str) -> StudyContext:
+def update_context_title(session: Session, user_id: uuid.UUID, context_id: uuid.UUID, payload: StudyContextUpdate) -> StudyContext:
     """Validate ownership rồi cập nhật title."""
     from app.repositories.study_context_repo import update_study_context
+
+    if payload.title is None:
+        raise BadRequestError("Thiếu title để cập nhật Study Context.")
     _get_owned_context(session, context_id, user_id)
-    updated = update_study_context(session, context_id, title)
+    updated = update_study_context(session, context_id, payload.title)
     if not updated:
         raise StudyContextNotFoundError()
     return updated
@@ -61,6 +89,7 @@ def update_context_title(session: Session, user_id: uuid.UUID, context_id: uuid.
 def delete_context(session: Session, user_id: uuid.UUID, context_id: uuid.UUID) -> None:
     """Validate ownership rồi xóa context."""
     from app.repositories.study_context_repo import delete_study_context
+
     _get_owned_context(session, context_id, user_id)
     delete_study_context(session, context_id)
 
@@ -78,8 +107,7 @@ def add_document_to_context(
 
     _get_owned_context(session, context_id, user_id)
 
-    link = StudyContextDocumentLink(
-        context_id=context_id, book_id=payload.book_id)
+    link = StudyContextDocumentLink(context_id=context_id, book_id=payload.book_id)
     return create_new_context_document(session, link)
 
 
@@ -91,13 +119,13 @@ def delete_document_from_context(
 ) -> None:
     """Validate ownership rồi xóa document link."""
     from app.repositories.study_context_document_link_repo import delete_study_context_document
+
     _get_owned_context(session, context_id, user_id)
     delete_study_context_document(session, context_id, book_id)
 
 
 def get_threads_for_context(session: Session, user_id: uuid.UUID, context_id: uuid.UUID) -> list:
     """Validate ownership rồi trả về danh sách threads."""
-    from app.repositories.study_context_thread_repo import get_chat_threads_for_context
     _get_owned_context(session, context_id, user_id)
     return get_chat_threads_for_context(session, context_id)
 
@@ -113,8 +141,7 @@ def create_thread(
 
     context = _get_owned_context(session, context_id, user_id)
     if context.is_auto_generated:
-        raise BadRequestError(
-            "Không thể tạo thêm thread cho Direct Book Context.")
+        raise BadRequestError("Không thể tạo thêm thread cho Direct Book Context.")
 
     thread = ChatThread(
         context_id=context_id,
@@ -126,6 +153,8 @@ def create_thread(
 
 
 def get_or_create_thread_for_book(session: Session, user_id: uuid.UUID, book_id: uuid.UUID, title: str):
-    ctx_id, thread_id = get_or_create_thread_for_book_repo(
-        session, user_id, book_id, title=title)
-    return {'context_id': str(ctx_id), 'thread_id': str(thread_id), 'is_auto_generated': True}
+    book = get_book_by_id(session, book_id)
+    if not book or book.user_id != user_id:
+        raise BookNotFoundError()
+    ctx_id, thread_id = get_or_create_thread_for_book_repo(session, user_id, book_id, title=title)
+    return {"context_id": str(ctx_id), "thread_id": str(thread_id), "is_auto_generated": True}

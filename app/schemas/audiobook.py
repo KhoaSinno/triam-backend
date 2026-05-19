@@ -1,10 +1,19 @@
-from typing import Optional
-
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
-class BookInput(BaseModel):
-    """DTO cho input khi tạo mới hoặc cập nhật sách."""
+class BookCreateRequest(BaseModel):
+    """DTO cho input khi tạo mới sách thủ công."""
 
-    title: str
-    author: Optional[str] = None
+    title: str = Field(min_length=1, max_length=255)
+    author: str | None = Field(default=None, max_length=255)
+
+
+class BookUpdateRequest(BaseModel):
+    """DTO cho input khi cập nhật metadata sách."""
+
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    author: str | None = Field(default=None, max_length=255)
+
+
+# Backward-compatible alias while old imports are cleaned up.
+BookInput = BookUpdateRequest

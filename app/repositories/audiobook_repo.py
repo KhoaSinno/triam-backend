@@ -7,15 +7,23 @@ from app.core.exceptions import BookNotFoundError, StorageOperationError
 from app.core.logger import log
 from app.core.supabase import supabase
 from app.models.db_models import Book
-from app.schemas.audiobook import BookInput
+from app.schemas.audiobook import BookUpdateRequest
 
 
 def get_audiobooks(session: Session) -> list[Book]:
     return list(session.exec(select(Book)).all())
 
 
+def get_audiobooks_by_user(session: Session, user_id: uuid.UUID) -> list[Book]:
+    return list(session.exec(select(Book).where(Book.user_id == user_id)).all())
+
+
 def get_book_by_id(session: Session, book_id: uuid.UUID) -> Optional[Book]:
     return session.get(Book, book_id)
+
+
+def get_book_by_id_and_user(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> Optional[Book]:
+    return session.exec(select(Book).where(Book.id == book_id, Book.user_id == user_id)).first()
 
 
 def create_book(session: Session, book: Book) -> Book:
@@ -35,15 +43,15 @@ def update_book_status(session: Session, book_id: uuid.UUID, status: str, error_
         session.commit()
 
 
-def update_book_by_id(session: Session, book_data: BookInput, book_id: uuid.UUID) -> Book:
-    book = session.get(Book, book_id)
+def update_book_by_id(session: Session, book_data: BookUpdateRequest, book_id: uuid.UUID, user_id: uuid.UUID) -> Book:
+    book = get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
-    # Update title, author
-    book.title = book_data.title
-    if book_data.author is not None:
-        book.author = book_data.author
-        
+
+    update_data = book_data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(book, field, value)
+
     session.add(book)
     session.commit()
     session.refresh(book)
@@ -57,11 +65,11 @@ def delete_book(session: Session, book_id: uuid.UUID) -> None:
         session.commit()
 
 
-async def delete_book_storage(session: Session, book_id: uuid.UUID):
+async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uuid.UUID):
     """
     Xóa sạch assets trong Storage và bản ghi trong Database.
     """
-    book = get_book_by_id(session, book_id)
+    book = get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
 
@@ -70,16 +78,14 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID):
 
     try:
         # 1. Lấy danh sách file từ tất cả bucket liên quan qua RPC (SELECT)
-        result = supabase.rpc("get_book_asset_paths", {
-                              "bucket_names": target_buckets, "book_id_prefix": str_book_id}).execute()
+        result = supabase.rpc("get_book_asset_paths", {"bucket_names": target_buckets, "book_id_prefix": str_book_id}).execute()
 
         # 2. Phân loại và xóa file qua Storage API
         if result.data:
             data_list = result.data if isinstance(result.data, list) else []
             for bucket in target_buckets:
                 # Lọc ra danh sách file thuộc bucket hiện tại
-                paths = [str(item["name"])
-                         for item in data_list if isinstance(item, dict) and item.get("bucket_id") == bucket]
+                paths = [str(item["name"]) for item in data_list if isinstance(item, dict) and item.get("bucket_id") == bucket]
 
                 if paths:
                     # Xóa hàng loạt file trong bucket này (Đúng quy trình API)
@@ -94,5 +100,4 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID):
         # Rollback session nếu có lỗi ở tầng DB để tránh mất dữ liệu không đồng bộ
         session.rollback()
         log.exception(f"Lỗi nghiêm trọng khi xóa book {str_book_id}: {e}")
-        raise StorageOperationError(
-            "Không thể xóa tài nguyên sách trong Storage.") from e
+        raise StorageOperationError("Không thể xóa tài nguyên sách trong Storage.") from e

@@ -32,12 +32,12 @@ from app.services.document_parser_service import extract_chapters_by_document_ty
 from app.services.workers.chapter_worker import process_chapter, process_switch_mode_chapter
 
 
-def _storage_path_for_book(book_id: uuid.UUID, file_url: str | None) -> tuple[str, str]:
-    document_type = infer_document_type_from_url(file_url)
-    storage_path = f"{book_id}/original.{document_type}"
+def _storage_path_for_book(book: Book) -> tuple[str, str]:
+    document_type = book.document_type or infer_document_type_from_url(book.file_url)
+    storage_path = f"{book.id}/original.{document_type}"
 
-    if file_url:
-        parsed_path = urlparse(file_url).path
+    if book.file_url:
+        parsed_path = urlparse(book.file_url).path
         marker = "/raw_books/"
         if marker in parsed_path:
             storage_path = parsed_path.split(marker, 1)[1]
@@ -71,44 +71,33 @@ async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
 
         if not draft_chapters:
             with Session(engine) as session:
-                update_book_status(
-                    session, book_id, BookStatus.ERROR, "Không có chapter nào để xử lý.")
+                update_book_status(session, book_id, BookStatus.ERROR, "Không có chapter nào để xử lý.")
             return
 
         if not book.file_url:
             with Session(engine) as session:
-                update_book_status(
-                    session, book_id, BookStatus.ERROR,
-                    "file_url chưa được lưu — PDF chưa upload lên Storage."
-                )
+                update_book_status(session, book_id, BookStatus.ERROR, "file_url chưa được lưu — PDF chưa upload lên Storage.")
             logger.error(f"book.file_url is missing for book {book_id}")
             return
 
         # ── 2. Download document từ Supabase Storage ─────────────────────────
-        storage_path, document_type = _storage_path_for_book(book_id, book.file_url)
+        storage_path, document_type = _storage_path_for_book(book)
         logger.info(f"⬇️  Downloading {document_type.upper()} from Storage: {storage_path}")
         document_bytes: bytes = supabase.storage.from_("raw_books").download(storage_path)
         document_file = io.BytesIO(document_bytes)
 
         # ── 3. Re-extract chapters text từ document ──────────────────────────
         chapters_data = await extract_chapters_by_document_type(document_file, document_type)
-        chapters_map: dict[int, str] = {i: chap.get(
-            "text", "") for i, chap in enumerate(chapters_data)}
+        chapters_map: dict[int, str] = {i: chap.get("text", "") for i, chap in enumerate(chapters_data)}
 
         # ── 4. Dispatch song song — bị giới hạn bởi Semaphore trong chapter_worker ──
         tasks = []
         for draft_chap in draft_chapters:
             raw_text = chapters_map.get(draft_chap.chapter_index, "")
             if not raw_text.strip():
-                logger.warning(
-                    f"⚠️ Chapter {draft_chap.chapter_index + 1} '{draft_chap.title}' "
-                    f"không có text — bỏ qua."
-                )
+                logger.warning(f"⚠️ Chapter {draft_chap.chapter_index + 1} '{draft_chap.title}' không có text — bỏ qua.")
                 continue
-            tasks.append(
-                process_chapter(book_id, book.title, draft_chap.title,
-                                draft_chap.id, draft_chap.chapter_index, raw_text, mode)
-            )
+            tasks.append(process_chapter(book_id, book.title, draft_chap.title, draft_chap.id, draft_chap.chapter_index, raw_text, mode))
 
         await asyncio.gather(*tasks)
 
@@ -134,34 +123,27 @@ async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str) -> None:
         # ── 1. Fetch book + all chapters ─────────────────────────────────────
         with Session(engine) as session:
             book = session.get(Book, book_id)
-            chapters = session.exec(select(Chapter).where(
-                Chapter.book_id == book_id)).all()
+            chapters = session.exec(select(Chapter).where(Chapter.book_id == book_id)).all()
 
         if not book or not book.file_url:
-            logger.error(
-                f"Cannot switch mode for book {book_id}: book missing or no file_url")
+            logger.error(f"Cannot switch mode for book {book_id}: book missing or no file_url")
             return
 
         # ── 2. Download document + extract text ──────────────────────────────
-        storage_path, document_type = _storage_path_for_book(book_id, book.file_url)
+        storage_path, document_type = _storage_path_for_book(book)
         logger.info(f"⬇️  Downloading {document_type.upper()} for switch mode: {storage_path}")
         document_bytes: bytes = supabase.storage.from_("raw_books").download(storage_path)
         document_file = io.BytesIO(document_bytes)
         chapters_data = await extract_chapters_by_document_type(document_file, document_type)
-        chapters_map: dict[int, str] = {i: chap.get(
-            "text", "") for i, chap in enumerate(chapters_data)}
+        chapters_map: dict[int, str] = {i: chap.get("text", "") for i, chap in enumerate(chapters_data)}
 
         # ── 3. Dispatch song song ─────────────────────────────────────────────
         tasks = [
-            process_switch_mode_chapter(
-                book_id, chap.id, chap.chapter_index, raw_text, new_mode)
-            for chap in chapters
-            if (raw_text := chapters_map.get(chap.chapter_index, "")) and raw_text.strip()
+            process_switch_mode_chapter(book_id, chap.id, chap.chapter_index, raw_text, new_mode) for chap in chapters if (raw_text := chapters_map.get(chap.chapter_index, "")) and raw_text.strip()
         ]
 
         await asyncio.gather(*tasks)
-        logger.info(
-            f"🎉 Book {book_id} đã gen xong audio cho mode: {new_mode}.")
+        logger.info(f"🎉 Book {book_id} đã gen xong audio cho mode: {new_mode}.")
 
     except Exception as e:
         logger.error(f"❌ LỖI SWITCH MODE SÁCH {book_id}: {e}")

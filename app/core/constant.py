@@ -14,6 +14,12 @@ class BookStatus(str, Enum):
     ERROR = "error"
 
 
+class DocumentType(str, Enum):
+    PDF = "pdf"
+    EPUB = "epub"
+    DOCX = "docx"
+
+
 class PlanMode(str, Enum):
     FULL = "full"
     PARETO = "pareto"

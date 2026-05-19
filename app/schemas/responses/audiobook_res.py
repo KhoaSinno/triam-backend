@@ -11,7 +11,9 @@ import uuid
 from datetime import datetime
 from typing import Optional
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
+
+from app.core.constant import DocumentType
 
 
 class BookResponse(BaseModel):
@@ -24,6 +26,7 @@ class BookResponse(BaseModel):
     author: Optional[str] = None
     total_chapters: Optional[int] = None
     status: Optional[str] = None
+    document_type: Optional[DocumentType] = None
     file_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
@@ -53,7 +56,7 @@ class ChapterDetailResponse(BaseModel):
     chapter_index: int
     review_text: str = ""
     review_audio_url: str = ""
-    chapter_segments: list[SegmentResponse] = []
+    chapter_segments: list[SegmentResponse] = Field(default_factory=list)
 
 
 class BookDetailResponse(BaseModel):
@@ -63,7 +66,7 @@ class BookDetailResponse(BaseModel):
 
     book_status: Optional[str] = None
     total_chapters: Optional[int] = None
-    chapters: list[ChapterDetailResponse] = []
+    chapters: list[ChapterDetailResponse] = Field(default_factory=list)
 
 
 class SwitchModeResponse(BaseModel):

@@ -6,7 +6,7 @@ from fastapi import BackgroundTasks, UploadFile
 from sqlmodel import Session
 
 from app.core.config import settings
-from app.core.constant import BookStatus, PlanStatus
+from app.core.constant import BookStatus, DocumentType, PlanStatus
 from app.core.exceptions import (
     BookNotFoundError,
     BookStatusConflictError,
@@ -36,18 +36,13 @@ def _detect_document_type(file: UploadFile) -> str:
     content_type = (file.content_type or "").lower()
 
     if filename.endswith(".pdf") or content_type == "application/pdf":
-        return "pdf"
+        return DocumentType.PDF.value
     if filename.endswith(".epub") or content_type == "application/epub+zip":
-        return "epub"
-    if (
-        filename.endswith(".docx")
-        or content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    ):
-        return "docx"
+        return DocumentType.EPUB.value
+    if filename.endswith(".docx") or content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
+        return DocumentType.DOCX.value
 
-    raise UnsupportedFileTypeError(
-        f"Loại file không hỗ trợ ({file.content_type}). Chỉ chấp nhận PDF, EPUB, DOCX."
-    )
+    raise UnsupportedFileTypeError(f"Loại file không hỗ trợ ({file.content_type}). Chỉ chấp nhận PDF, EPUB, DOCX.")
 
 
 # Dispatcher function to extract chapters based on document type
@@ -70,9 +65,7 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
 
     if not is_valid_type:
         if not (filename_lower.endswith(".pdf") or filename_lower.endswith(".epub") or filename_lower.endswith(".docx")):
-            raise UnsupportedFileTypeError(
-                f"Loại file không hỗ trợ ({file.content_type}). Chỉ chấp nhận PDF, EPUB, DOCX."
-            )
+            raise UnsupportedFileTypeError(f"Loại file không hỗ trợ ({file.content_type}). Chỉ chấp nhận PDF, EPUB, DOCX.")
 
     content = await file.read()
     if len(content) > settings.MAX_FILE_SIZE_BYTES:
@@ -97,11 +90,14 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
 
         # 4. Upload PDF lên Supabase Storage bucket 'raw_books'
         storage_path = f"{book_id}/original.{document_type}"
-        content_type = file.content_type or {
-            "pdf": "application/pdf",
-            "epub": "application/epub+zip",
-            "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        }[document_type]
+        content_type = (
+            file.content_type
+            or {
+                "pdf": "application/pdf",
+                "epub": "application/epub+zip",
+                "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            }[document_type]
+        )
 
         file_url = await upload_file_to_supabase(
             tmp_filename,
@@ -109,8 +105,7 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
             bucket="raw_books",
             content_type=content_type,
         )
-        logger.info(
-            f"☁️  {document_type.upper()} uploaded to Storage: {storage_path}")
+        logger.info(f"☁️  {document_type.upper()} uploaded to Storage: {storage_path}")
 
     finally:
         # Dọn rác: Xóa file tạm dù thành công hay thất bại
@@ -127,6 +122,7 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
             total_chapters=len(chapters_data),
             status=BookStatus.DRAFT,
             file_url=file_url,
+            document_type=document_type,
         )
         create_book(session, book)
 
@@ -140,8 +136,7 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
             create_chapter(session, chapter)
 
         session.commit()
-        logger.info(
-            f"📘 Created DRAFT book {book_id} | {len(chapters_data)} chapters | file_url saved")
+        logger.info(f"📘 Created DRAFT book {book_id} | {len(chapters_data)} chapters | file_url saved")
     except Exception as e:
         logger.error(f"Failed to create book record: {e}")
         raise DatabaseError(f"Lỗi lưu DB: {str(e)}") from e
@@ -172,8 +167,7 @@ async def handle_generate_plan(session: Session, background_tasks: BackgroundTas
     if not book:
         raise BookNotFoundError()
     if book.status not in (BookStatus.DRAFT,):
-        raise BookStatusConflictError(
-            f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
+        raise BookStatusConflictError(f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
 
     # 2. Lưu ReadingPlan + cập nhật Book status
     try:
@@ -187,15 +181,13 @@ async def handle_generate_plan(session: Session, background_tasks: BackgroundTas
         create_reading_plan(session, plan)
         update_book_status(session, payload.book_id, BookStatus.PROCESSING)
 
-        logger.info(
-            f"📋 ReadingPlan created for book {payload.book_id} | mode={payload.mode}")
+        logger.info(f"📋 ReadingPlan created for book {payload.book_id} | mode={payload.mode}")
     except Exception as e:
         logger.error(f"Failed to create reading plan: {e}")
         raise DatabaseError(f"Lỗi lưu ReadingPlan: {str(e)}") from e
 
     # 3. Kick-off background task — trả 200 OK ngay
-    background_tasks.add_task(
-        run_background_processing, payload.book_id, payload.mode)
+    background_tasks.add_task(run_background_processing, payload.book_id, payload.mode)
 
     return {
         "message": "Kế hoạch học tập đã được tạo! Chúng tôi đang xử lý sách của bạn.",
