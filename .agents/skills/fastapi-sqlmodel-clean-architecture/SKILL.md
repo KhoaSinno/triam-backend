@@ -96,6 +96,10 @@ After autogenerate:
 - Log book/chapter ids and status, not secrets or large text.
 - Make worker code resumable where practical: repeated calls should not corrupt storage or duplicate DB rows.
 - If a worker supports multiple document types, use shared parser/dispatcher code, not hard-coded `.pdf` paths.
+- For multi-minute, retryable, scheduled, or user-visible workflows, prefer Celery/RQ-style workers plus DB progress rows over FastAPI `BackgroundTasks`.
+- Treat Postgres as the source of truth for job progress; Redis/Celery is execution infrastructure, not the only state store.
+- For progress features, return `job_id` and expose a polling endpoint before adding realtime acceleration.
+- For reminders and spaced review, store schedules/outbox rows in DB and let a scheduler enqueue due work.
 
 ## 7. Document Upload and Parsing Rules
 

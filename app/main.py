@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from app.api.v1.routers import audiobooks, live, study_context, threads, upload
+from app.api.v1.routers import audiobooks, jobs, live, study_context, threads, upload
 from app.core.exceptions import AppException
 from app.core.logger import log
 from app.services.tts_service import stream_text_to_speech_edge
@@ -47,11 +47,10 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 app.include_router(upload.router, prefix="/api/v1", tags=["Upload"])
 app.include_router(live.router, prefix="/api/v1", tags=["Live"])
 app.include_router(audiobooks.router, prefix="/api/v1", tags=["Audiobooks"])
-app.include_router(study_context.router, prefix="/api/v1",
-                   tags=["Study Context"])
+app.include_router(jobs.router, prefix="/api/v1", tags=["Jobs"])
+app.include_router(study_context.router, prefix="/api/v1", tags=["Study Context"])
 
-app.include_router(threads.router, prefix="/api/v1",
-                   tags=["Threads Chat"])
+app.include_router(threads.router, prefix="/api/v1", tags=["Threads Chat"])
 
 
 @app.get("/")

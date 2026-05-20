@@ -6,7 +6,7 @@ from fastapi import BackgroundTasks, UploadFile
 from sqlmodel import Session
 
 from app.core.config import settings
-from app.core.constant import BookStatus, DocumentType, PlanStatus
+from app.core.constant import BookStatus, DocumentType, PlanStatus, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import (
     BookNotFoundError,
     BookStatusConflictError,
@@ -16,10 +16,11 @@ from app.core.exceptions import (
     UnsupportedFileTypeError,
 )
 from app.core.logger import log as logger
-from app.models.db_models import Book, Chapter, ReadingPlan
+from app.models.db_models import Book, Chapter, ProcessingJob, ReadingPlan
 from app.repositories.audiobook_repo import create_book, update_book_status
 from app.repositories.chapter_repo import create_chapter
 from app.repositories.plan_repo import create_reading_plan
+from app.repositories.processing_job_repo import create_processing_job
 from app.schemas.plan import PlanInput
 from app.services.document_parser_service import extract_chapters_by_document_type
 from app.services.storage_service import upload_file_to_supabase
@@ -49,8 +50,6 @@ def _detect_document_type(file: UploadFile) -> str:
 async def _extract_chapters_by_type(tmp_filename: str, document_type: str) -> list[dict]:
     with open(tmp_filename, "rb") as f:
         return await extract_chapters_by_document_type(f, document_type)
-
-    raise UnsupportedFileTypeError()
 
 
 async def handle_upload_document(session: Session, file: UploadFile) -> dict:
@@ -160,7 +159,8 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
 
 async def handle_generate_plan(session: Session, background_tasks: BackgroundTasks, payload: PlanInput) -> dict:
     """
-    Bước 2: Validate trạng thái sách, tạo ReadingPlan, kick-off background processing.
+    Bước 2: Validate trạng thái sách, tạo ReadingPlan, tạo progress job,
+    kick-off background processing.
     """
     # 1. Validate book tồn tại và đang ở trạng thái DRAFT
     book = session.get(Book, payload.book_id)
@@ -179,18 +179,35 @@ async def handle_generate_plan(session: Session, background_tasks: BackgroundTas
             status=PlanStatus.ACTIVE,
         )
         create_reading_plan(session, plan)
+
+        job = ProcessingJob(
+            user_id=MOCK_USER_ID,
+            book_id=payload.book_id,
+            job_type=ProcessingJobType.GENERATE_PLAN,
+            status=ProcessingJobStatus.QUEUED,
+            mode=payload.mode,
+            total_units=book.total_chapters or 0,
+            done_units=0,
+            progress_percent=0,
+            current_step="Đang chờ xử lý sách.",
+        )
+        create_processing_job(session, job)
+
         update_book_status(session, payload.book_id, BookStatus.PROCESSING)
 
-        logger.info(f"📋 ReadingPlan created for book {payload.book_id} | mode={payload.mode}")
+        logger.info(f"📋 ReadingPlan created for book {payload.book_id} | mode={payload.mode.value} | job={job.id}")
     except Exception as e:
         logger.error(f"Failed to create reading plan: {e}")
         raise DatabaseError(f"Lỗi lưu ReadingPlan: {str(e)}") from e
 
     # 3. Kick-off background task — trả 200 OK ngay
-    background_tasks.add_task(run_background_processing, payload.book_id, payload.mode)
+    background_tasks.add_task(run_background_processing, payload.book_id, payload.mode.value, job.id)
 
     return {
         "message": "Kế hoạch học tập đã được tạo! Chúng tôi đang xử lý sách của bạn.",
         "book_id": str(payload.book_id),
-        "mode": payload.mode,
+        "job_id": str(job.id),
+        "mode": payload.mode.value,
+        "status": job.status,
+        "progress_percent": job.progress_percent,
     }

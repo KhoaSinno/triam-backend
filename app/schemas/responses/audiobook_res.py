@@ -74,3 +74,6 @@ class SwitchModeResponse(BaseModel):
 
     message: str
     needs_generation: bool
+    job_id: Optional[uuid.UUID] = None
+    status: Optional[str] = None
+    progress_percent: Optional[int] = None

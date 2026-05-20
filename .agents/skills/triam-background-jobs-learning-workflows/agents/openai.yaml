@@ -1,0 +1,4 @@
+interface:
+  display_name: "Triam Background Jobs"
+  short_description: "Celery, progress, reminders for Triam"
+  default_prompt: "Use this skill to implement or review Triam background jobs, progress polling, Celery/Redis workers, reminders, notification outbox, and spaced review workflows."

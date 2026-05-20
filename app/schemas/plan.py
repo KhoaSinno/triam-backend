@@ -2,7 +2,7 @@ import uuid
 
 from pydantic import BaseModel
 
-from app.models.db_models import PlanMode
+from app.core.constant import PlanMode
 
 
 class PlanInput(BaseModel):

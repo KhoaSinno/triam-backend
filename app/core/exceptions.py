@@ -42,6 +42,7 @@ class ReadingPlanNotFoundError(AppException):
 
 class NoReadingPlanError(AppException):
     """Book tồn tại nhưng user chưa có reading plan."""
+
     status_code = 400
     detail = "User has no reading plan for this book."
 
@@ -54,6 +55,11 @@ class StudyContextNotFoundError(AppException):
 class ThreadNotFoundError(AppException):
     status_code = 404
     detail = "Thread not found."
+
+
+class ProcessingJobNotFoundError(AppException):
+    status_code = 404
+    detail = "Không tìm thấy tiến trình xử lý."
 
 
 # ---------------------------------------------------------------------------
@@ -112,10 +118,7 @@ class PdfExtractionError(DocumentExtractionError):
 
 class DocumentOutlineRequiredError(AppException):
     status_code = 422
-    detail = (
-        "Tài liệu không có cấu trúc chương hợp lệ. "
-        "Vui lòng upload PDF có bookmark/outline, EPUB có mục lục, hoặc DOCX có heading."
-    )
+    detail = "Tài liệu không có cấu trúc chương hợp lệ. Vui lòng upload PDF có bookmark/outline, EPUB có mục lục, hoặc DOCX có heading."
 
 
 class TTSInputTooShortError(AppException):
@@ -130,18 +133,21 @@ class TTSInputTooShortError(AppException):
 
 class DataIntegrityError(AppException):
     """Dữ liệu trong DB bị corrupt hoặc không nhất quán."""
+
     status_code = 500
     detail = "Data integrity error."
 
 
 class DatabaseError(AppException):
     """Lỗi khi thực hiện thao tác ghi vào DB."""
+
     status_code = 500
     detail = "Database operation failed."
 
 
 class ExternalServiceError(AppException):
     """Lỗi khi gọi dịch vụ bên ngoài."""
+
     status_code = 502
     detail = "External service operation failed."
 

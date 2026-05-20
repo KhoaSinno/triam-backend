@@ -5,16 +5,17 @@ from typing import Any
 from fastapi import BackgroundTasks
 from sqlmodel import Session, select
 
-from app.core.constant import PlanMode
+from app.core.constant import PlanMode, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import (
     BookNotFoundError,
     DataIntegrityError,
     NoReadingPlanError,
     ReadingPlanNotFoundError,
 )
-from app.models.db_models import Book, Chapter, ChapterSegment, ReadingPlan
+from app.models.db_models import Book, Chapter, ChapterSegment, ProcessingJob, ReadingPlan
 from app.repositories import audiobook_repo
 from app.repositories.chapter_segment_repo import count_segments_by_book_and_mode
+from app.repositories.processing_job_repo import create_processing_job
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
 from app.services.workers.book_pipeline import run_switch_mode_processing
 
@@ -118,6 +119,8 @@ def switch_book_mode(
     book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
+    requested_mode = PlanMode(payload_mode)
+    requested_mode_value = requested_mode.value
 
     # 1. Lấy ReadingPlan hiện tại
     plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
@@ -125,33 +128,68 @@ def switch_book_mode(
         raise ReadingPlanNotFoundError()
 
     # 2. Nếu switch sang cùng mode đang active → không cần làm gì thêm
-    if plan.mode == payload_mode:
-        total = count_segments_by_book_and_mode(session, book_id, payload_mode)
+    if PlanMode(plan.mode) == requested_mode:
+        total = count_segments_by_book_and_mode(session, book_id, requested_mode)
         if total > 0:
             return {
-                "message": f"Đã ở mode {payload_mode} và audio đã có sẵn ({total} segments).",
+                "message": f"Đã ở mode {requested_mode_value} và audio đã có sẵn ({total} segments).",
                 "needs_generation": False,
+                "job_id": None,
+                "status": None,
+                "progress_percent": None,
             }
         else:
             # Đang ở đúng mode nhưng chưa có segments (do gen thất bại trước)
-            background_tasks.add_task(run_switch_mode_processing, book_id, payload_mode)
-            return {"message": f"Mode {payload_mode} chưa có audio, đang gen lại.", "needs_generation": True}
+            job = _create_switch_mode_job(session, book, user_id, requested_mode)
+            background_tasks.add_task(run_switch_mode_processing, book_id, requested_mode_value, job.id)
+            return {
+                "message": f"Mode {requested_mode_value} chưa có audio, đang gen lại.",
+                "needs_generation": True,
+                "job_id": job.id,
+                "status": job.status,
+                "progress_percent": job.progress_percent,
+            }
 
     # 3. Cập nhật mode mới vào ReadingPlan
-    plan.mode = PlanMode(payload_mode)
+    plan.mode = requested_mode
     session.add(plan)
     session.commit()
 
     # 4. Kiểm tra xem audio của mode mới đã được sinh ra bao giờ chưa
-    total = count_segments_by_book_and_mode(session, book_id, payload_mode)
+    total = count_segments_by_book_and_mode(session, book_id, requested_mode)
     needs_generation = total == 0
 
     # 5. Kích hoạt Background Task sinh audio nếu cần
     if needs_generation:
-        background_tasks.add_task(run_switch_mode_processing, book_id, payload_mode)
+        job = _create_switch_mode_job(session, book, user_id, requested_mode)
+        background_tasks.add_task(run_switch_mode_processing, book_id, requested_mode_value, job.id)
         return {
-            "message": f"Đã chuyển sang mode {payload_mode}. Hệ thống đang sinh audio trong background.",
+            "message": f"Đã chuyển sang mode {requested_mode_value}. Hệ thống đang sinh audio trong background.",
             "needs_generation": True,
+            "job_id": job.id,
+            "status": job.status,
+            "progress_percent": job.progress_percent,
         }
 
-    return {"message": f"Đã chuyển sang mode {payload_mode}. Audio đã có sẵn.", "needs_generation": False}
+    return {
+        "message": f"Đã chuyển sang mode {requested_mode_value}. Audio đã có sẵn.",
+        "needs_generation": False,
+        "job_id": None,
+        "status": None,
+        "progress_percent": None,
+    }
+
+
+def _create_switch_mode_job(session: Session, book: Book, user_id: uuid.UUID, mode: PlanMode) -> ProcessingJob:
+    job = ProcessingJob(
+        user_id=user_id,
+        book_id=book.id,
+        job_type=ProcessingJobType.SWITCH_MODE,
+        status=ProcessingJobStatus.QUEUED,
+        mode=mode,
+        total_units=book.total_chapters or 0,
+        done_units=0,
+        progress_percent=0,
+        current_step=f"Đang chờ sinh audio mode {mode.value}.",
+    )
+    return create_processing_job(session, job)

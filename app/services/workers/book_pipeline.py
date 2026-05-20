@@ -15,12 +15,14 @@ Entry points (được gọi từ FastAPI BackgroundTasks):
 
 import asyncio
 import io
+import math
 import uuid
+from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 from sqlmodel import Session, select
 
-from app.core.constant import BookStatus
+from app.core.constant import BookStatus, PlanMode, ProcessingJobStatus
 from app.core.exceptions import UnsupportedFileTypeError
 from app.core.logger import log as logger
 from app.core.supabase import supabase
@@ -28,6 +30,7 @@ from app.db.database import engine
 from app.models.db_models import Book, Chapter
 from app.repositories.audiobook_repo import update_book_status
 from app.repositories.chapter_repo import get_draft_chapters_by_book
+from app.repositories.processing_job_repo import update_processing_job
 from app.services.document_parser_service import extract_chapters_by_document_type, infer_document_type_from_url
 from app.services.workers.chapter_worker import process_chapter, process_switch_mode_chapter
 
@@ -48,7 +51,104 @@ def _storage_path_for_book(book: Book) -> tuple[str, str]:
     return storage_path, document_type
 
 
-async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
+def _update_job(
+    job_id: uuid.UUID | None,
+    *,
+    status: ProcessingJobStatus | None = None,
+    progress_percent: int | None = None,
+    current_step: str | None = None,
+    total_units: int | None = None,
+    done_units: int | None = None,
+    failed_units: int | None = None,
+    error_message: str | None = None,
+    started_at: datetime | None = None,
+    finished_at: datetime | None = None,
+) -> None:
+    if not job_id:
+        return
+
+    with Session(engine) as session:
+        update_processing_job(
+            session,
+            job_id,
+            status=status,
+            progress_percent=progress_percent,
+            current_step=current_step,
+            total_units=total_units,
+            done_units=done_units,
+            failed_units=failed_units,
+            error_message=error_message,
+            started_at=started_at,
+            finished_at=finished_at,
+        )
+
+
+def _set_book_status(book_id: uuid.UUID, status: BookStatus, error_message: str | None = None) -> None:
+    with Session(engine) as session:
+        update_book_status(session, book_id, status, error_message)
+
+
+def _fail_job(job_id: uuid.UUID | None, current_step: str, error_message: str, *, progress_percent: int | None = None, total_units: int | None = None) -> None:
+    _update_job(
+        job_id,
+        status=ProcessingJobStatus.ERROR,
+        progress_percent=progress_percent,
+        current_step=current_step,
+        total_units=total_units,
+        error_message=error_message,
+        finished_at=datetime.now(timezone.utc),
+    )
+
+
+def _processable_chapters(chapters: list[Chapter], chapters_map: dict[int, str]) -> list[tuple[Chapter, str]]:
+    processable: list[tuple[Chapter, str]] = []
+    for chapter in chapters:
+        raw_text = chapters_map.get(chapter.chapter_index, "")
+        if not raw_text.strip():
+            logger.warning(f"⚠️ Chapter {chapter.chapter_index + 1} '{chapter.title}' không có text — bỏ qua.")
+            continue
+        processable.append((chapter, raw_text))
+    return processable
+
+
+async def _track_progress(
+    tasks: list[asyncio.Task],
+    job_id: uuid.UUID | None,
+    total_units: int,
+    book_id: uuid.UUID,
+    step_template: str,
+) -> None:
+    completed = 0
+    partial_threshold = max(1, math.ceil(total_units * 0.5))
+
+    try:
+        for task in asyncio.as_completed(tasks):
+            await task
+            completed += 1
+            progress = int(completed * 100 / total_units)
+            is_partial = completed >= partial_threshold and completed < total_units
+            job_status = ProcessingJobStatus.PARTIAL_READY if is_partial else ProcessingJobStatus.PROCESSING
+
+            if is_partial:
+                _set_book_status(book_id, BookStatus.PARTIAL_READY)
+
+            _update_job(
+                job_id,
+                status=job_status,
+                progress_percent=progress,
+                current_step=step_template.format(completed=completed, total=total_units),
+                done_units=completed,
+            )
+    except Exception:
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+        _update_job(job_id, failed_units=1)
+        raise
+
+
+async def run_background_processing(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | None = None) -> None:
     """
     Điều phối xử lý tất cả chapters song song sau khi user upload sách.
 
@@ -59,6 +159,7 @@ async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
         4. Chạy process_chapter() song song cho tất cả chapters
         5. Cập nhật Book status → READY hoặc ERROR
     """
+    mode_value = PlanMode(mode).value
     try:
         # ── 1. Fetch book + draft chapters ───────────────────────────────────
         with Session(engine) as session:
@@ -66,17 +167,19 @@ async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
             draft_chapters = get_draft_chapters_by_book(session, book_id)
 
         if not book:
+            _fail_job(job_id, "Không tìm thấy sách.", f"Book {book_id} not found")
             logger.error(f"Book {book_id} not found")
             return
 
         if not draft_chapters:
-            with Session(engine) as session:
-                update_book_status(session, book_id, BookStatus.ERROR, "Không có chapter nào để xử lý.")
+            _set_book_status(book_id, BookStatus.ERROR, "Không có chapter nào để xử lý.")
+            _fail_job(job_id, "Không có chapter nào để xử lý.", "Không có chapter nào để xử lý.")
             return
 
         if not book.file_url:
-            with Session(engine) as session:
-                update_book_status(session, book_id, BookStatus.ERROR, "file_url chưa được lưu — PDF chưa upload lên Storage.")
+            error_message = "file_url chưa được lưu — PDF chưa upload lên Storage."
+            _set_book_status(book_id, BookStatus.ERROR, error_message)
+            _fail_job(job_id, "Tài liệu chưa được upload lên Storage.", error_message)
             logger.error(f"book.file_url is missing for book {book_id}")
             return
 
@@ -91,34 +194,56 @@ async def run_background_processing(book_id: uuid.UUID, mode: str) -> None:
         chapters_map: dict[int, str] = {i: chap.get("text", "") for i, chap in enumerate(chapters_data)}
 
         # ── 4. Dispatch song song — bị giới hạn bởi Semaphore trong chapter_worker ──
-        tasks = []
-        for draft_chap in draft_chapters:
-            raw_text = chapters_map.get(draft_chap.chapter_index, "")
-            if not raw_text.strip():
-                logger.warning(f"⚠️ Chapter {draft_chap.chapter_index + 1} '{draft_chap.title}' không có text — bỏ qua.")
-                continue
-            tasks.append(process_chapter(book_id, book.title, draft_chap.title, draft_chap.id, draft_chap.chapter_index, raw_text, mode))
+        processable_chapters = _processable_chapters(draft_chapters, chapters_map)
+        total_units = len(processable_chapters)
+        if total_units == 0:
+            error_message = "Không có chương nào có nội dung để xử lý."
+            _set_book_status(book_id, BookStatus.ERROR, error_message)
+            _fail_job(job_id, error_message, error_message, progress_percent=0, total_units=0)
+            return
 
-        await asyncio.gather(*tasks)
+        _update_job(
+            job_id,
+            status=ProcessingJobStatus.PROCESSING,
+            progress_percent=0,
+            current_step="Đang tải và phân tích tài liệu.",
+            total_units=total_units,
+            done_units=0,
+            started_at=datetime.now(timezone.utc),
+        )
+
+        tasks = [
+            asyncio.create_task(process_chapter(book_id, book.title, draft_chap.title, draft_chap.id, draft_chap.chapter_index, raw_text, mode_value)) for draft_chap, raw_text in processable_chapters
+        ]
+
+        await _track_progress(tasks, job_id, total_units, book_id, "Đã xử lý {completed}/{total} chương.")
 
         # ── 5. Cập nhật Book status → READY ──────────────────────────────────
-        with Session(engine) as session:
-            update_book_status(session, book_id, BookStatus.READY)
+        _set_book_status(book_id, BookStatus.READY)
+        _update_job(
+            job_id,
+            status=ProcessingJobStatus.READY,
+            progress_percent=100,
+            current_step="Sách đã xử lý xong.",
+            done_units=total_units,
+            finished_at=datetime.now(timezone.utc),
+        )
         logger.info(f"🎉 Book {book_id} READY — tất cả chapters đã xử lý xong.")
 
     except Exception as e:
-        with Session(engine) as session:
-            update_book_status(session, book_id, BookStatus.ERROR, str(e))
+        _set_book_status(book_id, BookStatus.ERROR, str(e))
+        _fail_job(job_id, "Xử lý sách thất bại.", str(e))
         logger.error(f"❌ LỖI XỬ LÝ SÁCH {book_id}: {e}")
 
 
-async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str) -> None:
+async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str, job_id: uuid.UUID | None = None) -> None:
     """
     Sinh lại audio cho tất cả chapters khi user chuyển mode học.
 
     Bỏ qua RAG — knowledge base không thay đổi theo mode.
     Chỉ xóa segments cũ của mode mới và sinh TTS mới.
     """
+    new_mode_value = PlanMode(new_mode).value
     try:
         # ── 1. Fetch book + all chapters ─────────────────────────────────────
         with Session(engine) as session:
@@ -126,6 +251,11 @@ async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str) -> None:
             chapters = session.exec(select(Chapter).where(Chapter.book_id == book_id)).all()
 
         if not book or not book.file_url:
+            _fail_job(
+                job_id,
+                "Không thể switch mode vì thiếu sách hoặc file_url.",
+                f"Cannot switch mode for book {book_id}: book missing or no file_url",
+            )
             logger.error(f"Cannot switch mode for book {book_id}: book missing or no file_url")
             return
 
@@ -138,12 +268,45 @@ async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str) -> None:
         chapters_map: dict[int, str] = {i: chap.get("text", "") for i, chap in enumerate(chapters_data)}
 
         # ── 3. Dispatch song song ─────────────────────────────────────────────
-        tasks = [
-            process_switch_mode_chapter(book_id, chap.id, chap.chapter_index, raw_text, new_mode) for chap in chapters if (raw_text := chapters_map.get(chap.chapter_index, "")) and raw_text.strip()
-        ]
+        processable_chapters = _processable_chapters(list(chapters), chapters_map)
+        total_units = len(processable_chapters)
+        if total_units == 0:
+            _set_book_status(book_id, BookStatus.ERROR, "Không có chương nào có nội dung để xử lý.")
+            _fail_job(
+                job_id,
+                f"Không có chương nào có nội dung để sinh audio mode {new_mode}.",
+                "Không có chương nào có nội dung để xử lý.",
+                progress_percent=0,
+                total_units=0,
+            )
+            return
 
-        await asyncio.gather(*tasks)
-        logger.info(f"🎉 Book {book_id} đã gen xong audio cho mode: {new_mode}.")
+        _set_book_status(book_id, BookStatus.PROCESSING)
+        _update_job(
+            job_id,
+            status=ProcessingJobStatus.PROCESSING,
+            progress_percent=0,
+            current_step=f"Đang sinh audio mode {new_mode_value}.",
+            total_units=total_units,
+            done_units=0,
+            started_at=datetime.now(timezone.utc),
+        )
+
+        tasks = [asyncio.create_task(process_switch_mode_chapter(book_id, chap.id, chap.chapter_index, raw_text, new_mode_value)) for chap, raw_text in processable_chapters]
+        await _track_progress(tasks, job_id, total_units, book_id, f"Đã sinh audio mode {new_mode_value} cho {{completed}}/{{total}} chương.")
+
+        _set_book_status(book_id, BookStatus.READY)
+        _update_job(
+            job_id,
+            status=ProcessingJobStatus.READY,
+            progress_percent=100,
+            current_step=f"Đã sinh xong audio mode {new_mode_value}.",
+            done_units=total_units,
+            finished_at=datetime.now(timezone.utc),
+        )
+        logger.info(f"🎉 Book {book_id} đã gen xong audio cho mode: {new_mode_value}.")
 
     except Exception as e:
+        _set_book_status(book_id, BookStatus.ERROR, str(e))
+        _fail_job(job_id, f"Sinh audio mode {new_mode_value} thất bại.", str(e))
         logger.error(f"❌ LỖI SWITCH MODE SÁCH {book_id}: {e}")

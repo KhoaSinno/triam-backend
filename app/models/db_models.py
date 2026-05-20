@@ -8,7 +8,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlmodel import Field, PrimaryKeyConstraint, Relationship, SQLModel
 
-from app.core.constant import PlanMode
+from app.core.constant import PlanMode, ProcessingJobStatus, ProcessingJobType
 
 
 class StudyContextDocumentLink(SQLModel, table=True):
@@ -57,6 +57,27 @@ class ReadingPlan(SQLModel, table=True):
 
     # === RELATIONSHIPS ===
     book: Book = Relationship(back_populates="reading_plans")
+
+
+class ProcessingJob(SQLModel, table=True):
+    __tablename__ = "processing_jobs"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
+    book_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True))
+    job_type: ProcessingJobType = Field(sa_column=Column(SAEnum(ProcessingJobType), index=True, nullable=False))
+    status: ProcessingJobStatus = Field(default=ProcessingJobStatus.QUEUED, sa_column=Column(SAEnum(ProcessingJobStatus), index=True, nullable=False))
+    mode: Optional[PlanMode] = Field(default=None, sa_column=Column(SAEnum(PlanMode)))
+    progress_percent: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    current_step: Optional[str] = Field(default=None, sa_column=Column(Text))
+    total_units: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    done_units: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    failed_units: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    error_message: Optional[str] = Field(default=None, sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    finished_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
 
 
 class Chapter(SQLModel, table=True):
