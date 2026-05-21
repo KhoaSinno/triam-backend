@@ -1,7 +1,7 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Depends
+from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
 from app.db.database import get_session
@@ -34,11 +34,10 @@ def get_book_details_endpoint(book_id: uuid.UUID, session: Annotated[Session, De
 def switch_book_mode_endpoint(
     book_id: uuid.UUID,
     payload: SwitchModeRequest,
-    background_tasks: BackgroundTasks,
     session: Annotated[Session, Depends(get_session)],
 ):
     """Đổi mode đang active và sinh audio mới nếu mode này chưa từng được gen."""
-    return switch_book_mode(session, background_tasks, book_id, MOCK_USER_ID, payload.mode)
+    return switch_book_mode(session, book_id, MOCK_USER_ID, payload.mode)
 
 
 @router.post("/books", response_model=BookResponse)

@@ -2,7 +2,7 @@ import os
 import uuid
 
 import aiofiles
-from fastapi import BackgroundTasks, UploadFile
+from fastapi import UploadFile
 from sqlmodel import Session
 
 from app.core.config import settings
@@ -12,6 +12,7 @@ from app.core.exceptions import (
     BookStatusConflictError,
     DatabaseError,
     DocumentExtractionError,
+    ExternalServiceError,
     FileTooLargeError,
     UnsupportedFileTypeError,
 )
@@ -20,11 +21,11 @@ from app.models.db_models import Book, Chapter, ProcessingJob, ReadingPlan
 from app.repositories.audiobook_repo import create_book, update_book_status
 from app.repositories.chapter_repo import create_chapter
 from app.repositories.plan_repo import create_reading_plan
-from app.repositories.processing_job_repo import create_processing_job
+from app.repositories.processing_job_repo import create_processing_job, update_processing_job
 from app.schemas.plan import PlanInput
 from app.services.document_parser_service import extract_chapters_by_document_type
 from app.services.storage_service import upload_file_to_supabase
-from app.services.workers.book_pipeline import run_background_processing
+from app.tasks.book_tasks import process_book_task
 
 # TODO: REPLACE WITH JWT DECODE USER LATER
 MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
@@ -157,7 +158,7 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
     }
 
 
-async def handle_generate_plan(session: Session, background_tasks: BackgroundTasks, payload: PlanInput) -> dict:
+async def handle_generate_plan(session: Session, payload: PlanInput) -> dict:
     """
     Bước 2: Validate trạng thái sách, tạo ReadingPlan, tạo progress job,
     kick-off background processing.
@@ -200,8 +201,21 @@ async def handle_generate_plan(session: Session, background_tasks: BackgroundTas
         logger.error(f"Failed to create reading plan: {e}")
         raise DatabaseError(f"Lỗi lưu ReadingPlan: {str(e)}") from e
 
-    # 3. Kick-off background task — trả 200 OK ngay
-    background_tasks.add_task(run_background_processing, payload.book_id, payload.mode.value, job.id)
+    try:
+        process_book_task.apply_async(
+            args=[str(payload.book_id), payload.mode.value, str(job.id)],
+            queue="document",
+        )
+    except Exception as e:
+        update_processing_job(
+            session,
+            job.id,
+            status=ProcessingJobStatus.ERROR,
+            current_step="Không thể đưa sách vào hàng đợi xử lý.",
+            error_message=str(e),
+        )
+        update_book_status(session, payload.book_id, BookStatus.ERROR, "Không thể đưa sách vào hàng đợi xử lý.")
+        raise ExternalServiceError("Không thể đưa sách vào hàng đợi xử lý. Vui lòng thử lại sau.") from e
 
     return {
         "message": "Kế hoạch học tập đã được tạo! Chúng tôi đang xử lý sách của bạn.",

@@ -2,22 +2,22 @@ import json
 import uuid
 from typing import Any
 
-from fastapi import BackgroundTasks
 from sqlmodel import Session, select
 
 from app.core.constant import PlanMode, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import (
     BookNotFoundError,
     DataIntegrityError,
+    ExternalServiceError,
     NoReadingPlanError,
     ReadingPlanNotFoundError,
 )
 from app.models.db_models import Book, Chapter, ChapterSegment, ProcessingJob, ReadingPlan
 from app.repositories import audiobook_repo
 from app.repositories.chapter_segment_repo import count_segments_by_book_and_mode
-from app.repositories.processing_job_repo import create_processing_job
+from app.repositories.processing_job_repo import create_processing_job, update_processing_job
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
-from app.services.workers.book_pipeline import run_switch_mode_processing
+from app.tasks.book_tasks import switch_mode_task
 
 
 def list_books(session: Session, user_id: uuid.UUID) -> list[Book]:
@@ -108,7 +108,6 @@ def get_book_details(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -
 
 def switch_book_mode(
     session: Session,
-    background_tasks: BackgroundTasks,
     book_id: uuid.UUID,
     user_id: uuid.UUID,
     payload_mode: str,
@@ -141,7 +140,7 @@ def switch_book_mode(
         else:
             # Đang ở đúng mode nhưng chưa có segments (do gen thất bại trước)
             job = _create_switch_mode_job(session, book, user_id, requested_mode)
-            background_tasks.add_task(run_switch_mode_processing, book_id, requested_mode_value, job.id)
+            _enqueue_switch_mode_job(session, book_id, requested_mode_value, job)
             return {
                 "message": f"Mode {requested_mode_value} chưa có audio, đang gen lại.",
                 "needs_generation": True,
@@ -162,7 +161,7 @@ def switch_book_mode(
     # 5. Kích hoạt Background Task sinh audio nếu cần
     if needs_generation:
         job = _create_switch_mode_job(session, book, user_id, requested_mode)
-        background_tasks.add_task(run_switch_mode_processing, book_id, requested_mode_value, job.id)
+        _enqueue_switch_mode_job(session, book_id, requested_mode_value, job)
         return {
             "message": f"Đã chuyển sang mode {requested_mode_value}. Hệ thống đang sinh audio trong background.",
             "needs_generation": True,
@@ -193,3 +192,20 @@ def _create_switch_mode_job(session: Session, book: Book, user_id: uuid.UUID, mo
         current_step=f"Đang chờ sinh audio mode {mode.value}.",
     )
     return create_processing_job(session, job)
+
+
+def _enqueue_switch_mode_job(session: Session, book_id: uuid.UUID, mode: str, job: ProcessingJob) -> None:
+    try:
+        switch_mode_task.apply_async(
+            args=[str(book_id), mode, str(job.id)],
+            queue="document",
+        )
+    except Exception as e:
+        update_processing_job(
+            session,
+            job.id,
+            status=ProcessingJobStatus.ERROR,
+            current_step=f"Không thể đưa tác vụ switch mode {mode} vào hàng đợi.",
+            error_message=str(e),
+        )
+        raise ExternalServiceError("Không thể đưa tác vụ đổi mode vào hàng đợi xử lý. Vui lòng thử lại sau.") from e

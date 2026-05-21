@@ -50,6 +50,15 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
     LOG_THIRD_PARTY_LEVEL: str = "WARNING"
 
+    # Celery / Redis
+    CELERY_BROKER_URL: str = "redis://localhost:6379/0"
+    CELERY_RESULT_BACKEND: str | None = None
+    CELERY_TASK_ALWAYS_EAGER: bool = False
+    CELERY_TASK_EAGER_PROPAGATES: bool = False
+    CELERY_WORKER_PREFETCH_MULTIPLIER: int = 1
+    CELERY_DOCUMENT_CONCURRENCY: int = 1
+    ENABLE_CELERY_WORKER: bool = False
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

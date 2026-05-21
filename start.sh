@@ -12,6 +12,14 @@ export PYTHONUNBUFFERED=1
 uv run python -m app.services.agent_voice_gpt_realtime "$AGENT_MODE" > worker.log 2>&1 &
 # uv run python -m app.services.agent_voice_test_gemini "$AGENT_MODE" > worker.log 2>&1 &
 
+if [ "${ENABLE_CELERY_WORKER:-false}" = "true" ]; then
+  uv run celery -A app.core.celery_app.celery_app worker \
+    -Q document \
+    -l info \
+    --concurrency "${CELERY_DOCUMENT_CONCURRENCY:-1}" \
+    > celery_document.log 2>&1 &
+fi
+
 
 # Chạy FastAPI chính
 BACKEND_PORT="${BACKEND_PORT:-8000}"

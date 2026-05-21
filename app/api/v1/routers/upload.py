@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, File, UploadFile
+from fastapi import APIRouter, Body, Depends, File, UploadFile
 from sqlmodel import Session
 
 from app.db.database import get_session
@@ -30,7 +30,6 @@ async def upload_document(
 # -----------------------------------------------------------------------
 @router.post("/generate-plan")
 async def generate_plan(
-    background_tasks: BackgroundTasks,
     session: Annotated[Session, Depends(get_session)],
     payload: Annotated[PlanInput, Body(...)],
 ):
@@ -38,4 +37,4 @@ async def generate_plan(
     Bước 2: Nhận cấu hình kế hoạch học từ Flutter, lưu ReadingPlan,
     kick-off background processing.
     """
-    return await handle_generate_plan(session, background_tasks, payload)
+    return await handle_generate_plan(session, payload)
