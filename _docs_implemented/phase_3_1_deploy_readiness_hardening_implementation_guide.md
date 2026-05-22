@@ -2,7 +2,47 @@
 
 Date: 2026-05-22
 
-Status: **Plan/implementation instruction, not implemented yet**
+Status: **Implemented on 2026-05-22**
+
+Implemented files:
+
+```text
+start.sh
+.env.example
+app/core/config.py
+app/core/celery_app.py
+app/tasks/book_tasks.py
+app/services/workers/book_pipeline.py
+app/services/health_service.py
+app/api/v1/routers/health.py
+app/main.py
+scripts/production_smoke_test.py
+tests/test_health_api.py
+tests/test_celery_enqueue.py
+```
+
+Implementation summary:
+
+- `start.sh` no longer forces production `--reload`; it uses `UVICORN_RELOAD`.
+- `start.sh` can enable/disable voice agent and Celery worker by env.
+- Worker logs now go through `tee`, so HuggingFace logs can show them while local files remain useful.
+- Celery visibility timeout and connection-loss behavior are explicit config values.
+- Book tasks and the pipeline skip jobs that are already `ready`, reducing duplicate LLM/TTS cost after Redis redelivery.
+- Added `/api/v1/health` and `/api/v1/health/background` for deploy checks.
+- Added `scripts/production_smoke_test.py` to test a deployed API by health, optional upload, optional generate-plan, and optional job polling.
+
+Local verification on 2026-05-22:
+
+```text
+uv run ruff check <changed files>                                           PASS
+uv run python -m py_compile <changed files>                                 PASS
+uv run pytest tests/test_health_api.py tests/test_celery_enqueue.py \
+  tests/test_processing_jobs_api.py tests/test_phase3_generation_guardrails.py -q  PASS, 16 passed
+bash -n start.sh                                                            PASS
+scripts/production_smoke_test.py against local FastAPI port 8010             PASS, health/background ok
+POST /api/v1/upload with Chương 4_ Phương pháp luận nghiên cứu.pdf          PASS, 3 chapters
+DELETE /api/v1/books/{book_id} cleanup                                      PASS
+```
 
 ## 1. Tóm Tắt Cho Em
 
@@ -662,6 +702,37 @@ queued -> processing -> partial_ready -> ready
 
 6. Confirm Redis `document` queue is not stuck.
 
+Implemented smoke script:
+
+```powershell
+uv run python scripts/production_smoke_test.py `
+  --base-url "https://<your-space>.hf.space" `
+  --require-background-ok
+```
+
+Health + upload only:
+
+```powershell
+uv run python scripts/production_smoke_test.py `
+  --base-url "https://<your-space>.hf.space" `
+  --pdf-path "Chương 4_ Phương pháp luận nghiên cứu.pdf" `
+  --require-background-ok
+```
+
+Full production smoke with real generation:
+
+```powershell
+uv run python scripts/production_smoke_test.py `
+  --base-url "https://<your-space>.hf.space" `
+  --pdf-path "Chương 4_ Phương pháp luận nghiên cứu.pdf" `
+  --generate-plan `
+  --mode full `
+  --poll `
+  --require-background-ok
+```
+
+Use full generation smoke carefully because it consumes LLM/TTS quota.
+
 ### 13.3 Failure smoke test
 
 Upload PDF without outline.
@@ -741,4 +812,3 @@ Should:
 ```
 
 Phase 3.1 là bước "đóng nắp hộp máy" trước khi đưa lên server.
-

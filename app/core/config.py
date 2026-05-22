@@ -57,7 +57,15 @@ class Settings(BaseSettings):
     CELERY_TASK_EAGER_PROPAGATES: bool = False
     CELERY_WORKER_PREFETCH_MULTIPLIER: int = 1
     CELERY_DOCUMENT_CONCURRENCY: int = 1
+    CELERY_LOG_LEVEL: str = "info"
+    CELERY_VISIBILITY_TIMEOUT_SECONDS: int = 3600
+    CELERY_WORKER_CANCEL_LONG_RUNNING_ON_CONNECTION_LOSS: bool = False
     ENABLE_CELERY_WORKER: bool = False
+
+    # Runtime process toggles
+    ENABLE_VOICE_AGENT: bool = True
+    RUN_MIGRATIONS_ON_START: bool = False
+    UVICORN_RELOAD: bool = False
 
     # Generation guardrails
     LLM_INPUT_SOFT_TOKEN_LIMIT: int = 12000

@@ -3,10 +3,10 @@ import uuid
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from app.core.constant import BookStatus, DocumentType
+from app.core.constant import BookStatus, DocumentType, ProcessingJobStatus, ProcessingJobType
 from app.db.database import engine
 from app.main import app
-from app.models.db_models import Book, Chapter
+from app.models.db_models import Book, Chapter, ProcessingJob
 
 MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
 
@@ -127,6 +127,40 @@ def test_process_book_task_calls_pipeline(monkeypatch):
     assert calls == [(book_id, "full", job_id)]
 
 
+def test_process_book_task_skips_ready_job(monkeypatch):
+    calls = []
+    book_id = uuid.uuid4()
+
+    async def fake_pipeline(received_book_id, received_mode, received_job_id):
+        calls.append((received_book_id, received_mode, received_job_id))
+
+    monkeypatch.setattr("app.tasks.book_tasks.run_background_processing", fake_pipeline)
+
+    with Session(engine) as session:
+        job = ProcessingJob(
+            user_id=MOCK_USER_ID,
+            book_id=None,
+            job_type=ProcessingJobType.GENERATE_PLAN,
+            status=ProcessingJobStatus.READY,
+        )
+        session.add(job)
+        session.commit()
+        session.refresh(job)
+        job_id = job.id
+
+    from app.tasks.book_tasks import process_book_task
+
+    process_book_task(str(book_id), "full", str(job_id))
+
+    assert calls == []
+
+    with Session(engine) as session:
+        saved = session.get(ProcessingJob, job_id)
+        if saved:
+            session.delete(saved)
+            session.commit()
+
+
 def test_switch_mode_task_calls_pipeline(monkeypatch):
     calls = []
     book_id = uuid.uuid4()
@@ -142,3 +176,37 @@ def test_switch_mode_task_calls_pipeline(monkeypatch):
     switch_mode_task(str(book_id), "pareto", str(job_id))
 
     assert calls == [(book_id, "pareto", job_id)]
+
+
+def test_switch_mode_task_skips_ready_job(monkeypatch):
+    calls = []
+    book_id = uuid.uuid4()
+
+    async def fake_pipeline(received_book_id, received_mode, received_job_id):
+        calls.append((received_book_id, received_mode, received_job_id))
+
+    monkeypatch.setattr("app.tasks.book_tasks.run_switch_mode_processing", fake_pipeline)
+
+    with Session(engine) as session:
+        job = ProcessingJob(
+            user_id=MOCK_USER_ID,
+            book_id=None,
+            job_type=ProcessingJobType.SWITCH_MODE,
+            status=ProcessingJobStatus.READY,
+        )
+        session.add(job)
+        session.commit()
+        session.refresh(job)
+        job_id = job.id
+
+    from app.tasks.book_tasks import switch_mode_task
+
+    switch_mode_task(str(book_id), "pareto", str(job_id))
+
+    assert calls == []
+
+    with Session(engine) as session:
+        saved = session.get(ProcessingJob, job_id)
+        if saved:
+            session.delete(saved)
+            session.commit()

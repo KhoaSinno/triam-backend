@@ -29,7 +29,7 @@ from app.core.exceptions import UnsupportedFileTypeError
 from app.core.logger import log as logger
 from app.core.supabase import supabase
 from app.db.database import engine
-from app.models.db_models import Book, Chapter
+from app.models.db_models import Book, Chapter, ProcessingJob
 from app.repositories.audiobook_repo import update_book_status
 from app.repositories.chapter_repo import get_draft_chapters_by_book
 from app.repositories.processing_job_repo import update_processing_job
@@ -43,6 +43,12 @@ class ChapterWorkItem:
     chapter: Chapter
     raw_text: str
     budget: TextBudget
+
+
+@dataclass(frozen=True)
+class BookProcessingInput:
+    book: Book
+    draft_chapters: list[Chapter]
 
 
 def _storage_path_for_book(book: Book) -> tuple[str, str]:
@@ -100,6 +106,40 @@ def _update_job(
 def _set_book_status(book_id: uuid.UUID, status: BookStatus, error_message: str | None = None) -> None:
     with Session(engine) as session:
         update_book_status(session, book_id, status, error_message)
+
+
+def _job_is_ready(job_id: uuid.UUID | None) -> bool:
+    if not job_id:
+        return False
+
+    with Session(engine) as session:
+        job = session.get(ProcessingJob, job_id)
+        return bool(job and job.status == ProcessingJobStatus.READY)
+
+
+def _load_book_processing_input(book_id: uuid.UUID, job_id: uuid.UUID | None) -> BookProcessingInput | None:
+    with Session(engine) as session:
+        book = session.get(Book, book_id)
+        draft_chapters = get_draft_chapters_by_book(session, book_id)
+
+    if not book:
+        _fail_job(job_id, "Không tìm thấy sách.", f"Book {book_id} not found")
+        logger.error(f"Book {book_id} not found")
+        return None
+
+    if not draft_chapters:
+        _set_book_status(book_id, BookStatus.ERROR, "Không có chapter nào để xử lý.")
+        _fail_job(job_id, "Không có chapter nào để xử lý.", "Không có chapter nào để xử lý.")
+        return None
+
+    if not book.file_url:
+        error_message = "file_url chưa được lưu — PDF chưa upload lên Storage."
+        _set_book_status(book_id, BookStatus.ERROR, error_message)
+        _fail_job(job_id, "Tài liệu chưa được upload lên Storage.", error_message)
+        logger.error(f"book.file_url is missing for book {book_id}")
+        return None
+
+    return BookProcessingInput(book=book, draft_chapters=list(draft_chapters))
 
 
 def _fail_job(job_id: uuid.UUID | None, current_step: str, error_message: str, *, progress_percent: int | None = None, total_units: int | None = None) -> None:
@@ -214,27 +254,16 @@ async def run_background_processing(book_id: uuid.UUID, mode: str, job_id: uuid.
     """
     mode_value = PlanMode(mode).value
     try:
+        if _job_is_ready(job_id):
+            logger.info(f"Skip book processing because job is already READY | book_id={book_id} | job_id={job_id}")
+            return
+
         # ── 1. Fetch book + draft chapters ───────────────────────────────────
-        with Session(engine) as session:
-            book = session.get(Book, book_id)
-            draft_chapters = get_draft_chapters_by_book(session, book_id)
-
-        if not book:
-            _fail_job(job_id, "Không tìm thấy sách.", f"Book {book_id} not found")
-            logger.error(f"Book {book_id} not found")
+        processing_input = _load_book_processing_input(book_id, job_id)
+        if not processing_input:
             return
-
-        if not draft_chapters:
-            _set_book_status(book_id, BookStatus.ERROR, "Không có chapter nào để xử lý.")
-            _fail_job(job_id, "Không có chapter nào để xử lý.", "Không có chapter nào để xử lý.")
-            return
-
-        if not book.file_url:
-            error_message = "file_url chưa được lưu — PDF chưa upload lên Storage."
-            _set_book_status(book_id, BookStatus.ERROR, error_message)
-            _fail_job(job_id, "Tài liệu chưa được upload lên Storage.", error_message)
-            logger.error(f"book.file_url is missing for book {book_id}")
-            return
+        book = processing_input.book
+        draft_chapters = processing_input.draft_chapters
 
         # ── 2. Download document từ Supabase Storage ─────────────────────────
         storage_path, document_type = _storage_path_for_book(book)
@@ -360,6 +389,10 @@ async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str, job_id: 
     """
     new_mode_value = PlanMode(new_mode).value
     try:
+        if _job_is_ready(job_id):
+            logger.info(f"Skip switch-mode processing because job is already READY | book_id={book_id} | job_id={job_id}")
+            return
+
         # ── 1. Fetch book + all chapters ─────────────────────────────────────
         with Session(engine) as session:
             book = session.get(Book, book_id)
