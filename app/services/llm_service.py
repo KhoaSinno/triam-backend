@@ -1,15 +1,26 @@
+import asyncio
 import json
+from dataclasses import dataclass
 
 from openai import AsyncOpenAI
 
 from app.core.config import settings
 from app.core.constant import PlanMode
-
+from app.core.exceptions import ChapterTooLargeError, LLMResponseFormatError
 from app.core.logger import log as logger
+from app.services.chapter_chunking_service import split_text_for_llm
+from app.services.token_budget_service import estimate_text_budget, exceeds_hard_limit, should_chunk
 
 # Sử dụng Gemini qua OpenAI-compatible API
 client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY,
                      base_url=settings.GEMINI_BASE_URL)
+_llm_sem = asyncio.Semaphore(settings.LLM_NORMALIZE_CONCURRENCY)
+
+
+@dataclass(frozen=True)
+class NormalizedChapter:
+    main_scripts: list[str]
+    review_script: str
 
 SYSTEM_PROMPT_REWRITE_FULL = """
 Bạn là một Biên tập viên Sách nói & Chuyên gia Giáo dục (TRIAM AI).
@@ -94,7 +105,64 @@ Output: Chỉ trả về JSON thuần.
 # ---------------------------------------------------------------------------
 
 
-async def normalize_text_for_speech(raw_text: str, mode: str) -> dict:
+def _prompt_for_mode(mode: str) -> str:
+    if mode.lower() == PlanMode.PARETO.value:
+        return SYSTEM_PROMPT_REWRITE_PARETO
+    return SYSTEM_PROMPT_REWRITE_FULL
+
+
+def _validate_normalized_payload(payload: dict) -> NormalizedChapter:
+    main_scripts = payload.get("main_scripts")
+    review_script = payload.get("review_script")
+
+    if not isinstance(main_scripts, list) or not all(isinstance(item, str) and item.strip() for item in main_scripts):
+        raise LLMResponseFormatError("LLM response thiếu main_scripts hợp lệ.")
+
+    if not isinstance(review_script, str):
+        raise LLMResponseFormatError("LLM response thiếu review_script hợp lệ.")
+
+    return NormalizedChapter(
+        main_scripts=[item.strip() for item in main_scripts if item.strip()],
+        review_script=review_script.strip(),
+    )
+
+
+async def _call_normalize_llm(text: str, mode: str, *, context_hint: str | None = None) -> NormalizedChapter:
+    mode_prompt = _prompt_for_mode(mode)
+    user_content = text if not context_hint else f"{context_hint}\n\n--- INPUT ---\n{text}"
+    request_chars = len(user_content)
+    request_context = "chunk" if context_hint else "single"
+
+    async with _llm_sem:
+        logger.info(f"LLM normalize start | mode={mode} | context={request_context} | chars={request_chars}")
+        response = await client.chat.completions.create(
+            model=settings.GEMINI_MODEL_LLM,
+            messages=[
+                {"role": "system", "content": mode_prompt},
+                {"role": "user", "content": user_content},
+            ],
+            temperature=0.3,
+            response_format={"type": "json_object"},
+        )
+
+    content = response.choices[0].message.content
+    if not content:
+        raise LLMResponseFormatError("LLM response rỗng.")
+
+    try:
+        parsed_data = json.loads(content)
+    except json.JSONDecodeError as exc:
+        raise LLMResponseFormatError("LLM response không phải JSON hợp lệ.") from exc
+
+    normalized = _validate_normalized_payload(parsed_data)
+    logger.info(
+        f"LLM normalize done | mode={mode} | context={request_context} | "
+        f"scripts={len(normalized.main_scripts)} | review_chars={len(normalized.review_script)}"
+    )
+    return normalized
+
+
+async def normalize_text_for_speech(raw_text: str, mode: str, *, chapter_title: str | None = None) -> dict:
     """
     Gửi text thô cho Gemini để biên tập và cấu trúc lại thành TTS script.
 
@@ -105,22 +173,57 @@ async def normalize_text_for_speech(raw_text: str, mode: str) -> dict:
         Exception: Nếu LLM call thất bại hoặc response không parse được —
                    caller (tts_worker) chịu trách nhiệm rollback chapter.
     """
-    if mode.lower() == PlanMode.PARETO or mode.lower() == PlanMode.PARETO.value:
-        mode_prompt = SYSTEM_PROMPT_REWRITE_PARETO
-    else:
-        mode_prompt = SYSTEM_PROMPT_REWRITE_FULL
+    budget = estimate_text_budget(raw_text)
+    logger.info(
+        f"Normalize preflight | mode={mode} | title={chapter_title or '(unknown)'} | "
+        f"chars={budget.char_count} | estimated_tokens={budget.estimated_tokens} | "
+        f"estimated_audio_seconds={budget.estimated_audio_seconds}"
+    )
+    if exceeds_hard_limit(budget):
+        raise ChapterTooLargeError(
+            f"Chương quá lớn: khoảng {budget.estimated_tokens} tokens, vượt giới hạn {settings.LLM_INPUT_HARD_TOKEN_LIMIT} tokens."
+        )
 
-    response = await client.chat.completions.create(
-        model=settings.GEMINI_MODEL_LLM,
-        messages=[{"role": "system", "content": mode_prompt},
-                  {"role": "user", "content": raw_text}],
-        temperature=0.3,
-        response_format={"type": "json_object"},
+    if not should_chunk(budget):
+        logger.info(f"Normalize strategy | mode={mode} | strategy=single_call | title={chapter_title or '(unknown)'}")
+        normalized = await _call_normalize_llm(raw_text, mode)
+        return {
+            "main_scripts": normalized.main_scripts,
+            "review_script": normalized.review_script,
+        }
+
+    chunks = split_text_for_llm(raw_text)
+    logger.info(
+        f"Normalize long chapter with {len(chunks)} chunks | mode={mode} | "
+        f"title={chapter_title or '(unknown)'} | estimated_tokens={budget.estimated_tokens}"
     )
 
-    content = response.choices[0].message.content.strip()
-    parsed_data = json.loads(content)
+    all_scripts: list[str] = []
+    review_parts: list[str] = []
+    previous_tail = ""
 
-    logger.debug(
-        f"LLM parsed OK — {len(parsed_data.get('main_scripts', []))} scripts, mode={mode}")
-    return parsed_data
+    for chunk in chunks:
+        logger.info(
+            f"Normalize chunk start | mode={mode} | title={chapter_title or '(unknown)'} | "
+            f"chunk={chunk.index + 1}/{len(chunks)} | estimated_tokens={chunk.estimated_tokens}"
+        )
+        context_hint = (
+            f"Chương: {chapter_title or 'Không rõ'}.\n"
+            f"Đây là phần {chunk.index + 1}/{len(chunks)} của cùng một chương.\n"
+            "Giữ mạch văn nối tiếp với phần trước. Không tự nhắc 'phần' hoặc 'chunk' trong câu trả lời.\n"
+            f"Đoạn cuối phần trước để nối ngữ cảnh: {previous_tail[-600:]}"
+        )
+        normalized = await _call_normalize_llm(chunk.text, mode, context_hint=context_hint)
+        all_scripts.extend(normalized.main_scripts)
+        if normalized.review_script:
+            review_parts.append(normalized.review_script)
+        previous_tail = chunk.text[-1000:]
+        logger.info(
+            f"Normalize chunk done | mode={mode} | title={chapter_title or '(unknown)'} | "
+            f"chunk={chunk.index + 1}/{len(chunks)} | cumulative_scripts={len(all_scripts)}"
+        )
+
+    return {
+        "main_scripts": all_scripts,
+        "review_script": " ".join(review_parts).strip(),
+    }

@@ -73,11 +73,36 @@ class ProcessingJob(SQLModel, table=True):
     total_units: int = Field(default=0, sa_column=Column(Integer, nullable=False))
     done_units: int = Field(default=0, sa_column=Column(Integer, nullable=False))
     failed_units: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    estimated_input_tokens: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    estimated_audio_seconds: Optional[int] = Field(default=None, sa_column=Column(Integer))
     error_message: Optional[str] = Field(default=None, sa_column=Column(Text))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
     started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     finished_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+
+
+class ChapterProcessingState(SQLModel, table=True):
+    __tablename__ = "chapter_processing_states"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
+    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
+    chapter_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="CASCADE"), index=True, nullable=False))
+    job_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("processing_jobs.id", ondelete="SET NULL"), index=True))
+    mode: PlanMode = Field(sa_column=Column(SAEnum(PlanMode), nullable=False))
+    status: ProcessingJobStatus = Field(default=ProcessingJobStatus.QUEUED, sa_column=Column(SAEnum(ProcessingJobStatus), index=True, nullable=False))
+    raw_text_char_count: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    estimated_tokens: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    estimated_audio_seconds: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    main_segment_count: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    error_message: Optional[str] = Field(default=None, sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    finished_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+
+    __table_args__ = (UniqueConstraint("chapter_id", "mode", name="uq_chapter_processing_state_chapter_mode"),)
 
 
 class Chapter(SQLModel, table=True):

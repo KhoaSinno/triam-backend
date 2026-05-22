@@ -57,7 +57,7 @@ async def generate_audio_file_edge(text: str, filename: str, voice: str = settin
 # Ref: https://github.com/rany2/edge-tts/issues/473
 # Semaphore(5) giúp giảm áp lực lên server, tăng tỉ lệ thành công.
 # -----------------------------------------------------------------------
-_tts_sem = asyncio.Semaphore(5)
+_tts_sem = asyncio.Semaphore(settings.TTS_GENERATION_CONCURRENCY)
 
 
 async def generate_audio_and_get_duration(
@@ -69,7 +69,7 @@ async def generate_audio_and_get_duration(
     """
     Tạo file audio bằng Edge TTS và đo thời lượng (milliseconds).
 
-    - Semaphore(5): giới hạn 5 TTS calls đồng thời (tránh overwhelm server)
+    - Semaphore(settings.TTS_GENERATION_CONCURRENCY): giới hạn TTS calls đồng thời
     - 6 retries với backoff dài: 3s, 6s, 12s, 24s, 48s
     - receive_timeout=300: chờ Microsoft server đủ lâu
     - KHÔNG dùng voice fallback: giữ giọng đọc nhất quán

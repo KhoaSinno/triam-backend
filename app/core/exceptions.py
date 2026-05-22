@@ -121,9 +121,24 @@ class DocumentOutlineRequiredError(AppException):
     detail = "Tài liệu không có cấu trúc chương hợp lệ. Vui lòng upload PDF có bookmark/outline, EPUB có mục lục, hoặc DOCX có heading."
 
 
+class DocumentTooLargeError(AppException):
+    status_code = 422
+    detail = "Tài liệu quá lớn để xử lý tự động. Vui lòng tách tài liệu thành file nhỏ hơn."
+
+
+class ChapterTooLargeError(AppException):
+    status_code = 422
+    detail = "Một chương trong tài liệu quá lớn để xử lý. Vui lòng tách chương hoặc chọn tài liệu nhỏ hơn."
+
+
 class TTSInputTooShortError(AppException):
     status_code = 422
     detail = "Nội dung quá ngắn để tạo audio."
+
+
+class NoPlayableAudioError(AppException):
+    status_code = 422
+    detail = "Không tạo được audio có thể phát cho nội dung này."
 
 
 # ---------------------------------------------------------------------------
@@ -150,6 +165,10 @@ class ExternalServiceError(AppException):
 
     status_code = 502
     detail = "External service operation failed."
+
+
+class LLMResponseFormatError(ExternalServiceError):
+    detail = "LLM trả về dữ liệu không đúng định dạng yêu cầu."
 
 
 class StorageOperationError(ExternalServiceError):

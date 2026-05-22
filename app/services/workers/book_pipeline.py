@@ -17,11 +17,13 @@ import asyncio
 import io
 import math
 import uuid
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 from sqlmodel import Session, select
 
+from app.core.config import settings
 from app.core.constant import BookStatus, PlanMode, ProcessingJobStatus
 from app.core.exceptions import UnsupportedFileTypeError
 from app.core.logger import log as logger
@@ -32,7 +34,15 @@ from app.repositories.audiobook_repo import update_book_status
 from app.repositories.chapter_repo import get_draft_chapters_by_book
 from app.repositories.processing_job_repo import update_processing_job
 from app.services.document_parser_service import extract_chapters_by_document_type, infer_document_type_from_url
+from app.services.token_budget_service import TextBudget, estimate_text_budget
 from app.services.workers.chapter_worker import process_chapter, process_switch_mode_chapter
+
+
+@dataclass(frozen=True)
+class ChapterWorkItem:
+    chapter: Chapter
+    raw_text: str
+    budget: TextBudget
 
 
 def _storage_path_for_book(book: Book) -> tuple[str, str]:
@@ -60,6 +70,8 @@ def _update_job(
     total_units: int | None = None,
     done_units: int | None = None,
     failed_units: int | None = None,
+    estimated_input_tokens: int | None = None,
+    estimated_audio_seconds: int | None = None,
     error_message: str | None = None,
     started_at: datetime | None = None,
     finished_at: datetime | None = None,
@@ -77,6 +89,8 @@ def _update_job(
             total_units=total_units,
             done_units=done_units,
             failed_units=failed_units,
+            estimated_input_tokens=estimated_input_tokens,
+            estimated_audio_seconds=estimated_audio_seconds,
             error_message=error_message,
             started_at=started_at,
             finished_at=finished_at,
@@ -111,15 +125,54 @@ def _processable_chapters(chapters: list[Chapter], chapters_map: dict[int, str])
     return processable
 
 
+def _build_work_items(chapters: list[tuple[Chapter, str]]) -> list[ChapterWorkItem]:
+    return [
+        ChapterWorkItem(
+            chapter=chapter,
+            raw_text=raw_text,
+            budget=estimate_text_budget(raw_text),
+        )
+        for chapter, raw_text in chapters
+    ]
+
+
+def _hard_limit_error(work_items: list[ChapterWorkItem]) -> str | None:
+    too_large = [item for item in work_items if item.budget.estimated_tokens > settings.LLM_INPUT_HARD_TOKEN_LIMIT]
+    if too_large:
+        first = too_large[0]
+        return (
+            f"Có {len(too_large)} chương vượt giới hạn xử lý. "
+            f"Chương đầu tiên vượt giới hạn: '{first.chapter.title}' "
+            f"khoảng {first.budget.estimated_tokens} tokens, giới hạn là {settings.LLM_INPUT_HARD_TOKEN_LIMIT} tokens."
+        )
+
+    total_audio_seconds = sum(item.budget.estimated_audio_seconds for item in work_items)
+    if total_audio_seconds > settings.MAX_ESTIMATED_AUDIO_SECONDS_PER_BOOK:
+        return (
+            f"Tài liệu dự kiến khoảng {math.ceil(total_audio_seconds / 60)} phút audio, "
+            f"vượt giới hạn {math.ceil(settings.MAX_ESTIMATED_AUDIO_SECONDS_PER_BOOK / 60)} phút cho mỗi sách."
+        )
+
+    return None
+
+
+def _total_estimates(work_items: list[ChapterWorkItem]) -> tuple[int, int]:
+    return (
+        sum(item.budget.estimated_tokens for item in work_items),
+        sum(item.budget.estimated_audio_seconds for item in work_items),
+    )
+
+
 async def _track_progress(
     tasks: list[asyncio.Task],
     job_id: uuid.UUID | None,
     total_units: int,
     book_id: uuid.UUID,
     step_template: str,
+    completed_offset: int = 0,
 ) -> None:
-    completed = 0
-    partial_threshold = max(1, math.ceil(total_units * 0.5))
+    completed = completed_offset
+    partial_threshold = min(total_units, max(1, settings.FIRST_PLAYABLE_CHAPTERS))
 
     try:
         for task in asyncio.as_completed(tasks):
@@ -202,21 +255,83 @@ async def run_background_processing(book_id: uuid.UUID, mode: str, job_id: uuid.
             _fail_job(job_id, error_message, error_message, progress_percent=0, total_units=0)
             return
 
+        work_items = _build_work_items(processable_chapters)
+        hard_limit_error = _hard_limit_error(work_items)
+        estimated_input_tokens, estimated_audio_seconds = _total_estimates(work_items)
+        if hard_limit_error:
+            _set_book_status(book_id, BookStatus.ERROR, hard_limit_error)
+            _fail_job(
+                job_id,
+                "Tài liệu vượt giới hạn xử lý.",
+                hard_limit_error,
+                progress_percent=0,
+                total_units=total_units,
+            )
+            return
+
         _update_job(
             job_id,
             status=ProcessingJobStatus.PROCESSING,
             progress_percent=0,
-            current_step="Đang tải và phân tích tài liệu.",
+            current_step="Đã tải, phân tích và ước lượng kích thước tài liệu.",
             total_units=total_units,
             done_units=0,
+            estimated_input_tokens=estimated_input_tokens,
+            estimated_audio_seconds=estimated_audio_seconds,
             started_at=datetime.now(timezone.utc),
         )
 
-        tasks = [
-            asyncio.create_task(process_chapter(book_id, book.title, draft_chap.title, draft_chap.id, draft_chap.chapter_index, raw_text, mode_value)) for draft_chap, raw_text in processable_chapters
-        ]
+        first_count = min(total_units, max(1, settings.FIRST_PLAYABLE_CHAPTERS))
+        completed = 0
+        for item in work_items[:first_count]:
+            await process_chapter(
+                book.user_id,
+                book_id,
+                book.title,
+                item.chapter.title,
+                item.chapter.id,
+                item.chapter.chapter_index,
+                item.raw_text,
+                mode_value,
+                job_id,
+                item.budget.char_count,
+                item.budget.estimated_tokens,
+                item.budget.estimated_audio_seconds,
+            )
+            completed += 1
+            progress = int(completed * 100 / total_units)
+            if completed < total_units:
+                _set_book_status(book_id, BookStatus.PARTIAL_READY)
+                _update_job(
+                    job_id,
+                    status=ProcessingJobStatus.PARTIAL_READY,
+                    progress_percent=progress,
+                    current_step="Đã có nội dung đầu tiên có thể nghe. Phần còn lại đang được xử lý.",
+                    done_units=completed,
+                )
 
-        await _track_progress(tasks, job_id, total_units, book_id, "Đã xử lý {completed}/{total} chương.")
+        remaining_items = work_items[first_count:]
+        if remaining_items:
+            tasks = [
+                asyncio.create_task(
+                    process_chapter(
+                        book.user_id,
+                        book_id,
+                        book.title,
+                        item.chapter.title,
+                        item.chapter.id,
+                        item.chapter.chapter_index,
+                        item.raw_text,
+                        mode_value,
+                        job_id,
+                        item.budget.char_count,
+                        item.budget.estimated_tokens,
+                        item.budget.estimated_audio_seconds,
+                    )
+                )
+                for item in remaining_items
+            ]
+            await _track_progress(tasks, job_id, total_units, book_id, "Đã xử lý {completed}/{total} chương.", completed_offset=completed)
 
         # ── 5. Cập nhật Book status → READY ──────────────────────────────────
         _set_book_status(book_id, BookStatus.READY)
@@ -248,7 +363,7 @@ async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str, job_id: 
         # ── 1. Fetch book + all chapters ─────────────────────────────────────
         with Session(engine) as session:
             book = session.get(Book, book_id)
-            chapters = session.exec(select(Chapter).where(Chapter.book_id == book_id)).all()
+            chapters = session.exec(select(Chapter).where(Chapter.book_id == book_id).order_by(Chapter.chapter_index)).all()
 
         if not book or not book.file_url:
             _fail_job(
@@ -281,19 +396,80 @@ async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str, job_id: 
             )
             return
 
+        work_items = _build_work_items(processable_chapters)
+        hard_limit_error = _hard_limit_error(work_items)
+        estimated_input_tokens, estimated_audio_seconds = _total_estimates(work_items)
+        if hard_limit_error:
+            _set_book_status(book_id, BookStatus.ERROR, hard_limit_error)
+            _fail_job(
+                job_id,
+                f"Sinh audio mode {new_mode_value} vượt giới hạn xử lý.",
+                hard_limit_error,
+                progress_percent=0,
+                total_units=total_units,
+            )
+            return
+
         _set_book_status(book_id, BookStatus.PROCESSING)
         _update_job(
             job_id,
             status=ProcessingJobStatus.PROCESSING,
             progress_percent=0,
-            current_step=f"Đang sinh audio mode {new_mode_value}.",
+            current_step=f"Đã ước lượng tài liệu, đang sinh audio mode {new_mode_value}.",
             total_units=total_units,
             done_units=0,
+            estimated_input_tokens=estimated_input_tokens,
+            estimated_audio_seconds=estimated_audio_seconds,
             started_at=datetime.now(timezone.utc),
         )
 
-        tasks = [asyncio.create_task(process_switch_mode_chapter(book_id, chap.id, chap.chapter_index, raw_text, new_mode_value)) for chap, raw_text in processable_chapters]
-        await _track_progress(tasks, job_id, total_units, book_id, f"Đã sinh audio mode {new_mode_value} cho {{completed}}/{{total}} chương.")
+        first_count = min(total_units, max(1, settings.FIRST_PLAYABLE_CHAPTERS))
+        completed = 0
+        for item in work_items[:first_count]:
+            await process_switch_mode_chapter(
+                book.user_id,
+                book_id,
+                item.chapter.id,
+                item.chapter.chapter_index,
+                item.raw_text,
+                new_mode_value,
+                job_id,
+                item.budget.char_count,
+                item.budget.estimated_tokens,
+                item.budget.estimated_audio_seconds,
+            )
+            completed += 1
+            progress = int(completed * 100 / total_units)
+            if completed < total_units:
+                _set_book_status(book_id, BookStatus.PARTIAL_READY)
+                _update_job(
+                    job_id,
+                    status=ProcessingJobStatus.PARTIAL_READY,
+                    progress_percent=progress,
+                    current_step=f"Đã có audio đầu tiên cho mode {new_mode_value}. Phần còn lại đang được xử lý.",
+                    done_units=completed,
+                )
+
+        remaining_items = work_items[first_count:]
+        if remaining_items:
+            tasks = [
+                asyncio.create_task(
+                    process_switch_mode_chapter(
+                        book.user_id,
+                        book_id,
+                        item.chapter.id,
+                        item.chapter.chapter_index,
+                        item.raw_text,
+                        new_mode_value,
+                        job_id,
+                        item.budget.char_count,
+                        item.budget.estimated_tokens,
+                        item.budget.estimated_audio_seconds,
+                    )
+                )
+                for item in remaining_items
+            ]
+            await _track_progress(tasks, job_id, total_units, book_id, f"Đã sinh audio mode {new_mode_value} cho {{completed}}/{{total}} chương.", completed_offset=completed)
 
         _set_book_status(book_id, BookStatus.READY)
         _update_job(

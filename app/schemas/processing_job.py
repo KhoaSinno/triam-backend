@@ -20,6 +20,8 @@ class ProcessingJobResponse(BaseModel):
     total_units: int
     done_units: int
     failed_units: int
+    estimated_input_tokens: int | None = None
+    estimated_audio_seconds: int | None = None
     error_message: str | None = None
     created_at: datetime
     updated_at: datetime
@@ -40,4 +42,6 @@ class ProcessingJobSummaryResponse(BaseModel):
     total_units: int
     done_units: int
     failed_units: int
+    estimated_input_tokens: int | None = None
+    estimated_audio_seconds: int | None = None
     error_message: str | None = None

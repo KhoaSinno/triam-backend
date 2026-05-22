@@ -2,7 +2,13 @@
 
 Date: 2026-05-21
 
-Status: **Plan only, not implemented yet**
+Status: **Implemented and tested on 2026-05-21**
+
+Implementation/test report:
+
+```text
+_docs_implemented/phase_3_generation_guardrails_test_report.md
+```
 
 ## 0. Decision Summary
 

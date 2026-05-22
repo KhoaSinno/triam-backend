@@ -59,6 +59,20 @@ class Settings(BaseSettings):
     CELERY_DOCUMENT_CONCURRENCY: int = 1
     ENABLE_CELERY_WORKER: bool = False
 
+    # Generation guardrails
+    LLM_INPUT_SOFT_TOKEN_LIMIT: int = 12000
+    LLM_INPUT_HARD_TOKEN_LIMIT: int = 60000
+    LLM_CHUNK_TARGET_TOKENS: int = 5000
+    LLM_CHUNK_OVERLAP_TOKENS: int = 300
+    MAX_ESTIMATED_AUDIO_SECONDS_PER_BOOK: int = 4 * 60 * 60
+    FIRST_PLAYABLE_CHAPTERS: int = 1
+
+    # Provider concurrency
+    CHAPTER_PROCESSING_CONCURRENCY: int = 2
+    LLM_NORMALIZE_CONCURRENCY: int = 1
+    TTS_GENERATION_CONCURRENCY: int = 2
+    EMBEDDING_BATCH_SIZE: int = 64
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

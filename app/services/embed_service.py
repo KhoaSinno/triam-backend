@@ -22,7 +22,7 @@ def process_book_to_enriched_chunks(book_title: str, chapter_title: str, raw_tex
     raw_chunks = _splitter.split_text(raw_text)
     enriched_chunks = []
 
-    for index, chunk in enumerate(raw_chunks):
+    for chunk in raw_chunks:
         # BƠM NGỮ CẢNH: Giúp Vector nắm bắt được bối cảnh toàn cục
         header = f"[Tác phẩm: {book_title} | Chương: {chapter_title}]\n"
         enriched_content = header + chunk
@@ -55,21 +55,24 @@ async def embed_and_save_chapter(
     if not chunks:
         return
 
-    response = await aclient.embeddings.create(
-        input=chunks,
-        model="text-embedding-3-small",
-    )
-
-    records = [
-        BookKnowledge(
-            book_id=book_id,
-            chapter_id=chapter_id,
-            chunk_index=i,
-            content=chunks[i],
-            embedding=embedding_data.embedding,
+    records: list[BookKnowledge] = []
+    batch_size = max(1, settings.EMBEDDING_BATCH_SIZE)
+    for start in range(0, len(chunks), batch_size):
+        batch = chunks[start:start + batch_size]
+        response = await aclient.embeddings.create(
+            input=batch,
+            model="text-embedding-3-small",
         )
-        for i, embedding_data in enumerate(response.data)
-    ]
+        records.extend(
+            BookKnowledge(
+                book_id=book_id,
+                chapter_id=chapter_id,
+                chunk_index=start + i,
+                content=batch[i],
+                embedding=embedding_data.embedding,
+            )
+            for i, embedding_data in enumerate(response.data)
+        )
 
     bulk_create_knowledge(session, records)
     log.info(f"RAG: Saved {len(records)} vectors for chapter_id={chapter_id}")

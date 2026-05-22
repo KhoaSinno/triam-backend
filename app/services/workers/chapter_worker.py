@@ -18,21 +18,30 @@ Concurrency model:
 
 import asyncio
 import uuid
+from dataclasses import dataclass
 
 from sqlmodel import Session
 
-from app.core.constant import BookStatus
+from app.core.config import settings
+from app.core.constant import BookStatus, PlanMode, ProcessingJobStatus
+from app.core.logger import log as logger
 from app.db.database import engine
 from app.repositories.book_knowledge_repo import delete_knowledge_by_chapter
-from app.repositories.chapter_repo import delete_chapter, update_chapter_status
-from app.repositories.chapter_segment_repo import delete_segments_by_chapter_and_mode
+from app.repositories.chapter_processing_state_repo import get_state_by_chapter_and_mode, mark_chapter_state_error, mark_chapter_state_ready, upsert_chapter_processing_state
+from app.repositories.chapter_repo import update_chapter_status
+from app.repositories.chapter_segment_repo import check_segments_exist_by_mode, delete_segments_by_chapter_and_mode
 from app.services.embed_service import embed_and_save_chapter
 from app.services.workers.tts_worker import run_tts_pipeline
 
-from app.core.logger import log as logger
+# Tối đa N chapters xử lý song song — config thấp giúp giảm rate limit LLM/TTS.
+sem = asyncio.Semaphore(settings.CHAPTER_PROCESSING_CONCURRENCY)
 
-# Tối đa 5 chapters xử lý song song — cân bằng giữa tốc độ và tải hệ thống
-sem = asyncio.Semaphore(5)
+
+@dataclass(frozen=True)
+class ChapterProcessingResult:
+    chapter_id: uuid.UUID
+    main_segment_count: int
+    skipped: bool = False
 
 
 async def _run_rag_pipeline(
@@ -48,6 +57,7 @@ async def _run_rag_pipeline(
 
 
 async def process_chapter(
+    user_id: uuid.UUID,
     book_id: uuid.UUID,
     book_title: str,
     chapter_title: str,
@@ -55,7 +65,11 @@ async def process_chapter(
     chapter_index: int,
     raw_text: str,
     mode: str,
-) -> None:
+    job_id: uuid.UUID | None = None,
+    raw_text_char_count: int = 0,
+    estimated_tokens: int = 0,
+    estimated_audio_seconds: int = 0,
+) -> ChapterProcessingResult:
     """
     Xử lý đầy đủ 1 chapter: chạy RAG + TTS song song, cập nhật status.
 
@@ -63,49 +77,113 @@ async def process_chapter(
     không còn dữ liệu không nhất quán.
     """
     async with sem:
+        mode_value = PlanMode(mode)
+        logger.info(
+            f"Chapter processing start | chapter={chapter_index + 1} | mode={mode_value.value} | "
+            f"title={chapter_title} | chars={raw_text_char_count or len(raw_text)} | "
+            f"estimated_tokens={estimated_tokens} | estimated_audio_seconds={estimated_audio_seconds}"
+        )
+        with Session(engine) as session:
+            existing_state = get_state_by_chapter_and_mode(session, chapter_id, mode_value)
+            if existing_state and existing_state.status == ProcessingJobStatus.READY and check_segments_exist_by_mode(session, chapter_id, mode_value):
+                logger.info(f"↩️ Chapter {chapter_index + 1} mode '{mode_value.value}' already READY, skip.")
+                return ChapterProcessingResult(chapter_id=chapter_id, main_segment_count=existing_state.main_segment_count, skipped=True)
+
+        with Session(engine) as session:
+            upsert_chapter_processing_state(
+                session,
+                user_id=user_id,
+                book_id=book_id,
+                chapter_id=chapter_id,
+                job_id=job_id,
+                mode=mode_value,
+                status=ProcessingJobStatus.PROCESSING,
+                raw_text_char_count=raw_text_char_count,
+                estimated_tokens=estimated_tokens,
+                estimated_audio_seconds=estimated_audio_seconds,
+            )
+
         try:
             # RAG và TTS chạy song song — mỗi pipeline dùng session riêng
-            await asyncio.gather(
+            logger.info(f"Chapter pipelines dispatch | chapter={chapter_index + 1} | mode={mode_value.value} | rag=true | tts=true")
+            _, tts_result = await asyncio.gather(
                 _run_rag_pipeline(book_id, chapter_id, book_title, chapter_title, raw_text),
-                run_tts_pipeline(book_id, chapter_id, chapter_index, raw_text, mode),
+                run_tts_pipeline(book_id, chapter_id, chapter_index, raw_text, mode_value.value, chapter_title),
             )
             with Session(engine) as session:
                 update_chapter_status(session, chapter_id, BookStatus.READY)
-            logger.info(f"✅ Chapter {chapter_index + 1} READY")
+                mark_chapter_state_ready(session, chapter_id, mode_value, main_segment_count=tts_result.main_segment_count)
+            logger.info(f"✅ Chapter {chapter_index + 1} READY | mode={mode_value.value} | segments={tts_result.main_segment_count}")
+            return ChapterProcessingResult(chapter_id=chapter_id, main_segment_count=tts_result.main_segment_count)
 
         except Exception as e:
             logger.error(f"❌ Chapter {chapter_index + 1} thất bại: {e}")
-            # Rollback: xóa book_knowledge TRƯỚC (FK constraint) rồi mới xóa chapter
             try:
                 with Session(engine) as session:
                     delete_knowledge_by_chapter(session, chapter_id)
-                    delete_chapter(session, chapter_id)
-                logger.info(f"🗑️ Rollback chapter {chapter_index + 1} thành công.")
+                    delete_segments_by_chapter_and_mode(session, chapter_id, mode_value)
+                    update_chapter_status(session, chapter_id, BookStatus.ERROR)
+                    mark_chapter_state_error(session, chapter_id, mode_value, str(e))
+                logger.info(f"🧹 Cleaned failed side effects for chapter {chapter_index + 1}.")
             except Exception as rollback_err:
-                logger.error(f"Failed to rollback chapter {chapter_index + 1}: {rollback_err}")
+                logger.error(f"Failed to clean failed chapter {chapter_index + 1}: {rollback_err}")
             raise
 
 
 async def process_switch_mode_chapter(
+    user_id: uuid.UUID,
     book_id: uuid.UUID,
     chapter_id: uuid.UUID,
     chapter_index: int,
     raw_text: str,
     new_mode: str,
-) -> None:
+    job_id: uuid.UUID | None = None,
+    raw_text_char_count: int = 0,
+    estimated_tokens: int = 0,
+    estimated_audio_seconds: int = 0,
+) -> ChapterProcessingResult:
     """
     Switch mode 1 chapter: xóa segments cũ → chạy TTS mới (bỏ qua RAG).
 
     Không cần RAG vì knowledge base không thay đổi theo mode.
     """
     async with sem:
-        try:
-            with Session(engine) as session:
-                delete_segments_by_chapter_and_mode(session, chapter_id, new_mode)
+        mode_value = PlanMode(new_mode)
+        logger.info(
+            f"Switch-mode chapter start | chapter={chapter_index + 1} | mode={mode_value.value} | "
+            f"chars={raw_text_char_count or len(raw_text)} | estimated_tokens={estimated_tokens} | "
+            f"estimated_audio_seconds={estimated_audio_seconds}"
+        )
+        with Session(engine) as session:
+            existing_state = get_state_by_chapter_and_mode(session, chapter_id, mode_value)
+            if existing_state and existing_state.status == ProcessingJobStatus.READY and check_segments_exist_by_mode(session, chapter_id, mode_value):
+                logger.info(f"↩️ Chapter {chapter_index + 1} switch mode '{mode_value.value}' already has segments, skip.")
+                return ChapterProcessingResult(chapter_id=chapter_id, main_segment_count=existing_state.main_segment_count, skipped=True)
 
-            await run_tts_pipeline(book_id, chapter_id, chapter_index, raw_text, new_mode)
-            logger.info(f"✅ Chapter {chapter_index + 1} switch mode '{new_mode}' READY")
+            upsert_chapter_processing_state(
+                session,
+                user_id=user_id,
+                book_id=book_id,
+                chapter_id=chapter_id,
+                job_id=job_id,
+                mode=mode_value,
+                status=ProcessingJobStatus.PROCESSING,
+                raw_text_char_count=raw_text_char_count,
+                estimated_tokens=estimated_tokens,
+                estimated_audio_seconds=estimated_audio_seconds,
+            )
+
+        try:
+            logger.info(f"Switch-mode TTS dispatch | chapter={chapter_index + 1} | mode={mode_value.value}")
+            tts_result = await run_tts_pipeline(book_id, chapter_id, chapter_index, raw_text, mode_value.value)
+            with Session(engine) as session:
+                mark_chapter_state_ready(session, chapter_id, mode_value, main_segment_count=tts_result.main_segment_count)
+            logger.info(f"✅ Chapter {chapter_index + 1} switch mode '{mode_value.value}' READY | segments={tts_result.main_segment_count}")
+            return ChapterProcessingResult(chapter_id=chapter_id, main_segment_count=tts_result.main_segment_count)
 
         except Exception as e:
             logger.error(f"❌ Chapter {chapter_index + 1} switch mode thất bại: {e}")
+            with Session(engine) as session:
+                delete_segments_by_chapter_and_mode(session, chapter_id, mode_value)
+                mark_chapter_state_error(session, chapter_id, mode_value, str(e))
             raise
