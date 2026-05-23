@@ -11,6 +11,7 @@ from livekit.agents import (
     Agent,
     AgentSession,
     JobContext,
+    JobExecutorType,
     WorkerOptions,
     function_tool,
     room_io,
@@ -35,6 +36,17 @@ from app.services.web_search_service import search_web as web_search
 
 # FIX 1: Ép API Key vào biến môi trường để LiveKit SDK tự động nhận diện ngầm
 os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
+
+
+def _get_job_executor_type() -> JobExecutorType:
+    executor_type = settings.LIVEKIT_AGENT_JOB_EXECUTOR_TYPE.strip().lower()
+    if executor_type == JobExecutorType.PROCESS.value:
+        return JobExecutorType.PROCESS
+    if executor_type == JobExecutorType.THREAD.value:
+        return JobExecutorType.THREAD
+
+    log.warning(f"Invalid LIVEKIT_AGENT_JOB_EXECUTOR_TYPE={settings.LIVEKIT_AGENT_JOB_EXECUTOR_TYPE!r}; falling back to thread")
+    return JobExecutorType.THREAD
 
 
 @dataclass(frozen=True)
@@ -618,6 +630,10 @@ if __name__ == "__main__":
         WorkerOptions(
             entrypoint_fnc=entrypoint,
             load_fnc=lambda: 0.0,
+            job_executor_type=_get_job_executor_type(),
+            num_idle_processes=settings.LIVEKIT_AGENT_NUM_IDLE_PROCESSES,
+            initialize_process_timeout=settings.LIVEKIT_AGENT_INITIALIZE_PROCESS_TIMEOUT,
+            shutdown_process_timeout=settings.LIVEKIT_AGENT_SHUTDOWN_PROCESS_TIMEOUT,
             agent_name=settings.LIVEKIT_AGENT_NAME,
         )
     )

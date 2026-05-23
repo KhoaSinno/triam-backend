@@ -7,7 +7,8 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 RUN useradd -m -u 1000 user
 USER user
 ENV HOME=/home/user \
-    PATH=/home/user/.local/bin:$PATH
+    PATH=/home/user/.local/bin:$PATH \
+    UV_NO_SYNC=1
 
 # Set working directory
 WORKDIR $HOME/app

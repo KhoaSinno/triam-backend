@@ -66,6 +66,13 @@ class Settings(BaseSettings):
     ENABLE_VOICE_AGENT: bool = True
     RUN_MIGRATIONS_ON_START: bool = False
     UVICORN_RELOAD: bool = False
+    UV_NO_SYNC: bool = False
+
+    # LiveKit agent runtime hardening
+    LIVEKIT_AGENT_JOB_EXECUTOR_TYPE: str = "thread"
+    LIVEKIT_AGENT_NUM_IDLE_PROCESSES: int = 1
+    LIVEKIT_AGENT_INITIALIZE_PROCESS_TIMEOUT: float = 60.0
+    LIVEKIT_AGENT_SHUTDOWN_PROCESS_TIMEOUT: float = 20.0
 
     # Generation guardrails
     LLM_INPUT_SOFT_TOKEN_LIMIT: int = 12000
