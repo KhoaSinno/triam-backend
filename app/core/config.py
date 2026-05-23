@@ -71,6 +71,8 @@ class Settings(BaseSettings):
     # LiveKit agent runtime hardening
     LIVEKIT_AGENT_JOB_EXECUTOR_TYPE: str = "thread"
     LIVEKIT_AGENT_NUM_IDLE_PROCESSES: int = 1
+    LIVEKIT_AGENT_MAX_CONCURRENT_JOBS: int = 2
+    LIVEKIT_AGENT_LOAD_THRESHOLD: float = 0.95
     LIVEKIT_AGENT_INITIALIZE_PROCESS_TIMEOUT: float = 60.0
     LIVEKIT_AGENT_SHUTDOWN_PROCESS_TIMEOUT: float = 20.0
 

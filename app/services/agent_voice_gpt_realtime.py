@@ -49,6 +49,12 @@ def _get_job_executor_type() -> JobExecutorType:
     return JobExecutorType.THREAD
 
 
+def _calculate_agent_load(server: Any) -> float:
+    max_jobs = max(settings.LIVEKIT_AGENT_MAX_CONCURRENT_JOBS, 1)
+    active_jobs = len(getattr(server, "active_jobs", []) or [])
+    return min(active_jobs / max_jobs, 1.0)
+
+
 @dataclass(frozen=True)
 class VoiceJobMetadata:
     thread_id: str
@@ -629,7 +635,8 @@ if __name__ == "__main__":
     agents.cli.run_app(
         WorkerOptions(
             entrypoint_fnc=entrypoint,
-            load_fnc=lambda: 0.0,
+            load_fnc=_calculate_agent_load,
+            load_threshold=settings.LIVEKIT_AGENT_LOAD_THRESHOLD,
             job_executor_type=_get_job_executor_type(),
             num_idle_processes=settings.LIVEKIT_AGENT_NUM_IDLE_PROCESSES,
             initialize_process_timeout=settings.LIVEKIT_AGENT_INITIALIZE_PROCESS_TIMEOUT,
