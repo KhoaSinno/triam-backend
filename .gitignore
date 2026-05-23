@@ -5,21 +5,37 @@ build/
 dist/
 wheels/
 *.egg-info
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
 
 # Virtual environments
-.venv
+.venv/
+venv/
+env/
 
 .env
+.env.*
+!.env.example
 
 # Large files and logs
 uploads/
+logs/
+_logs/
+KMS/
+worker.log
+*.log
 *.mp3
+*.wav
 *.pdf
 _log_extracted_json/
+script_outputs/
 script_ouputs/
 
-# Runtime logs
-logs/
-*.log
-
 tests/fixtures/*.wav
+
+# Local/generated project material
+_codebase/
+scratch_*.py

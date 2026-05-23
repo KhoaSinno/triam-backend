@@ -1,0 +1,65 @@
+# Files excluded from the Hugging Face Space repository sync.
+# The GitHub Action uses this list with rsync before pushing to HF.
+
+# Version control / CI / local tooling
+.git/
+.github/
+.gitignore
+.hfignore
+.agents/
+.vscode/
+.idea/
+
+# Python caches / build outputs
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+dist/
+wheels/
+*.egg-info/
+
+# Virtual environments / local config
+.venv/
+venv/
+env/
+.env
+.env.*
+
+# Runtime-generated data and large artifacts
+uploads/
+logs/
+_logs/
+KMS/
+worker.log
+*.log
+*.tmp
+*.temp
+*.mp3
+*.wav
+*.pdf
+_log_extracted_json/
+script_outputs/
+script_ouputs/
+
+# Internal docs, generated reports, local scripts, and tests
+_codebase/
+_docs_implemented/
+implement_docs/
+scripts/
+script_outputs/
+script_ouputs/
+tests/
+scratch_*.py
+req_fix_*.md
+solution_*.md
+SPEC*.md
+
+# OS files
+.DS_Store
+Thumbs.db

@@ -14,13 +14,22 @@ jobs:
           fetch-depth: 0
           lfs: true # Hỗ trợ nếu bạn có file lớn (PDF/Audio) dùng Git LFS
 
-      - name: Push to HF
+      - name: Prepare clean HF deploy tree
+        run: |
+          mkdir -p "$RUNNER_TEMP/hf-space"
+          rsync -a --delete --exclude-from=.hfignore ./ "$RUNNER_TEMP/hf-space/"
+
+      - name: Push clean tree to HF
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
           # Cấu hình thông tin git tạm thời để push
+          cd "$RUNNER_TEMP/hf-space"
+          git init
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
+          git add .
+          git commit -m "Deploy clean Hugging Face Space"
           HF_URL="https://khoasinoo:${HF_TOKEN}@huggingface.co/spaces/khoasinoo/tri-am-backend"
-          # Push thẳng từ commit hiện hành (HEAD) lên nhánh main của Hugging Face
+          # Push cây deploy đã lọc thay vì toàn bộ repo phát triển
           git push --force "$HF_URL" HEAD:main
