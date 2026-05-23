@@ -14,7 +14,11 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 SENSITIVE_PATTERNS = (
     re.compile(r"(?i)(authorization['\"]?\s*[:=]\s*['\"]?Bearer\s+)[^'\",\s}]+"),
     re.compile(r"(?i)(apikey['\"]?\s*[:=]\s*['\"]?)[^'\",\s}]+"),
+    re.compile(r"(?i)(api[_-]?key['\"]?\s*[:=]\s*['\"]?)[^'\",\s}]+"),
+    re.compile(r"(?i)(api[_-]?secret['\"]?\s*[:=]\s*['\"]?)[^'\",\s}]+"),
     re.compile(r"(?i)(service_role['\"]?\s*[:=]\s*['\"]?)[^'\",\s}]+"),
+    re.compile(r"(?i)(access[_-]?token['\"]?\s*[:=]\s*['\"]?)[^'\",\s}]+"),
+    re.compile(r"(?i)(refresh[_-]?token['\"]?\s*[:=]\s*['\"]?)[^'\",\s}]+"),
 )
 
 NOISY_LOGGERS = (
@@ -61,6 +65,8 @@ def setup_logger():
         level=app_log_level,
         colorize=True,
         filter=redact_filter,
+        backtrace=False,
+        diagnose=False,
     )
 
     # 2. Cấu hình log ra file văn bản chuẩn (để xem local)
@@ -72,6 +78,8 @@ def setup_logger():
         format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} - {message}",
         encoding="utf-8",
         filter=redact_filter,
+        backtrace=False,
+        diagnose=False,
     )
 
     # 3. Cấu hình log dạng JSON (để đẩy lên ELK / Datadog trên Production)
@@ -83,6 +91,8 @@ def setup_logger():
         serialize=True,       # Ghi log dưới dạng JSON chuẩn
         encoding="utf-8",
         filter=redact_filter,
+        backtrace=False,
+        diagnose=False,
     )
 
     # Chuyển hướng log từ standard logging của Python sang loguru

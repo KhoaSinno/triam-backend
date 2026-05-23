@@ -98,12 +98,23 @@ def test_extract_epub_without_toc_fails(tmp_path):
 
 
 def test_redact_message_hides_sensitive_headers():
-    message = "{'authorization': 'Bearer eyJ.secret.token', 'apikey': 'supabase-secret'}"
+    message = (
+        "{'authorization': 'Bearer eyJ.secret.token', 'apikey': 'supabase-secret', "
+        "'api_key': 'livekit-key', 'api_secret': 'livekit-secret', "
+        "'access_token': 'access-secret', 'refresh_token': 'refresh-secret'}"
+    )
 
     redacted = _redact_message(message)
 
-    assert "eyJ.secret.token" not in redacted
-    assert "supabase-secret" not in redacted
+    for secret in (
+        "eyJ.secret.token",
+        "supabase-secret",
+        "livekit-key",
+        "livekit-secret",
+        "access-secret",
+        "refresh-secret",
+    ):
+        assert secret not in redacted
     assert "[REDACTED]" in redacted
 
 
