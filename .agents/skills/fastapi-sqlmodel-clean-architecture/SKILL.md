@@ -119,6 +119,9 @@ After autogenerate:
 - Log domain validation failures as warning/error only when operationally useful.
 - Default app logs should be `INFO`; third-party HTTP libraries should stay `WARNING` or higher.
 - Redact `Authorization`, `apikey`, `service_role`, JWTs, and user secrets before logs are written.
+- Redact both header-style and Python local-variable-style secrets: `api_key`, `api_secret`, `access_token`, `refresh_token`.
+- Disable verbose traceback local-variable dumping in production logging, such as Loguru `diagnose=True` or equivalent, because third-party stack traces can expose provider credentials.
+- Add regression tests whenever a real leaked-log pattern is discovered.
 
 ## 9. Python Clean Code Rules
 
@@ -158,5 +161,6 @@ Before finalizing a backend change, verify:
 - Background work does not reuse request sessions.
 - Upload/storage paths match worker download paths.
 - No secrets can appear in logs.
+- Production tracebacks cannot dump local variables containing secrets.
 - FE response contract is stable and documented when changed.
 - Targeted tests and ruff pass, or any skipped check is explained.

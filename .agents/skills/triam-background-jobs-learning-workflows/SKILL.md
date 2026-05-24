@@ -34,6 +34,9 @@ For upload processing, generate-plan, switch-mode, TTS, reminders, and notificat
 - Use idempotency keys for tasks that create files, segments, reminders, or notifications.
 - Workers must create their own DB sessions. Never pass SQLModel objects or request sessions into Celery tasks.
 - Celery task args should be JSON-serializable IDs and primitive values.
+- When Celery runs inside Hugging Face Spaces through `start.sh`, use `uv run --no-sync` so runtime startup does not install dev dependencies or compete with worker boot.
+- While FastAPI, Celery, and LiveKit are co-hosted on one free CPU Space, keep document worker concurrency conservative, usually `CELERY_DOCUMENT_CONCURRENCY=1`.
+- For production scaling, prefer separating document workers into their own runtime before increasing concurrency aggressively.
 
 ## Scheduling Rule
 
@@ -84,5 +87,6 @@ Implement "listen early" as first playable content, not a brittle exact 50 perce
 - Can a failed job be retried without duplicate DB rows or duplicate audio paths?
 - Does a server restart lose the job, or can the worker resume/retry from DB state?
 - Are rate-limited providers isolated by queue/concurrency?
+- Is worker concurrency appropriate for the deployed runtime capacity?
 - Are reminder schedules stored in Postgres with timezone-aware `due_at`?
 - Are secrets and provider payloads excluded from logs?

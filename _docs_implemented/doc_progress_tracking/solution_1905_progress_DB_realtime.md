@@ -54,7 +54,7 @@ Nguồn official Gemini nói nên dùng `count_tokens` trước request để ki
 **Progress Cho FE**
 Anh đề xuất 2 giải pháp phù hợp nhất.
 
-Giải pháp 1, đơn giản và chắc: **DB progress + polling endpoint**.
+Giải pháp 1, đơn giản và chắc: **DB progress + polling endpoint**. => [CUREENTLY IMPLEMENTING THIS](/W:/WorkSpace_IT/_CAPSTON_PROJECT/triam-backend/app/services/processing_jobs.py)
 
 Thêm bảng kiểu `processing_jobs` hoặc mở rộng model hiện tại:
 
