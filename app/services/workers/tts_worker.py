@@ -31,6 +31,7 @@ from app.services.tts_service import generate_audio_and_get_duration
 class TTSChapterResult:
     main_segment_count: int
     review_audio_created: bool
+    review_text: str
 
 
 async def _generate_main_segments(
@@ -176,4 +177,5 @@ async def run_tts_pipeline(
     return TTSChapterResult(
         main_segment_count=len(segments),
         review_audio_created=bool(review_url),
+        review_text=review_text,
     )

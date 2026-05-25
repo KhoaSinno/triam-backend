@@ -1,183 +1,222 @@
-# Phase 4 Implementation Guide - Notification Outbox, Celery Beat, Spaced Review
+# Phase 4.1 Implementation Guide - In-App Notification Outbox, Celery Beat, Spaced Review
 
-Date: 2026-05-21
+Date: 2026-05-24
 
 Status: **Plan only, not implemented yet**
 
+Audience: Fresher backend developer implementing with senior review.
+
 ## 0. Decision Summary
 
-Sau Phase 1, 2, 3, backend đã có:
+After Phase 1, 2, and 3, TRIAM already has:
 
-- DB progress + polling endpoint.
-- Celery + Redis worker queue.
+- DB-backed processing progress and polling endpoints.
+- Celery + Redis document worker queue.
 - Token/audio guardrails.
 - First playable `partial_ready`.
 - Per-chapter/per-mode processing state.
+- Hardened Hugging Face deployment rules: `uv run --no-sync`, no production reload, conservative worker concurrency.
 
-Phase 4 nên tập trung vào:
+Phase 4.1 should implement:
 
-> **Notification Outbox + Celery Beat + Spaced Review** để biến TRIAM từ app "nghe sách" thành **AI Learning Companion có habit loop và ôn tập đúng lúc**.
+> **In-app notifications + durable notification outbox + Celery Beat scanner + spaced review schedule.**
 
-Mục tiêu sản phẩm:
+This phase turns TRIAM from “generated audiobook app” into a learning loop:
 
-- Nhắc user quay lại nghe theo reading plan.
-- Nhắc user khi bỏ dở hoặc trễ tiến độ.
-- Chúc mừng/chốt tiến độ khi hoàn thành chapter/book.
-- Tạo spaced review sau khi chapter có `review_text`.
-- Cho FE có API hiển thị notification trong app.
-- Chuẩn bị nền để gửi push notification qua FCM cho Flutter.
+```text
+listen -> understand -> return -> review -> remember
+```
+
+Important scope decision:
+
+- **Phase 4.1 implements in-app notifications only.**
+- **FCM push is deferred to Phase 4.2.**
+- **Playback-based completion/streak analytics are deferred to Phase 5.**
+
+This keeps the implementation clean and testable before adding Firebase credentials, mobile permission handling, token lifecycle, and real listening-progress analytics.
 
 ## 1. Research Notes
 
-Nguồn chính thức đã tham khảo:
+Official sources already reviewed:
 
-- Celery Beat là scheduler chạy task định kỳ; official docs nhấn mạnh chỉ nên có **một scheduler** cho cùng một schedule, nếu không có thể tạo duplicate task: https://docs.celeryq.dev/en/latest/userguide/periodic-tasks.html
-- Celery routing cho phép route task vào queue riêng bằng `task_routes` và worker consume queue bằng `-Q`: https://docs.celeryq.dev/en/latest/userguide/routing.html
-- Celery task retry hỗ trợ `autoretry_for`, `retry_backoff`, `retry_jitter`; retry phải đi cùng idempotency để không gửi trùng notification: https://docs.celeryq.dev/en/stable/userguide/tasks.html
-- PostgreSQL `FOR UPDATE SKIP LOCKED` cho phép nhiều worker lấy job khác nhau mà không chờ row đang bị lock, phù hợp với outbox scanner/delivery worker: https://www.postgresql.org/docs/current/sql-select.html
-- PostgreSQL unique constraints/unique indexes là cách enforce idempotency ở DB: https://www.postgresql.org/docs/current/indexes-unique.html
-- Firebase Cloud Messaging official docs cho phép backend server gửi message bằng Firebase Admin SDK, hỗ trợ Python Admin SDK: https://firebase.google.com/docs/cloud-messaging/send-message
-- FlutterFire Messaging docs là hướng FE Flutter nhận FCM token và handle foreground/background notifications: https://firebase.flutter.dev/docs/messaging/usage
-- Supabase Edge Functions có ví dụ push notification, nhưng với BE Python hiện tại, dùng Firebase Admin SDK trực tiếp trong worker đơn giản hơn: https://supabase.com/docs/guides/functions/examples/push-notifications
+- Celery Beat schedules periodic tasks. Celery docs warn that only one scheduler should run for a schedule, otherwise duplicate tasks may be emitted: https://docs.celeryq.dev/en/latest/userguide/periodic-tasks.html
+- Celery routing supports dedicated queues and workers via `task_routes` and `-Q`: https://docs.celeryq.dev/en/latest/userguide/routing.html
+- Celery retries support `autoretry_for`, `retry_backoff`, and `retry_jitter`, but retries must be paired with idempotency: https://docs.celeryq.dev/en/stable/userguide/tasks.html
+- PostgreSQL `FOR UPDATE SKIP LOCKED` lets multiple workers claim different due rows without blocking each other: https://www.postgresql.org/docs/current/sql-select.html
+- PostgreSQL unique indexes/constraints enforce idempotency even when multiple Beat/worker processes race: https://www.postgresql.org/docs/current/indexes-unique.html
 
-Kết luận research:
+Project-specific conclusions:
 
-- Không nên schedule từng reminder bằng Celery ETA/countdown dài hạn.
-- Nên lưu lịch thật trong Postgres, Beat chỉ quét mỗi phút.
-- Notification phải có `idempotency_key` unique ở DB.
-- Delivery worker phải claim rows bằng lock/mark status để không gửi trùng.
-- Ban đầu nên implement **in-app notification** trước, vì không cần FCM credential. Push FCM là adapter thêm sau.
+- Do not schedule long-range reminders with Celery ETA/countdown.
+- Store schedule truth in Postgres.
+- Use Redis/Celery only as execution infrastructure.
+- Use DB unique constraints as the final duplicate-prevention layer.
+- Use stale-lock recovery so crashed workers do not leave outbox rows stuck in `processing`.
+- Implement in-app delivery first. Push notification is an adapter added later.
 
-## 2. Phase 4 Goals
+## 2. Phase 4.1 Goals
 
-Phase 4 hoàn tất khi:
+Phase 4.1 is complete when:
 
-1. Có bảng notification outbox làm hàng đợi gửi notification.
-2. Có bảng user-facing notification để FE hiển thị notification trong app.
-3. Có bảng device token để chuẩn bị push FCM.
-4. Có user notification settings: timezone, quiet hours, daily cap, enable flags.
-5. Có spaced review items được tạo từ chapter `review_text`.
-6. Celery Beat chạy định kỳ:
-   - scan due reminders/reviews
-   - tạo outbox rows idempotent
-   - enqueue delivery task
-7. Delivery task gửi in-app notification và optional FCM push.
-8. FE có endpoint cơ bản:
-   - list notifications
-   - mark read
-   - register device token
-   - update notification settings
+1. Backend has `notification_settings` per user.
+2. Backend has `spaced_review_items` created after a chapter/mode has `review_text`.
+3. Backend has `notification_outbox` as a durable delivery queue.
+4. Backend has `user_notifications` as a user-facing inbox for FE.
+5. Celery Beat periodically runs a scanner task.
+6. Scanner creates outbox rows idempotently for due spaced reviews and plan reminders.
+7. Delivery task claims due outbox rows and creates in-app notifications.
+8. FE has endpoints to list notifications, mark read, and update notification settings.
 
-Non-goals:
+Phase 4.1 non-goals:
 
-- Chưa cần analytics/streak dashboard phức tạp.
-- Chưa cần email notification.
-- Chưa cần Supabase Realtime push event.
-- Chưa thay mock user bằng auth thật, nhưng mọi bảng phải sẵn `user_id`.
-- Chưa cần cá nhân hóa notification copy bằng LLM. Copy rule-based là đủ cho capstone.
+- No Firebase Cloud Messaging.
+- No device-token table yet.
+- No email notification.
+- No Supabase Realtime notification push.
+- No LLM-generated notification copy.
+- No playback-based completion notification.
+- No full streak/analytics dashboard.
+- No auth migration yet; use current mock user pattern, but every table must include `user_id`.
+
+Phase 4.2 later:
+
+- Add `user_device_tokens`.
+- Add Firebase Admin SDK.
+- Add `push` channel delivery.
+- Let Flutter register/delete FCM tokens.
+
+Phase 5 later:
+
+- Add `listening_progress`.
+- Add real user-completed chapter/book events.
+- Add streaks and recovery reminders based on actual last-listened timestamps.
 
 ## 3. Business Logic
 
 ### 3.1 Notification Types
 
-Phase 4 dùng 4 loại chính:
+Phase 4.1 uses three notification types:
 
 ```text
 plan_reminder
-recovery_reminder
-completion_message
+content_ready
 spaced_review_due
 ```
 
 Meaning:
 
-- `plan_reminder`: nhắc user học theo lịch đã chọn.
-- `recovery_reminder`: user bỏ dở lâu hoặc trễ plan.
-- `completion_message`: user hoàn thành chapter/book.
-- `spaced_review_due`: đến hạn ôn tập lại kiến thức.
+- `plan_reminder`: remind user to study on a selected reading-plan day.
+- `content_ready`: tell user generated content is ready to listen/review. This is not “user completed chapter”.
+- `spaced_review_due`: remind user to review knowledge from a chapter.
 
-### 3.2 Channels
+Deferred:
 
-Start with:
+- `recovery_reminder`: needs real playback progress to avoid noisy guesses.
+- `completion_message`: should mean user completed listening, so defer until `listening_progress` exists.
+
+### 3.2 Channel
+
+Phase 4.1 supports only:
 
 ```text
 in_app
-push
 ```
 
-Recommendation:
+Why:
 
-- Phase 4.1: implement `in_app` first.
-- Phase 4.2: add FCM `push`.
-
-Lý do:
-
-- In-app notification không cần credential bên thứ ba.
-- FE có thể test logic business ngay.
-- Push notification trên Android/iOS cần Firebase setup, token lifecycle, quyền user, background handling.
+- No third-party credentials.
+- FE can test the notification list immediately.
+- Worker delivery can be deterministic and cheap.
+- We avoid mixing Firebase bugs with DB/scheduler bugs.
 
 ### 3.3 Spaced Review Intervals
 
-Theo skill/roadmap dự án:
+Use:
 
 ```text
 1, 3, 7, 14, 30 days
 ```
 
-When to create:
+Create review items when:
 
-- Sau khi chapter/mode xử lý xong và có `review_text`.
-- Nếu `review_text` hiện đang lưu JSON theo mode trong `Chapter.review_text`, lấy đúng `mode`.
+- Chapter/mode processing succeeds.
+- `review_text` exists for that mode.
+- Review items for `(user_id, chapter_id, mode, interval_days)` do not already exist.
 
-Idempotency:
+Idempotency key:
 
 ```text
 review:<user_id>:<chapter_id>:<mode>:<interval_day>
 ```
 
-### 3.4 Quiet Hours And Daily Cap
+### 3.4 Plan Reminder Schedule
 
-Business rule:
+Current `ReadingPlan.schedule_config` is a simple list, for example:
 
-- Không gửi notification trong quiet hours.
-- Không gửi quá daily cap.
-- Nếu due_at rơi vào quiet hours, dời tới thời điểm cho phép tiếp theo.
+```json
+["Mon", "Wed", "Fri"]
+```
 
-Default:
+This has no reminder hour. Phase 4.1 should add reminder time to `notification_settings` instead of changing the Phase 1-3 FE contract immediately.
+
+Defaults:
 
 ```text
 timezone = Asia/Ho_Chi_Minh
+reminder_time = 20:00
 quiet_hours_start = 22:00
 quiet_hours_end = 07:00
 daily_cap = 3
 ```
 
-Trade-off:
+Rule:
 
-- Cần timezone-aware datetime.
-- Phase 4 nên lưu `due_at` UTC trong DB, convert theo timezone user khi tính.
+- If today is in `ReadingPlan.schedule_config`, scanner may create a `plan_reminder`.
+- It should only create one plan reminder per user/book/local-date.
+- Use `notification_settings.reminder_time` as local wall-clock time.
+- Store all `due_at` values as UTC.
+
+Plan reminder idempotency key:
+
+```text
+plan:<user_id>:<book_id>:<YYYY-MM-DD>
+```
+
+### 3.5 Quiet Hours And Daily Cap
+
+Business rules:
+
+- Do not create/send notifications in quiet hours.
+- Do not exceed `daily_cap` per user per local date.
+- If an event becomes due during quiet hours, move `due_at` to the next allowed local time.
+- Daily cap counts both already-created outbox rows and already-sent in-app notifications for that user/local date.
+
+Implementation detail:
+
+- Store `due_at` UTC in DB.
+- Convert to user timezone only for schedule/quiet-hour/daily-cap logic.
+- When several review items become due in the same scan, reserve cap slots as rows are created so one scan cannot create more than `daily_cap`.
+- Add unit tests for quiet hours crossing midnight.
 
 ## 4. Architecture
 
 ```mermaid
 flowchart TD
-    A["Book/chapter ready"] --> B["Create spaced review items"]
-    C["Celery Beat every minute"] --> D["scan_due_learning_events"]
-    D --> E["Create notification_outbox rows idempotently"]
+    A["Chapter/mode ready with review_text"] --> B["Create spaced_review_items idempotently"]
+    C["Celery Beat every minute"] --> D["scan_due_notifications"]
+    D --> E["Create notification_outbox rows using DB unique keys"]
     E --> F["enqueue deliver_due_notifications"]
-    F --> G["Claim pending outbox rows with SKIP LOCKED"]
-    G --> H{"channel"}
-    H -->|in_app| I["Create user_notifications row"]
-    H -->|push| J["Send FCM message"]
-    I --> K["Mark outbox sent"]
-    J --> K
-    K --> L["FE lists notifications"]
+    F --> G["Recover stale processing locks"]
+    G --> H["Claim pending outbox rows with SKIP LOCKED"]
+    H --> I["Create user_notifications row once"]
+    I --> J["Mark outbox sent"]
+    J --> K["FE lists notifications"]
 ```
 
 Source of truth:
 
-- Schedules/reviews/outbox live in Postgres.
-- Redis/Celery only executes scanner/delivery.
+- Schedules, review items, outbox rows, and user inbox live in Postgres.
+- Redis/Celery only executes scanner and delivery.
 - FE reads notification state from Postgres APIs.
 
 ## 5. DB Design
@@ -191,14 +230,12 @@ Add:
 ```python
 class NotificationType(str, Enum):
     PLAN_REMINDER = "plan_reminder"
-    RECOVERY_REMINDER = "recovery_reminder"
-    COMPLETION_MESSAGE = "completion_message"
+    CONTENT_READY = "content_ready"
     SPACED_REVIEW_DUE = "spaced_review_due"
 
 
 class NotificationChannel(str, Enum):
     IN_APP = "in_app"
-    PUSH = "push"
 
 
 class NotificationStatus(str, Enum):
@@ -216,19 +253,16 @@ class ReviewItemStatus(str, Enum):
     COMPLETED = "completed"
     SKIPPED = "skipped"
     CANCELLED = "cancelled"
-
-
-class DevicePlatform(str, Enum):
-    ANDROID = "android"
-    IOS = "ios"
-    WEB = "web"
 ```
+
+Do not add FCM/device enums in Phase 4.1. Add them in Phase 4.2.
 
 ### 5.2 `notification_settings`
 
 Purpose:
 
-- Per-user controls for reminders/push/no-spam.
+- Per-user reminder and no-spam settings.
+- Store timezone and reminder time without changing current `ReadingPlan.schedule_config`.
 
 Model:
 
@@ -239,8 +273,8 @@ class NotificationSettings(SQLModel, table=True):
     user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), primary_key=True))
     timezone: str = Field(default="Asia/Ho_Chi_Minh", sa_column=Column(Text, nullable=False))
     reminders_enabled: bool = Field(default=True, sa_column=Column(Boolean, nullable=False))
-    push_enabled: bool = Field(default=True, sa_column=Column(Boolean, nullable=False))
     spaced_review_enabled: bool = Field(default=True, sa_column=Column(Boolean, nullable=False))
+    reminder_time: str = Field(default="20:00", sa_column=Column(Text, nullable=False))
     quiet_hours_start: str = Field(default="22:00", sa_column=Column(Text, nullable=False))
     quiet_hours_end: str = Field(default="07:00", sa_column=Column(Text, nullable=False))
     daily_cap: int = Field(default=3, sa_column=Column(Integer, nullable=False))
@@ -248,45 +282,18 @@ class NotificationSettings(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 ```
 
-Trade-off:
+Validation rules:
 
-- `quiet_hours_start/end` lưu string `HH:MM` dễ làm DTO.
-- Có thể chuyển thành `Time` column sau nếu cần query sâu.
+- `timezone` must be accepted by `zoneinfo.ZoneInfo`.
+- `reminder_time`, `quiet_hours_start`, `quiet_hours_end` must match `HH:MM`.
+- `daily_cap` should be between `0` and `10` for Phase 4.1.
 
-### 5.3 `user_device_tokens`
-
-Purpose:
-
-- FE Flutter gửi FCM token lên BE.
-- BE worker dùng token này để gửi push.
-
-Model:
-
-```python
-class UserDeviceToken(SQLModel, table=True):
-    __tablename__ = "user_device_tokens"
-
-    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
-    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
-    token: str = Field(sa_column=Column(Text, nullable=False))
-    platform: DevicePlatform = Field(sa_column=Column(SAEnum(DevicePlatform), nullable=False))
-    device_id: str | None = Field(default=None, sa_column=Column(Text))
-    is_active: bool = Field(default=True, sa_column=Column(Boolean, nullable=False))
-    last_seen_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
-
-    __table_args__ = (
-        UniqueConstraint("user_id", "token", name="uq_user_device_tokens_user_token"),
-    )
-```
-
-### 5.4 `spaced_review_items`
+### 5.3 `spaced_review_items`
 
 Purpose:
 
-- Store due review schedule independently from notification delivery.
-- If notification fails, review schedule is still visible.
+- Store review schedule separately from notification delivery.
+- If a notification fails, the review schedule is still visible and recoverable.
 
 Model:
 
@@ -309,21 +316,21 @@ class SpacedReviewItem(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
     __table_args__ = (
-        UniqueConstraint("chapter_id", "mode", "interval_days", name="uq_review_chapter_mode_interval"),
+        UniqueConstraint("user_id", "chapter_id", "mode", "interval_days", name="uq_review_user_chapter_mode_interval"),
     )
 ```
 
-Why store `review_text_snapshot`:
+Why include `user_id` in the unique constraint:
 
-- If `Chapter.review_text` changes later, historical review stays stable.
-- FE can display/play review content without parsing chapter JSON every time.
+- Current app uses mock user, but long term multiple users can own or access the same book/chapter.
+- The schedule is user-specific.
 
-### 5.5 `notification_outbox`
+### 5.4 `notification_outbox`
 
 Purpose:
 
 - Durable delivery queue.
-- Idempotency and retry state live here.
+- Stores idempotency, retry, lock, and error state.
 
 Model:
 
@@ -334,11 +341,13 @@ class NotificationOutbox(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
     type: NotificationType = Field(sa_column=Column(SAEnum(NotificationType), index=True, nullable=False))
-    channel: NotificationChannel = Field(sa_column=Column(SAEnum(NotificationChannel), index=True, nullable=False))
+    channel: NotificationChannel = Field(default=NotificationChannel.IN_APP, sa_column=Column(SAEnum(NotificationChannel), index=True, nullable=False))
     status: NotificationStatus = Field(default=NotificationStatus.PENDING, sa_column=Column(SAEnum(NotificationStatus), index=True, nullable=False))
     payload: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSONB, nullable=False))
     due_at: datetime = Field(sa_column=Column(DateTime(timezone=True), index=True, nullable=False))
+    next_retry_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
     locked_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    locked_by: str | None = Field(default=None, sa_column=Column(Text))
     sent_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     attempts: int = Field(default=0, sa_column=Column(Integer, nullable=False))
     error_message: str | None = Field(default=None, sa_column=Column(Text))
@@ -351,7 +360,35 @@ class NotificationOutbox(SQLModel, table=True):
     )
 ```
 
-### 5.6 `user_notifications`
+Stale-lock rule:
+
+- A row in `PROCESSING` with `locked_at < now - NOTIFICATION_STALE_LOCK_MINUTES` is stale.
+- Scanner/delivery can reset it to `PENDING` if attempts remain.
+- If attempts exceed max, mark `FAILED`.
+
+Outbox state transitions:
+
+```mermaid
+stateDiagram-v2
+    [*] --> PENDING: create idempotently
+    PENDING --> PROCESSING: claim with SKIP LOCKED
+    PROCESSING --> SENT: delivery succeeded
+    PROCESSING --> PENDING: transient failure with attempts left
+    PROCESSING --> PENDING: stale lock recovered
+    PROCESSING --> FAILED: max attempts reached
+    PENDING --> CANCELLED: user/book disabled
+    SENT --> [*]
+    FAILED --> [*]
+    CANCELLED --> [*]
+```
+
+Important:
+
+- `PROCESSING` is a lock state, not a final business state.
+- Never leave a row in `PROCESSING` without `locked_at`.
+- Delivery must be idempotent because a row can move from `PROCESSING` back to `PENDING`.
+
+### 5.5 `user_notifications`
 
 Purpose:
 
@@ -374,29 +411,39 @@ class UserNotification(SQLModel, table=True):
     action_payload: dict[str, Any] | None = Field(default=None, sa_column=Column(JSONB))
     read_at: datetime | None = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+
+    __table_args__ = (
+        UniqueConstraint("outbox_id", name="uq_user_notifications_outbox_id"),
+    )
 ```
+
+Why unique `outbox_id`:
+
+- If delivery creates the inbox row and crashes before marking outbox `SENT`, retry must not create a duplicate bubble.
 
 ## 6. Migration Plan
 
 Command:
 
 ```powershell
-uv run alembic revision --autogenerate -m "phase 4 notification outbox"
+uv run alembic revision --autogenerate -m "phase 4 in app notifications"
 ```
 
 Then manually review generated migration.
 
-Important:
+Required constraints:
 
-- Ensure enum values are lowercase strings if the existing enum mapping style requires it.
-- Ensure unique constraints exist:
-  - `uq_user_device_tokens_user_token`
-  - `uq_review_chapter_mode_interval`
-  - `uq_notification_outbox_idempotency_key`
-- Add indexes:
-  - `notification_outbox(status, due_at)`
-  - `spaced_review_items(status, due_at)`
-  - `user_notifications(user_id, created_at)`
+- `uq_review_user_chapter_mode_interval`
+- `uq_notification_outbox_idempotency_key`
+- `uq_user_notifications_outbox_id`
+
+Required indexes:
+
+- `notification_outbox(status, due_at)`
+- `notification_outbox(status, next_retry_at)`
+- `spaced_review_items(status, due_at)`
+- `user_notifications(user_id, created_at)`
+- `user_notifications(user_id, read_at)`
 
 Example manual migration additions:
 
@@ -407,9 +454,19 @@ op.create_index(
     ["status", "due_at"],
 )
 op.create_index(
+    "ix_notification_outbox_status_next_retry_at",
+    "notification_outbox",
+    ["status", "next_retry_at"],
+)
+op.create_index(
     "ix_spaced_review_items_status_due_at",
     "spaced_review_items",
     ["status", "due_at"],
+)
+op.create_index(
+    "ix_user_notifications_user_created_at",
+    "user_notifications",
+    ["user_id", "created_at"],
 )
 ```
 
@@ -419,6 +476,12 @@ Run:
 uv run alembic upgrade head
 ```
 
+Review checklist:
+
+- No accidental drops.
+- Enum names and values match current SQLModel enum style.
+- Downgrade removes indexes before tables/enums.
+
 ## 7. Config Changes
 
 File: `app/core/config.py`
@@ -427,18 +490,18 @@ Add:
 
 ```python
     # Notification / reminders
+    ENABLE_NOTIFICATION_WORKER: bool = False
     ENABLE_CELERY_BEAT: bool = False
     NOTIFICATION_SCAN_INTERVAL_SECONDS: int = 60
     NOTIFICATION_DELIVERY_BATCH_SIZE: int = 50
     NOTIFICATION_MAX_ATTEMPTS: int = 5
+    NOTIFICATION_STALE_LOCK_MINUTES: int = 10
     NOTIFICATION_DEFAULT_TIMEZONE: str = "Asia/Ho_Chi_Minh"
+    NOTIFICATION_DEFAULT_REMINDER_TIME: str = "20:00"
     NOTIFICATION_DEFAULT_DAILY_CAP: int = 3
     NOTIFICATION_DEFAULT_QUIET_START: str = "22:00"
     NOTIFICATION_DEFAULT_QUIET_END: str = "07:00"
-
-    # FCM push, optional in Phase 4.2
-    FCM_ENABLED: bool = False
-    FIREBASE_CREDENTIALS_JSON: str | None = None
+    CELERY_NOTIFICATION_CONCURRENCY: int = 1
 ```
 
 File: `.env.example`
@@ -446,26 +509,22 @@ File: `.env.example`
 Add:
 
 ```env
-# Phase 4 notification/reminder
+# Phase 4.1 in-app notification/reminder
+ENABLE_NOTIFICATION_WORKER=false
 ENABLE_CELERY_BEAT=false
 NOTIFICATION_SCAN_INTERVAL_SECONDS=60
 NOTIFICATION_DELIVERY_BATCH_SIZE=50
 NOTIFICATION_MAX_ATTEMPTS=5
+NOTIFICATION_STALE_LOCK_MINUTES=10
 NOTIFICATION_DEFAULT_TIMEZONE=Asia/Ho_Chi_Minh
+NOTIFICATION_DEFAULT_REMINDER_TIME=20:00
 NOTIFICATION_DEFAULT_DAILY_CAP=3
 NOTIFICATION_DEFAULT_QUIET_START=22:00
 NOTIFICATION_DEFAULT_QUIET_END=07:00
-
-# Optional FCM push
-FCM_ENABLED=false
-FIREBASE_CREDENTIALS_JSON=
+CELERY_NOTIFICATION_CONCURRENCY=1
 ```
 
-Security:
-
-- `FIREBASE_CREDENTIALS_JSON` is a secret.
-- Do not commit Firebase service account JSON.
-- Use HuggingFace Secrets or local `.env`.
+No Firebase settings in Phase 4.1.
 
 ## 8. Celery App Changes
 
@@ -505,48 +564,60 @@ celery_app.conf.beat_schedule = {
 }
 ```
 
-Rule:
+Rules:
 
-- Only run **one** Beat instance.
-- Multiple workers are okay.
-- Multiple Beat schedulers can duplicate scanner tasks.
+- Run exactly one Beat instance.
+- Multiple notification workers are allowed because outbox claim uses row locks and unique keys.
+- Redis result backend remains disabled.
 
 ## 9. Start Script Setup
 
 File: `start.sh`
 
-Current worker start exists for document worker. Add optional notification worker and beat:
+Use the existing hardened pattern:
+
+- `export UV_NO_SYNC="${UV_NO_SYNC:-1}"`
+- `UV_RUN=(uv run --no-sync)`
+- Use `"${UV_RUN[@]}"` for all runtime commands.
+
+Add optional notification worker and Beat:
 
 ```bash
 if [ "${ENABLE_NOTIFICATION_WORKER:-false}" = "true" ]; then
-  uv run celery -A app.core.celery_app.celery_app worker \
+  echo "Starting Celery notification worker..."
+  "${UV_RUN[@]}" celery -A app.core.celery_app.celery_app worker \
     -Q notification,maintenance \
-    -l info \
+    -l "${CELERY_LOG_LEVEL:-info}" \
     --concurrency "${CELERY_NOTIFICATION_CONCURRENCY:-1}" \
-    > celery_notification.log 2>&1 &
+    2>&1 | tee celery_notification.log &
+else
+  echo "Skipping Celery notification worker because ENABLE_NOTIFICATION_WORKER=false"
 fi
 
 if [ "${ENABLE_CELERY_BEAT:-false}" = "true" ]; then
-  uv run celery -A app.core.celery_app.celery_app beat \
-    -l info \
-    > celery_beat.log 2>&1 &
+  echo "Starting Celery Beat..."
+  "${UV_RUN[@]}" celery -A app.core.celery_app.celery_app beat \
+    -l "${CELERY_LOG_LEVEL:-info}" \
+    2>&1 | tee celery_beat.log &
+else
+  echo "Skipping Celery Beat because ENABLE_CELERY_BEAT=false"
 fi
 ```
 
-HuggingFace capstone option:
+Hugging Face capstone option:
 
 ```env
 ENABLE_CELERY_WORKER=true
 ENABLE_NOTIFICATION_WORKER=true
 ENABLE_CELERY_BEAT=true
+CELERY_DOCUMENT_CONCURRENCY=1
+CELERY_NOTIFICATION_CONCURRENCY=1
 ```
 
-Production recommendation:
+Warning:
 
-- API Space/process.
-- Document worker process.
-- Notification worker process.
-- One Beat process only.
+- Co-hosting FastAPI + LiveKit + document worker + notification worker + Beat is acceptable for capstone demo, but fragile.
+- Production should split API, document worker, notification worker, and one Beat scheduler into separate runtimes.
 
 ## 10. Repositories
 
@@ -567,67 +638,93 @@ def get_or_create_settings(session: Session, user_id: uuid.UUID) -> Notification
     return settings
 ```
 
-### 10.2 Device Token Repo
+### 10.2 Spaced Review Repo
 
-File: `app/repositories/device_token_repo.py`
+File: `app/repositories/spaced_review_repo.py`
+
+Rules:
+
+- Create review rows idempotently.
+- Prefer DB unique constraint + `IntegrityError` handling.
+- Do not select-before-insert as the only duplicate protection.
 
 ```python
-def upsert_device_token(
-    session: Session,
-    *,
-    user_id: uuid.UUID,
-    token: str,
-    platform: DevicePlatform,
-    device_id: str | None,
-) -> UserDeviceToken:
-    existing = session.exec(
-        select(UserDeviceToken).where(
-            UserDeviceToken.user_id == user_id,
-            UserDeviceToken.token == token,
-        )
-    ).first()
-    now = datetime.now(timezone.utc)
-    if existing:
-        existing.platform = platform
-        existing.device_id = device_id
-        existing.is_active = True
-        existing.last_seen_at = now
-        existing.updated_at = now
-        session.add(existing)
+def create_review_item_once(session: Session, item: SpacedReviewItem) -> SpacedReviewItem | None:
+    try:
+        session.add(item)
         session.commit()
-        session.refresh(existing)
-        return existing
-
-    record = UserDeviceToken(
-        user_id=user_id,
-        token=token,
-        platform=platform,
-        device_id=device_id,
-        is_active=True,
-        last_seen_at=now,
-    )
-    session.add(record)
-    session.commit()
-    session.refresh(record)
-    return record
+        session.refresh(item)
+        return item
+    except IntegrityError:
+        session.rollback()
+        return None
 ```
 
 ### 10.3 Notification Outbox Repo
 
 File: `app/repositories/notification_outbox_repo.py`
 
+Create once:
+
 ```python
 def create_outbox_once(session: Session, outbox: NotificationOutbox) -> NotificationOutbox | None:
-    existing = session.exec(
-        select(NotificationOutbox).where(NotificationOutbox.idempotency_key == outbox.idempotency_key)
-    ).first()
-    if existing:
+    try:
+        session.add(outbox)
+        session.commit()
+        session.refresh(outbox)
+        return outbox
+    except IntegrityError:
+        session.rollback()
         return None
+```
 
-    session.add(outbox)
+Recover stale rows:
+
+```python
+def recover_stale_outbox(
+    session: Session,
+    *,
+    now: datetime,
+    stale_before: datetime,
+    max_attempts: int,
+) -> int:
+    rows = session.exec(
+        select(NotificationOutbox)
+        .where(NotificationOutbox.status == NotificationStatus.PROCESSING)
+        .where(NotificationOutbox.locked_at < stale_before)
+        .with_for_update(skip_locked=True)
+    ).all()
+
+    recovered = 0
+    for row in rows:
+        if row.attempts >= max_attempts:
+            row.status = NotificationStatus.FAILED
+            row.error_message = row.error_message or "Notification delivery exceeded max attempts."
+        else:
+            row.status = NotificationStatus.PENDING
+            row.locked_at = None
+            row.locked_by = None
+            row.next_retry_at = now
+            recovered += 1
+        session.add(row)
     session.commit()
-    session.refresh(outbox)
-    return outbox
+    return recovered
+```
+
+Check whether due rows exist:
+
+```python
+def has_due_outbox(session: Session, *, now: datetime) -> bool:
+    return session.exec(
+        select(NotificationOutbox.id)
+        .where(NotificationOutbox.status == NotificationStatus.PENDING)
+        .where(NotificationOutbox.due_at <= now)
+        .where(
+            (NotificationOutbox.next_retry_at.is_(None))
+            | (NotificationOutbox.next_retry_at <= now)
+        )
+        .limit(1)
+    ).first() is not None
 ```
 
 Claim due rows:
@@ -638,29 +735,53 @@ def claim_due_outbox(
     *,
     now: datetime,
     limit: int,
-) -> list[NotificationOutbox]:
+    worker_id: str,
+) -> list[uuid.UUID]:
     rows = session.exec(
         select(NotificationOutbox)
         .where(NotificationOutbox.status == NotificationStatus.PENDING)
         .where(NotificationOutbox.due_at <= now)
+        .where(
+            (NotificationOutbox.next_retry_at.is_(None))
+            | (NotificationOutbox.next_retry_at <= now)
+        )
         .order_by(NotificationOutbox.due_at)
         .limit(limit)
         .with_for_update(skip_locked=True)
     ).all()
 
+    ids = []
     for row in rows:
         row.status = NotificationStatus.PROCESSING
         row.locked_at = now
+        row.locked_by = worker_id
         row.attempts += 1
+        row.error_message = None
+        ids.append(row.id)
         session.add(row)
     session.commit()
-    return list(rows)
+    return ids
 ```
 
-Why `SKIP LOCKED`:
+Return IDs instead of detached ORM objects so delivery opens a fresh session per row.
 
-- If multiple notification workers run, they do not deliver the same row.
-- Locked rows are skipped instead of blocking.
+### 10.4 User Notification Repo
+
+File: `app/repositories/user_notification_repo.py`
+
+Create once from outbox:
+
+```python
+def create_user_notification_once(session: Session, notification: UserNotification) -> UserNotification | None:
+    try:
+        session.add(notification)
+        session.commit()
+        session.refresh(notification)
+        return notification
+    except IntegrityError:
+        session.rollback()
+        return None
+```
 
 ## 11. Services
 
@@ -668,7 +789,7 @@ Why `SKIP LOCKED`:
 
 File: `app/services/notification_copy_service.py`
 
-No LLM in Phase 4. Keep deterministic copy:
+No LLM in Phase 4.1. Keep deterministic copy:
 
 ```python
 def build_notification_copy(notification_type: NotificationType, payload: dict) -> tuple[str, str]:
@@ -678,15 +799,10 @@ def build_notification_copy(notification_type: NotificationType, payload: dict) 
                 "Đến giờ học rồi",
                 f"Tiếp tục nghe {payload.get('book_title', 'sách của bạn')} nhé.",
             )
-        case NotificationType.RECOVERY_REMINDER:
+        case NotificationType.CONTENT_READY:
             return (
-                "Quay lại nhịp học nào",
-                f"Bạn còn một phần trong {payload.get('book_title', 'sách này')} đang chờ.",
-            )
-        case NotificationType.COMPLETION_MESSAGE:
-            return (
-                "Bạn vừa hoàn thành một phần học",
-                payload.get("message", "Tiến độ hôm nay rất ổn. Tiếp tục giữ nhịp nhé."),
+                "Nội dung đã sẵn sàng",
+                payload.get("message", "Bạn đã có nội dung mới để nghe trong TRIAM."),
             )
         case NotificationType.SPACED_REVIEW_DUE:
             return (
@@ -703,9 +819,10 @@ File: `app/services/reminder_schedule_service.py`
 Responsibilities:
 
 - Parse user timezone.
+- Parse `HH:MM` values.
 - Apply quiet hours.
 - Check daily cap.
-- Generate due plan reminders/recovery reminders.
+- Generate local-date based plan reminder due times.
 
 Core helpers:
 
@@ -732,10 +849,13 @@ def is_quiet_time(local_dt: datetime, start_hhmm: str, end_hhmm: str) -> bool:
     return current >= start or current < end
 ```
 
-Phase 4 simplification:
+Tests must cover:
 
-- If quiet time, scanner does not create/send notification yet.
-- It can move `due_at` to quiet end.
+- Normal quiet hours, e.g. 12:00-13:00.
+- Overnight quiet hours, e.g. 22:00-07:00.
+- Invalid timezone.
+- Invalid `HH:MM`.
+- Daily cap reached.
 
 ### 11.3 Spaced Review Service
 
@@ -770,25 +890,19 @@ def create_spaced_reviews_for_chapter(
             status=ReviewItemStatus.PENDING,
             review_text_snapshot=review_text,
         )
-        try:
-            session.add(item)
-            session.commit()
-            session.refresh(item)
-            created.append(item)
-        except IntegrityError:
-            session.rollback()
+        created_item = create_review_item_once(session, item)
+        if created_item:
+            created.append(created_item)
     return created
 ```
 
-Where to call:
+Integration with current code:
 
-- In Phase 4, call from `chapter_worker` after `mark_chapter_state_ready()`.
-- Use review text returned/saved by TTS pipeline.
-
-Trade-off:
-
-- This couples chapter completion to review schedule creation.
-- It is okay because spaced review is a direct domain consequence of chapter ready.
+- `Chapter.review_text` is currently JSON text by mode, for example `{"full": "...", "pareto": "..."}`.
+- `run_tts_pipeline()` currently returns `TTSChapterResult(main_segment_count, review_audio_created)`, not `review_text`.
+- Recommended clean implementation: extend `TTSChapterResult` with `review_text: str`.
+- Then `chapter_worker.py` can call `create_spaced_reviews_for_chapter()` after `mark_chapter_state_ready()`.
+- If we do not extend `TTSChapterResult`, query `Chapter.review_text` after TTS DB store and extract the current mode.
 
 ## 12. Celery Notification Tasks
 
@@ -800,106 +914,80 @@ File: `app/tasks/notification_tasks.py`
 @celery_app.task(name="triam.notifications.scan_due")
 def scan_due_notifications_task() -> None:
     now = datetime.now(timezone.utc)
+    created_count = 0
+    recovered_count = 0
+    should_deliver = False
     with Session(engine) as session:
-        created = create_due_review_outbox_rows(session, now=now)
-        created += create_due_plan_reminder_outbox_rows(session, now=now)
+        recovered_count = recover_stale_outbox(
+            session,
+            now=now,
+            stale_before=now - timedelta(minutes=settings.NOTIFICATION_STALE_LOCK_MINUTES),
+            max_attempts=settings.NOTIFICATION_MAX_ATTEMPTS,
+        )
+        created_count += create_due_review_outbox_rows(session, now=now)
+        created_count += create_due_plan_reminder_outbox_rows(session, now=now)
+        should_deliver = created_count > 0 or recovered_count > 0 or has_due_outbox(session, now=now)
 
-    if created:
+    if should_deliver:
         deliver_due_notifications_task.apply_async(queue="notification")
 ```
 
-Scanner should:
+Scanner rules:
 
 - Query due `spaced_review_items`.
 - Create outbox rows with unique idempotency key.
-- Mark review item `DUE` or keep `PENDING` until completed depending on chosen semantics.
-- Enqueue delivery task only if rows were created.
+- Do not create outbox if user has disabled spaced review/reminders.
+- If quiet hours require moving `due_at` forward, update the source due time or create the outbox with the shifted future `due_at`; do not deliver it immediately.
+- Do not create outbox if daily cap is reached.
+- Mark review item `DUE` only after outbox exists or has already existed.
+- Always enqueue delivery if there are due pending rows, even when the current scan created zero new rows.
 
 ### 12.2 Delivery Task
 
 ```python
-@celery_app.task(
-    name="triam.notifications.deliver_due",
-    autoretry_for=(ExternalServiceError,),
-    retry_backoff=True,
-    retry_jitter=True,
-    retry_kwargs={"max_retries": 3},
-)
+@celery_app.task(name="triam.notifications.deliver_due")
 def deliver_due_notifications_task() -> None:
     now = datetime.now(timezone.utc)
+    worker_id = f"notification-worker:{uuid.uuid4()}"
     with Session(engine) as session:
-        rows = claim_due_outbox(
+        recover_stale_outbox(
+            session,
+            now=now,
+            stale_before=now - timedelta(minutes=settings.NOTIFICATION_STALE_LOCK_MINUTES),
+            max_attempts=settings.NOTIFICATION_MAX_ATTEMPTS,
+        )
+        outbox_ids = claim_due_outbox(
             session,
             now=now,
             limit=settings.NOTIFICATION_DELIVERY_BATCH_SIZE,
+            worker_id=worker_id,
         )
 
-    for row in rows:
-        try:
-            deliver_one_notification(row.id)
-        except Exception:
-            log.exception(f"Failed to deliver notification outbox_id={row.id}")
+    for outbox_id in outbox_ids:
+        deliver_one_notification(outbox_id)
 ```
 
 `deliver_one_notification(outbox_id)`:
 
 - Open its own DB session.
 - Load outbox.
-- Build copy from payload.
-- If channel `in_app`, create `UserNotification`.
-- If channel `push`, send FCM to active device tokens.
+- If status is not `PROCESSING`, return.
+- Build deterministic copy from payload.
+- For `in_app`, create `UserNotification` once.
 - Mark outbox `SENT`.
-- If permanent failure, mark `FAILED`.
-- If attempts exceeded, mark `FAILED`.
+- On failure:
+  - If attempts >= max attempts, mark `FAILED`.
+  - Else set `PENDING`, set `next_retry_at` with simple backoff, clear lock fields.
 
-## 13. FCM Push Adapter
+No `autoretry_for` for the outer delivery task in Phase 4.1.
 
-Dependency:
+Why:
 
-```powershell
-uv add firebase-admin
-```
+- Per-row state is already tracked in Postgres.
+- Retrying the whole task can make debugging noisier.
+- A future Beat scan will pick up retryable rows.
 
-File: `app/services/push_notification_service.py`
-
-```python
-import json
-
-import firebase_admin
-from firebase_admin import credentials, messaging
-
-from app.core.config import settings
-
-_firebase_app = None
-
-
-def _get_firebase_app():
-    global _firebase_app
-    if _firebase_app:
-        return _firebase_app
-
-    if not settings.FIREBASE_CREDENTIALS_JSON:
-        raise RuntimeError("FIREBASE_CREDENTIALS_JSON is not configured.")
-
-    cred_dict = json.loads(settings.FIREBASE_CREDENTIALS_JSON)
-    cred = credentials.Certificate(cred_dict)
-    _firebase_app = firebase_admin.initialize_app(cred)
-    return _firebase_app
-
-
-def send_push_to_token(*, token: str, title: str, body: str, data: dict[str, str]) -> str:
-    app = _get_firebase_app()
-    message = messaging.Message(
-        notification=messaging.Notification(title=title, body=body),
-        data=data,
-        token=token,
-    )
-    return messaging.send(message, app=app)
-```
-
-Phase 4.1 can skip this and only implement in-app.
-
-## 14. API Contract For FE
+## 13. API Contract For FE
 
 Router:
 
@@ -907,18 +995,24 @@ Router:
 app/api/v1/routers/notifications.py
 ```
 
-Endpoints:
+Phase 4.1 endpoints:
 
 ```text
 GET /api/v1/notifications
 PATCH /api/v1/notifications/{notification_id}/read
-POST /api/v1/notifications/device-tokens
-DELETE /api/v1/notifications/device-tokens/{token_id}
+PATCH /api/v1/notifications/read-all
 GET /api/v1/notifications/settings
 PUT /api/v1/notifications/settings
 ```
 
-### 14.1 List Notifications
+Deferred to Phase 4.2:
+
+```text
+POST /api/v1/notifications/device-tokens
+DELETE /api/v1/notifications/device-tokens/{token_id}
+```
+
+### 13.1 List Notifications
 
 Response:
 
@@ -937,35 +1031,48 @@ Response:
         "review_item_id": "..."
       },
       "read_at": null,
-      "created_at": "2026-05-21T10:00:00Z"
+      "created_at": "2026-05-24T10:00:00Z"
     }
   ],
   "unread_count": 1
 }
 ```
 
-### 14.2 Register Device Token
+Recommended query params:
 
-Request:
-
-```json
-{
-  "token": "fcm-token-from-flutter",
-  "platform": "android",
-  "device_id": "optional-device-id"
-}
+```text
+GET /api/v1/notifications?limit=30&unread_only=false
 ```
+
+Backend constraints:
+
+- `limit` should default to `30`.
+- `limit` should be capped, for example `100`, so the notification screen cannot accidentally request the whole table.
+- Query must always filter by current `user_id`.
+
+### 13.2 Mark Read
 
 Response:
 
 ```json
 {
   "id": "...",
-  "is_active": true
+  "read_at": "2026-05-24T10:05:00Z"
 }
 ```
 
-### 14.3 Settings
+### 13.3 Mark All Read
+
+Response:
+
+```json
+{
+  "updated_count": 5,
+  "read_at": "2026-05-24T10:05:00Z"
+}
+```
+
+### 13.4 Settings
 
 Request:
 
@@ -973,15 +1080,15 @@ Request:
 {
   "timezone": "Asia/Ho_Chi_Minh",
   "reminders_enabled": true,
-  "push_enabled": true,
   "spaced_review_enabled": true,
+  "reminder_time": "20:00",
   "quiet_hours_start": "22:00",
   "quiet_hours_end": "07:00",
   "daily_cap": 3
 }
 ```
 
-## 15. DTO Files
+## 14. DTO Files
 
 File:
 
@@ -992,29 +1099,18 @@ app/schemas/notification.py
 Suggested DTOs:
 
 ```python
-class DeviceTokenCreateRequest(BaseModel):
-    token: str
-    platform: DevicePlatform
-    device_id: str | None = None
-
-
-class DeviceTokenResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: uuid.UUID
-    platform: DevicePlatform
-    is_active: bool
-    last_seen_at: datetime | None = None
-
-
 class NotificationSettingsRequest(BaseModel):
     timezone: str = "Asia/Ho_Chi_Minh"
     reminders_enabled: bool = True
-    push_enabled: bool = True
     spaced_review_enabled: bool = True
+    reminder_time: str = "20:00"
     quiet_hours_start: str = "22:00"
     quiet_hours_end: str = "07:00"
     daily_cap: int = 3
+
+
+class NotificationSettingsResponse(NotificationSettingsRequest):
+    user_id: uuid.UUID
 
 
 class UserNotificationResponse(BaseModel):
@@ -1035,69 +1131,67 @@ class NotificationListResponse(BaseModel):
     unread_count: int
 ```
 
-## 16. Where To Create Notifications
+Add validators for:
 
-### 16.1 Chapter Ready
+- valid timezone
+- `HH:MM` time strings
+- `0 <= daily_cap <= 10`
 
-In `chapter_worker.py`, after TTS/RAG success:
+## 15. Where To Create Notifications
+
+### 15.1 Chapter Ready
+
+In `chapter_worker.py`, after TTS/RAG success and after DB state is stable:
 
 ```python
 create_spaced_reviews_for_chapter(...)
-create_completion_outbox_once(...)
+create_content_ready_outbox_once(...)
 ```
 
-But be careful:
+Rules:
 
-- Do not create notification before transaction is stable.
-- Use idempotency key.
+- Do not create review/notification before TTS result has been persisted.
+- Use idempotency keys.
+- For switch-mode generation, create spaced reviews for the new mode only if that mode has review text and rows do not already exist.
 
-### 16.2 Book Ready
+Content-ready idempotency key:
 
-In `book_pipeline.py`, when book becomes `READY`:
-
-```python
-create_book_completion_outbox_once(...)
+```text
+content-ready:<user_id>:<chapter_id>:<mode>
 ```
 
-### 16.3 Plan Reminder
+### 15.2 Book Ready
+
+Book-ready notification is optional in Phase 4.1. If implemented:
+
+```text
+content-ready:<user_id>:<book_id>:book:<mode>
+```
+
+Avoid naming this “completion” because the user has not listened yet.
+
+### 15.3 Plan Reminder
 
 Beat scanner queries active `ReadingPlan`.
 
-Phase 4 simplified rule:
+Simplified Phase 4.1 rule:
 
-- If book is `processing`, `partial_ready`, or `ready`.
-- If user has reminders enabled.
-- If current local time matches a configured schedule window.
-- Create one reminder per day per book.
+- Book status is `partial_ready` or `ready`.
+- User reminders enabled.
+- Today local weekday is in `ReadingPlan.schedule_config`.
+- Current local time is at or after `notification_settings.reminder_time`.
+- Not in quiet hours.
+- Daily cap not reached.
+- Outbox for `plan:<user_id>:<book_id>:<YYYY-MM-DD>` does not already exist.
 
-Idempotency:
-
-```text
-plan:<user_id>:<book_id>:<YYYY-MM-DD>
-```
-
-### 16.4 Recovery Reminder
-
-Need progress/listening event data to be good. If current project has no playback progress table yet, Phase 4 can implement simple version:
-
-- If book is `partial_ready` or `ready`.
-- If no notification in last 48 hours.
-- If plan exists and user has not completed book.
-
-Better Phase 5:
-
-- Add `listening_progress` table.
-- Recovery reminder based on actual last listened timestamp.
-
-## 17. FE Implementation Notes
+## 16. FE Implementation Notes
 
 FE needs:
 
-1. Register FCM token after login/permission granted.
-2. Call `GET /notifications` on app start.
-3. Show unread badge.
-4. Mark read when user opens notification.
-5. Navigate by `action_type`:
+1. Call `GET /notifications` on app start and when opening the notification screen.
+2. Show unread badge.
+3. Mark read when user opens notification.
+4. Navigate by `action_type`:
 
 ```text
 open_book
@@ -1106,14 +1200,11 @@ open_review
 open_thread
 ```
 
-For Phase 4.1, even without push:
+No FCM work is required in Phase 4.1.
 
-- FE can still display in-app notification list.
-- Backend habit logic is testable.
+## 17. Testing Strategy
 
-## 18. Testing Strategy
-
-### 18.1 Unit Tests
+### 17.1 Unit Tests
 
 Files:
 
@@ -1127,12 +1218,16 @@ tests/test_spaced_review_service.py
 Cases:
 
 - Quiet hours true/false across midnight.
+- Invalid timezone fails cleanly.
+- Invalid `HH:MM` fails cleanly.
 - Daily cap blocks extra notifications.
-- `create_outbox_once` does not duplicate same idempotency key.
+- `create_outbox_once` does not duplicate under unique constraint.
+- Stale `PROCESSING` outbox row returns to `PENDING`.
+- Too many attempts marks row `FAILED`.
 - Spaced review creates intervals 1/3/7/14/30 once.
 - Notification copy contains title/body for each type.
 
-### 18.2 API Tests
+### 17.2 API Tests
 
 File:
 
@@ -1142,13 +1237,14 @@ tests/test_notifications_api.py
 
 Cases:
 
-- Register device token.
-- Upsert same token does not duplicate.
 - List notifications returns unread count.
 - Mark notification read.
+- Mark all notifications read.
+- Mark notification read only for current user.
 - Get/update settings.
+- Settings validation rejects invalid timezone/time/cap.
 
-### 18.3 Worker Tests
+### 17.3 Worker Tests
 
 File:
 
@@ -1159,17 +1255,19 @@ tests/test_notification_tasks.py
 Cases:
 
 - Scanner creates outbox rows for due review items.
+- Duplicate scanner run does not duplicate outbox.
 - Delivery task creates `user_notifications` for in-app channel.
+- Duplicate delivery does not duplicate `user_notifications`.
 - Delivery task marks outbox sent.
 - Failed delivery increments attempts and stores error.
-- Duplicate scanner run does not duplicate outbox.
+- Stale lock recovery works.
 
-### 18.4 Manual Test
+### 17.4 Manual Test
 
 Run local worker/beat:
 
 ```powershell
-uv run celery -A app.core.celery_app.celery_app worker -Q notification,maintenance -l info --pool=solo
+uv run celery -A app.core.celery_app.celery_app worker -Q notification,maintenance -l info --pool=solo --concurrency 1
 uv run celery -A app.core.celery_app.celery_app beat -l info
 ```
 
@@ -1191,47 +1289,51 @@ Outbox status becomes sent
 FE list endpoint shows notification
 ```
 
-## 19. Deployment Notes
+## 18. Deployment Notes
 
-### 19.1 HuggingFace Free
+### 18.1 Hugging Face Free
 
-Possible but fragile if API, document worker, notification worker, beat all run in one Space.
+Possible but fragile if API, voice worker, document worker, notification worker, and Beat all run in one Space.
 
 Capstone option:
 
 ```text
 One Space:
   FastAPI
-  LiveKit/voice worker if needed
+  LiveKit voice worker if needed
   Celery document worker
   Celery notification worker
   Celery Beat
 External Redis Cloud
-Postgres/Supabase
+Supabase Postgres/Storage
 ```
 
-Risk:
+Use conservative settings:
 
-- Shared CPU/RAM.
-- Beat duplicated if Space restarts weirdly or multiple replicas.
-- Logs become noisy.
-
-Better:
-
-```text
-Space A: FastAPI
-Space B: Celery document worker
-Space C or same B: notification worker + one Beat
+```env
+UV_NO_SYNC=true
+ENABLE_CELERY_WORKER=true
+ENABLE_NOTIFICATION_WORKER=true
+ENABLE_CELERY_BEAT=true
+CELERY_DOCUMENT_CONCURRENCY=1
+CELERY_NOTIFICATION_CONCURRENCY=1
+LIVEKIT_AGENT_MAX_CONCURRENT_JOBS=1
 ```
-
-But HuggingFace free may sleep/restart; reminders are less reliable.
 
 Production recommendation:
 
-- Use a platform with always-on worker/scheduler.
-- Ensure only one Beat instance.
+- API runtime.
+- Document worker runtime.
+- Notification worker runtime.
+- Exactly one Beat scheduler runtime.
 
-### 19.2 Redis Cloud 30MB
+Beat safety rule:
+
+- Never run local Beat and production Beat against the same production database/Redis at the same time.
+- If the app is deployed to more than one runtime, only one runtime may have `ENABLE_CELERY_BEAT=true`.
+- Duplicate Beat emissions should still be harmless because of idempotency keys, but relying on duplicates is bad ops hygiene.
+
+### 18.2 Redis Cloud 30MB
 
 Still okay if:
 
@@ -1241,99 +1343,112 @@ Still okay if:
 
 Not okay if:
 
-- Push payloads/results stored in Redis.
+- Push payloads/results are stored in Redis.
 - Massive notification bursts.
-- Result backend enabled.
+- Result backend is enabled.
 
-## 20. Trade-offs
+## 19. Trade-offs
 
 | Decision | Benefit | Trade-off |
 | --- | --- | --- |
+| In-app first | Easy to test, no Firebase setup | No OS-level push until app opens |
 | DB outbox | Durable, debuggable, idempotent | More tables and repo code |
 | Beat scan every minute | Simple and reliable enough | Notification can be delayed up to 60s |
-| In-app first | Easy to test, no FCM credential | No phone notification until user opens app |
-| FCM adapter optional | Real push later | Requires Firebase setup and token lifecycle |
-| Quiet hours in backend | Protects user experience | Timezone logic needs tests |
-| Unique idempotency key | Prevents duplicate notification | Need carefully design keys |
+| Stale-lock recovery | Survives worker crash | More state transitions to test |
+| Unique idempotency key | Prevents duplicate outbox | Need carefully designed keys |
+| Unique `outbox_id` in inbox | Prevents duplicate bubbles | Manual notifications without outbox need `outbox_id=None` |
 | `SKIP LOCKED` claim | Multiple workers safe | Postgres-specific behavior |
 | Rule-based copy | Cheap and predictable | Less personalized than LLM copy |
+| Defer FCM | Keeps phase small and safe | No push notification yet |
 
-## 21. Implementation Checklist
+## 20. Implementation Checklist
 
-Phase 4A - Schema:
+Phase 4.1A - Schema:
 
 - Add notification/review enums.
 - Add `notification_settings`.
-- Add `user_device_tokens`.
 - Add `spaced_review_items`.
 - Add `notification_outbox`.
 - Add `user_notifications`.
-- Create Alembic migration.
+- Create and review Alembic migration.
 
-Phase 4B - Services:
+Phase 4.1B - Services and Repositories:
 
+- Add notification settings repo.
+- Add spaced review repo.
+- Add notification outbox repo.
+- Add user notification repo.
 - Add notification copy service.
 - Add reminder schedule service.
 - Add spaced review service.
-- Add notification outbox service.
 
-Phase 4C - Celery:
+Phase 4.1C - Celery:
 
 - Add `app/tasks/notification_tasks.py`.
 - Add Celery routes for `maintenance` and `notification`.
 - Add Beat schedule for scanner.
-- Update `start.sh`.
+- Update `start.sh` with `uv run --no-sync` pattern.
 
-Phase 4D - API:
+Phase 4.1D - API:
 
 - Add `app/api/v1/routers/notifications.py`.
 - Add DTOs.
 - Include router in `app/main.py`.
 
-Phase 4E - Tests:
+Phase 4.1E - Integration:
+
+- Extend `TTSChapterResult` with `review_text` or query saved review text by mode.
+- Create spaced reviews after chapter/mode ready.
+- Create content-ready outbox rows if desired.
+
+Phase 4.1F - Tests:
 
 - Unit tests for schedule/copy/outbox/review.
-- API tests for settings/device tokens/inbox.
-- Worker tests for scanner/delivery idempotency.
+- API tests for settings/inbox.
+- Worker tests for scanner/delivery/idempotency/stale locks.
+- `bash -n start.sh`.
+- Verify local Beat is disabled before deploying if production Beat is enabled.
 
-Phase 4F - Optional Push:
+Phase 4.2 - Optional Push Later:
 
-- `uv add firebase-admin`.
+- Add device token table.
+- Add `DevicePlatform`.
+- Add Firebase Admin SDK.
 - Add FCM service.
 - Add Firebase credential secret.
-- FE registers FCM token.
+- Add FE token register/delete endpoints.
 
-## 22. Recommended Implementation Order For Fresher
+## 21. Recommended Implementation Order For Fresher
 
 Do this in small safe steps:
 
-1. Implement schemas/models/migration only.
-2. Implement in-app notification APIs and tests.
-3. Implement outbox repo with idempotency tests.
-4. Implement spaced review creation from chapter ready.
-5. Implement Beat scanner to create outbox rows.
-6. Implement delivery worker for in-app.
-7. Only then add FCM push.
+1. Implement enums, models, and Alembic migration only.
+2. Implement notification settings API and tests.
+3. Implement user notification list/read API and tests.
+4. Implement outbox repo with idempotency and stale-lock tests.
+5. Implement spaced review creation service and tests.
+6. Integrate spaced review creation after chapter ready.
+7. Implement scanner task to create outbox rows.
+8. Implement delivery worker for in-app notifications.
+9. Update `start.sh` and run deployment checks.
+10. Only after Phase 4.1 is stable, design Phase 4.2 push notification.
 
-This avoids mixing DB design, scheduler, FE API, and push provider bugs into one giant problem.
+This avoids mixing DB design, scheduler, FE API, and push provider bugs into one giant failure surface.
 
-## 23. Senior Notes
+## 22. Senior Notes
 
 Important rules for this phase:
 
 - Do not use Celery ETA/countdown for long-range reminders.
-- Do not send duplicate notification if Beat runs twice.
+- Do not send duplicate notifications if Beat runs twice.
+- Do not rely on select-before-insert for idempotency.
+- Do not leave `PROCESSING` rows stuck forever.
 - Do not trust Redis as schedule storage.
-- Do not log FCM tokens or Firebase credentials.
-- Do not send push during quiet hours.
-- Do not spam: daily cap is a product requirement, not a nice-to-have.
+- Do not log notification payloads if they may contain user/private content.
+- Do not send notifications during quiet hours.
+- Do not spam; daily cap is a product requirement.
 - Keep notification copy short and action-oriented.
 - Keep outbox payload small; store IDs and short text, not large documents.
+- Do not call a generated-content notification “completion” unless user playback completion is tracked.
 
-Phase 4 turns TRIAM into a learning loop:
-
-```text
-listen -> understand -> return -> review -> remember
-```
-
-That is the real product value beyond audiobook generation.
+Approve this doc only if Phase 4.1 in-app-first scope is acceptable.

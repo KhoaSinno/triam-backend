@@ -8,7 +8,15 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlmodel import Field, PrimaryKeyConstraint, Relationship, SQLModel
 
-from app.core.constant import PlanMode, ProcessingJobStatus, ProcessingJobType
+from app.core.constant import (
+    NotificationChannel,
+    NotificationStatus,
+    NotificationType,
+    PlanMode,
+    ProcessingJobStatus,
+    ProcessingJobType,
+    ReviewItemStatus,
+)
 
 
 class StudyContextDocumentLink(SQLModel, table=True):
@@ -138,6 +146,87 @@ class ChapterSegment(SQLModel, table=True):
     chapter: Chapter = Relationship(back_populates="segments")
 
     __table_args__ = (UniqueConstraint("chapter_id", "mode", "segment_index", name="uq_segments_chapter_mode_segment_index"),)
+
+
+class NotificationSettings(SQLModel, table=True):
+    __tablename__ = "notification_settings"
+
+    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), primary_key=True))
+    timezone: str = Field(default="Asia/Ho_Chi_Minh", sa_column=Column(Text, nullable=False))
+    reminders_enabled: bool = Field(default=True, sa_column=Column(Boolean, nullable=False))
+    spaced_review_enabled: bool = Field(default=True, sa_column=Column(Boolean, nullable=False))
+    reminder_time: str = Field(default="20:00", sa_column=Column(Text, nullable=False))
+    quiet_hours_start: str = Field(default="22:00", sa_column=Column(Text, nullable=False))
+    quiet_hours_end: str = Field(default="07:00", sa_column=Column(Text, nullable=False))
+    daily_cap: int = Field(default=3, sa_column=Column(Integer, nullable=False))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+
+
+class SpacedReviewItem(SQLModel, table=True):
+    __tablename__ = "spaced_review_items"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
+    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
+    chapter_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="CASCADE"), index=True, nullable=False))
+    mode: PlanMode = Field(sa_column=Column(SAEnum(PlanMode), nullable=False))
+    interval_days: int = Field(sa_column=Column(Integer, nullable=False))
+    sequence_index: int = Field(sa_column=Column(Integer, nullable=False))
+    due_at: datetime = Field(sa_column=Column(DateTime(timezone=True), index=True, nullable=False))
+    status: ReviewItemStatus = Field(default=ReviewItemStatus.PENDING, sa_column=Column(SAEnum(ReviewItemStatus), index=True, nullable=False))
+    review_text_snapshot: Optional[str] = Field(default=None, sa_column=Column(Text))
+    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "chapter_id", "mode", "interval_days", name="uq_review_user_chapter_mode_interval"),
+    )
+
+
+class NotificationOutbox(SQLModel, table=True):
+    __tablename__ = "notification_outbox"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
+    type: NotificationType = Field(sa_column=Column(SAEnum(NotificationType), index=True, nullable=False))
+    channel: NotificationChannel = Field(default=NotificationChannel.IN_APP, sa_column=Column(SAEnum(NotificationChannel), index=True, nullable=False))
+    status: NotificationStatus = Field(default=NotificationStatus.PENDING, sa_column=Column(SAEnum(NotificationStatus), index=True, nullable=False))
+    payload: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSONB, nullable=False))
+    due_at: datetime = Field(sa_column=Column(DateTime(timezone=True), index=True, nullable=False))
+    next_retry_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
+    locked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    locked_by: Optional[str] = Field(default=None, sa_column=Column(Text))
+    sent_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    attempts: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    error_message: Optional[str] = Field(default=None, sa_column=Column(Text))
+    idempotency_key: str = Field(sa_column=Column(Text, nullable=False))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+
+    __table_args__ = (
+        UniqueConstraint("idempotency_key", name="uq_notification_outbox_idempotency_key"),
+    )
+
+
+class UserNotification(SQLModel, table=True):
+    __tablename__ = "user_notifications"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
+    outbox_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("notification_outbox.id", ondelete="SET NULL"), index=True))
+    type: NotificationType = Field(sa_column=Column(SAEnum(NotificationType), index=True, nullable=False))
+    title: str = Field(sa_column=Column(Text, nullable=False))
+    body: str = Field(sa_column=Column(Text, nullable=False))
+    action_type: Optional[str] = Field(default=None, sa_column=Column(Text))
+    action_payload: Optional[dict[str, Any]] = Field(default=None, sa_column=Column(JSONB))
+    read_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+
+    __table_args__ = (
+        UniqueConstraint("outbox_id", name="uq_user_notifications_outbox_id"),
+    )
 
 
 class BookKnowledge(SQLModel, table=True):

@@ -41,3 +41,30 @@ class ProcessingJobType(str, Enum):
     SWITCH_MODE = "switch_mode"
     NOTIFICATION = "notification"
     REVIEW = "review"
+
+
+class NotificationType(str, Enum):
+    PLAN_REMINDER = "plan_reminder"
+    CONTENT_READY = "content_ready"
+    SPACED_REVIEW_DUE = "spaced_review_due"
+
+
+class NotificationChannel(str, Enum):
+    IN_APP = "in_app"
+
+
+class NotificationStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    SENT = "sent"
+    FAILED = "failed"
+    CANCELLED = "cancelled"
+    SKIPPED = "skipped"
+
+
+class ReviewItemStatus(str, Enum):
+    PENDING = "pending"
+    DUE = "due"
+    COMPLETED = "completed"
+    SKIPPED = "skipped"
+    CANCELLED = "cancelled"

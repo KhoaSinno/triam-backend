@@ -1,4 +1,5 @@
 from celery import Celery
+from celery.schedules import schedule
 
 from app.core.config import settings
 
@@ -6,7 +7,7 @@ celery_app = Celery(
     "triam",
     broker=settings.CELERY_BROKER_URL,
     backend=settings.CELERY_RESULT_BACKEND or None,
-    include=["app.tasks.book_tasks"],
+    include=["app.tasks.book_tasks", "app.tasks.notification_tasks"],
 )
 
 celery_app.conf.update(
@@ -33,5 +34,14 @@ celery_app.conf.update(
     task_routes={
         "triam.books.process": {"queue": "document"},
         "triam.books.switch_mode": {"queue": "document"},
+        "triam.notifications.scan_due": {"queue": "maintenance"},
+        "triam.notifications.deliver_due": {"queue": "notification"},
+    },
+    beat_schedule={
+        "scan-due-notifications": {
+            "task": "triam.notifications.scan_due",
+            "schedule": schedule(run_every=settings.NOTIFICATION_SCAN_INTERVAL_SECONDS),
+            "options": {"queue": "maintenance"},
+        }
     },
 )

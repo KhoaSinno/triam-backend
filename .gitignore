@@ -33,6 +33,7 @@ worker.log
 _log_extracted_json/
 script_outputs/
 script_ouputs/
+_docs_implemented/runtime_test_logs
 
 tests/fixtures/*.wav
 

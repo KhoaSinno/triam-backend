@@ -55,8 +55,10 @@ This keeps reminder state visible, debuggable, and recoverable after deploys.
 
 ## Learning Workflow Rules
 
-- A reading plan is not only audio generation; it includes progress tracking, reminder cadence, and review after completion.
-- After a chapter becomes ready, create spaced-review items from `review_text` or selected knowledge atoms.
+- A reading plan is not only audio generation; it includes progress tracking, non-overlapping reminder cadence, and review after completion.
+- Do not create spaced-review items when a chapter merely becomes ready. Create or activate spaced-review items only after the user completes the chapter, using `chapter_completed_at + interval_days`.
+- Track chapter learning progress with segment-level resume data so FE can continue playback at the correct segment and timestamp while backend can derive chapter/book completion.
+- Plan reminders must use ReadingPlan plus chapter learning progress; skip reminders if the user already studied that book today or has no playable uncompleted chapter.
 - Suggested review intervals for capstone: 1, 3, 7, 14, and 30 days.
 - User timezone must be stored before scheduling wall-clock reminders.
 - Notification copy should be short, specific, and tied to book/chapter progress.
@@ -79,7 +81,9 @@ Implement "listen early" as first playable content, not a brittle exact 50 perce
 4. Add token estimation and hard/soft limits before LLM normalization.
 5. Add partial-ready audio unlock.
 6. Add notification outbox.
-7. Add Celery Beat scanner for reminders and spaced review.
+7. Add chapter learning progress with segment-level resume.
+8. Create spaced-review schedules only from chapter completion.
+9. Add Celery Beat scanner for reminders and spaced review.
 
 ## Review Checklist
 

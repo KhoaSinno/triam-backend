@@ -62,6 +62,11 @@ class ProcessingJobNotFoundError(AppException):
     detail = "Không tìm thấy tiến trình xử lý."
 
 
+class NotificationNotFoundError(AppException):
+    status_code = 404
+    detail = "Không tìm thấy thông báo."
+
+
 # ---------------------------------------------------------------------------
 # 400 Bad Request
 # ---------------------------------------------------------------------------

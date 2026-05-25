@@ -42,6 +42,26 @@ else
   echo "Skipping Celery document worker because ENABLE_CELERY_WORKER=false"
 fi
 
+if [ "${ENABLE_NOTIFICATION_WORKER:-false}" = "true" ]; then
+  echo "Starting Celery notification worker..."
+  "${UV_RUN[@]}" celery -A app.core.celery_app.celery_app worker \
+    -Q notification,maintenance \
+    -l "${CELERY_LOG_LEVEL:-info}" \
+    --concurrency "${CELERY_NOTIFICATION_CONCURRENCY:-1}" \
+    2>&1 | tee celery_notification.log &
+else
+  echo "Skipping Celery notification worker because ENABLE_NOTIFICATION_WORKER=false"
+fi
+
+if [ "${ENABLE_CELERY_BEAT:-false}" = "true" ]; then
+  echo "Starting Celery Beat..."
+  "${UV_RUN[@]}" celery -A app.core.celery_app.celery_app beat \
+    -l "${CELERY_LOG_LEVEL:-info}" \
+    2>&1 | tee celery_beat.log &
+else
+  echo "Skipping Celery Beat because ENABLE_CELERY_BEAT=false"
+fi
+
 BACKEND_PORT="${BACKEND_PORT:-8000}"
 UVICORN_RELOAD="${UVICORN_RELOAD:-false}"
 

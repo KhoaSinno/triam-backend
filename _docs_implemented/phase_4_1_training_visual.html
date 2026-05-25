@@ -1,0 +1,659 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TriAm Phase 4.1 Training - Notification Workflow</title>
+  <style>
+    :root {
+      --ink: #17212b;
+      --muted: #5f6b7a;
+      --line: #d8dee8;
+      --paper: #ffffff;
+      --bg: #f6f8fb;
+      --blue: #2463eb;
+      --green: #0f8f62;
+      --amber: #b7791f;
+      --red: #c2410c;
+      --violet: #6d28d9;
+      --cyan: #0e7490;
+      --soft-blue: #eaf1ff;
+      --soft-green: #e9f8f1;
+      --soft-amber: #fff4dc;
+      --soft-violet: #f1eaff;
+      --soft-cyan: #e8f7fb;
+      --soft-red: #fff0e8;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      line-height: 1.55;
+    }
+
+    header {
+      background: #0f172a;
+      color: white;
+      padding: 42px 28px 34px;
+    }
+
+    header .wrap,
+    main {
+      width: min(1180px, calc(100vw - 32px));
+      margin: 0 auto;
+    }
+
+    h1 {
+      margin: 0 0 10px;
+      font-size: 34px;
+      line-height: 1.15;
+      letter-spacing: 0;
+    }
+
+    h2 {
+      margin: 0 0 18px;
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    h3 {
+      margin: 0 0 10px;
+      font-size: 18px;
+      letter-spacing: 0;
+    }
+
+    p {
+      margin: 0 0 12px;
+    }
+
+    .subtitle {
+      color: #cbd5e1;
+      max-width: 860px;
+      font-size: 17px;
+    }
+
+    .pills {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 20px;
+    }
+
+    .pill {
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 999px;
+      color: white;
+      padding: 7px 12px;
+      font-size: 13px;
+    }
+
+    main {
+      padding: 28px 0 56px;
+    }
+
+    section {
+      margin-bottom: 26px;
+    }
+
+    .panel {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 22px;
+      box-shadow: 0 8px 24px rgba(15, 23, 42, 0.04);
+    }
+
+    .grid {
+      display: grid;
+      gap: 16px;
+    }
+
+    .grid.cols-2 {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .grid.cols-3 {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .grid.cols-5 {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 16px;
+      min-height: 120px;
+    }
+
+    .card strong {
+      display: block;
+      margin-bottom: 7px;
+      font-size: 16px;
+    }
+
+    .card small {
+      color: var(--muted);
+      display: block;
+    }
+
+    .blue { background: var(--soft-blue); border-color: #c8d8ff; }
+    .green { background: var(--soft-green); border-color: #bdebd4; }
+    .amber { background: var(--soft-amber); border-color: #f1d38a; }
+    .violet { background: var(--soft-violet); border-color: #d9c7ff; }
+    .cyan { background: var(--soft-cyan); border-color: #b9e6f0; }
+    .red { background: var(--soft-red); border-color: #ffd0bc; }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 3px 9px;
+      font-size: 12px;
+      color: #1e293b;
+      border: 1px solid var(--line);
+      background: #fff;
+      margin-bottom: 10px;
+    }
+
+    .legend {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(7, minmax(0, 1fr));
+      gap: 10px;
+      align-items: stretch;
+    }
+
+    .step {
+      position: relative;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+      padding: 13px;
+      min-height: 112px;
+    }
+
+    .step::after {
+      content: "→";
+      position: absolute;
+      right: -17px;
+      top: 42%;
+      color: var(--muted);
+      font-weight: 700;
+      z-index: 2;
+    }
+
+    .step:last-child::after {
+      content: "";
+    }
+
+    .step .num {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      background: var(--blue);
+      font-size: 12px;
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .step b {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 6px;
+    }
+
+    .step span {
+      display: block;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fff;
+    }
+
+    th,
+    td {
+      border-bottom: 1px solid var(--line);
+      padding: 11px 12px;
+      text-align: left;
+      vertical-align: top;
+      font-size: 14px;
+    }
+
+    th {
+      background: #f1f5f9;
+      color: #334155;
+    }
+
+    tr:last-child td {
+      border-bottom: 0;
+    }
+
+    code {
+      background: #eef2f7;
+      color: #17212b;
+      border-radius: 5px;
+      padding: 2px 5px;
+      font-size: 0.92em;
+    }
+
+    pre {
+      background: #0f172a;
+      color: #dbeafe;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      margin: 0;
+      font-size: 13px;
+    }
+
+    .state {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 10px;
+      align-items: center;
+    }
+
+    .state-box {
+      min-height: 82px;
+      border-radius: 8px;
+      border: 1px solid var(--line);
+      padding: 12px;
+      text-align: center;
+      background: #fff;
+    }
+
+    .state-box b {
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .arrow {
+      text-align: center;
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 22px;
+    }
+
+    .callout {
+      border-left: 4px solid var(--blue);
+      background: #f8fbff;
+      padding: 14px 16px;
+      border-radius: 6px;
+    }
+
+    .warning {
+      border-left-color: var(--red);
+      background: #fff7f2;
+    }
+
+    .ok {
+      border-left-color: var(--green);
+      background: #f3fcf7;
+    }
+
+    .toc {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin: 0 0 24px;
+    }
+
+    .toc a {
+      text-decoration: none;
+      color: #1d4ed8;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 7px 11px;
+      font-size: 13px;
+    }
+
+    .mini {
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @media (max-width: 900px) {
+      .grid.cols-2,
+      .grid.cols-3,
+      .grid.cols-5,
+      .flow,
+      .state {
+        grid-template-columns: 1fr;
+      }
+
+      .step::after {
+        content: "↓";
+        right: 50%;
+        top: auto;
+        bottom: -21px;
+      }
+
+      h1 {
+        font-size: 28px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>TriAm Phase 4.1 Training</h1>
+      <p class="subtitle">Bản trực quan hóa kiến trúc in-app notification, durable outbox, Celery Beat và spaced review. Mục tiêu là hiểu để báo cáo và phản biện capstone, không chỉ thuộc tên công nghệ.</p>
+      <div class="pills">
+        <span class="pill">Postgres = source of truth</span>
+        <span class="pill">Redis = broker</span>
+        <span class="pill">Beat = đồng hồ</span>
+        <span class="pill">Worker = người xử lý</span>
+        <span class="pill">FE đọc user_notifications</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <nav class="toc">
+      <a href="#mental">Mental model</a>
+      <a href="#architecture">Kiến trúc</a>
+      <a href="#tables">Bảng DB</a>
+      <a href="#flows">Luồng chạy</a>
+      <a href="#state">Outbox state</a>
+      <a href="#files">File map</a>
+      <a href="#debug">Debug</a>
+      <a href="#capstone">Capstone Q&A</a>
+    </nav>
+
+    <section id="mental" class="panel">
+      <h2>1. Mental Model</h2>
+      <div class="grid cols-5">
+        <div class="card blue">
+          <span class="tag">Database</span>
+          <strong>Postgres</strong>
+          <small>Lưu sự thật: settings, review schedule, outbox, inbox.</small>
+        </div>
+        <div class="card amber">
+          <span class="tag">Queue</span>
+          <strong>Redis</strong>
+          <small>Chỉ vận chuyển task Celery. Không lưu business truth.</small>
+        </div>
+        <div class="card violet">
+          <span class="tag">Scheduler</span>
+          <strong>Celery Beat</strong>
+          <small>Mỗi 60 giây bắn task scan_due vào queue maintenance.</small>
+        </div>
+        <div class="card green">
+          <span class="tag">Worker</span>
+          <strong>Celery Worker</strong>
+          <small>Consume queue maintenance/notification và cập nhật DB.</small>
+        </div>
+        <div class="card cyan">
+          <span class="tag">API</span>
+          <strong>FastAPI + Flutter</strong>
+          <small>FE gọi API để xem, đọc, cập nhật settings notification.</small>
+        </div>
+      </div>
+      <div class="callout ok" style="margin-top:16px;">
+        <strong>Câu nhớ nhanh:</strong> Postgres là nơi lưu sự thật. Redis chỉ là đường vận chuyển. Beat chỉ bắn task. Worker mới xử lý. FE đọc inbox từ DB qua API.
+      </div>
+    </section>
+
+    <section id="architecture" class="panel">
+      <h2>2. Kiến Trúc Tổng Quan</h2>
+      <div class="flow">
+        <div class="step blue">
+          <div class="num">1</div>
+          <b>Chapter READY</b>
+          <span>TTS xong, có review_text.</span>
+        </div>
+        <div class="step green">
+          <div class="num">2</div>
+          <b>Learning Events</b>
+          <span>Tạo review items và content_ready outbox.</span>
+        </div>
+        <div class="step violet">
+          <div class="num">3</div>
+          <b>Celery Beat</b>
+          <span>Mỗi phút gửi scan_due.</span>
+        </div>
+        <div class="step amber">
+          <div class="num">4</div>
+          <b>Redis</b>
+          <span>Giữ task trong queue maintenance.</span>
+        </div>
+        <div class="step green">
+          <div class="num">5</div>
+          <b>Worker Scan</b>
+          <span>Tạo plan_reminder và spaced_review_due.</span>
+        </div>
+        <div class="step blue">
+          <div class="num">6</div>
+          <b>Worker Deliver</b>
+          <span>Claim outbox và tạo user_notifications.</span>
+        </div>
+        <div class="step cyan">
+          <div class="num">7</div>
+          <b>Flutter FE</b>
+          <span>GET /notifications để hiển thị.</span>
+        </div>
+      </div>
+      <div class="legend">
+        <span>Phase 4.1 chỉ in-app.</span>
+        <span>Push notification để Phase 4.2.</span>
+        <span>Completion/recovery cần listening_progress ở phase sau.</span>
+      </div>
+    </section>
+
+    <section id="tables" class="panel">
+      <h2>3. Bốn Bảng Quan Trọng</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Bảng</th>
+            <th>Vai trò</th>
+            <th>Điểm cần nhớ</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>notification_settings</code></td>
+            <td>Lưu cấu hình notification theo user.</td>
+            <td>Timezone, reminder_time, quiet hours, daily_cap.</td>
+          </tr>
+          <tr>
+            <td><code>spaced_review_items</code></td>
+            <td>Lưu lịch ôn tập 1/3/7/14/30 ngày.</td>
+            <td>Unique theo user/chapter/mode/interval để không trùng.</td>
+          </tr>
+          <tr>
+            <td><code>notification_outbox</code></td>
+            <td>Durable queue trong Postgres.</td>
+            <td>Chống mất trạng thái, retry, lock, idempotency.</td>
+          </tr>
+          <tr>
+            <td><code>user_notifications</code></td>
+            <td>Inbox cho FE hiển thị.</td>
+            <td>Unique outbox_id để retry không tạo bong bóng trùng.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="flows" class="grid cols-3">
+      <div class="panel">
+        <h2>4.1 Chapter Ready</h2>
+        <pre>process_chapter()
+-> run_tts_pipeline()
+-> TTSChapterResult.review_text
+-> mark_chapter_state_ready()
+-> create_chapter_ready_learning_events()
+   -> spaced_review_items
+   -> content_ready outbox</pre>
+        <p class="mini">Notification là phụ trợ. Nếu tạo notification lỗi, chapter vẫn READY.</p>
+      </div>
+      <div class="panel">
+        <h2>4.2 Beat Scan</h2>
+        <pre>Celery Beat mỗi 60s
+-> triam.notifications.scan_due
+-> recover stale outbox
+-> scan due reviews
+-> scan reading plans
+-> has_due_outbox()
+-> enqueue deliver_due</pre>
+        <p class="mini">`has_due_outbox()` giúp deliver cả outbox pending có sẵn.</p>
+      </div>
+      <div class="panel">
+        <h2>4.3 Delivery</h2>
+        <pre>deliver_due_notifications_task()
+-> claim_due_outbox(SKIP LOCKED)
+-> deliver_one_notification()
+-> create user_notifications
+-> mark outbox sent</pre>
+        <p class="mini">SKIP LOCKED giúp nhiều worker không xử lý trùng một row.</p>
+      </div>
+    </section>
+
+    <section id="state" class="panel">
+      <h2>5. State Machine Của Outbox</h2>
+      <div class="state">
+        <div class="state-box amber"><b>pending</b><span class="mini">Đang chờ gửi</span></div>
+        <div class="arrow">→</div>
+        <div class="state-box blue"><b>processing</b><span class="mini">Worker đã claim</span></div>
+        <div class="arrow">→</div>
+        <div class="state-box green"><b>sent</b><span class="mini">Đã tạo inbox</span></div>
+      </div>
+      <div class="grid cols-2" style="margin-top:16px;">
+        <div class="card red">
+          <strong>Khi lỗi tạm thời</strong>
+          <small><code>processing -> pending</code>, set <code>next_retry_at</code>, tăng attempts.</small>
+        </div>
+        <div class="card violet">
+          <strong>Khi worker crash</strong>
+          <small><code>recover_stale_outbox()</code> nhìn <code>locked_at</code> cũ và đưa về <code>pending</code>.</small>
+        </div>
+      </div>
+    </section>
+
+    <section id="files" class="panel">
+      <h2>6. File Map Để Học Code</h2>
+      <div class="grid cols-2">
+        <table>
+          <thead>
+            <tr><th>Nhóm</th><th>File</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Config</td><td><code>app/core/config.py</code>, <code>app/core/celery_app.py</code>, <code>start.sh</code></td></tr>
+            <tr><td>DB</td><td><code>app/models/db_models.py</code>, migration <code>e4f7a9c2d1b0</code></td></tr>
+            <tr><td>API</td><td><code>app/api/v1/routers/notifications.py</code>, <code>app/schemas/notification.py</code></td></tr>
+          </tbody>
+        </table>
+        <table>
+          <thead>
+            <tr><th>Nhóm</th><th>File</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Repo</td><td><code>notification_outbox_repo.py</code>, <code>user_notification_repo.py</code>, <code>spaced_review_repo.py</code></td></tr>
+            <tr><td>Business</td><td><code>notification_event_service.py</code>, <code>reminder_schedule_service.py</code>, <code>spaced_review_service.py</code></td></tr>
+            <tr><td>Tasks</td><td><code>app/tasks/notification_tasks.py</code></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <section id="debug" class="panel">
+      <h2>7. Debug Checklist</h2>
+      <div class="grid cols-2">
+        <div class="card">
+          <strong>Beat có chạy không?</strong>
+          <small>Tìm log: <code>Scheduler: Sending due task scan-due-notifications</code></small>
+        </div>
+        <div class="card">
+          <strong>Worker nghe đúng queue không?</strong>
+          <small>Log phải có queue <code>maintenance</code> và <code>notification</code>.</small>
+        </div>
+        <div class="card">
+          <strong>Scanner có tạo outbox không?</strong>
+          <small>Tìm log: <code>Notification scan done | created=...</code></small>
+        </div>
+        <div class="card">
+          <strong>Outbox kẹt không?</strong>
+          <small>Kiểm tra <code>status=processing</code> và <code>locked_at</code> quá cũ.</small>
+        </div>
+        <div class="card">
+          <strong>Delivery có tạo inbox không?</strong>
+          <small>Kiểm tra bảng <code>user_notifications</code>.</small>
+        </div>
+        <div class="card">
+          <strong>FE có thấy không?</strong>
+          <small>Gọi <code>GET /api/v1/notifications?limit=30</code>.</small>
+        </div>
+      </div>
+    </section>
+
+    <section id="capstone" class="panel">
+      <h2>8. Câu Trả Lời Capstone Mẫu</h2>
+      <div class="grid cols-2">
+        <div class="card blue">
+          <strong>Vì sao cần outbox?</strong>
+          <small>Để notification delivery bền vững, retry được, không tạo trùng, và debug được khi worker crash.</small>
+        </div>
+        <div class="card green">
+          <strong>Vì sao Postgres là source of truth?</strong>
+          <small>Vì Redis chỉ là broker. Business state phải sống qua restart, deploy, retry.</small>
+        </div>
+        <div class="card amber">
+          <strong>Nếu Beat chạy hai lần?</strong>
+          <small>Idempotency key unique ở DB ngăn tạo duplicate outbox.</small>
+        </div>
+        <div class="card violet">
+          <strong>Vì sao chưa push notification?</strong>
+          <small>Phase 4.1 ổn định outbox/in-app trước. Push cần Firebase, device token và mobile permissions.</small>
+        </div>
+      </div>
+      <div class="callout warning" style="margin-top:16px;">
+        <strong>Điểm phải nói rõ:</strong> Phase 4.1 muốn tự chạy đầy đủ khi deploy một runtime thì cần bật cả <code>ENABLE_NOTIFICATION_WORKER=true</code> và <code>ENABLE_CELERY_BEAT=true</code>. Chỉ một runtime được bật Beat.
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>9. Kết Quả Test Runtime Thật</h2>
+      <pre>{
+  "outbox_count": 3,
+  "sent_outbox_count": 3,
+  "notification_count": 3,
+  "api_items_for_run_count": 3,
+  "review_status": "due",
+  "api_status_code": 200
+}</pre>
+      <p style="margin-top:14px;">Kết luận: Beat, worker, Redis, Postgres, outbox delivery và API đã được test end-to-end ở local runtime.</p>
+    </section>
+  </main>
+</body>
+</html>
