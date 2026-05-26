@@ -224,10 +224,7 @@ def _hard_limit_error(work_items: list[ChapterWorkItem]) -> str | None:
 
     total_audio_seconds = sum(item.budget.estimated_audio_seconds for item in work_items)
     if total_audio_seconds > settings.MAX_ESTIMATED_AUDIO_SECONDS_PER_BOOK:
-        return (
-            f"Tài liệu dự kiến khoảng {math.ceil(total_audio_seconds / 60)} phút audio, "
-            f"vượt giới hạn {math.ceil(settings.MAX_ESTIMATED_AUDIO_SECONDS_PER_BOOK / 60)} phút cho mỗi sách."
-        )
+        return f"Tài liệu dự kiến khoảng {math.ceil(total_audio_seconds / 60)} phút audio, vượt giới hạn {math.ceil(settings.MAX_ESTIMATED_AUDIO_SECONDS_PER_BOOK / 60)} phút cho mỗi sách."
 
     return None
 
@@ -273,7 +270,7 @@ async def _track_progress(
             if not task.done():
                 task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
-        _update_job(job_id, failed_units=1)
+        _update_job(job_id, done_units=completed, failed_units=max(1, total_units - completed))
         raise
 
 

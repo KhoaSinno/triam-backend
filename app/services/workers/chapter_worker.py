@@ -54,6 +54,29 @@ async def _run_rag_pipeline(
         await embed_and_save_chapter(book_id, chapter_id, book_title, chapter_title, raw_text, session)
 
 
+async def _cancel_pending_tasks(tasks: list[asyncio.Task]) -> None:
+    for task in tasks:
+        if not task.done():
+            task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
+
+
+def _cleanup_failed_chapter(chapter_id: uuid.UUID, chapter_index: int, mode: PlanMode, error_message: str) -> None:
+    with Session(engine) as session:
+        delete_knowledge_by_chapter(session, chapter_id)
+        delete_segments_by_chapter_and_mode(session, chapter_id, mode)
+        update_chapter_status(session, chapter_id, BookStatus.ERROR)
+        mark_chapter_state_error(session, chapter_id, mode, error_message)
+    logger.info(f"🧹 Cleaned failed side effects for chapter {chapter_index + 1}.")
+
+
+def _cleanup_failed_switch_mode_chapter(chapter_id: uuid.UUID, chapter_index: int, mode: PlanMode, error_message: str) -> None:
+    with Session(engine) as session:
+        delete_segments_by_chapter_and_mode(session, chapter_id, mode)
+        mark_chapter_state_error(session, chapter_id, mode, error_message)
+    logger.info(f"🧹 Cleaned failed switch-mode side effects for chapter {chapter_index + 1}.")
+
+
 async def process_chapter(
     user_id: uuid.UUID,
     book_id: uuid.UUID,
@@ -101,28 +124,34 @@ async def process_chapter(
                 estimated_audio_seconds=estimated_audio_seconds,
             )
 
+        pipeline_tasks: list[asyncio.Task] = []
         try:
             # RAG và TTS chạy song song — mỗi pipeline dùng session riêng
             logger.info(f"Chapter pipelines dispatch | chapter={chapter_index + 1} | mode={mode_value.value} | rag=true | tts=true")
-            _, tts_result = await asyncio.gather(
-                _run_rag_pipeline(book_id, chapter_id, book_title, chapter_title, raw_text),
-                run_tts_pipeline(book_id, chapter_id, chapter_index, raw_text, mode_value.value, chapter_title),
-            )
+            pipeline_tasks = [
+                asyncio.create_task(_run_rag_pipeline(book_id, chapter_id, book_title, chapter_title, raw_text)),
+                asyncio.create_task(run_tts_pipeline(book_id, chapter_id, chapter_index, raw_text, mode_value.value, chapter_title)),
+            ]
+            _, tts_result = await asyncio.gather(*pipeline_tasks)
             with Session(engine) as session:
                 update_chapter_status(session, chapter_id, BookStatus.READY)
                 mark_chapter_state_ready(session, chapter_id, mode_value, main_segment_count=tts_result.main_segment_count)
             logger.info(f"✅ Chapter {chapter_index + 1} READY | mode={mode_value.value} | segments={tts_result.main_segment_count}")
             return ChapterProcessingResult(chapter_id=chapter_id, main_segment_count=tts_result.main_segment_count)
 
+        except asyncio.CancelledError:
+            logger.warning(f"Chapter {chapter_index + 1} bị hủy vì book job đã thất bại ở chapter khác.")
+            try:
+                await _cancel_pending_tasks(pipeline_tasks)
+                _cleanup_failed_chapter(chapter_id, chapter_index, mode_value, "Chapter processing cancelled because the book job failed.")
+            except Exception as rollback_err:
+                logger.error(f"Failed to clean cancelled chapter {chapter_index + 1}: {rollback_err}")
+            raise
         except Exception as e:
             logger.error(f"❌ Chapter {chapter_index + 1} thất bại: {e}")
             try:
-                with Session(engine) as session:
-                    delete_knowledge_by_chapter(session, chapter_id)
-                    delete_segments_by_chapter_and_mode(session, chapter_id, mode_value)
-                    update_chapter_status(session, chapter_id, BookStatus.ERROR)
-                    mark_chapter_state_error(session, chapter_id, mode_value, str(e))
-                logger.info(f"🧹 Cleaned failed side effects for chapter {chapter_index + 1}.")
+                await _cancel_pending_tasks(pipeline_tasks)
+                _cleanup_failed_chapter(chapter_id, chapter_index, mode_value, str(e))
             except Exception as rollback_err:
                 logger.error(f"Failed to clean failed chapter {chapter_index + 1}: {rollback_err}")
             raise
@@ -171,17 +200,23 @@ async def process_switch_mode_chapter(
                 estimated_audio_seconds=estimated_audio_seconds,
             )
 
+        tts_task: asyncio.Task | None = None
         try:
             logger.info(f"Switch-mode TTS dispatch | chapter={chapter_index + 1} | mode={mode_value.value}")
-            tts_result = await run_tts_pipeline(book_id, chapter_id, chapter_index, raw_text, mode_value.value)
+            tts_task = asyncio.create_task(run_tts_pipeline(book_id, chapter_id, chapter_index, raw_text, mode_value.value))
+            tts_result = await tts_task
             with Session(engine) as session:
                 mark_chapter_state_ready(session, chapter_id, mode_value, main_segment_count=tts_result.main_segment_count)
             logger.info(f"✅ Chapter {chapter_index + 1} switch mode '{mode_value.value}' READY | segments={tts_result.main_segment_count}")
             return ChapterProcessingResult(chapter_id=chapter_id, main_segment_count=tts_result.main_segment_count)
 
+        except asyncio.CancelledError:
+            logger.warning(f"Chapter {chapter_index + 1} switch mode bị hủy vì book job đã thất bại ở chapter khác.")
+            await _cancel_pending_tasks([tts_task] if tts_task else [])
+            _cleanup_failed_switch_mode_chapter(chapter_id, chapter_index, mode_value, "Switch-mode chapter processing cancelled because the book job failed.")
+            raise
         except Exception as e:
             logger.error(f"❌ Chapter {chapter_index + 1} switch mode thất bại: {e}")
-            with Session(engine) as session:
-                delete_segments_by_chapter_and_mode(session, chapter_id, mode_value)
-                mark_chapter_state_error(session, chapter_id, mode_value, str(e))
+            await _cancel_pending_tasks([tts_task] if tts_task else [])
+            _cleanup_failed_switch_mode_chapter(chapter_id, chapter_index, mode_value, str(e))
             raise

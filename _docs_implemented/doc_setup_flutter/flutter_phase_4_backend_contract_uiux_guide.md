@@ -445,6 +445,19 @@ Pick file
 
 Không đi thẳng sang player sau upload. Upload chỉ tạo `Book DRAFT`.
 
+### 6.4 Upload Timeout Rule
+
+Backend phải đọc file và kiểm tra cấu trúc chương trước khi trả response upload. Vì vậy DOCX/PDF lớn có nhiều chương có thể mất vài chục giây.
+
+FE không nên để timeout upload quá ngắn như 45 giây. Khuyến nghị:
+
+```text
+upload timeout: 120-180 giây
+generate-plan/job polling: dùng polling endpoint, không giữ request dài
+```
+
+Nếu upload bị timeout ở FE nhưng user nghi ngờ backend đã nhận file, FE nên refresh Library trước khi yêu cầu upload lại. Lý do: request có thể đã hoàn thành ở backend nhưng response không về kịp app.
+
 ## 7. Generate Plan
 
 ### 7.1 API

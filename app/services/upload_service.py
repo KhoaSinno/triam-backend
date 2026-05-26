@@ -21,8 +21,7 @@ from app.core.exceptions import (
 )
 from app.core.logger import log as logger
 from app.models.db_models import Book, Chapter, ProcessingJob, ReadingPlan
-from app.repositories.audiobook_repo import create_book, update_book_status
-from app.repositories.chapter_repo import create_chapter
+from app.repositories.audiobook_repo import update_book_status
 from app.repositories.processing_job_repo import update_processing_job
 from app.schemas.plan import PlanInput
 from app.services.document_parser_service import extract_chapters_by_document_type
@@ -124,17 +123,18 @@ async def handle_upload_document(session: Session, file: UploadFile, user_id: uu
             file_url=file_url,
             document_type=document_type,
         )
-        create_book(session, book)
-
-        for i, chap in enumerate(chapters_data):
-            chapter = Chapter(
+        chapters = [
+            Chapter(
                 book_id=book_id,
                 chapter_index=i,
                 title=chap.get("title", "Empty Chapter"),
                 status=BookStatus.DRAFT,
             )
-            create_chapter(session, chapter)
+            for i, chap in enumerate(chapters_data)
+        ]
 
+        session.add(book)
+        session.add_all(chapters)
         session.commit()
         logger.info(f"📘 Created DRAFT book {book_id} | {len(chapters_data)} chapters | file_url saved")
     except Exception as e:
