@@ -21,6 +21,7 @@ celery_app.conf.update(
     task_acks_late=True,
     task_reject_on_worker_lost=True,
     result_expires=3600,
+    broker_pool_limit=settings.CELERY_BROKER_POOL_LIMIT,
     worker_prefetch_multiplier=settings.CELERY_WORKER_PREFETCH_MULTIPLIER,
     worker_cancel_long_running_tasks_on_connection_loss=settings.CELERY_WORKER_CANCEL_LONG_RUNNING_ON_CONNECTION_LOSS,
     broker_connection_retry_on_startup=True,

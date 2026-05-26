@@ -1586,7 +1586,7 @@ Trạng thái backend sau hardening ngày 2026-05-26:
 ```text
 BE done all task 21.
 Production smoke test passed after deploy for auth/upload/generate/progress/notification.
-Switch-mode production found one worker bug; BE local fix is ready and needs redeploy/retest.
+Switch-mode production passed after redeploy with loop-local async limiter.
 ```
 
 ### 21.1 Auth refactor
@@ -1668,6 +1668,22 @@ estimated_audio_seconds=3382
 
 Không chỉ gọi trực tiếp `process_book_task`; job đã đi qua API production, Redis broker và Celery document worker thật.
 
+Production startup note:
+
+```text
+Khi bật document worker + notification worker + Celery Beat trên Redis Cloud free,
+log startup có thể xuất hiện transient "max number of clients reached".
+Trong test thật, worker tự reconnect và chuyển sang ready.
+```
+
+BE đã thêm config giảm Redis connection pressure:
+
+```text
+CELERY_BROKER_POOL_LIMIT=1
+```
+
+FE không cần xử lý riêng lỗi startup này. Nếu `/api/v1/health/background` trả `ok` và job polling chạy được, hệ thống background đang hoạt động.
+
 ### 21.3 Progress write throttle
 
 Status:
@@ -1707,9 +1723,9 @@ GET /live-token/thread/{thread_id}: trả LiveKit token thành công.
 GET /notifications: nhận 2 content_ready notifications sau khi Beat/worker chạy.
 ```
 
-### 21.5 Switch-mode production finding
+### 21.5 Switch-mode production verification
 
-Production test ngày 2026-05-26 phát hiện switch-mode `full -> pareto` trên bản deploy hiện tại có thể fail sau khi đạt `partial_ready`:
+Production test đầu tiên ngày 2026-05-26 từng phát hiện switch-mode `full -> pareto` fail sau khi đạt `partial_ready`:
 
 ```text
 job_type=switch_mode
@@ -1724,13 +1740,18 @@ Nguyên nhân là worker cũ dùng `asyncio.Semaphore` global trong process, tro
 app/services/async_limiter.py
 ```
 
-Sau khi deploy lại bản có fix này, cần retest switch-mode production:
+Sau khi deploy lại bản có fix, production retest đã pass:
 
 ```text
-POST /books/{book_id}/switch-mode mode=pareto
+POST /books/{book_id}/switch-mode mode=pareto -> needs_generation=true
 poll /jobs/{job_id}
-expected: queued -> processing -> partial_ready -> ready
+actual: queued -> processing -> partial_ready 33% -> partial_ready 66% -> ready 100%
+done_units=3
+failed_units=0
+details after switch: book_status=ready, 3 chapters, pareto segment_counts=[10, 14, 15]
 ```
+
+FE contract giữ nguyên: khi `needs_generation=true`, giữ audio mode cũ, poll job, unlock mode mới khi `partial_ready`, refresh details khi `ready`.
 
 ## 22. Product Decisions Đã Chốt
 
