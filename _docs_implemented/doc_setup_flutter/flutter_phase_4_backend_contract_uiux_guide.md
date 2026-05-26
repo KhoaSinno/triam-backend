@@ -789,6 +789,15 @@ unlock when partial_ready
 refresh details on ready
 ```
 
+Nếu job switch-mode trả `error`:
+
+```text
+giữ audio mode cũ nếu vẫn còn playable
+show message lỗi ngắn
+cho user retry switch mode sau
+refresh book/details để lấy trạng thái thật từ backend
+```
+
 Product decision:
 
 ```text
@@ -921,6 +930,15 @@ Backend hiện chỉ ghi DB khi:
 - record cũ hơn `LEARNING_PROGRESS_STALE_SECONDS`, mặc định 30 giây;
 - request có `force_persist=true`.
 
+Production verified ngày 2026-05-26:
+
+```text
+force_persist=true  -> backend lưu position_ms mới ngay.
+progress nhỏ +1%    -> backend trả lại position_ms đã lưu trước đó, không ghi DB mới.
+```
+
+Vì vậy FE nên dùng response từ backend làm source of truth cho resume position, không tự tin rằng mọi payload progress đều được lưu.
+
 ### 12.4 Manual Complete
 
 ```http
@@ -1036,6 +1054,17 @@ Response:
   "unread_count": 3
 }
 ```
+
+Production verified ngày 2026-05-26 với Celery Beat + notification worker bật:
+
+```text
+Sau generate-plan hoàn tất, backend tạo và deliver in-app content_ready notifications.
+Trong test thật, notification xuất hiện sau khoảng 1 phút:
+- "Có thể bắt đầu nghe rồi"
+- "Sách đã sẵn sàng"
+```
+
+FE không nên kỳ vọng notification xuất hiện tức thì đúng thời điểm job chuyển `ready`. Notification đi qua outbox/Beat/worker nên có độ trễ ngắn. FE vẫn nên poll job để unlock playback; notification dùng cho badge/inbox/navigation.
 
 ### 14.2 Mark Read
 
@@ -1552,7 +1581,13 @@ Voice/chat:
 
 ## 21. BE Readiness Before FE Full Implementation
 
-Trạng thái backend sau hardening ngày 2026-05-26: BE done all task 21 [X]
+Trạng thái backend sau hardening ngày 2026-05-26:
+
+```text
+BE done all task 21.
+Production smoke test passed after deploy for auth/upload/generate/progress/notification.
+Switch-mode production found one worker bug; BE local fix is ready and needs redeploy/retest.
+```
 
 ### 21.1 Auth refactor
 
@@ -1579,9 +1614,9 @@ user_id = current_user.sub
 Production verification sau deploy:
 
 ```text
-GET /openapi.json phải cho thấy user-owned routes có security=true.
-GET /api/v1/books không có token phải trả 401/403.
-GET /api/v1/books có Supabase token hợp lệ phải trả dữ liệu của đúng user.
+GET /openapi.json cho thấy user-owned routes có security=true.
+GET /api/v1/books không có token trả 401.
+GET /api/v1/books có Supabase token hợp lệ trả dữ liệu của đúng user.
 ```
 
 ### 21.2 Production Redis/Celery smoke test
@@ -1590,7 +1625,7 @@ Status:
 
 ```text
 Script smoke test đã hỗ trợ auth token.
-Manual production test vẫn cần chạy sau deploy vì phụ thuộc Redis/Celery/Supabase thật.
+Production smoke test đã pass ngày 2026-05-26.
 ```
 
 Script:
@@ -1616,7 +1651,22 @@ Celery worker consume queue document
 GET /jobs/{job_id} tới ready
 ```
 
-Không chỉ gọi trực tiếp `process_book_task`.
+Kết quả production test với file thật `Chương 4_ Phương pháp luận nghiên cứu.pdf`:
+
+```text
+health=ok
+background health=ok
+redis=ok
+document_queue_length=0 trước khi test
+upload: 3 chapters
+job flow: queued -> processing -> partial_ready 33% -> partial_ready 66% -> ready 100%
+done_units=3
+failed_units=0
+estimated_input_tokens=16453
+estimated_audio_seconds=3382
+```
+
+Không chỉ gọi trực tiếp `process_book_task`; job đã đi qua API production, Redis broker và Celery document worker thật.
 
 ### 21.3 Progress write throttle
 
@@ -1624,6 +1674,7 @@ Status:
 
 ```text
 Done in backend code.
+Production verified ngày 2026-05-26.
 ```
 
 Backend giảm DB write spam:
@@ -1639,6 +1690,47 @@ write khi:
 ```
 
 FE vẫn phải debounce.
+
+### 21.4 Production Phase 4 probe
+
+Ngoài smoke upload/generate, production đã verify thêm:
+
+```text
+GET /books: account test thấy đúng book của user thật.
+GET /books/{book_id}/details: book ready, 3 chapters, có audio segments.
+PUT /progress force_persist=true: lưu resume position.
+PUT /progress nhỏ ngay sau đó: bị throttle, trả lại position đã lưu.
+GET /learning-progress: trả resume summary.
+POST /chapters/{chapter_id}/complete: trả status=completed.
+GET /threads/for-book/{book_id}: tạo/lấy direct book thread thành công.
+GET /live-token/thread/{thread_id}: trả LiveKit token thành công.
+GET /notifications: nhận 2 content_ready notifications sau khi Beat/worker chạy.
+```
+
+### 21.5 Switch-mode production finding
+
+Production test ngày 2026-05-26 phát hiện switch-mode `full -> pareto` trên bản deploy hiện tại có thể fail sau khi đạt `partial_ready`:
+
+```text
+job_type=switch_mode
+status=error
+progress_percent=33
+error_message="<asyncio.locks.Semaphore ...> is bound to a different event loop"
+```
+
+Nguyên nhân là worker cũ dùng `asyncio.Semaphore` global trong process, trong khi Celery chạy nhiều job qua các event loop khác nhau. BE local đã fix bằng loop-local limiter:
+
+```text
+app/services/async_limiter.py
+```
+
+Sau khi deploy lại bản có fix này, cần retest switch-mode production:
+
+```text
+POST /books/{book_id}/switch-mode mode=pareto
+poll /jobs/{job_id}
+expected: queued -> processing -> partial_ready -> ready
+```
 
 ## 22. Product Decisions Đã Chốt
 

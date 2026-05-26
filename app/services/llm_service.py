@@ -1,4 +1,3 @@
-import asyncio
 import json
 from dataclasses import dataclass
 
@@ -8,13 +7,13 @@ from app.core.config import settings
 from app.core.constant import PlanMode
 from app.core.exceptions import ChapterTooLargeError, LLMResponseFormatError
 from app.core.logger import log as logger
+from app.services.async_limiter import get_loop_semaphore
 from app.services.chapter_chunking_service import split_text_for_llm
 from app.services.token_budget_service import estimate_text_budget, exceeds_hard_limit, should_chunk
 
 # Sử dụng Gemini qua OpenAI-compatible API
 client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY,
                      base_url=settings.GEMINI_BASE_URL)
-_llm_sem = asyncio.Semaphore(settings.LLM_NORMALIZE_CONCURRENCY)
 
 
 @dataclass(frozen=True)
@@ -133,7 +132,7 @@ async def _call_normalize_llm(text: str, mode: str, *, context_hint: str | None 
     request_chars = len(user_content)
     request_context = "chunk" if context_hint else "single"
 
-    async with _llm_sem:
+    async with get_loop_semaphore("llm_normalize", settings.LLM_NORMALIZE_CONCURRENCY):
         logger.info(f"LLM normalize start | mode={mode} | context={request_context} | chars={request_chars}")
         response = await client.chat.completions.create(
             model=settings.GEMINI_MODEL_LLM,

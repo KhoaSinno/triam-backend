@@ -30,11 +30,9 @@ from app.repositories.book_knowledge_repo import delete_knowledge_by_chapter
 from app.repositories.chapter_processing_state_repo import get_state_by_chapter_and_mode, mark_chapter_state_error, mark_chapter_state_ready, upsert_chapter_processing_state
 from app.repositories.chapter_repo import update_chapter_status
 from app.repositories.chapter_segment_repo import check_segments_exist_by_mode, delete_segments_by_chapter_and_mode
+from app.services.async_limiter import get_loop_semaphore
 from app.services.embed_service import embed_and_save_chapter
 from app.services.workers.tts_worker import run_tts_pipeline
-
-# Tối đa N chapters xử lý song song — config thấp giúp giảm rate limit LLM/TTS.
-sem = asyncio.Semaphore(settings.CHAPTER_PROCESSING_CONCURRENCY)
 
 
 @dataclass(frozen=True)
@@ -76,7 +74,7 @@ async def process_chapter(
     Nếu thất bại: rollback book_knowledge + xóa chapter để đảm bảo
     không còn dữ liệu không nhất quán.
     """
-    async with sem:
+    async with get_loop_semaphore("chapter_processing", settings.CHAPTER_PROCESSING_CONCURRENCY):
         mode_value = PlanMode(mode)
         logger.info(
             f"Chapter processing start | chapter={chapter_index + 1} | mode={mode_value.value} | "
@@ -147,7 +145,7 @@ async def process_switch_mode_chapter(
 
     Không cần RAG vì knowledge base không thay đổi theo mode.
     """
-    async with sem:
+    async with get_loop_semaphore("chapter_processing", settings.CHAPTER_PROCESSING_CONCURRENCY):
         mode_value = PlanMode(new_mode)
         logger.info(
             f"Switch-mode chapter start | chapter={chapter_index + 1} | mode={mode_value.value} | "
