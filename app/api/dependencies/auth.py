@@ -46,3 +46,6 @@ def get_current_user(credentials: Annotated[HTTPAuthorizationCredentials, Depend
             detail="Token không hợp lệ hoặc đã hết hạn.",
             headers={"WWW-Authenticate": "Bearer"},
         ) from None
+
+
+CurrentUser = Annotated[UserTokenPayload, Depends(get_current_user)]

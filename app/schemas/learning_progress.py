@@ -14,6 +14,7 @@ class ChapterProgressUpdateRequest(BaseModel):
     listened_ms: int = Field(default=0, ge=0)
     total_duration_ms: int | None = Field(default=None, ge=0)
     progress_percent: int | None = Field(default=None, ge=0, le=100)
+    force_persist: bool = False
 
 
 class ManualChapterCompleteRequest(BaseModel):

@@ -6,11 +6,33 @@ Shared fixtures cho toàn bộ test suite.
 """
 
 import os
+import uuid
+
 import pytest
 from fpdf import FPDF
 
+from app.api.dependencies.auth import get_current_user
+from app.main import app
+from app.schemas.user import UserTokenPayload
 
 SAMPLE_PDF_PATH = os.getenv("TEST_PDF_PATH", "tests/sample.pdf")
+TEST_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
+
+
+def _test_current_user(user_id: uuid.UUID = TEST_USER_ID) -> UserTokenPayload:
+    return UserTokenPayload(sub=user_id, email="test-user@triam.local", role="authenticated", aud="authenticated")
+
+
+app.dependency_overrides[get_current_user] = _test_current_user
+
+
+@pytest.fixture
+def auth_as():
+    def _set_user(user_id: uuid.UUID):
+        app.dependency_overrides[get_current_user] = lambda: _test_current_user(user_id)
+
+    yield _set_user
+    app.dependency_overrides[get_current_user] = _test_current_user
 
 
 def _build_test_pdf(pdf_path: str):

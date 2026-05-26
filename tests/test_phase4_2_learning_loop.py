@@ -209,6 +209,72 @@ def test_book_learning_progress_returns_resume_position():
         _delete_book(book_id)
 
 
+def test_learning_progress_throttles_small_rapid_updates_but_accepts_force_persist():
+    client = TestClient(app)
+    with Session(engine) as session:
+        book, chapter, segment = _create_playable_book(session, title="Phase 4.2 Throttle Book")
+        book_id = book.id
+        chapter_id = chapter.id
+        segment_id = segment.id
+
+    try:
+        first = client.put(
+            f"/api/v1/books/{book_id}/chapters/{chapter_id}/progress",
+            json={
+                "mode": "full",
+                "segment_id": segment_id,
+                "segment_index": 0,
+                "position_ms": 42000,
+                "listened_ms": 42000,
+                "progress_percent": 42,
+            },
+        )
+        assert first.status_code == 200
+
+        small_update = client.put(
+            f"/api/v1/books/{book_id}/chapters/{chapter_id}/progress",
+            json={
+                "mode": "full",
+                "segment_id": segment_id,
+                "segment_index": 0,
+                "position_ms": 43000,
+                "listened_ms": 43000,
+                "progress_percent": 43,
+            },
+        )
+        assert small_update.status_code == 200
+        assert small_update.json()["position_ms"] == 42000
+
+        with Session(engine) as session:
+            progress = session.exec(select(ChapterLearningProgress).where(ChapterLearningProgress.chapter_id == chapter_id)).first()
+            assert progress is not None
+            assert progress.position_ms == 42000
+            assert progress.max_progress_percent == 42
+
+        forced = client.put(
+            f"/api/v1/books/{book_id}/chapters/{chapter_id}/progress",
+            json={
+                "mode": "full",
+                "segment_id": segment_id,
+                "segment_index": 0,
+                "position_ms": 43000,
+                "listened_ms": 43000,
+                "progress_percent": 43,
+                "force_persist": True,
+            },
+        )
+        assert forced.status_code == 200
+        assert forced.json()["position_ms"] == 43000
+
+        with Session(engine) as session:
+            progress = session.exec(select(ChapterLearningProgress).where(ChapterLearningProgress.chapter_id == chapter_id)).first()
+            assert progress is not None
+            assert progress.position_ms == 43000
+            assert progress.max_progress_percent == 43
+    finally:
+        _delete_book(book_id)
+
+
 def test_schedule_guardrails_reject_conflict_and_active_book_limit(monkeypatch):
     user_id = uuid.uuid4()
     book_ids: list[uuid.UUID] = []

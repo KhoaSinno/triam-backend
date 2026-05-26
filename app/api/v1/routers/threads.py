@@ -4,6 +4,7 @@ from typing import Annotated, List
 from fastapi import APIRouter, Depends
 from sqlmodel import Session
 
+from app.api.dependencies.auth import CurrentUser
 from app.db.database import get_session
 from app.schemas.responses import ChatMessageResponse, ChatThreadResponse
 from app.schemas.study_context import (
@@ -18,33 +19,31 @@ from app.services.study_context_service import (
 
 router = APIRouter()
 
-MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
-
 # Get all threads for a context
 
 
 @router.get("/threads/{thread_id}/messages", response_model=List[ChatMessageResponse])
-async def get_thread_messages_api(thread_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
-    return get_thread_messages(session, MOCK_USER_ID, thread_id)
+async def get_thread_messages_api(thread_id: uuid.UUID, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser):
+    return get_thread_messages(session, current_user.sub, thread_id)
 
 
 # Get or create thread for a book
 
 
 @router.get("/threads/for-book/{book_id}")
-async def get_thread_for_book(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
-    return get_or_create_thread_for_book(session, user_id=MOCK_USER_ID, book_id=book_id, title="New Book Chat")
+async def get_thread_for_book(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser):
+    return get_or_create_thread_for_book(session, user_id=current_user.sub, book_id=book_id, title="New Book Chat")
 
 
 # Update current thread by thread_id
 
 
 @router.put("/threads/{thread_id}", response_model=ChatThreadResponse)
-async def update_thread_api(thread_id: uuid.UUID, payload: ChatThreadUpdate, session: Annotated[Session, Depends(get_session)]):
-    return update_thread_by_id(session, MOCK_USER_ID, thread_id, payload.title)
+async def update_thread_api(thread_id: uuid.UUID, payload: ChatThreadUpdate, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser):
+    return update_thread_by_id(session, current_user.sub, thread_id, payload.title)
 
 
 @router.delete("/threads/{thread_id}")
-async def delete_thread_api(thread_id: uuid.UUID, session: Annotated[Session, Depends(get_session)]):
-    delete_thread_by_id(session, MOCK_USER_ID, thread_id)
+async def delete_thread_api(thread_id: uuid.UUID, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser):
+    delete_thread_by_id(session, current_user.sub, thread_id)
     return {"message": "Thread deleted successfully"}

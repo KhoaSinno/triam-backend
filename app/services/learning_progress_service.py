@@ -1,6 +1,6 @@
 import json
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlmodel import Session, select
 
@@ -133,6 +133,31 @@ def _create_reviews_after_completion_once(
     )
 
 
+def _should_persist_progress(
+    existing: ChapterLearningProgress | None,
+    *,
+    now: datetime,
+    segment: ChapterSegment,
+    progress_percent: int,
+    force_persist: bool,
+) -> bool:
+    if existing is None:
+        return True
+    if force_persist:
+        return True
+    if existing.completed_at is None and progress_percent >= settings.LEARNING_COMPLETION_THRESHOLD_PERCENT:
+        return True
+    if existing.current_segment_id != segment.id or existing.last_segment_index != segment.segment_index:
+        return True
+    if progress_percent - existing.max_progress_percent >= settings.LEARNING_PROGRESS_MIN_DELTA_PERCENT:
+        return True
+
+    last_saved_at = existing.last_activity_at or existing.updated_at
+    if last_saved_at and now - last_saved_at >= timedelta(seconds=settings.LEARNING_PROGRESS_STALE_SECONDS):
+        return True
+    return False
+
+
 def update_chapter_progress(
     session: Session,
     *,
@@ -156,6 +181,15 @@ def update_chapter_progress(
 
     now = datetime.now(timezone.utc)
     progress = get_progress(session, user_id=user_id, chapter_id=chapter_id, mode=mode)
+    if not _should_persist_progress(
+        progress,
+        now=now,
+        segment=segment,
+        progress_percent=progress_percent,
+        force_persist=payload.force_persist,
+    ):
+        return _to_chapter_response(progress)
+
     first_completion = False
     if not progress:
         progress = ChapterLearningProgress(

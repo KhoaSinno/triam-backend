@@ -70,7 +70,7 @@ Supabase hỗ trợ cả email/password và OAuth provider như Google. FE dùng
 
 ### 1.1 Trạng thái code hiện tại
 
-Backend đã có dependency:
+Backend đã bật auth dependency cho các API user-owned:
 
 ```text
 app/api/dependencies/auth.py
@@ -89,32 +89,25 @@ Hàm này:
 - trả về `UserTokenPayload`;
 - `UserTokenPayload.sub` chính là `user_id`.
 
-Nhưng hiện nhiều router vẫn đang dùng:
+Backend cũng có alias ngắn:
 
 ```python
-MOCK_USER_ID = ...
+CurrentUser = Annotated[UserTokenPayload, Depends(get_current_user)]
 ```
 
-Vì vậy trước khi gọi là production contract, BE cần thay mock bằng auth thật.
+Các router user-owned đã dùng `CurrentUser` thay cho `MOCK_USER_ID`.
 
-### 1.2 Có phải chỉ thay `MOCK_USER_ID` là xong không?
+### 1.2 BE Auth Pattern
 
-Câu trả lời ngắn:
-
-```text
-Gần đúng, nhưng phải thay đúng tầng.
-```
-
-Không nên chỉ search-replace bừa. Cần làm theo pattern:
+Pattern backend hiện tại:
 
 ```python
-from app.api.dependencies.auth import get_current_user
-from app.schemas.user import UserTokenPayload
+from app.api.dependencies.auth import CurrentUser
 
 @router.get("/books")
 def read_all_books(
     session: Annotated[Session, Depends(get_session)],
-    current_user: Annotated[UserTokenPayload, Depends(get_current_user)],
+    current_user: CurrentUser,
 ):
     return list_books(session, current_user.sub)
 ```
@@ -124,35 +117,21 @@ Nguyên tắc:
 - Router lấy `current_user`.
 - Router truyền `current_user.sub` xuống service.
 - Service/repository query theo `user_id`.
-- Không để service tự lấy mock user.
+- Service không tự lấy mock user.
+- LiveKit token theo thread/book cũng kiểm tra ownership trước khi cấp token.
 
-Các nơi cần thay:
+Deploy/migration note:
 
 ```text
-app/api/v1/routers/audiobooks.py
-app/api/v1/routers/upload.py
-app/api/v1/routers/jobs.py
-app/api/v1/routers/learning_progress.py
-app/api/v1/routers/notifications.py
-app/api/v1/routers/reviews.py
-app/api/v1/routers/study_context.py
-app/api/v1/routers/threads.py
-app/api/v1/routers/live.py
-app/services/upload_service.py
+Các sách/context/job/notification tạo trước auth refactor có thể đang thuộc mock user cũ.
+Sau khi deploy auth thật, user thật sẽ không thấy dữ liệu mock đó.
 ```
 
-Với `upload_service.py`, cần đổi function signature:
-
-```python
-handle_upload_document(session, file, user_id)
-handle_generate_plan(session, payload, user_id)
-```
-
-Không để `upload_service` tự dùng `MOCK_USER_ID`.
+Nếu cần giữ dữ liệu demo cũ, BE phải migrate `user_id` từ mock user sang Supabase user thật. Nếu không cần giữ, có thể reset data demo và test lại bằng account thật.
 
 ### 1.3 FE phải gửi auth thế nào?
 
-Sau khi BE bật auth thật, mọi API user-data cần header:
+Vì BE đã bật auth thật, mọi API user-data cần header:
 
 ```http
 Authorization: Bearer <access_token>
@@ -199,10 +178,11 @@ notifications
 reviews
 study-contexts
 threads
+live-token/{book_id}
 live-token/thread
 ```
 
-`/live-token/{book_id}` là legacy/debug, FE production không nên dùng.
+`/live-token/{book_id}` vẫn là legacy/debug cho book-only session, nhưng cũng cần auth và kiểm tra book thuộc user hiện tại.
 
 ### 1.5 UI Auth Yêu Cầu
 
@@ -891,7 +871,8 @@ Request:
   "position_ms": 3583,
   "listened_ms": 3583,
   "total_duration_ms": null,
-  "progress_percent": 82
+  "progress_percent": 82,
+  "force_persist": false
 }
 ```
 
@@ -903,6 +884,14 @@ FE progress_percent chỉ là fallback.
 ```
 
 Vì vậy FE không nên kỳ vọng response luôn bằng payload.
+
+`force_persist=true` chỉ dùng cho các mốc quan trọng:
+
+- pause;
+- app background;
+- user đóng player;
+- user seek mạnh và muốn lưu resume ngay;
+- trước khi chuyển sang màn khác.
 
 ### 12.3 Progress Sending Rule
 
@@ -922,6 +911,15 @@ Gửi khi:
 ```
 
 Sau khi BE implement throttle, FE vẫn nên debounce để tiết kiệm pin/network.
+
+Backend hiện chỉ ghi DB khi:
+
+- lần đầu tạo progress;
+- đổi segment;
+- progress tăng ít nhất `LEARNING_PROGRESS_MIN_DELTA_PERCENT`, mặc định 5%;
+- progress đạt ngưỡng complete, mặc định 80%;
+- record cũ hơn `LEARNING_PROGRESS_STALE_SECONDS`, mặc định 30 giây;
+- request có `force_persist=true`.
 
 ### 12.4 Manual Complete
 
@@ -1488,7 +1486,7 @@ Do not require old `job_id` to exist in local storage forever.
 
 Auth:
 
-- [ ] Sends `Authorization: Bearer <access_token>` after BE auth refactor.
+- [ ] Sends `Authorization: Bearer <access_token>` for user-owned APIs.
 - [ ] Handles 401 by refresh/logout.
 - [ ] Does not send `user_id` manually.
 - [ ] Supports email/password login.
@@ -1552,29 +1550,63 @@ Voice/chat:
 - [ ] Subscribes to `lk.transcript`.
 - [ ] Dedupe by transcript `id`.
 
-## 21. BE Must Finish Before This Contract Is Final
+## 21. BE Readiness Before FE Full Implementation
 
-Trước khi đưa tài liệu này cho FE như contract cuối, BE nên hoàn thành:
+Trạng thái backend sau hardening ngày 2026-05-26: BE done all task 21 [X]
 
 ### 21.1 Auth refactor
 
-Replace `MOCK_USER_ID` with:
+Status:
+
+```text
+Done in backend code.
+```
+
+Pattern:
 
 ```python
-current_user: Annotated[UserTokenPayload, Depends(get_current_user)]
+current_user: CurrentUser
 user_id = current_user.sub
 ```
 
-Test bắt buộc:
+Đã cover bằng test tự động:
 
 - user A không thấy books user B;
 - user A không update/delete book user B;
 - user A không đọc notification user B;
 - user A không lấy LiveKit token thread user B.
 
+Production verification sau deploy:
+
+```text
+GET /openapi.json phải cho thấy user-owned routes có security=true.
+GET /api/v1/books không có token phải trả 401/403.
+GET /api/v1/books có Supabase token hợp lệ phải trả dữ liệu của đúng user.
+```
+
 ### 21.2 Production Redis/Celery smoke test
 
-Test đúng flow:
+Status:
+
+```text
+Script smoke test đã hỗ trợ auth token.
+Manual production test vẫn cần chạy sau deploy vì phụ thuộc Redis/Celery/Supabase thật.
+```
+
+Script:
+
+```powershell
+uv run python scripts/production_smoke_test.py `
+  --base-url https://khoasinoo-tri-am-backend.hf.space `
+  --access-token "<supabase_access_token>" `
+  --pdf-path "Chương 4_ Phương pháp luận nghiên cứu.pdf" `
+  --generate-plan `
+  --poll `
+  --require-background-ok `
+  --timeout-seconds 1800
+```
+
+Flow script kiểm tra:
 
 ```text
 POST /upload
@@ -1588,14 +1620,22 @@ Không chỉ gọi trực tiếp `process_book_task`.
 
 ### 21.3 Progress write throttle
 
-Backend nên giảm DB write spam:
+Status:
+
+```text
+Done in backend code.
+```
+
+Backend giảm DB write spam:
 
 ```text
 write khi:
+- lần đầu tạo progress;
 - đổi segment;
-- progress tăng đáng kể;
+- progress tăng >= 5%;
+- đạt ngưỡng complete;
 - quá stale window;
-- pause/background/complete.
+- request force_persist=true.
 ```
 
 FE vẫn phải debounce.

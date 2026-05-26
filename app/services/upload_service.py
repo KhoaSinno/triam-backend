@@ -4,7 +4,7 @@ import uuid
 import aiofiles
 from fastapi import UploadFile
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.core.constant import BookStatus, DocumentType, PlanStatus, ProcessingJobStatus, ProcessingJobType
@@ -30,9 +30,6 @@ from app.services.reading_plan_schedule_service import build_slots_for_plan, val
 from app.services.storage_service import upload_file_to_supabase
 from app.tasks.book_tasks import process_book_task
 
-# TODO: REPLACE WITH JWT DECODE USER LATER
-MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
-
 # HELPER FUNCTION: Detect document type based on MIME type or file extension
 
 
@@ -56,7 +53,7 @@ async def _extract_chapters_by_type(tmp_filename: str, document_type: str) -> li
         return await extract_chapters_by_document_type(f, document_type)
 
 
-async def handle_upload_document(session: Session, file: UploadFile) -> dict:
+async def handle_upload_document(session: Session, file: UploadFile, user_id: uuid.UUID) -> dict:
     """
     Bước 1: Validate file, extract outline từ tài liệu, upload lên Supabase Storage,
     lưu Book + Chapter (DRAFT) vào DB, trả về outline cho Flutter.
@@ -120,7 +117,7 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
     try:
         book = Book(
             id=book_id,
-            user_id=MOCK_USER_ID,
+            user_id=user_id,
             title=title,
             total_chapters=len(chapters_data),
             status=BookStatus.DRAFT,
@@ -161,19 +158,19 @@ async def handle_upload_document(session: Session, file: UploadFile) -> dict:
     }
 
 
-async def handle_generate_plan(session: Session, payload: PlanInput) -> dict:
+async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uuid.UUID) -> dict:
     """
     Bước 2: Validate trạng thái sách, tạo ReadingPlan, tạo progress job,
     kick-off background processing.
     """
     # 1. Validate book tồn tại và đang ở trạng thái DRAFT
-    book = session.get(Book, payload.book_id)
+    book = session.exec(select(Book).where(Book.id == payload.book_id, Book.user_id == user_id)).first()
     if not book:
         raise BookNotFoundError()
     if book.status not in (BookStatus.DRAFT,):
         raise BookStatusConflictError(f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
 
-    slots = validate_plan_schedule_for_create(session, user_id=MOCK_USER_ID, schedule_config=payload.schedule_config)
+    slots = validate_plan_schedule_for_create(session, user_id=user_id, schedule_config=payload.schedule_config)
 
     # 2. Lưu ReadingPlan + schedule slots + progress job + cập nhật Book status
     try:
@@ -188,7 +185,7 @@ async def handle_generate_plan(session: Session, payload: PlanInput) -> dict:
         session.flush()
 
         for slot in build_slots_for_plan(
-            user_id=MOCK_USER_ID,
+            user_id=user_id,
             book_id=payload.book_id,
             plan_id=plan.id,
             slots=slots,
@@ -196,7 +193,7 @@ async def handle_generate_plan(session: Session, payload: PlanInput) -> dict:
             session.add(slot)
 
         job = ProcessingJob(
-            user_id=MOCK_USER_ID,
+            user_id=user_id,
             book_id=payload.book_id,
             job_type=ProcessingJobType.GENERATE_PLAN,
             status=ProcessingJobStatus.QUEUED,

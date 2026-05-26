@@ -5,8 +5,8 @@ from livekit import api
 from sqlmodel import Session, select
 
 from app.core.config import settings
-from app.core.exceptions import ThreadNotFoundError
-from app.models.db_models import ChatThread, StudyContextDocumentLink
+from app.core.exceptions import BookNotFoundError, ThreadNotFoundError
+from app.models.db_models import Book, ChatThread, StudyContext, StudyContextDocumentLink
 
 
 def _build_livekit_token(room_name: str, metadata: dict) -> dict:
@@ -29,16 +29,24 @@ def _build_livekit_token(room_name: str, metadata: dict) -> dict:
     return {"token": token.to_jwt(), "room_name": room_name}
 
 
-def get_token_for_book(book_id: str) -> dict:
-    """Tạo LiveKit token cho session đọc sách đơn lẻ."""
-    session_room_name = f"triam_{book_id[:8]}_{uuid.uuid4().hex[:6]}"
-    return _build_livekit_token(session_room_name, {"book_id": book_id})
+def get_token_for_book(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> dict:
+    """Tạo LiveKit token cho session đọc sách đơn lẻ sau khi kiểm tra ownership."""
+    book = session.exec(select(Book).where(Book.id == book_id, Book.user_id == user_id)).first()
+    if not book:
+        raise BookNotFoundError()
+
+    book_id_value = str(book_id)
+    session_room_name = f"triam_{book_id_value[:8]}_{uuid.uuid4().hex[:6]}"
+    return _build_livekit_token(session_room_name, {"book_id": book_id_value})
 
 
-def get_token_for_thread(session: Session, thread_id: uuid.UUID) -> dict:
-    """Tạo LiveKit token cho session gắn với Study Context thread."""
+def get_token_for_thread(session: Session, thread_id: uuid.UUID, user_id: uuid.UUID) -> dict:
+    """Tạo LiveKit token cho session gắn với Study Context thread sau khi kiểm tra ownership."""
     thread = session.get(ChatThread, thread_id)
     if not thread:
+        raise ThreadNotFoundError()
+    context = session.get(StudyContext, thread.context_id)
+    if not context or context.user_id != user_id:
         raise ThreadNotFoundError()
 
     # Lấy danh sách document_ids từ context

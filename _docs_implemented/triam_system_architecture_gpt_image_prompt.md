@@ -801,3 +801,495 @@ TEXT QUALITY:
 - Keep text large enough to read in a presentation slide.
 - If a label would be too small, remove less important arrows rather than shrinking text.
 ```
+
+## Prompt Update Sau Khi Verify Ảnh V4
+
+Ảnh V4 đã có bố cục dễ nhìn hơn, nhưng **vẫn chưa đúng hoàn toàn để dùng làm ảnh kiến trúc cuối**.
+
+Các lỗi còn lại:
+
+1. Redis vẫn bị vẽ 2 lần: một box trong Backend Runtime và một card trong External Providers. Trong hệ thống chỉ có **một Redis Cloud Broker** dùng làm Celery broker.
+2. Luồng `Study Chat / Voice` chưa đủ chính xác. **Voice** dùng LiveKit + OpenAI Realtime. **Typed chat** cũng đi qua LiveKit DataChannel, nhưng xử lý bằng text LLM riêng (`gpt-4o-mini`) + RAG, không phải OpenAI Realtime.
+3. Label trong agent bị sai/méo: phải là `lk.chat / lk.transcript`, không phải `R.chat / R.transcript`.
+4. Realtime agent cần thể hiện rõ 2 lane:
+   - Voice lane: microphone/audio -> LiveKit Cloud Room -> Voice Agent -> OpenAI Realtime.
+   - Text chat lane: typed text -> LiveKit Cloud Room DataChannel `lk.chat` -> Agent -> Text Chat LLM + RAG -> `lk.chat`/`lk.transcript`.
+5. Mũi tên notification còn hơi lệch và dễ hiểu nhầm là ghi vào Storage. Notification worker chỉ làm việc với Postgres/outbox/user_notifications.
+
+Copy prompt V5 dưới đây để regenerate bản chính xác hơn. Prompt này bỏ bớt mũi tên phụ, thêm provider `OpenAI Chat LLM` và tách rõ voice/text chat.
+
+```text
+Create the final corrected TRIAM System Architecture diagram for a capstone defense slide.
+
+Canvas and style:
+- 16:9 landscape.
+- Clean flat vector architecture diagram.
+- White or very light background.
+- Large readable text.
+- Minimal arrow crossings.
+- Use grouped zones with subtle colors.
+- Do not duplicate services.
+- Do not invent services.
+
+Title:
+"TRIAM System Architecture"
+
+Subtitle:
+"Document-to-Audio Learning, LiveKit Chat/Voice Agent, Progress Tracking, and In-App Review Notifications"
+
+Main zones:
+1. Client
+2. Backend Runtime - Hugging Face Docker Space
+3. Data Layer - Supabase
+4. External Services
+5. Production Learning Loop
+
+CRITICAL RULE 1 - Redis:
+Draw exactly ONE Redis Cloud Broker box.
+- Put it inside Backend Runtime, between FastAPI API Server and Celery Document Worker.
+- Label: "Redis Cloud Broker"
+- Sub-label: "Celery queues: document, notification, maintenance"
+- Do NOT draw Redis again in External Services.
+- Do NOT imply Redis stores business state.
+
+CRITICAL RULE 2 - Chat and Voice:
+The Flutter app uses LiveKit for BOTH voice and typed chat transport.
+But typed chat does NOT use OpenAI Realtime.
+
+Draw two separate lanes connected through "LiveKit Cloud Room":
+
+VOICE LANE:
+- Flutter Mobile App -> LiveKit Cloud Room, label "LiveKit SDK: microphone/audio"
+- LiveKit Realtime Agent <-> LiveKit Cloud Room, label "voice session"
+- LiveKit Realtime Agent -> OpenAI Realtime, label "speech-to-text + realtime voice response"
+
+TEXT CHAT LANE:
+- Flutter Mobile App -> LiveKit Cloud Room, label "LiveKit DataChannel: lk.chat"
+- LiveKit Cloud Room -> LiveKit Realtime Agent, label "typed text via lk.chat"
+- LiveKit Realtime Agent -> OpenAI Chat LLM, label "text answer: gpt-4o-mini"
+- LiveKit Realtime Agent <-> Supabase Postgres + pgvector, label "chat history + RAG"
+- LiveKit Realtime Agent -> Tavily Search, label "optional web search"
+- LiveKit Realtime Agent -> LiveKit Cloud Room, label "lk.chat + lk.transcript"
+
+Add a small note near the LiveKit Realtime Agent:
+"Voice uses OpenAI Realtime; typed chat uses text LLM + RAG"
+
+ZONE 1: Client
+Box: "Flutter Mobile App"
+Items:
+- Upload Document
+- Reading Plan
+- Audio Player
+- Progress Tracking
+- Study Chat / Voice
+- In-App Notifications
+
+ZONE 2: Backend Runtime - Hugging Face Docker Space
+Components:
+
+1. "FastAPI API Server"
+Bullets:
+- Upload / Books / Plans
+- Jobs & Processing Status
+- Study Context & Chat Threads
+- Learning Progress API
+- Notifications API
+
+2. "Redis Cloud Broker"
+Bullets:
+- document queue
+- notification queue
+- maintenance queue
+
+3. "Celery Document Worker"
+Bullets:
+- Parse chapters
+- RAG embeddings
+- LLM normalize
+- TTS audio generation
+- Partial-ready unlock
+
+4. "Celery Beat + Notification Workers"
+Bullets:
+- scan_due
+- deliver_due
+- stale-lock recovery
+
+5. "LiveKit Realtime Agent"
+Bullets:
+- Voice: OpenAI Realtime
+- Text chat: gpt-4o-mini + RAG
+- lk.chat / lk.transcript
+- lk.control web-search toggle
+
+ZONE 3: Data Layer - Supabase
+Box: "Supabase Postgres + pgvector"
+Key table groups:
+- books / chapters / chapter_segments
+- processing_jobs / chapter_processing_states
+- reading_plans / reading_plan_schedule_slots
+- chapter_learning_progress
+- spaced_review_items
+- notification_outbox / user_notifications
+- study_contexts / chat_threads / chat_messages
+- book_knowledge vectors
+
+Box: "Supabase Storage"
+Buckets:
+- raw_books
+- audios
+
+ZONE 4: External Services
+Draw these provider cards only:
+
+1. "Gemini LLM"
+Sub-label: "OpenAI-compatible API; normalize TTS scripts"
+
+2. "OpenAI Embeddings"
+Sub-label: "text-embedding-3-small"
+
+3. "Edge TTS"
+Sub-label: "audio segments + review audio"
+
+4. "LiveKit Cloud Room"
+Sub-label: "realtime audio + DataChannel transport"
+
+5. "OpenAI Realtime"
+Sub-label: "voice: gpt-realtime + gpt-4o-transcribe"
+
+6. "OpenAI Chat LLM"
+Sub-label: "typed chat: gpt-4o-mini"
+
+7. "Tavily Search"
+Sub-label: "optional web lookup"
+
+CORRECT ARROWS:
+
+Client/API:
+- Flutter Mobile App -> FastAPI API Server, label "REST API"
+- Flutter Mobile App -> LiveKit Cloud Room, label "LiveKit SDK"
+
+Queue:
+- FastAPI API Server -> Redis Cloud Broker, label "enqueue task IDs"
+- Redis Cloud Broker -> Celery Document Worker, label "document queue"
+- Redis Cloud Broker -> Celery Beat + Notification Workers, label "notification / maintenance queues"
+
+FastAPI/Data:
+- FastAPI API Server <-> Supabase Postgres + pgvector, label "CRUD + polling state"
+- FastAPI API Server -> Supabase Storage, label "upload original document"
+
+Document Worker/Data:
+- Celery Document Worker <-> Supabase Postgres + pgvector, label "jobs, segments, vectors, progress"
+- Celery Document Worker <-> Supabase Storage, label "download document / upload audio"
+
+Document Worker/AI:
+- Celery Document Worker -> Gemini LLM, label "normalize"
+- Celery Document Worker -> OpenAI Embeddings, label "embed chunks"
+- Celery Document Worker -> Edge TTS, label "generate audio"
+
+LiveKit Chat/Voice:
+- Flutter Mobile App -> LiveKit Cloud Room, label "voice audio + lk.chat"
+- LiveKit Realtime Agent <-> LiveKit Cloud Room, label "agent room connection"
+- LiveKit Realtime Agent -> OpenAI Realtime, label "voice STT + voice response"
+- LiveKit Realtime Agent -> OpenAI Chat LLM, label "typed chat answer"
+- LiveKit Realtime Agent <-> Supabase Postgres + pgvector, label "chat history + RAG"
+- LiveKit Realtime Agent -> Tavily Search, label "optional web search"
+
+Notifications:
+- Celery Beat + Notification Workers -> Supabase Postgres + pgvector, label "scan due reminders/reviews"
+- Celery Beat + Notification Workers -> notification_outbox, label "create/claim due outbox"
+- Celery Beat + Notification Workers -> user_notifications, label "deliver in-app"
+
+Important: notification_outbox and user_notifications are table groups inside Supabase Postgres + pgvector. If necessary, draw small callout chips next to the Postgres box, but do not connect notification workers to Supabase Storage.
+
+ZONE 5: Production Learning Loop
+Draw a clear horizontal band at the bottom:
+Book READY -> User listens to segments -> FE sends progress -> chapter_learning_progress -> >=80% or manual complete -> Create spaced_review_items -> scan_due -> notification_outbox -> deliver_due -> user_notifications
+
+Note under the loop:
+"Book READY does not mean User COMPLETED"
+
+Bottom callouts:
+- "Postgres is the source of truth"
+- "Redis is only the Celery broker"
+- "Typed chat uses LiveKit DataChannel + text LLM"
+- "Spaced review starts after chapter completion"
+- "First playable chapter unlocks early listening"
+- "In-app notification now; push notification is future work"
+- "Auth currently planned to replace mock user ID"
+
+STRICT NEGATIVE RULES:
+- Do NOT draw Redis twice.
+- Do NOT put Redis in External Services if it is already in Backend Runtime.
+- Do NOT draw typed chat going to OpenAI Realtime.
+- Do NOT imply OpenAI Realtime handles typed chat.
+- Do NOT draw Flutter connecting directly to the backend agent; Flutter connects to LiveKit Cloud Room.
+- Do NOT draw any arrow from Celery Beat + Notification Workers to Gemini LLM.
+- Do NOT draw any arrow from Celery Beat + Notification Workers to Edge TTS.
+- Do NOT draw any arrow from Celery Beat + Notification Workers to OpenAI Embeddings.
+- Do NOT draw any arrow from Celery Beat + Notification Workers to Supabase Storage.
+- Do NOT draw Pinecone.
+- Do NOT draw RabbitMQ.
+- Do NOT draw Firebase Push as implemented.
+- Do NOT draw Supabase Auth as implemented.
+- Do NOT draw OCR/scanned PDF processing as implemented.
+- Do NOT imply spaced review is created when chapter audio is generated.
+
+TEXT QUALITY:
+- Spell these labels exactly:
+  - "lk.chat / lk.transcript"
+  - "lk.control"
+  - "OpenAI Chat LLM"
+  - "gpt-4o-mini"
+  - "OpenAI Realtime"
+  - "enqueue task IDs"
+  - "chapter_processing_states"
+  - "reading_plan_schedule_slots"
+  - "notification_outbox"
+  - "user_notifications"
+  - "deliver in-app"
+- Keep text large enough to read in a presentation slide.
+- If a label would be too small, remove less important arrows rather than shrinking text.
+```
+
+## Prompt Update Sau Khi Verify Ảnh V5
+
+Ảnh V5 đã **tốt hơn rất nhiều**:
+
+- Redis chỉ còn một box trong Backend Runtime.
+- Đã có `OpenAI Chat LLM`.
+- Đã ghi rõ typed chat dùng `gpt-4o-mini + RAG`.
+- Các provider cho document pipeline (`Gemini`, `Embeddings`, `Edge TTS`) đã nối đúng từ `Celery Document Worker`.
+
+Nhưng vẫn chưa nên chốt vì lỗi chính còn nằm ở **mũi tên realtime**:
+
+1. `LiveKit SDK` đang bị vẽ như mũi tên quay về Flutter, chưa thể hiện rõ Flutter kết nối tới `LiveKit Cloud Room`.
+2. `speech-to-text + realtime voice response` đang chĩa gần/nhầm vào `LiveKit Cloud Room`. Đúng là `OpenAI Realtime` xử lý voice model; `LiveKit Cloud Room` chỉ là transport hub.
+3. `text answer: gpt-4o-mini` chưa chĩa rõ vào `OpenAI Chat LLM`.
+4. `deliver in-app` còn bị kéo sang vùng External Services. Đúng là notification chỉ ghi/claim trong Postgres (`notification_outbox`, `user_notifications`).
+5. Dù đã có note typed chat, sơ đồ vẫn chưa đủ trực quan để người phỏng vấn nhìn một phát hiểu: **Voice và Typed Chat cùng đi qua LiveKit transport, nhưng tách model xử lý khác nhau**.
+
+Prompt V6 dưới đây đổi layout realtime thành một hub rõ ràng: đặt `LiveKit Cloud Room` ở giữa Flutter và Agent, không để nó lẫn trong stack provider bên phải. Đây là cách dễ vẽ đúng hơn.
+
+```text
+Create a corrected V6 TRIAM System Architecture diagram for a capstone defense slide.
+
+Goal:
+Make the architecture easy to understand and architecturally correct. The most important correction is the LiveKit Chat/Voice flow.
+
+Canvas and style:
+- 16:9 landscape.
+- Clean flat vector architecture diagram.
+- White or very light background.
+- Large readable text.
+- Minimal arrow crossings.
+- Use grouped zones with subtle colors.
+- Do not duplicate services.
+- Do not invent services.
+
+Title:
+"TRIAM System Architecture"
+
+Subtitle:
+"Document-to-Audio Learning, LiveKit Chat/Voice Agent, Progress Tracking, and In-App Review Notifications"
+
+Use these main zones:
+1. Client
+2. Realtime Transport
+3. Backend Runtime - Hugging Face Docker Space
+4. Data Layer - Supabase
+5. External AI Services
+6. Production Learning Loop
+
+IMPORTANT LAYOUT:
+- Put "Flutter Mobile App" on the far left.
+- Put "LiveKit Cloud Room" as a standalone transport hub between Flutter and the Backend Runtime, not inside the right-side AI provider stack.
+- Put "LiveKit Realtime Agent" inside Backend Runtime, horizontally aligned with LiveKit Cloud Room.
+- Put "OpenAI Realtime", "OpenAI Chat LLM", and "Tavily Search" to the right of LiveKit Realtime Agent as Agent AI Services.
+- Put "Gemini LLM", "OpenAI Embeddings", and "Edge TTS" to the right of Celery Document Worker as Document AI Services.
+- Put "Celery Beat + Notification Workers" near Supabase Postgres, not near External AI Services.
+
+ZONE 1: Client
+Box: "Flutter Mobile App"
+Items:
+- Upload Document
+- Reading Plan
+- Audio Player
+- Progress Tracking
+- Study Chat / Voice
+- In-App Notifications
+
+ZONE 2: Realtime Transport
+Box: "LiveKit Cloud Room"
+Sub-label:
+- realtime audio transport
+- DataChannel: lk.chat / lk.transcript / lk.control
+
+ZONE 3: Backend Runtime - Hugging Face Docker Space
+Components:
+
+1. "FastAPI API Server"
+Bullets:
+- Upload / Books / Plans
+- LiveKit token API
+- Jobs & Processing Status
+- Study Context & Chat Threads
+- Learning Progress API
+- Notifications API
+
+2. "Redis Cloud Broker"
+Bullets:
+- document queue
+- notification queue
+- maintenance queue
+
+3. "Celery Document Worker"
+Bullets:
+- Parse chapters
+- RAG embeddings
+- LLM normalize
+- TTS audio generation
+- Partial-ready unlock
+
+4. "Celery Beat + Notification Workers"
+Bullets:
+- scan_due
+- deliver_due
+- stale-lock recovery
+
+5. "LiveKit Realtime Agent"
+Bullets:
+- Voice lane: OpenAI Realtime
+- Typed chat lane: OpenAI Chat LLM + RAG
+- publishes lk.chat / lk.transcript
+- reads lk.control web-search toggle
+
+ZONE 4: Data Layer - Supabase
+Box: "Supabase Postgres + pgvector"
+Key table groups:
+- books / chapters / chapter_segments
+- processing_jobs / chapter_processing_states
+- reading_plans / reading_plan_schedule_slots
+- chapter_learning_progress
+- spaced_review_items
+- notification_outbox / user_notifications
+- study_contexts / chat_threads / chat_messages
+- book_knowledge vectors
+
+Box: "Supabase Storage"
+Buckets:
+- raw_books
+- audios
+
+ZONE 5: External AI Services
+Group A: "Document AI Services"
+- Gemini LLM
+  "normalize TTS scripts"
+- OpenAI Embeddings
+  "text-embedding-3-small"
+- Edge TTS
+  "audio segments + review audio"
+
+Group B: "Agent AI Services"
+- OpenAI Realtime
+  "voice: STT + realtime voice response"
+- OpenAI Chat LLM
+  "typed chat: gpt-4o-mini"
+- Tavily Search
+  "optional web lookup"
+
+CORRECT ARROWS:
+
+Client and API:
+- Flutter Mobile App -> FastAPI API Server, label "REST API"
+- FastAPI API Server -> Flutter Mobile App, label "LiveKit token + API responses"
+
+Realtime transport:
+- Flutter Mobile App <-> LiveKit Cloud Room, label "LiveKit SDK: audio + DataChannel"
+- LiveKit Realtime Agent <-> LiveKit Cloud Room, label "agent room connection"
+
+Voice lane:
+- Flutter Mobile App -> LiveKit Cloud Room -> LiveKit Realtime Agent, label "voice audio"
+- LiveKit Realtime Agent -> OpenAI Realtime, label "voice STT + response"
+- LiveKit Realtime Agent -> LiveKit Cloud Room -> Flutter Mobile App, label "assistant voice/audio"
+
+Typed chat lane:
+- Flutter Mobile App -> LiveKit Cloud Room -> LiveKit Realtime Agent, label "typed text via lk.chat"
+- LiveKit Realtime Agent -> OpenAI Chat LLM, label "text answer: gpt-4o-mini"
+- LiveKit Realtime Agent <-> Supabase Postgres + pgvector, label "chat history + RAG"
+- LiveKit Realtime Agent -> Tavily Search, label "optional web search"
+- LiveKit Realtime Agent -> LiveKit Cloud Room -> Flutter Mobile App, label "lk.chat + lk.transcript"
+
+Task queue:
+- FastAPI API Server -> Redis Cloud Broker, label "enqueue task IDs"
+- Redis Cloud Broker -> Celery Document Worker, label "document queue"
+- Redis Cloud Broker -> Celery Beat + Notification Workers, label "notification / maintenance queues"
+
+Document processing:
+- FastAPI API Server -> Supabase Storage, label "upload original document"
+- FastAPI API Server <-> Supabase Postgres + pgvector, label "CRUD + polling state"
+- Celery Document Worker <-> Supabase Postgres + pgvector, label "jobs, segments, vectors, progress"
+- Celery Document Worker <-> Supabase Storage, label "download document / upload audio"
+- Celery Document Worker -> Gemini LLM, label "normalize"
+- Celery Document Worker -> OpenAI Embeddings, label "embed chunks"
+- Celery Document Worker -> Edge TTS, label "generate audio"
+
+Notifications:
+- Celery Beat + Notification Workers -> Supabase Postgres + pgvector, label "scan due reminders/reviews"
+- Celery Beat + Notification Workers -> Supabase Postgres + pgvector, label "create/claim notification_outbox"
+- Celery Beat + Notification Workers -> Supabase Postgres + pgvector, label "deliver user_notifications"
+
+Important notification rule:
+Do not draw any notification arrow to Supabase Storage or External AI Services. In-app notification delivery means creating rows in Postgres user_notifications.
+
+ZONE 6: Production Learning Loop
+Draw a clear horizontal band at the bottom:
+Book READY -> User listens to segments -> FE sends progress -> chapter_learning_progress -> >=80% or manual complete -> Create spaced_review_items -> scan_due -> notification_outbox -> deliver_due -> user_notifications
+
+Note under the loop:
+"Book READY does not mean User COMPLETED"
+
+Bottom callouts:
+- "Postgres is the source of truth"
+- "Redis is only the Celery broker"
+- "Voice uses OpenAI Realtime"
+- "Typed chat uses LiveKit DataChannel + text LLM"
+- "Spaced review starts after chapter completion"
+- "First playable chapter unlocks early listening"
+- "In-app notification now; push notification is future work"
+- "Auth currently planned to replace mock user ID"
+
+STRICT NEGATIVE RULES:
+- Do NOT draw Redis twice.
+- Do NOT draw LiveKit Cloud Room as an AI model.
+- Do NOT draw speech-to-text pointing to LiveKit Cloud Room. It must point to OpenAI Realtime.
+- Do NOT draw typed chat pointing to OpenAI Realtime. It must point to OpenAI Chat LLM.
+- Do NOT imply OpenAI Realtime handles typed chat.
+- Do NOT draw Flutter connecting directly to LiveKit Realtime Agent. Flutter connects to LiveKit Cloud Room.
+- Do NOT draw Celery Beat + Notification Workers calling Gemini LLM, Edge TTS, OpenAI Embeddings, OpenAI Realtime, OpenAI Chat LLM, or Tavily.
+- Do NOT draw Celery Beat + Notification Workers writing to Supabase Storage.
+- Do NOT draw Pinecone.
+- Do NOT draw RabbitMQ.
+- Do NOT draw Firebase Push as implemented.
+- Do NOT draw Supabase Auth as implemented.
+- Do NOT draw OCR/scanned PDF processing as implemented.
+- Do NOT imply spaced review is created when chapter audio is generated.
+
+TEXT QUALITY:
+- Spell these labels exactly:
+  - "LiveKit Cloud Room"
+  - "lk.chat / lk.transcript"
+  - "lk.control"
+  - "OpenAI Chat LLM"
+  - "gpt-4o-mini"
+  - "OpenAI Realtime"
+  - "enqueue task IDs"
+  - "chapter_processing_states"
+  - "reading_plan_schedule_slots"
+  - "notification_outbox"
+  - "user_notifications"
+  - "deliver user_notifications"
+- Keep text large enough to read in a presentation slide.
+- Prefer fewer correct arrows over many confusing arrows.
+- If an arrow label would be too small, remove that label rather than shrinking all text.
+```

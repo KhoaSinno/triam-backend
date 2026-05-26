@@ -102,7 +102,7 @@ def add_document_to_context(
 ) -> StudyContextDocumentLink:
     """Validate book và context, sau đó tạo link giữa context và document."""
     book = get_book_by_id(session, payload.book_id)
-    if not book:
+    if not book or book.user_id != user_id:
         raise BookNotFoundError()
 
     _get_owned_context(session, context_id, user_id)

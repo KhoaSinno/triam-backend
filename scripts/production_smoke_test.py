@@ -118,6 +118,7 @@ def _read_book_processing_status(client: httpx.Client, book_id: str) -> None:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Smoke test a deployed TRIAM API without exposing secrets.")
     parser.add_argument("--base-url", default=os.getenv("TRIAM_API_BASE_URL", "http://127.0.0.1:8000"), help="API base URL, for example https://<space>.hf.space")
+    parser.add_argument("--access-token", default=os.getenv("TRIAM_ACCESS_TOKEN"), help="Supabase access token for authenticated user-owned APIs.")
     parser.add_argument("--pdf-path", type=Path, help="Optional PDF path to upload through the production API.")
     parser.add_argument("--book-id", help="Existing book id to inspect or generate a plan for.")
     parser.add_argument("--job-id", help="Existing job id to inspect or poll.")
@@ -139,9 +140,13 @@ def main() -> int:
     args = parse_args()
     base_url = args.base_url.rstrip("/")
     schedule_config = args.schedule_days or ["Mon"]
+    headers = {"Authorization": f"Bearer {args.access_token}"} if args.access_token else {}
 
-    with httpx.Client(base_url=base_url, timeout=args.request_timeout) as client:
+    with httpx.Client(base_url=base_url, timeout=args.request_timeout, headers=headers) as client:
         _check_health(client, args.require_background_ok)
+
+        if (args.pdf_path or args.book_id or args.job_id or args.generate_plan) and not args.access_token:
+            raise SystemExit("Authenticated smoke steps require --access-token or TRIAM_ACCESS_TOKEN.")
 
         book_id = args.book_id
         if args.pdf_path:
