@@ -3,27 +3,30 @@ import uuid
 
 import aiofiles
 from fastapi import UploadFile
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session
 
 from app.core.config import settings
 from app.core.constant import BookStatus, DocumentType, PlanStatus, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import (
+    AppException,
     BookNotFoundError,
     BookStatusConflictError,
     DatabaseError,
     DocumentExtractionError,
     ExternalServiceError,
     FileTooLargeError,
+    ReadingPlanScheduleConflictError,
     UnsupportedFileTypeError,
 )
 from app.core.logger import log as logger
 from app.models.db_models import Book, Chapter, ProcessingJob, ReadingPlan
 from app.repositories.audiobook_repo import create_book, update_book_status
 from app.repositories.chapter_repo import create_chapter
-from app.repositories.plan_repo import create_reading_plan
-from app.repositories.processing_job_repo import create_processing_job, update_processing_job
+from app.repositories.processing_job_repo import update_processing_job
 from app.schemas.plan import PlanInput
 from app.services.document_parser_service import extract_chapters_by_document_type
+from app.services.reading_plan_schedule_service import build_slots_for_plan, validate_plan_schedule_for_create
 from app.services.storage_service import upload_file_to_supabase
 from app.tasks.book_tasks import process_book_task
 
@@ -170,7 +173,9 @@ async def handle_generate_plan(session: Session, payload: PlanInput) -> dict:
     if book.status not in (BookStatus.DRAFT,):
         raise BookStatusConflictError(f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
 
-    # 2. Lưu ReadingPlan + cập nhật Book status
+    slots = validate_plan_schedule_for_create(session, user_id=MOCK_USER_ID, schedule_config=payload.schedule_config)
+
+    # 2. Lưu ReadingPlan + schedule slots + progress job + cập nhật Book status
     try:
         plan = ReadingPlan(
             book_id=payload.book_id,
@@ -179,7 +184,16 @@ async def handle_generate_plan(session: Session, payload: PlanInput) -> dict:
             schedule_config=payload.schedule_config,
             status=PlanStatus.ACTIVE,
         )
-        create_reading_plan(session, plan)
+        session.add(plan)
+        session.flush()
+
+        for slot in build_slots_for_plan(
+            user_id=MOCK_USER_ID,
+            book_id=payload.book_id,
+            plan_id=plan.id,
+            slots=slots,
+        ):
+            session.add(slot)
 
         job = ProcessingJob(
             user_id=MOCK_USER_ID,
@@ -192,12 +206,22 @@ async def handle_generate_plan(session: Session, payload: PlanInput) -> dict:
             progress_percent=0,
             current_step="Đang chờ xử lý sách.",
         )
-        create_processing_job(session, job)
+        session.add(job)
 
-        update_book_status(session, payload.book_id, BookStatus.PROCESSING)
+        book.status = BookStatus.PROCESSING
+        session.add(book)
+        session.commit()
+        session.refresh(job)
 
         logger.info(f"📋 ReadingPlan created for book {payload.book_id} | mode={payload.mode.value} | job={job.id}")
+    except IntegrityError as e:
+        session.rollback()
+        raise ReadingPlanScheduleConflictError() from e
+    except AppException:
+        session.rollback()
+        raise
     except Exception as e:
+        session.rollback()
         logger.error(f"Failed to create reading plan: {e}")
         raise DatabaseError(f"Lỗi lưu ReadingPlan: {str(e)}") from e
 

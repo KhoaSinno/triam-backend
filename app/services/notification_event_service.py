@@ -6,21 +6,25 @@ from sqlmodel import Session, select
 from app.core.config import settings
 from app.core.constant import (
     BookStatus,
+    LearningProgressStatus,
     NotificationChannel,
     NotificationStatus,
     NotificationType,
     PlanMode,
     PlanStatus,
+    ReviewItemStatus,
 )
 from app.core.logger import log
 from app.models.db_models import (
     Book,
     Chapter,
+    ChapterLearningProgress,
     NotificationOutbox,
     ReadingPlan,
     SpacedReviewItem,
     UserNotification,
 )
+from app.repositories.learning_progress_repo import has_playable_uncompleted_chapter, has_studied_book_between
 from app.repositories.notification_outbox_repo import (
     count_outbox_for_user_between,
     create_outbox_once,
@@ -38,7 +42,6 @@ from app.services.reminder_schedule_service import (
     to_local,
     weekday_is_enabled,
 )
-from app.services.spaced_review_service import create_spaced_reviews_for_chapter
 
 
 def _daily_cap_available(session: Session, *, user_id: uuid.UUID, due_at: datetime, user_settings) -> bool:
@@ -117,48 +120,104 @@ def create_content_ready_outbox_once(
     )
 
 
-def create_chapter_ready_learning_events(
+def create_first_playable_ready_outbox_once(
     session: Session,
     *,
     user_id: uuid.UUID,
     book_id: uuid.UUID,
     book_title: str,
-    chapter_id: uuid.UUID,
-    chapter_title: str,
     mode: PlanMode | str,
-    review_text: str,
     now: datetime,
-) -> None:
-    mode_value = PlanMode(mode)
-    created_reviews = create_spaced_reviews_for_chapter(
+) -> NotificationOutbox | None:
+    mode_value = PlanMode(mode).value
+    adjusted_due_at = _adjust_due_time(session, user_id=user_id, due_at=now)
+    if adjusted_due_at is None:
+        return None
+
+    return create_outbox_once(
         session,
-        user_id=user_id,
-        book_id=book_id,
-        chapter_id=chapter_id,
-        mode=mode_value,
-        review_text=review_text,
-        base_time=now,
+        NotificationOutbox(
+            user_id=user_id,
+            type=NotificationType.CONTENT_READY,
+            channel=NotificationChannel.IN_APP,
+            status=NotificationStatus.PENDING,
+            payload={
+                "subtype": "first_playable",
+                "book_id": str(book_id),
+                "book_title": book_title,
+                "mode": mode_value,
+                "action_type": "open_book",
+                "action_payload": {
+                    "book_id": str(book_id),
+                    "mode": mode_value,
+                },
+            },
+            due_at=adjusted_due_at,
+            idempotency_key=f"content-ready:first-playable:{user_id}:{book_id}:{mode_value}",
+        ),
     )
-    created_notification = create_content_ready_outbox_once(
+
+
+def create_book_ready_outbox_once(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    book_id: uuid.UUID,
+    book_title: str,
+    mode: PlanMode | str,
+    now: datetime,
+) -> NotificationOutbox | None:
+    mode_value = PlanMode(mode).value
+    adjusted_due_at = _adjust_due_time(session, user_id=user_id, due_at=now)
+    if adjusted_due_at is None:
+        return None
+
+    return create_outbox_once(
         session,
-        user_id=user_id,
-        book_id=book_id,
-        book_title=book_title,
-        chapter_id=chapter_id,
-        chapter_title=chapter_title,
-        mode=mode_value,
-        due_at=now,
-    )
-    log.info(
-        f"Learning events created | book_id={book_id} | chapter_id={chapter_id} | "
-        f"mode={mode_value.value} | reviews={len(created_reviews)} | "
-        f"content_ready={bool(created_notification)}"
+        NotificationOutbox(
+            user_id=user_id,
+            type=NotificationType.CONTENT_READY,
+            channel=NotificationChannel.IN_APP,
+            status=NotificationStatus.PENDING,
+            payload={
+                "subtype": "book_ready",
+                "book_id": str(book_id),
+                "book_title": book_title,
+                "mode": mode_value,
+                "action_type": "open_book",
+                "action_payload": {
+                    "book_id": str(book_id),
+                    "mode": mode_value,
+                },
+            },
+            due_at=adjusted_due_at,
+            idempotency_key=f"content-ready:book-ready:{user_id}:{book_id}:{mode_value}",
+        ),
     )
 
 
 def _build_review_outbox(session: Session, review_item: SpacedReviewItem, *, now: datetime) -> NotificationOutbox | None:
     user_settings = get_or_create_notification_settings(session, review_item.user_id)
     if not user_settings.spaced_review_enabled:
+        return None
+
+    progress = None
+    if review_item.source_progress_id:
+        progress = session.get(ChapterLearningProgress, review_item.source_progress_id)
+    if not progress:
+        progress = session.exec(
+            select(ChapterLearningProgress).where(
+                ChapterLearningProgress.user_id == review_item.user_id,
+                ChapterLearningProgress.chapter_id == review_item.chapter_id,
+                ChapterLearningProgress.mode == review_item.mode,
+                ChapterLearningProgress.status == LearningProgressStatus.COMPLETED,
+            )
+        ).first()
+    if not progress or progress.status != LearningProgressStatus.COMPLETED:
+        review_item.status = ReviewItemStatus.CANCELLED
+        review_item.updated_at = now
+        session.add(review_item)
+        session.commit()
         return None
 
     due_at = shift_out_of_quiet_hours(
@@ -243,6 +302,20 @@ def _build_plan_reminder_outbox(session: Session, plan: ReadingPlan, book: Book,
     if not _daily_cap_available(session, user_id=book.user_id, due_at=due_at, user_settings=user_settings):
         return None
 
+    if not has_playable_uncompleted_chapter(session, user_id=book.user_id, book_id=book.id, mode=plan.mode):
+        return None
+
+    start_utc, end_utc = local_day_bounds_utc(local_now.date(), user_settings.timezone)
+    if has_studied_book_between(
+        session,
+        user_id=book.user_id,
+        book_id=book.id,
+        mode=plan.mode,
+        start_utc=start_utc,
+        end_utc=end_utc,
+    ):
+        return None
+
     local_date = local_now.date().isoformat()
     payload = {
         "book_id": str(book.id),
@@ -265,7 +338,7 @@ def _build_plan_reminder_outbox(session: Session, plan: ReadingPlan, book: Book,
             status=NotificationStatus.PENDING,
             payload=payload,
             due_at=due_at,
-            idempotency_key=f"plan:{book.user_id}:{book.id}:{local_date}",
+            idempotency_key=f"plan:{book.user_id}:{book.id}:{plan.id}:{local_date}",
         ),
     )
 

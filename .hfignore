@@ -50,6 +50,7 @@ script_ouputs/
 # Internal docs, generated reports, local scripts, and tests
 _codebase/
 _docs_implemented/
+_docs_capstone/
 implement_docs/
 scripts/
 script_outputs/

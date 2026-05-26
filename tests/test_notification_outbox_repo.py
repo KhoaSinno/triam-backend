@@ -5,7 +5,7 @@ from sqlmodel import Session, select
 
 from app.core.constant import BookStatus, NotificationChannel, NotificationStatus, NotificationType, PlanMode, PlanStatus
 from app.db.database import engine
-from app.models.db_models import Book, NotificationOutbox, NotificationSettings, ReadingPlan, UserNotification
+from app.models.db_models import Book, Chapter, ChapterSegment, NotificationOutbox, NotificationSettings, ReadingPlan, UserNotification
 from app.repositories.notification_outbox_repo import claim_due_outbox, create_outbox_once, recover_stale_outbox
 from app.services.notification_event_service import _build_plan_reminder_outbox
 from app.tasks.notification_tasks import deliver_one_notification
@@ -84,6 +84,7 @@ def test_recover_stale_processing_outbox_returns_pending():
 
 def test_claim_and_deliver_in_app_outbox_once():
     outbox = _outbox()
+    outbox.due_at = datetime(2000, 1, 1, tzinfo=timezone.utc)
     created_ids: list[uuid.UUID] = []
     try:
         with Session(engine) as session:
@@ -94,7 +95,7 @@ def test_claim_and_deliver_in_app_outbox_once():
             claimed = claim_due_outbox(
                 session,
                 now=datetime.now(timezone.utc),
-                limit=10,
+                limit=1,
                 worker_id="pytest-worker",
             )
             assert claimed == [created.id]
@@ -132,6 +133,20 @@ def test_plan_reminder_scan_creates_one_outbox_per_day():
                 status=PlanStatus.ACTIVE,
             )
             session.add(book)
+            session.flush()
+            chapter = Chapter(book_id=book_id, chapter_index=0, title="Chapter 1", status=BookStatus.READY)
+            session.add(chapter)
+            session.flush()
+            session.add(
+                ChapterSegment(
+                    chapter_id=chapter.id,
+                    segment_index=0,
+                    audio_url="https://example.test/audio.mp3",
+                    text_content="Test audio",
+                    duration_ms=120000,
+                    mode=PlanMode.FULL,
+                )
+            )
             session.add(plan)
             session.commit()
 

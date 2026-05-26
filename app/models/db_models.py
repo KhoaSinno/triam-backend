@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlmodel import Field, PrimaryKeyConstraint, Relationship, SQLModel
 
 from app.core.constant import (
+    LearningProgressStatus,
     NotificationChannel,
     NotificationStatus,
     NotificationType,
@@ -65,6 +66,21 @@ class ReadingPlan(SQLModel, table=True):
 
     # === RELATIONSHIPS ===
     book: Book = Relationship(back_populates="reading_plans")
+
+
+class ReadingPlanScheduleSlot(SQLModel, table=True):
+    __tablename__ = "reading_plan_schedule_slots"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
+    plan_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("reading_plans.id", ondelete="CASCADE"), index=True, nullable=False))
+    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
+    weekday: int = Field(sa_column=Column(Integer, nullable=False))
+    reminder_time: str = Field(sa_column=Column(Text, nullable=False))
+    timezone: str = Field(default="Asia/Ho_Chi_Minh", sa_column=Column(Text, nullable=False))
+    is_active: bool = Field(default=True, sa_column=Column(Boolean, index=True, nullable=False))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
 
 class ProcessingJob(SQLModel, table=True):
@@ -148,6 +164,31 @@ class ChapterSegment(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("chapter_id", "mode", "segment_index", name="uq_segments_chapter_mode_segment_index"),)
 
 
+class ChapterLearningProgress(SQLModel, table=True):
+    __tablename__ = "chapter_learning_progress"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
+    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
+    chapter_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="CASCADE"), index=True, nullable=False))
+    mode: PlanMode = Field(sa_column=Column(SAEnum(PlanMode), nullable=False))
+    current_segment_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("chapter_segments.id", ondelete="SET NULL")))
+    last_segment_index: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    position_ms: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    listened_ms: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    total_duration_ms: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    progress_percent: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    max_progress_percent: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    status: LearningProgressStatus = Field(default=LearningProgressStatus.NOT_STARTED, sa_column=Column(SAEnum(LearningProgressStatus), index=True, nullable=False))
+    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    last_activity_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
+    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+
+    __table_args__ = (UniqueConstraint("user_id", "chapter_id", "mode", name="uq_learning_progress_user_chapter_mode"),)
+
+
 class NotificationSettings(SQLModel, table=True):
     __tablename__ = "notification_settings"
 
@@ -176,13 +217,13 @@ class SpacedReviewItem(SQLModel, table=True):
     due_at: datetime = Field(sa_column=Column(DateTime(timezone=True), index=True, nullable=False))
     status: ReviewItemStatus = Field(default=ReviewItemStatus.PENDING, sa_column=Column(SAEnum(ReviewItemStatus), index=True, nullable=False))
     review_text_snapshot: Optional[str] = Field(default=None, sa_column=Column(Text))
+    anchor_completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
+    source_progress_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("chapter_learning_progress.id", ondelete="SET NULL"), index=True))
+    notified_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    last_reviewed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
-
-    __table_args__ = (
-        UniqueConstraint("user_id", "chapter_id", "mode", "interval_days", name="uq_review_user_chapter_mode_interval"),
-    )
 
 
 class NotificationOutbox(SQLModel, table=True):

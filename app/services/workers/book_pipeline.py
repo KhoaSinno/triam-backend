@@ -34,6 +34,7 @@ from app.repositories.audiobook_repo import update_book_status
 from app.repositories.chapter_repo import get_draft_chapters_by_book
 from app.repositories.processing_job_repo import update_processing_job
 from app.services.document_parser_service import extract_chapters_by_document_type, infer_document_type_from_url
+from app.services.notification_event_service import create_book_ready_outbox_once, create_first_playable_ready_outbox_once
 from app.services.token_budget_service import TextBudget, estimate_text_budget
 from app.services.workers.chapter_worker import process_chapter, process_switch_mode_chapter
 
@@ -106,6 +107,41 @@ def _update_job(
 def _set_book_status(book_id: uuid.UUID, status: BookStatus, error_message: str | None = None) -> None:
     with Session(engine) as session:
         update_book_status(session, book_id, status, error_message)
+
+
+def _create_first_playable_notification_safely(book: Book, mode: str) -> None:
+    try:
+        with Session(engine) as session:
+            created = create_first_playable_ready_outbox_once(
+                session,
+                user_id=book.user_id,
+                book_id=book.id,
+                book_title=book.title,
+                mode=mode,
+                now=datetime.now(timezone.utc),
+            )
+            logger.info(f"Content-ready first-playable event | book_id={book.id} | mode={mode} | created={bool(created)}")
+    except Exception as exc:
+        logger.warning(f"Content-ready first-playable event failed | book_id={book.id} | mode={mode} | error={exc}")
+
+
+def _create_book_ready_notification_safely(book_id: uuid.UUID, mode: str) -> None:
+    try:
+        with Session(engine) as session:
+            book = session.get(Book, book_id)
+            if not book:
+                return
+            created = create_book_ready_outbox_once(
+                session,
+                user_id=book.user_id,
+                book_id=book.id,
+                book_title=book.title,
+                mode=mode,
+                now=datetime.now(timezone.utc),
+            )
+            logger.info(f"Content-ready book-ready event | book_id={book.id} | mode={mode} | created={bool(created)}")
+    except Exception as exc:
+        logger.warning(f"Content-ready book-ready event failed | book_id={book_id} | mode={mode} | error={exc}")
 
 
 def _job_is_ready(job_id: uuid.UUID | None) -> bool:
@@ -338,6 +374,7 @@ async def run_background_processing(book_id: uuid.UUID, mode: str, job_id: uuid.
                     current_step="Đã có nội dung đầu tiên có thể nghe. Phần còn lại đang được xử lý.",
                     done_units=completed,
                 )
+        _create_first_playable_notification_safely(book, mode_value)
 
         remaining_items = work_items[first_count:]
         if remaining_items:
@@ -364,6 +401,7 @@ async def run_background_processing(book_id: uuid.UUID, mode: str, job_id: uuid.
 
         # ── 5. Cập nhật Book status → READY ──────────────────────────────────
         _set_book_status(book_id, BookStatus.READY)
+        _create_book_ready_notification_safely(book_id, mode_value)
         _update_job(
             job_id,
             status=ProcessingJobStatus.READY,
@@ -482,6 +520,7 @@ async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str, job_id: 
                     current_step=f"Đã có audio đầu tiên cho mode {new_mode_value}. Phần còn lại đang được xử lý.",
                     done_units=completed,
                 )
+        _create_first_playable_notification_safely(book, new_mode_value)
 
         remaining_items = work_items[first_count:]
         if remaining_items:
@@ -505,6 +544,7 @@ async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str, job_id: 
             await _track_progress(tasks, job_id, total_units, book_id, f"Đã sinh audio mode {new_mode_value} cho {{completed}}/{{total}} chương.", completed_offset=completed)
 
         _set_book_status(book_id, BookStatus.READY)
+        _create_book_ready_notification_safely(book_id, new_mode_value)
         _update_job(
             job_id,
             status=ProcessingJobStatus.READY,

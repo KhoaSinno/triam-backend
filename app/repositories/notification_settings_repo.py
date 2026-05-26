@@ -7,15 +7,32 @@ from sqlmodel import Session
 from app.core.config import settings
 from app.models.db_models import NotificationSettings
 
+MIN_DAILY_CAP = 0
+MAX_DAILY_CAP = 10
+
+
+def _normalize_notification_settings(session: Session, notification_settings: NotificationSettings) -> NotificationSettings:
+    safe_daily_cap = min(max(notification_settings.daily_cap, MIN_DAILY_CAP), MAX_DAILY_CAP)
+    if notification_settings.daily_cap != safe_daily_cap:
+        notification_settings.daily_cap = safe_daily_cap
+        notification_settings.updated_at = datetime.now(timezone.utc)
+        session.add(notification_settings)
+        session.commit()
+        session.refresh(notification_settings)
+    return notification_settings
+
 
 def get_notification_settings(session: Session, user_id: uuid.UUID) -> NotificationSettings | None:
-    return session.get(NotificationSettings, user_id)
+    notification_settings = session.get(NotificationSettings, user_id)
+    if not notification_settings:
+        return None
+    return _normalize_notification_settings(session, notification_settings)
 
 
 def get_or_create_notification_settings(session: Session, user_id: uuid.UUID) -> NotificationSettings:
     existing = get_notification_settings(session, user_id)
     if existing:
-        return existing
+        return _normalize_notification_settings(session, existing)
 
     new_settings = NotificationSettings(
         user_id=user_id,

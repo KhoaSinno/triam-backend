@@ -68,3 +68,14 @@ class ReviewItemStatus(str, Enum):
     COMPLETED = "completed"
     SKIPPED = "skipped"
     CANCELLED = "cancelled"
+
+
+class LearningProgressStatus(str, Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+
+
+class ReviewAction(str, Enum):
+    COMPLETE = "complete"
+    SKIP = "skip"

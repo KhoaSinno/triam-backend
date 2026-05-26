@@ -19,7 +19,6 @@ Concurrency model:
 import asyncio
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
 
 from sqlmodel import Session
 
@@ -27,13 +26,11 @@ from app.core.config import settings
 from app.core.constant import BookStatus, PlanMode, ProcessingJobStatus
 from app.core.logger import log as logger
 from app.db.database import engine
-from app.models.db_models import Book, Chapter
 from app.repositories.book_knowledge_repo import delete_knowledge_by_chapter
 from app.repositories.chapter_processing_state_repo import get_state_by_chapter_and_mode, mark_chapter_state_error, mark_chapter_state_ready, upsert_chapter_processing_state
 from app.repositories.chapter_repo import update_chapter_status
 from app.repositories.chapter_segment_repo import check_segments_exist_by_mode, delete_segments_by_chapter_and_mode
 from app.services.embed_service import embed_and_save_chapter
-from app.services.notification_event_service import create_chapter_ready_learning_events
 from app.services.workers.tts_worker import run_tts_pipeline
 
 # Tối đa N chapters xử lý song song — config thấp giúp giảm rate limit LLM/TTS.
@@ -45,36 +42,6 @@ class ChapterProcessingResult:
     chapter_id: uuid.UUID
     main_segment_count: int
     skipped: bool = False
-
-
-def _create_learning_events_safely(
-    session: Session,
-    *,
-    user_id: uuid.UUID,
-    book_id: uuid.UUID,
-    book_title: str,
-    chapter_id: uuid.UUID,
-    chapter_title: str,
-    mode: PlanMode,
-    review_text: str,
-) -> None:
-    try:
-        create_chapter_ready_learning_events(
-            session,
-            user_id=user_id,
-            book_id=book_id,
-            book_title=book_title,
-            chapter_id=chapter_id,
-            chapter_title=chapter_title,
-            mode=mode,
-            review_text=review_text,
-            now=datetime.now(timezone.utc),
-        )
-    except Exception as exc:
-        logger.warning(
-            f"Learning event creation failed but chapter remains READY | "
-            f"chapter_id={chapter_id} | mode={mode.value} | error={exc}"
-        )
 
 
 async def _run_rag_pipeline(
@@ -146,16 +113,6 @@ async def process_chapter(
             with Session(engine) as session:
                 update_chapter_status(session, chapter_id, BookStatus.READY)
                 mark_chapter_state_ready(session, chapter_id, mode_value, main_segment_count=tts_result.main_segment_count)
-                _create_learning_events_safely(
-                    session,
-                    user_id=user_id,
-                    book_id=book_id,
-                    book_title=book_title,
-                    chapter_id=chapter_id,
-                    chapter_title=chapter_title,
-                    mode=mode_value,
-                    review_text=tts_result.review_text,
-                )
             logger.info(f"✅ Chapter {chapter_index + 1} READY | mode={mode_value.value} | segments={tts_result.main_segment_count}")
             return ChapterProcessingResult(chapter_id=chapter_id, main_segment_count=tts_result.main_segment_count)
 
@@ -221,18 +178,6 @@ async def process_switch_mode_chapter(
             tts_result = await run_tts_pipeline(book_id, chapter_id, chapter_index, raw_text, mode_value.value)
             with Session(engine) as session:
                 mark_chapter_state_ready(session, chapter_id, mode_value, main_segment_count=tts_result.main_segment_count)
-                book = session.get(Book, book_id)
-                chapter = session.get(Chapter, chapter_id)
-                _create_learning_events_safely(
-                    session,
-                    user_id=user_id,
-                    book_id=book_id,
-                    book_title=book.title if book else "Sách của bạn",
-                    chapter_id=chapter_id,
-                    chapter_title=chapter.title if chapter else f"Chương {chapter_index + 1}",
-                    mode=mode_value,
-                    review_text=tts_result.review_text,
-                )
             logger.info(f"✅ Chapter {chapter_index + 1} switch mode '{mode_value.value}' READY | segments={tts_result.main_segment_count}")
             return ChapterProcessingResult(chapter_id=chapter_id, main_segment_count=tts_result.main_segment_count)
 

@@ -104,6 +104,12 @@ class Settings(BaseSettings):
     NOTIFICATION_DEFAULT_QUIET_START: str = "22:00"
     NOTIFICATION_DEFAULT_QUIET_END: str = "07:00"
 
+    # Phase 4.2 production learning loop
+    MAX_ACTIVE_LEARNING_BOOKS_PER_USER: int = 3
+    LEARNING_COMPLETION_THRESHOLD_PERCENT: int = 80
+    LEARNING_PROGRESS_STALE_SECONDS: int = 30
+    PLAN_REMINDER_STUDIED_TODAY_WINDOW_HOURS: int = 24
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

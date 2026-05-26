@@ -67,6 +67,11 @@ class NotificationNotFoundError(AppException):
     detail = "Không tìm thấy thông báo."
 
 
+class ReviewItemNotFoundError(AppException):
+    status_code = 404
+    detail = "Không tìm thấy mục ôn tập."
+
+
 # ---------------------------------------------------------------------------
 # 400 Bad Request
 # ---------------------------------------------------------------------------
@@ -105,6 +110,16 @@ class BookStatusConflictError(AppException):
 class DirectBookContextConflictError(AppException):
     status_code = 409
     detail = "Direct Book Context đã được tạo đồng thời. Vui lòng thử lại."
+
+
+class ReadingPlanScheduleConflictError(AppException):
+    status_code = 409
+    detail = "Lịch học này đang trùng với một sách khác. Hãy chọn ngày hoặc giờ khác."
+
+
+class ActiveLearningBookLimitExceededError(AppException):
+    status_code = 409
+    detail = "Bạn đã đạt giới hạn số sách đang học. Hãy hoàn thành hoặc tạm dừng một sách trước."
 
 
 # ---------------------------------------------------------------------------
