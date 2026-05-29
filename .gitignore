@@ -30,6 +30,7 @@ worker.log
 *.mp3
 *.wav
 *.pdf
+*.docx
 _log_extracted_json/
 script_outputs/
 script_ouputs/

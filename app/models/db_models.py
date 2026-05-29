@@ -41,6 +41,8 @@ class Book(SQLModel, table=True):
     file_url: Optional[str] = Field(default=None, sa_column=Column(Text))
     document_type: Optional[str] = Field(default=None, sa_column=Column(Text))
     total_chapters: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    total_sections: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    total_units: Optional[int] = Field(default=None, sa_column=Column(Integer))
     status: Optional[str] = Field(default=None, sa_column=Column(Text))
     error_message: Optional[str] = Field(default=None, sa_column=Column(Text))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
@@ -164,6 +166,109 @@ class ChapterSegment(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("chapter_id", "mode", "segment_index", name="uq_segments_chapter_mode_segment_index"),)
 
 
+class BookSection(SQLModel, table=True):
+    __tablename__ = "book_sections"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
+    parent_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("book_sections.id", ondelete="CASCADE"), index=True))
+    section_index: int = Field(sa_column=Column(Integer, nullable=False))
+    title: str = Field(sa_column=Column(Text, nullable=False))
+    level: int = Field(sa_column=Column(Integer, nullable=False))
+    path: str = Field(sa_column=Column(Text, nullable=False))
+    text_content: Optional[str] = Field(default=None, sa_column=Column(Text))
+    text_char_count: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    page_start: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    page_end: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    source_href: Optional[str] = Field(default=None, sa_column=Column(Text))
+    source_anchor: Optional[str] = Field(default=None, sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+
+    __table_args__ = (
+        UniqueConstraint("book_id", "section_index", name="uq_book_sections_book_index"),
+        UniqueConstraint("book_id", "path", name="uq_book_sections_book_path"),
+    )
+
+
+class LearningUnit(SQLModel, table=True):
+    __tablename__ = "learning_units"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
+    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
+    mode: PlanMode = Field(sa_column=Column(SAEnum(PlanMode), index=True, nullable=False))
+    unit_index: int = Field(sa_column=Column(Integer, nullable=False))
+    title: str = Field(sa_column=Column(Text, nullable=False))
+    unit_type: str = Field(sa_column=Column(Text, nullable=False))
+    status: ProcessingJobStatus = Field(default=ProcessingJobStatus.QUEUED, sa_column=Column(SAEnum(ProcessingJobStatus), index=True, nullable=False))
+    source_text_char_count: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    estimated_tokens: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    estimated_audio_seconds: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    main_segment_count: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    review_audio_url: Optional[str] = Field(default=None, sa_column=Column(Text))
+    review_text: Optional[str] = Field(default=None, sa_column=Column(Text))
+    planner_reason: Optional[str] = Field(default=None, sa_column=Column(Text))
+    error_message: Optional[str] = Field(default=None, sa_column=Column(Text))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    finished_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+
+    __table_args__ = (
+        UniqueConstraint("book_id", "mode", "unit_index", name="uq_learning_units_book_mode_index"),
+    )
+
+
+class LearningUnitSource(SQLModel, table=True):
+    __tablename__ = "learning_unit_sources"
+
+    learning_unit_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("learning_units.id", ondelete="CASCADE"), primary_key=True))
+    section_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("book_sections.id", ondelete="CASCADE"), primary_key=True))
+    source_order: int = Field(sa_column=Column(Integer, nullable=False))
+
+
+class LearningUnitSegment(SQLModel, table=True):
+    __tablename__ = "learning_unit_segments"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    learning_unit_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("learning_units.id", ondelete="CASCADE"), index=True, nullable=False))
+    segment_index: int = Field(sa_column=Column(Integer, nullable=False))
+    audio_url: Optional[str] = Field(default=None, sa_column=Column(Text))
+    text_content: Optional[str] = Field(default=None, sa_column=Column(Text))
+    duration_ms: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+
+    __table_args__ = (
+        UniqueConstraint("learning_unit_id", "segment_index", name="uq_learning_unit_segments_unit_index"),
+    )
+
+
+class LearningUnitProgress(SQLModel, table=True):
+    __tablename__ = "learning_unit_progress"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
+    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
+    learning_unit_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("learning_units.id", ondelete="CASCADE"), index=True, nullable=False))
+    mode: PlanMode = Field(sa_column=Column(SAEnum(PlanMode), nullable=False))
+    current_segment_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("learning_unit_segments.id", ondelete="SET NULL")))
+    last_segment_index: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    position_ms: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    listened_ms: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    total_duration_ms: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    progress_percent: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    max_progress_percent: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    status: LearningProgressStatus = Field(default=LearningProgressStatus.NOT_STARTED, sa_column=Column(SAEnum(LearningProgressStatus), index=True, nullable=False))
+    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    last_activity_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
+    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+
+    __table_args__ = (UniqueConstraint("user_id", "learning_unit_id", name="uq_unit_progress_user_unit"),)
+
+
 class ChapterLearningProgress(SQLModel, table=True):
     __tablename__ = "chapter_learning_progress"
 
@@ -210,7 +315,8 @@ class SpacedReviewItem(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
     book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
-    chapter_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="CASCADE"), index=True, nullable=False))
+    chapter_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="CASCADE"), index=True))
+    learning_unit_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("learning_units.id", ondelete="CASCADE"), index=True))
     mode: PlanMode = Field(sa_column=Column(SAEnum(PlanMode), nullable=False))
     interval_days: int = Field(sa_column=Column(Integer, nullable=False))
     sequence_index: int = Field(sa_column=Column(Integer, nullable=False))
@@ -219,6 +325,7 @@ class SpacedReviewItem(SQLModel, table=True):
     review_text_snapshot: Optional[str] = Field(default=None, sa_column=Column(Text))
     anchor_completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
     source_progress_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("chapter_learning_progress.id", ondelete="SET NULL"), index=True))
+    source_unit_progress_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("learning_unit_progress.id", ondelete="SET NULL"), index=True))
     notified_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     last_reviewed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
@@ -275,13 +382,17 @@ class BookKnowledge(SQLModel, table=True):
 
     id: Optional[int] = Field(default=None, primary_key=True)
     book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
-    chapter_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="CASCADE"), index=True, nullable=False))
+    chapter_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("chapters.id", ondelete="CASCADE"), index=True))
+    learning_unit_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("learning_units.id", ondelete="CASCADE"), index=True))
     chunk_index: int = Field(sa_column=Column(Integer, nullable=False))
     content: str = Field(sa_column=Column(Text, nullable=False))
     # TODO: REPALCE 1536 (OpenAI text-embedding-3-small)
     embedding: Optional[list[float]] = Field(default=None, sa_column=Column(Vector(1536)))
 
-    __table_args__ = (UniqueConstraint("chapter_id", "chunk_index", name="uq_book_knowledge_chapter_chunk_index"),)
+    __table_args__ = (
+        UniqueConstraint("chapter_id", "chunk_index", name="uq_book_knowledge_chapter_chunk_index"),
+        UniqueConstraint("learning_unit_id", "chunk_index", name="uq_book_knowledge_unit_chunk_index"),
+    )
 
 
 # === CONTEXT STUDY CONVERSATION===

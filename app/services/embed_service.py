@@ -76,3 +76,43 @@ async def embed_and_save_chapter(
 
     bulk_create_knowledge(session, records)
     log.info(f"RAG: Saved {len(records)} vectors for chapter_id={chapter_id}")
+
+
+async def embed_and_save_learning_unit(
+    book_id: uuid.UUID,
+    learning_unit_id: uuid.UUID,
+    book_title: str,
+    unit_title: str,
+    raw_text: str,
+    session: Session,
+) -> None:
+    chunks: list[str] = process_book_to_enriched_chunks(
+        book_title=book_title,
+        chapter_title=unit_title,
+        raw_text=raw_text,
+    )
+
+    if not chunks:
+        return
+
+    records: list[BookKnowledge] = []
+    batch_size = max(1, settings.EMBEDDING_BATCH_SIZE)
+    for start in range(0, len(chunks), batch_size):
+        batch = chunks[start:start + batch_size]
+        response = await aclient.embeddings.create(
+            input=batch,
+            model="text-embedding-3-small",
+        )
+        records.extend(
+            BookKnowledge(
+                book_id=book_id,
+                learning_unit_id=learning_unit_id,
+                chunk_index=start + i,
+                content=batch[i],
+                embedding=embedding_data.embedding,
+            )
+            for i, embedding_data in enumerate(response.data)
+        )
+
+    bulk_create_knowledge(session, records)
+    log.info(f"RAG: Saved {len(records)} vectors for learning_unit_id={learning_unit_id}")

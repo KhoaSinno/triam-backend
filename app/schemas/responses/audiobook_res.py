@@ -1,12 +1,3 @@
-"""
-app/schemas/responses/audiobook_res.py
-=======================================
-Response DTOs cho module Audiobook.
-
-Chỉ expose các trường Flutter FE thực sự cần — không lộ thông tin nội bộ
-(user_id, error_message, db relationships, ...).
-"""
-
 import uuid
 from datetime import datetime
 from typing import Optional
@@ -17,14 +8,13 @@ from app.core.constant import DocumentType
 
 
 class BookResponse(BaseModel):
-    """DTO cho một cuốn sách — dùng cho GET /books và GET /books/{id}."""
-
     model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
     title: str
     author: Optional[str] = None
-    total_chapters: Optional[int] = None
+    total_sections: Optional[int] = None
+    total_units: Optional[int] = None
     status: Optional[str] = None
     document_type: Optional[DocumentType] = None
     file_url: Optional[str] = None
@@ -33,8 +23,6 @@ class BookResponse(BaseModel):
 
 
 class SegmentResponse(BaseModel):
-    """DTO cho một segment audio trong chapter."""
-
     model_config = ConfigDict(from_attributes=True)
 
     id: int
@@ -42,36 +30,33 @@ class SegmentResponse(BaseModel):
     audio_url: Optional[str] = None
     text_content: Optional[str] = None
     duration_ms: Optional[int] = None
-    mode: str
 
 
-class ChapterDetailResponse(BaseModel):
-    """DTO cho một chapter kèm danh sách segments."""
-
-    model_config = ConfigDict(from_attributes=True)
-
+class LearningUnitDetailResponse(BaseModel):
     id: uuid.UUID
     title: str
     status: Optional[str] = None
-    chapter_index: int
+    unit_index: int
+    unit_type: str
+    source_text_char_count: int = 0
+    estimated_audio_seconds: int = 0
+    main_segment_count: int = 0
     review_text: str = ""
     review_audio_url: str = ""
-    chapter_segments: list[SegmentResponse] = Field(default_factory=list)
+    planner_reason: Optional[str] = None
+    segments: list[SegmentResponse] = Field(default_factory=list)
 
 
 class BookDetailResponse(BaseModel):
-    """DTO cho response của GET /books/{id}/details — sách kèm toàn bộ chapters."""
-
-    model_config = ConfigDict(from_attributes=True)
-
+    book_id: uuid.UUID
     book_status: Optional[str] = None
-    total_chapters: Optional[int] = None
-    chapters: list[ChapterDetailResponse] = Field(default_factory=list)
+    mode: str
+    total_sections: Optional[int] = None
+    total_units: int = 0
+    units: list[LearningUnitDetailResponse] = Field(default_factory=list)
 
 
 class SwitchModeResponse(BaseModel):
-    """DTO cho response của POST /books/{id}/switch-mode."""
-
     message: str
     needs_generation: bool
     job_id: Optional[uuid.UUID] = None

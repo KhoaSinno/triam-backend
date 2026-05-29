@@ -4,26 +4,24 @@ from datetime import datetime
 from sqlmodel import Session, select
 
 from app.core.constant import LearningProgressStatus, PlanMode
-from app.models.db_models import Chapter, ChapterLearningProgress, ChapterSegment
+from app.models.db_models import LearningUnit, LearningUnitProgress, LearningUnitSegment
 
 
 def get_progress(
     session: Session,
     *,
     user_id: uuid.UUID,
-    chapter_id: uuid.UUID,
-    mode: PlanMode,
-) -> ChapterLearningProgress | None:
+    learning_unit_id: uuid.UUID,
+) -> LearningUnitProgress | None:
     return session.exec(
-        select(ChapterLearningProgress).where(
-            ChapterLearningProgress.user_id == user_id,
-            ChapterLearningProgress.chapter_id == chapter_id,
-            ChapterLearningProgress.mode == mode,
+        select(LearningUnitProgress).where(
+            LearningUnitProgress.user_id == user_id,
+            LearningUnitProgress.learning_unit_id == learning_unit_id,
         )
     ).first()
 
 
-def save_progress(session: Session, progress: ChapterLearningProgress) -> ChapterLearningProgress:
+def save_progress(session: Session, progress: LearningUnitProgress) -> LearningUnitProgress:
     session.add(progress)
     session.commit()
     session.refresh(progress)
@@ -36,16 +34,16 @@ def list_book_progress(
     user_id: uuid.UUID,
     book_id: uuid.UUID,
     mode: PlanMode,
-) -> list[ChapterLearningProgress]:
+) -> list[LearningUnitProgress]:
     return list(
         session.exec(
-            select(ChapterLearningProgress)
+            select(LearningUnitProgress)
             .where(
-                ChapterLearningProgress.user_id == user_id,
-                ChapterLearningProgress.book_id == book_id,
-                ChapterLearningProgress.mode == mode,
+                LearningUnitProgress.user_id == user_id,
+                LearningUnitProgress.book_id == book_id,
+                LearningUnitProgress.mode == mode,
             )
-            .order_by(ChapterLearningProgress.updated_at)
+            .order_by(LearningUnitProgress.updated_at)
         ).all()
     )
 
@@ -56,16 +54,16 @@ def get_latest_activity(
     user_id: uuid.UUID,
     book_id: uuid.UUID,
     mode: PlanMode,
-) -> ChapterLearningProgress | None:
+) -> LearningUnitProgress | None:
     return session.exec(
-        select(ChapterLearningProgress)
+        select(LearningUnitProgress)
         .where(
-            ChapterLearningProgress.user_id == user_id,
-            ChapterLearningProgress.book_id == book_id,
-            ChapterLearningProgress.mode == mode,
-            ChapterLearningProgress.last_activity_at.is_not(None),
+            LearningUnitProgress.user_id == user_id,
+            LearningUnitProgress.book_id == book_id,
+            LearningUnitProgress.mode == mode,
+            LearningUnitProgress.last_activity_at.is_not(None),
         )
-        .order_by(ChapterLearningProgress.last_activity_at.desc())
+        .order_by(LearningUnitProgress.last_activity_at.desc())
     ).first()
 
 
@@ -80,13 +78,13 @@ def has_studied_book_between(
 ) -> bool:
     return (
         session.exec(
-            select(ChapterLearningProgress.id)
+            select(LearningUnitProgress.id)
             .where(
-                ChapterLearningProgress.user_id == user_id,
-                ChapterLearningProgress.book_id == book_id,
-                ChapterLearningProgress.mode == mode,
-                ChapterLearningProgress.last_activity_at >= start_utc,
-                ChapterLearningProgress.last_activity_at < end_utc,
+                LearningUnitProgress.user_id == user_id,
+                LearningUnitProgress.book_id == book_id,
+                LearningUnitProgress.mode == mode,
+                LearningUnitProgress.last_activity_at >= start_utc,
+                LearningUnitProgress.last_activity_at < end_utc,
             )
             .limit(1)
         ).first()
@@ -94,35 +92,35 @@ def has_studied_book_between(
     )
 
 
-def list_playable_chapter_ids(session: Session, *, book_id: uuid.UUID, mode: PlanMode) -> list[uuid.UUID]:
+def list_playable_unit_ids(session: Session, *, book_id: uuid.UUID, mode: PlanMode) -> list[uuid.UUID]:
     rows = session.exec(
-        select(Chapter.id)
-        .join(ChapterSegment, ChapterSegment.chapter_id == Chapter.id)
-        .where(Chapter.book_id == book_id, ChapterSegment.mode == mode)
-        .group_by(Chapter.id, Chapter.chapter_index)
-        .order_by(Chapter.chapter_index)
+        select(LearningUnit.id)
+        .join(LearningUnitSegment, LearningUnitSegment.learning_unit_id == LearningUnit.id)
+        .where(LearningUnit.book_id == book_id, LearningUnit.mode == mode)
+        .group_by(LearningUnit.id, LearningUnit.unit_index)
+        .order_by(LearningUnit.unit_index)
     ).all()
     return list(rows)
 
 
-def has_playable_uncompleted_chapter(
+def has_playable_uncompleted_unit(
     session: Session,
     *,
     user_id: uuid.UUID,
     book_id: uuid.UUID,
     mode: PlanMode,
 ) -> bool:
-    playable_ids = set(list_playable_chapter_ids(session, book_id=book_id, mode=mode))
+    playable_ids = set(list_playable_unit_ids(session, book_id=book_id, mode=mode))
     if not playable_ids:
         return False
 
     completed_ids = set(
         session.exec(
-            select(ChapterLearningProgress.chapter_id).where(
-                ChapterLearningProgress.user_id == user_id,
-                ChapterLearningProgress.book_id == book_id,
-                ChapterLearningProgress.mode == mode,
-                ChapterLearningProgress.status == LearningProgressStatus.COMPLETED,
+            select(LearningUnitProgress.learning_unit_id).where(
+                LearningUnitProgress.user_id == user_id,
+                LearningUnitProgress.book_id == book_id,
+                LearningUnitProgress.mode == mode,
+                LearningUnitProgress.status == LearningProgressStatus.COMPLETED,
             )
         ).all()
     )

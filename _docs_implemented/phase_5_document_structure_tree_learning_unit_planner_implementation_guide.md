@@ -1,7 +1,7 @@
 # Phase 5 Implementation Guide - Document Structure Tree And Learning Unit Planner
 
-Date: 2026-05-27  
-Status: **Implementation plan only, not source code yet**  
+Date: 2026-05-29
+Status: **Implemented and real-flow tested on Supabase dev DB**
 Depends on: Phase 1 -> Phase 4.2, current upload/parser/audio pipeline  
 Audience: Backend developer, Flutter developer, capstone reviewer
 
@@ -1363,3 +1363,320 @@ Nếu làm đúng Phase 5, hệ thống TriAm sẽ trưởng thành hơn nhiều
 - progress dễ hiểu hơn;
 - FE trình bày đúng hơn;
 - báo cáo capstone cũng thuyết phục hơn.
+
+---
+
+## 21. Implementation Result - 2026-05-29
+
+Status: **Implemented Phase 5 backend learning-unit architecture**
+
+Quan điểm chốt theo yêu cầu mới:
+
+```text
+Không cần giữ contract chapter cũ cho FE.
+FE sẽ refactor theo contract chuẩn mới.
+Backend dùng document structure + learning units làm source of truth.
+```
+
+### 21.1 Source changes
+
+Implemented/updated core files:
+
+```text
+app/services/document_structure_types.py
+app/services/document_structure_service.py
+app/services/learning_unit_planner_service.py
+app/repositories/book_section_repo.py
+app/repositories/learning_unit_repo.py
+app/repositories/learning_progress_repo.py
+app/services/workers/learning_unit_worker.py
+app/services/workers/book_pipeline.py
+app/services/workers/tts_worker.py
+app/services/upload_service.py
+app/services/audiobook_service.py
+app/services/learning_progress_service.py
+app/services/spaced_review_service.py
+app/services/notification_event_service.py
+app/services/embed_service.py
+app/models/db_models.py
+app/schemas/responses/audiobook_res.py
+app/schemas/learning_progress.py
+scripts/phase5_real_flow_test.py
+```
+
+Migration file:
+
+```text
+app/db/migrations/versions/a2c9e7f1b5d0_phase_5_document_structure_learning_units.py
+```
+
+### 21.2 New data model
+
+Phase 5 source of truth:
+
+```mermaid
+erDiagram
+    BOOK ||--o{ BOOK_SECTION : has
+    BOOK ||--o{ LEARNING_UNIT : plans
+    BOOK_SECTION ||--o{ LEARNING_UNIT_SOURCE : selected_by
+    LEARNING_UNIT ||--o{ LEARNING_UNIT_SOURCE : uses
+    LEARNING_UNIT ||--o{ LEARNING_UNIT_SEGMENT : generates
+    LEARNING_UNIT ||--o{ LEARNING_UNIT_PROGRESS : tracks
+    LEARNING_UNIT ||--o{ BOOK_KNOWLEDGE : embeds
+    LEARNING_UNIT ||--o{ SPACED_REVIEW_ITEM : schedules
+```
+
+Meaning:
+
+- `book_sections`: cấu trúc thật của tài liệu, giữ outline/tree từ PDF, DOCX, EPUB.
+- `learning_units`: đơn vị học/nghe thật mà FE hiển thị.
+- `learning_unit_sources`: mapping unit này lấy nội dung từ những section nào.
+- `learning_unit_segments`: audio segment của từng unit.
+- `learning_unit_progress`: tiến độ nghe theo unit và segment.
+- `book_knowledge.learning_unit_id`: RAG gắn theo learning unit thay vì chương giả.
+- `spaced_review_items.learning_unit_id`: ôn tập chỉ tạo sau khi user hoàn thành unit.
+
+`chapters` và `chapter_segments` vẫn còn trong DB vì lịch sử schema, nhưng flow Phase 5 mới không dựa vào chúng để upload/generate/playback/progress.
+
+### 21.3 Parser and planner behavior
+
+Upload now parses document structure as a tree:
+
+```text
+PDF hidden outline/bookmarks -> BookSection tree
+DOCX Heading styles -> BookSection tree
+EPUB TOC/navigation -> BookSection tree
+```
+
+Rules kept:
+
+- PDF không có outline thì reject 422.
+- DOCX không có Heading thì reject 422.
+- EPUB không có TOC/navigation thì reject 422.
+- Không OCR, không fallback regex đoán chương.
+
+Planner behavior:
+
+```text
+full mode:
+  giữ đủ nội dung nhưng gom theo cụm học hợp lý
+
+pareto mode:
+  chọn cụm kiến thức có giá trị cao hơn
+  gom mục nhỏ thành mục lớn
+  không tóm tắt toàn bộ từng đề mục nhỏ
+```
+
+Large group split fix:
+
+```text
+Nếu một cụm lớn phải tách vì vượt giới hạn token,
+backend đặt tên ổn định:
+
+LOGIC MỆNH ĐỀ - Phần 1/2
+LOGIC MỆNH ĐỀ - Phần 2/2
+PHÉP ĐẾM - Phần 1/2
+PHÉP ĐẾM - Phần 2/2
+```
+
+Lý do:
+
+- FE không phải tự sửa tên.
+- User hiểu đây là cùng một chủ đề lớn được chia thành nhiều bài nghe.
+- Tránh bug trùng title như case DOCX `trr.docx`.
+
+### 21.4 Backend contract after Phase 5
+
+Upload response:
+
+```json
+{
+  "book_id": "uuid",
+  "total_sections": 122,
+  "max_depth": 6,
+  "outline_tree": [],
+  "warnings": [],
+  "document_type": "docx"
+}
+```
+
+Generate plan response:
+
+```json
+{
+  "book_id": "uuid",
+  "job_id": "uuid",
+  "status": "queued",
+  "progress_percent": 0,
+  "planned_units": [
+    {
+      "learning_unit_id": "uuid",
+      "unit_index": 0,
+      "title": "LOGIC MỆNH ĐỀ - Phần 1/2",
+      "unit_type": "pareto_focus",
+      "estimated_audio_seconds": 600
+    }
+  ]
+}
+```
+
+Audiobook detail can be read by active mode or an explicit mode:
+
+```text
+GET /api/v1/books/{book_id}/details
+GET /api/v1/books/{book_id}/details?mode=full
+GET /api/v1/books/{book_id}/details?mode=pareto
+```
+
+This is important for switch-mode UX: FE can keep playing the old mode while polling the new mode.
+
+Audiobook detail response now returns learning units:
+
+```json
+{
+  "book_id": "uuid",
+  "book_status": "ready",
+  "mode": "pareto",
+  "total_sections": 122,
+  "total_units": 4,
+  "units": [
+    {
+      "id": "uuid",
+      "unit_index": 0,
+      "title": "LOGIC MỆNH ĐỀ - Phần 1/2",
+      "status": "ready",
+      "segments": [],
+      "review_text": "...",
+      "review_audio_url": "https://..."
+    }
+  ]
+}
+```
+
+Learning progress endpoints use learning unit IDs:
+
+```text
+PUT  /api/v1/books/{book_id}/learning-units/{learning_unit_id}/progress
+POST /api/v1/books/{book_id}/learning-units/{learning_unit_id}/complete
+GET  /api/v1/books/{book_id}/learning-progress?mode=full|pareto
+```
+
+### 21.5 Real file test results
+
+Test script:
+
+```text
+scripts/phase5_real_flow_test.py
+```
+
+Log:
+
+```text
+phase5_real_flow_test.out.log
+```
+
+Tested against Supabase dev DB + Supabase Storage + real LLM/TTS/RAG calls.
+
+PDF:
+
+```text
+file=Chương 4_ Phương pháp luận nghiên cứu.pdf
+mode=full
+upload sections=3 depth=1 warnings=[]
+planned_units=3
+worker book_status=ready job_status=READY progress=100
+units=3 segments=82
+
+Unit 0: Chương 4: Phương pháp luận nghiên cứu | segments=7 | review=True
+Unit 1: Chương 5: Kết quả phân tích và so sánh | segments=42 | review=True
+Unit 2: Chương 6: Bàn luận và Khuyến nghị | segments=33 | review=True
+```
+
+DOCX:
+
+```text
+file=trr.docx
+mode=pareto
+upload sections=122 depth=6 warnings=[]
+planned_units=4
+worker book_status=ready job_status=READY progress=100
+units=4 segments=55
+
+Unit 0: LOGIC MỆNH ĐỀ - Phần 1/2 | segments=6 | review=True
+Unit 1: LOGIC MỆNH ĐỀ - Phần 2/2 | segments=11 | review=True
+Unit 2: PHÉP ĐẾM - Phần 1/2 | segments=22 | review=True
+Unit 3: PHÉP ĐẾM - Phần 2/2 | segments=16 | review=True
+```
+
+EPUB:
+
+```text
+file=generated phase5_sample.epub
+mode=full
+upload sections=2 depth=1
+warning=Nhiều đề mục khá ngắn. Hệ thống sẽ gộp các mục nhỏ để tránh tạo audio quá vụn.
+planned_units=1
+worker book_status=ready job_status=READY progress=100
+units=1 segments=2
+
+Unit 0: Chương 1: Khởi động - Chương 2: Ôn tập | segments=2 | review=True
+```
+
+Important result:
+
+```text
+trr.docx is no longer treated as 122 chapters.
+It is parsed as 122 source sections and planned into 4 pareto learning units.
+Large unit titles are unique and explain split parts clearly.
+```
+
+### 21.6 Automated checks
+
+Passed:
+
+```text
+uv run pytest tests\test_document_parsers.py tests\test_learning_unit_planner.py tests\test_upload_service_batch_commit.py tests\test_celery_enqueue.py tests\test_phase3_generation_guardrails.py tests\test_phase4_2_learning_loop.py tests\test_notification_outbox_repo.py -q
+```
+
+Result:
+
+```text
+37 passed
+```
+
+Passed:
+
+```text
+uv run ruff check <phase 5 changed files>
+uv run python -m py_compile <phase 5 changed files>
+```
+
+### 21.7 Dev DB reset result
+
+Dev DB was reset and baselined:
+
+```text
+target=Supabase dev pooler
+missing_phase5_tables=[]
+alembic_version=a2c9e7f1b5d0
+```
+
+`.env` was temporarily replaced by `.env.phase5.dev` during tests and restored after the run.
+
+### 21.8 Current trade-offs and next cleanup
+
+Trade-offs left:
+
+1. Historical Alembic chain is not fresh-DB-safe from a blank database.
+2. DB still contains legacy `chapters`/`chapter_segments` tables, although new Phase 5 flow no longer depends on them.
+3. Some config names still use old wording, for example `FIRST_PLAYABLE_CHAPTERS`; behavior now means first playable units.
+4. Pareto planner is deterministic and structure-based. It is production-safe, but later quality can improve with a semantic LLM planner that outputs strict JSON and validates against source sections.
+
+Recommended next cleanup before production reset/migration:
+
+```text
+1. Create a clean baseline migration from the current SQLModel schema.
+2. Rename old chapter wording in config/docs to unit wording.
+3. Keep chapters only if needed for archived data migration; otherwise remove in a deliberate schema cleanup.
+4. Add FE Phase 5 contract update so Flutter reads units, not chapters.
+```

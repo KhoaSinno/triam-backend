@@ -17,14 +17,14 @@ from app.core.constant import (
 from app.core.logger import log
 from app.models.db_models import (
     Book,
-    Chapter,
-    ChapterLearningProgress,
+    LearningUnit,
+    LearningUnitProgress,
     NotificationOutbox,
     ReadingPlan,
     SpacedReviewItem,
     UserNotification,
 )
-from app.repositories.learning_progress_repo import has_playable_uncompleted_chapter, has_studied_book_between
+from app.repositories.learning_progress_repo import has_playable_uncompleted_unit, has_studied_book_between
 from app.repositories.notification_outbox_repo import (
     count_outbox_for_user_between,
     create_outbox_once,
@@ -78,8 +78,8 @@ def create_content_ready_outbox_once(
     user_id: uuid.UUID,
     book_id: uuid.UUID,
     book_title: str,
-    chapter_id: uuid.UUID,
-    chapter_title: str,
+    learning_unit_id: uuid.UUID,
+    unit_title: str,
     mode: PlanMode | str,
     due_at: datetime,
 ) -> NotificationOutbox | None:
@@ -88,21 +88,21 @@ def create_content_ready_outbox_once(
     if adjusted_due_at is None:
         log.info(
             f"Skip content-ready notification because daily cap is reached | "
-            f"user_id={user_id} | chapter_id={chapter_id}"
+            f"user_id={user_id} | learning_unit_id={learning_unit_id}"
         )
         return None
 
     payload = {
         "book_id": str(book_id),
         "book_title": book_title,
-        "chapter_id": str(chapter_id),
-        "chapter_title": chapter_title,
+        "learning_unit_id": str(learning_unit_id),
+        "unit_title": unit_title,
         "mode": mode_value,
-        "message": f"{chapter_title} đã sẵn sàng để nghe.",
-        "action_type": "open_chapter",
+        "message": f"{unit_title} đã sẵn sàng để nghe.",
+        "action_type": "open_learning_unit",
         "action_payload": {
             "book_id": str(book_id),
-            "chapter_id": str(chapter_id),
+            "learning_unit_id": str(learning_unit_id),
             "mode": mode_value,
         },
     }
@@ -115,7 +115,7 @@ def create_content_ready_outbox_once(
             status=NotificationStatus.PENDING,
             payload=payload,
             due_at=adjusted_due_at,
-            idempotency_key=f"content-ready:{user_id}:{chapter_id}:{mode_value}",
+            idempotency_key=f"content-ready:{user_id}:{learning_unit_id}:{mode_value}",
         ),
     )
 
@@ -202,15 +202,15 @@ def _build_review_outbox(session: Session, review_item: SpacedReviewItem, *, now
         return None
 
     progress = None
-    if review_item.source_progress_id:
-        progress = session.get(ChapterLearningProgress, review_item.source_progress_id)
-    if not progress:
+    if review_item.source_unit_progress_id:
+        progress = session.get(LearningUnitProgress, review_item.source_unit_progress_id)
+    if not progress and review_item.learning_unit_id:
         progress = session.exec(
-            select(ChapterLearningProgress).where(
-                ChapterLearningProgress.user_id == review_item.user_id,
-                ChapterLearningProgress.chapter_id == review_item.chapter_id,
-                ChapterLearningProgress.mode == review_item.mode,
-                ChapterLearningProgress.status == LearningProgressStatus.COMPLETED,
+            select(LearningUnitProgress).where(
+                LearningUnitProgress.user_id == review_item.user_id,
+                LearningUnitProgress.learning_unit_id == review_item.learning_unit_id,
+                LearningUnitProgress.mode == review_item.mode,
+                LearningUnitProgress.status == LearningProgressStatus.COMPLETED,
             )
         ).first()
     if not progress or progress.status != LearningProgressStatus.COMPLETED:
@@ -232,21 +232,21 @@ def _build_review_outbox(session: Session, review_item: SpacedReviewItem, *, now
     if not _daily_cap_available(session, user_id=review_item.user_id, due_at=due_at, user_settings=user_settings):
         return None
 
-    chapter = session.get(Chapter, review_item.chapter_id)
+    unit = session.get(LearningUnit, review_item.learning_unit_id) if review_item.learning_unit_id else None
     book = session.get(Book, review_item.book_id)
     idempotency_key = f"spaced-review:{review_item.id}"
     payload = {
         "book_id": str(review_item.book_id),
         "book_title": book.title if book else "sách của bạn",
-        "chapter_id": str(review_item.chapter_id),
-        "chapter_title": chapter.title if chapter else "một chương đã học",
+        "learning_unit_id": str(review_item.learning_unit_id) if review_item.learning_unit_id else None,
+        "unit_title": unit.title if unit else "một bài học đã học",
         "review_item_id": str(review_item.id),
         "mode": review_item.mode.value,
         "interval_days": review_item.interval_days,
         "action_type": "open_review",
         "action_payload": {
             "book_id": str(review_item.book_id),
-            "chapter_id": str(review_item.chapter_id),
+            "learning_unit_id": str(review_item.learning_unit_id) if review_item.learning_unit_id else None,
             "review_item_id": str(review_item.id),
             "mode": review_item.mode.value,
         },
@@ -302,7 +302,7 @@ def _build_plan_reminder_outbox(session: Session, plan: ReadingPlan, book: Book,
     if not _daily_cap_available(session, user_id=book.user_id, due_at=due_at, user_settings=user_settings):
         return None
 
-    if not has_playable_uncompleted_chapter(session, user_id=book.user_id, book_id=book.id, mode=plan.mode):
+    if not has_playable_uncompleted_unit(session, user_id=book.user_id, book_id=book.id, mode=plan.mode):
         return None
 
     start_utc, end_utc = local_day_bounds_utc(local_now.date(), user_settings.timezone)

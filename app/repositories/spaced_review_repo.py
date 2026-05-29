@@ -82,6 +82,26 @@ def has_active_review_chain_for_chapter(
     )
 
 
+def has_active_review_chain_for_unit(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    learning_unit_id: uuid.UUID,
+) -> bool:
+    return (
+        session.exec(
+            select(SpacedReviewItem.id)
+            .where(
+                SpacedReviewItem.user_id == user_id,
+                SpacedReviewItem.learning_unit_id == learning_unit_id,
+                SpacedReviewItem.status != ReviewItemStatus.CANCELLED,
+            )
+            .limit(1)
+        ).first()
+        is not None
+    )
+
+
 def cancel_unanchored_review_items_for_chapter(
     session: Session,
     *,
@@ -93,6 +113,29 @@ def cancel_unanchored_review_items_for_chapter(
             SpacedReviewItem.user_id == user_id,
             SpacedReviewItem.chapter_id == chapter_id,
             SpacedReviewItem.source_progress_id.is_(None),
+            SpacedReviewItem.status != ReviewItemStatus.CANCELLED,
+        )
+    ).all()
+    now = datetime.now(timezone.utc)
+    for row in rows:
+        row.status = ReviewItemStatus.CANCELLED
+        row.updated_at = now
+        session.add(row)
+    session.commit()
+    return len(rows)
+
+
+def cancel_unanchored_review_items_for_unit(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    learning_unit_id: uuid.UUID,
+) -> int:
+    rows = session.exec(
+        select(SpacedReviewItem).where(
+            SpacedReviewItem.user_id == user_id,
+            SpacedReviewItem.learning_unit_id == learning_unit_id,
+            SpacedReviewItem.source_unit_progress_id.is_(None),
             SpacedReviewItem.status != ReviewItemStatus.CANCELLED,
         )
     ).all()

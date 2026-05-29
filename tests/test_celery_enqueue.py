@@ -6,9 +6,24 @@ from sqlmodel import Session
 from app.core.constant import BookStatus, DocumentType, ProcessingJobStatus, ProcessingJobType
 from app.db.database import engine
 from app.main import app
-from app.models.db_models import Book, Chapter, ProcessingJob
+from app.models.db_models import Book, BookSection, ProcessingJob
 
 MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
+
+
+def _add_section(session: Session, book_id: uuid.UUID, *, title: str = "Unit Source") -> None:
+    session.add(
+        BookSection(
+            book_id=book_id,
+            section_index=0,
+            title=title,
+            level=1,
+            path="1",
+            text_content="Nội dung đủ để tạo bài học.",
+            text_char_count=28,
+        )
+    )
+    session.commit()
 
 
 def test_generate_plan_enqueues_document_task(monkeypatch):
@@ -23,7 +38,7 @@ def test_generate_plan_enqueues_document_task(monkeypatch):
         book = Book(
             user_id=MOCK_USER_ID,
             title="Celery Enqueue Test",
-            total_chapters=1,
+            total_sections=1,
             status=BookStatus.DRAFT,
             document_type=DocumentType.PDF,
             file_url="https://example.test/storage/v1/object/public/raw_books/test/original.pdf",
@@ -32,9 +47,7 @@ def test_generate_plan_enqueues_document_task(monkeypatch):
         session.commit()
         session.refresh(book)
 
-        chapter = Chapter(book_id=book.id, chapter_index=0, title="Chapter 1", status=BookStatus.DRAFT)
-        session.add(chapter)
-        session.commit()
+        _add_section(session, book.id)
         book_id = book.id
 
     response = TestClient(app).post(
@@ -67,7 +80,8 @@ def test_switch_mode_enqueues_document_task(monkeypatch):
         book = Book(
             user_id=MOCK_USER_ID,
             title="Switch Mode Enqueue Test",
-            total_chapters=1,
+            total_sections=1,
+            total_units=1,
             status=BookStatus.READY,
             document_type=DocumentType.PDF,
             file_url="https://example.test/storage/v1/object/public/raw_books/test/original.pdf",
@@ -76,9 +90,7 @@ def test_switch_mode_enqueues_document_task(monkeypatch):
         session.commit()
         session.refresh(book)
 
-        chapter = Chapter(book_id=book.id, chapter_index=0, title="Chapter 1", status=BookStatus.READY)
-        session.add(chapter)
-        session.commit()
+        _add_section(session, book.id)
         book_id = book.id
 
     plan_response = TestClient(app).post(

@@ -3,9 +3,9 @@ from datetime import datetime, timedelta, timezone
 
 from sqlmodel import Session, select
 
-from app.core.constant import BookStatus, NotificationChannel, NotificationStatus, NotificationType, PlanMode, PlanStatus
+from app.core.constant import BookStatus, NotificationChannel, NotificationStatus, NotificationType, PlanMode, PlanStatus, ProcessingJobStatus
 from app.db.database import engine
-from app.models.db_models import Book, Chapter, ChapterSegment, NotificationOutbox, NotificationSettings, ReadingPlan, UserNotification
+from app.models.db_models import Book, LearningUnit, LearningUnitSegment, NotificationOutbox, NotificationSettings, ReadingPlan, UserNotification
 from app.repositories.notification_outbox_repo import claim_due_outbox, create_outbox_once, recover_stale_outbox
 from app.services.notification_event_service import _build_plan_reminder_outbox
 from app.tasks.notification_tasks import deliver_one_notification
@@ -123,7 +123,7 @@ def test_plan_reminder_scan_creates_one_outbox_per_day():
                 user_id=user_id,
                 title="Notification Plan Book",
                 status=BookStatus.READY,
-                total_chapters=1,
+                total_units=1,
             )
             plan = ReadingPlan(
                 book_id=book_id,
@@ -134,17 +134,28 @@ def test_plan_reminder_scan_creates_one_outbox_per_day():
             )
             session.add(book)
             session.flush()
-            chapter = Chapter(book_id=book_id, chapter_index=0, title="Chapter 1", status=BookStatus.READY)
-            session.add(chapter)
+            unit = LearningUnit(
+                user_id=user_id,
+                book_id=book_id,
+                mode=PlanMode.FULL,
+                unit_index=0,
+                title="Unit 1",
+                unit_type="full",
+                status=ProcessingJobStatus.READY,
+                source_text_char_count=100,
+                estimated_tokens=20,
+                estimated_audio_seconds=10,
+                main_segment_count=1,
+            )
+            session.add(unit)
             session.flush()
             session.add(
-                ChapterSegment(
-                    chapter_id=chapter.id,
+                LearningUnitSegment(
+                    learning_unit_id=unit.id,
                     segment_index=0,
                     audio_url="https://example.test/audio.mp3",
                     text_content="Test audio",
                     duration_ms=120000,
-                    mode=PlanMode.FULL,
                 )
             )
             session.add(plan)

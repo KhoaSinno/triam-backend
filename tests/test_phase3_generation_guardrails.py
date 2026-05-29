@@ -6,7 +6,7 @@ from sqlmodel import Session, select
 from app.core.constant import BookStatus, DocumentType, PlanMode, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import ChapterTooLargeError, LLMResponseFormatError, NoPlayableAudioError
 from app.db.database import engine
-from app.models.db_models import Book, Chapter, ProcessingJob
+from app.models.db_models import Book, BookSection, Chapter, LearningUnit, LearningUnitSource, ProcessingJob
 from app.services.token_budget_service import estimate_text_budget
 
 MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
@@ -141,39 +141,25 @@ async def test_chapter_failure_keeps_chapter_and_marks_state(monkeypatch):
 async def test_book_pipeline_sets_partial_ready_after_first_playable(monkeypatch):
     from app.services.workers import book_pipeline
 
-    class FakeStorage:
-        def from_(self, bucket):
-            return self
-
-        def download(self, path):
-            return b"fake pdf"
-
-    async def fake_extract(document_file, document_type):
-        return [
-            {"title": "Chapter 1", "text": "first chapter text"},
-            {"title": "Chapter 2", "text": "second chapter text"},
-        ]
-
     calls = []
 
-    async def fake_process_chapter(user_id, book_id, book_title, chapter_title, chapter_id, chapter_index, raw_text, mode, *args):
-        calls.append(chapter_index)
-        if chapter_index == 1:
+    async def fake_process_learning_unit(user_id, book_id, book_title, unit, raw_text, job_id, *args, **kwargs):
+        calls.append(unit.unit_index)
+        if unit.unit_index == 1:
             with Session(engine) as session:
                 book = session.get(Book, book_id)
-                job = session.get(ProcessingJob, args[0])
+                job = session.get(ProcessingJob, job_id)
                 assert book.status == BookStatus.PARTIAL_READY
                 assert job.status == ProcessingJobStatus.PARTIAL_READY
 
-    monkeypatch.setattr(book_pipeline, "supabase", type("FakeSupabase", (), {"storage": FakeStorage()})())
-    monkeypatch.setattr(book_pipeline, "extract_chapters_by_document_type", fake_extract)
-    monkeypatch.setattr(book_pipeline, "process_chapter", fake_process_chapter)
+    monkeypatch.setattr(book_pipeline, "process_learning_unit", fake_process_learning_unit)
 
     with Session(engine) as session:
         book = Book(
             user_id=MOCK_USER_ID,
             title="Phase 3 Partial Test",
-            total_chapters=2,
+            total_sections=2,
+            total_units=2,
             status=BookStatus.PROCESSING,
             document_type=DocumentType.PDF,
             file_url="https://example.test/storage/v1/object/public/raw_books/test/original.pdf",
@@ -182,7 +168,32 @@ async def test_book_pipeline_sets_partial_ready_after_first_playable(monkeypatch
         session.commit()
         session.refresh(book)
         for index in range(2):
-            session.add(Chapter(book_id=book.id, chapter_index=index, title=f"Chapter {index + 1}", status=BookStatus.DRAFT))
+            section = BookSection(
+                book_id=book.id,
+                section_index=index,
+                title=f"Section {index + 1}",
+                level=1,
+                path=str(index + 1),
+                text_content=f"source text {index + 1}",
+                text_char_count=13,
+            )
+            session.add(section)
+            session.flush()
+            unit = LearningUnit(
+                user_id=MOCK_USER_ID,
+                book_id=book.id,
+                mode=PlanMode.FULL,
+                unit_index=index,
+                title=f"Unit {index + 1}",
+                unit_type="full",
+                status=ProcessingJobStatus.QUEUED,
+                source_text_char_count=13,
+                estimated_tokens=3,
+                estimated_audio_seconds=1,
+            )
+            session.add(unit)
+            session.flush()
+            session.add(LearningUnitSource(learning_unit_id=unit.id, section_id=section.id, source_order=0))
         job = ProcessingJob(
             user_id=MOCK_USER_ID,
             book_id=book.id,

@@ -22,7 +22,7 @@ async def upload_document(
 ):
     """
     Bước 1: Nhận file, extract outline, upload tài liệu lên Supabase Storage,
-    lưu Book + Chapter (DRAFT), trả về outline cho Flutter.
+    lưu Book + BookSection tree, trả về outline cho Flutter.
     """
     return await handle_upload_document(session, file, current_user.sub)
 

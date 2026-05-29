@@ -9,7 +9,17 @@ from app.db.database import get_session
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
 from app.schemas.plan import SwitchModeRequest
 from app.schemas.responses import BookDetailResponse, BookResponse, SwitchModeResponse
-from app.services.audiobook_service import create_new_book, delete_book_and_assets, get_book, get_book_details, list_books, switch_book_mode, update_book_by_id
+from app.services.audiobook_service import (
+    create_new_book,
+    delete_book_and_assets,
+    get_book,
+    get_book_details,
+    get_book_learning_units,
+    get_book_outline,
+    list_books,
+    switch_book_mode,
+    update_book_by_id,
+)
 
 router = APIRouter()
 
@@ -25,8 +35,18 @@ def read_book(book_id: uuid.UUID, session: Annotated[Session, Depends(get_sessio
 
 
 @router.get("/books/{book_id}/details", response_model=BookDetailResponse)
-def get_book_details_endpoint(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser):
-    return get_book_details(session, book_id, current_user.sub)
+def get_book_details_endpoint(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser, mode: str | None = None):
+    return get_book_details(session, book_id, current_user.sub, mode=mode)
+
+
+@router.get("/books/{book_id}/outline")
+def get_book_outline_endpoint(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser):
+    return get_book_outline(session, book_id, current_user.sub)
+
+
+@router.get("/books/{book_id}/learning-units")
+def get_book_learning_units_endpoint(book_id: uuid.UUID, mode: str, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser):
+    return get_book_learning_units(session, book_id, current_user.sub, mode)
 
 
 @router.post("/books/{book_id}/switch-mode", response_model=SwitchModeResponse)

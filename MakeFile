@@ -15,3 +15,6 @@ t2:
 
 t3:
 	uv run python -m app.services.agent_voice_gpt_realtime start
+
+gat:
+	uv run python scripts/get_supabase_access_token.py

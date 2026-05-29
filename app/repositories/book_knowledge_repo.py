@@ -21,3 +21,12 @@ def delete_knowledge_by_chapter(session: Session, chapter_id: uuid.UUID) -> None
         session.delete(record)
     session.commit()
 
+
+def delete_knowledge_by_learning_unit(session: Session, learning_unit_id: uuid.UUID) -> None:
+    records = session.exec(
+        select(BookKnowledge).where(BookKnowledge.learning_unit_id == learning_unit_id)
+    ).all()
+    for record in records:
+        session.delete(record)
+    session.commit()
+
