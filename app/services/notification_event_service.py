@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime
 
@@ -34,6 +35,7 @@ from app.repositories.notification_outbox_repo import (
 from app.repositories.notification_settings_repo import get_or_create_notification_settings
 from app.repositories.spaced_review_repo import defer_review_item, get_due_review_items, mark_review_item_due
 from app.repositories.user_notification_repo import create_user_notification_once
+from app.services.fcm_service import send_fcm_notification
 from app.services.notification_copy_service import build_notification_copy
 from app.services.reminder_schedule_service import (
     local_day_bounds_utc,
@@ -111,7 +113,7 @@ def create_content_ready_outbox_once(
         NotificationOutbox(
             user_id=user_id,
             type=NotificationType.CONTENT_READY,
-            channel=NotificationChannel.IN_APP,
+            channel=NotificationChannel.ALL,
             status=NotificationStatus.PENDING,
             payload=payload,
             due_at=adjusted_due_at,
@@ -139,7 +141,7 @@ def create_first_playable_ready_outbox_once(
         NotificationOutbox(
             user_id=user_id,
             type=NotificationType.CONTENT_READY,
-            channel=NotificationChannel.IN_APP,
+            channel=NotificationChannel.ALL,
             status=NotificationStatus.PENDING,
             payload={
                 "subtype": "first_playable",
@@ -177,7 +179,7 @@ def create_book_ready_outbox_once(
         NotificationOutbox(
             user_id=user_id,
             type=NotificationType.CONTENT_READY,
-            channel=NotificationChannel.IN_APP,
+            channel=NotificationChannel.ALL,
             status=NotificationStatus.PENDING,
             payload={
                 "subtype": "book_ready",
@@ -256,7 +258,7 @@ def _build_review_outbox(session: Session, review_item: SpacedReviewItem, *, now
         NotificationOutbox(
             user_id=review_item.user_id,
             type=NotificationType.SPACED_REVIEW_DUE,
-            channel=NotificationChannel.IN_APP,
+            channel=NotificationChannel.ALL,
             status=NotificationStatus.PENDING,
             payload=payload,
             due_at=due_at,
@@ -285,10 +287,11 @@ def _build_plan_reminder_outbox(session: Session, plan: ReadingPlan, book: Book,
     if not weekday_is_enabled(plan.schedule_config, local_now):
         return None
 
+    reminder_time = plan.reminder_time or user_settings.reminder_time
     reminder_due_at = reminder_due_at_for_today(
         now_utc=now,
         timezone_name=user_settings.timezone,
-        reminder_time=user_settings.reminder_time,
+        reminder_time=reminder_time,
     )
     if now < reminder_due_at:
         return None
@@ -334,7 +337,7 @@ def _build_plan_reminder_outbox(session: Session, plan: ReadingPlan, book: Book,
         NotificationOutbox(
             user_id=book.user_id,
             type=NotificationType.PLAN_REMINDER,
-            channel=NotificationChannel.IN_APP,
+            channel=NotificationChannel.ALL,
             status=NotificationStatus.PENDING,
             payload=payload,
             due_at=due_at,
@@ -360,14 +363,31 @@ def create_due_plan_reminder_outbox_rows(session: Session, *, now: datetime) -> 
 
 def deliver_outbox_notification(session: Session, outbox: NotificationOutbox, *, now: datetime) -> None:
     title, body = build_notification_copy(outbox.type, outbox.payload)
-    notification = UserNotification(
-        user_id=outbox.user_id,
-        outbox_id=outbox.id,
-        type=outbox.type,
-        title=title,
-        body=body,
-        action_type=outbox.payload.get("action_type"),
-        action_payload=outbox.payload.get("action_payload"),
-    )
-    create_user_notification_once(session, notification)
+
+    # 1. In-app Delivery
+    if outbox.channel in (NotificationChannel.IN_APP, NotificationChannel.ALL):
+        notification = UserNotification(
+            user_id=outbox.user_id,
+            outbox_id=outbox.id,
+            type=outbox.type,
+            title=title,
+            body=body,
+            action_type=outbox.payload.get("action_type"),
+            action_payload=outbox.payload.get("action_payload"),
+        )
+        create_user_notification_once(session, notification)
+
+    # 2. Push/FCM Delivery
+    if outbox.channel in (NotificationChannel.PUSH, NotificationChannel.ALL):
+        fcm_data = {}
+        if outbox.payload.get("action_type"):
+            fcm_data["action_type"] = outbox.payload["action_type"]
+        if outbox.payload.get("action_payload"):
+            fcm_data["action_payload"] = json.dumps(outbox.payload["action_payload"])
+
+        fcm_data["outbox_id"] = str(outbox.id)
+        fcm_data["notification_type"] = outbox.type.value
+
+        send_fcm_notification(session, user_id=outbox.user_id, title=title, body=body, data=fcm_data)
+
     mark_outbox_sent(session, outbox, now=now)

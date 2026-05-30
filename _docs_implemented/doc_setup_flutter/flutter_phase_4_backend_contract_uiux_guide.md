@@ -1,16 +1,23 @@
-# TRIAM Flutter Implementation Guide - Phase 5 Backend Contract And UI/UX
+# TRIAM Flutter Implementation Guide - Phase 6 Backend Contract And UI/UX
 
 Ngày cập nhật: 2026-05-29
 Audience: Flutter team, backend maintainer, capstone reviewer  
-Backend scope: Phase 1 -> Phase 5
+Backend scope: Phase 1 -> Phase 6
 Mục tiêu: Một tài liệu FE contract mới để Flutter refactor UI theo backend chuẩn hiện tại.
+
+> **Superseded note - 2026-05-30:** File này có nhiều phần lịch sử từ Phase 4/5 và chưa được rewrite toàn bộ. Với FE đang refactor sau Phase 6, hãy dùng file mới làm contract chính:
+>
+> `_docs_implemented/doc_setup_flutter/flutter_phase_6_backend_contract_uiux_refactor_guide.md`
+>
+> Nếu hai tài liệu mâu thuẫn, ưu tiên file Phase 6.
 
 Lưu ý cho Flutter team:
 
 - FE đã có UI và cấu trúc project cơ bản, tài liệu này không yêu cầu đổi folder structure.
 - Trọng tâm là map UI hiện tại vào đúng backend state, API, progress flow và business rule.
 - Flutter không tự đoán trạng thái xử lý sách, tiến độ học, reminder hoặc review. Backend là source of truth.
-- Phase 5 đã thay contract chính từ `chapters` sang `learning_units`. FE mới phải render bằng `units`, không render danh sách bài nghe bằng `chapters`.
+- Phase 5 đã thay contract chính từ `chapters` sang `learning_units`. Phase 6 đã cleanup schema/code legacy, nên FE mới phải render bằng `units`, không render danh sách bài nghe bằng `chapters`.
+- Nếu gặp đoạn tài liệu cũ còn nhắc `chapters`, xem đó là lịch sử Phase 4.2. Contract chính thức hiện tại là `book_sections` cho mục lục và `learning_units` cho bài nghe.
 
 ## Phase 5 Contract Override - Quan Trọng
 

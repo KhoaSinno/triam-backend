@@ -26,8 +26,9 @@ def build_notification_copy(notification_type: NotificationType, payload: dict) 
                 payload.get("message", "Bạn đã có nội dung mới để nghe trong TRIAM."),
             )
         case NotificationType.SPACED_REVIEW_DUE:
+            unit_title = payload.get("unit_title") or "một bài học đã học"
             return (
                 "Đến lúc ôn lại rồi",
-                f"Ôn nhanh: {payload.get('unit_title', 'một bài học đã học')}.",
+                f"Ôn nhanh: {unit_title}.",
             )
     return ("TRIAM", "Bạn có một thông báo mới.")

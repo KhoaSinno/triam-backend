@@ -14,6 +14,7 @@ class ParsedSection:
     page_end: int | None = None
     source_href: str | None = None
     source_anchor: str | None = None
+    top: float | None = None
     children: list["ParsedSection"] = field(default_factory=list)
 
     @property
@@ -72,23 +73,8 @@ def section_subtree_text(section: ParsedSection) -> str:
     return "\n\n".join(parts).strip()
 
 
-def parsed_sections_to_legacy_chapters(sections: list[ParsedSection]) -> list[dict]:
-    chapters: list[dict] = []
-    for section in flatten_sections(sections):
-        text = section_subtree_text(section)
-        if not text:
-            continue
-        chapters.append(
-            {
-                "title": section.title,
-                "text": text,
-                "page_start": section.page_start,
-                "page_end": section.page_end,
-                "level": section.level,
-                "path": section.path,
-            }
-        )
-    return chapters
+def has_extractable_text(sections: list[ParsedSection]) -> bool:
+    return any(section_subtree_text(section) for section in sections)
 
 
 def with_reindexed_paths(sections: list[ParsedSection]) -> list[ParsedSection]:

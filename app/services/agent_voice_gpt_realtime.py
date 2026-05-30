@@ -189,7 +189,7 @@ class TriamAssistant(Agent):
                     continue
                 if remaining_chars <= 0:
                     break
-                unit_id = str(item.get("learning_unit_id") or item.get("chapter_id", ""))
+                unit_id = str(item.get("learning_unit_id") or "")
                 chunk_index = item.get("chunk_index", "N/A")
                 content = _trim_text(str(item.get("content", "")), remaining_chars)
 

@@ -6,7 +6,7 @@ from bs4 import BeautifulSoup
 from ebooklib import ITEM_DOCUMENT, epub
 
 from app.core.exceptions import DocumentExtractionError, DocumentOutlineRequiredError
-from app.services.document_structure_types import ParsedDocument, ParsedSection, parsed_sections_to_legacy_chapters
+from app.services.document_structure_types import ParsedDocument, ParsedSection, has_extractable_text
 
 
 def _html_to_text(content: bytes) -> str:
@@ -93,15 +93,7 @@ async def parse_epub_structure(file_obj) -> ParsedDocument:
     if not sections:
         raise DocumentOutlineRequiredError("EPUB không có mục lục điều hướng hợp lệ. Vui lòng upload EPUB có TOC chuẩn.")
 
-    if not parsed_sections_to_legacy_chapters(sections):
+    if not has_extractable_text(sections):
         raise DocumentExtractionError("EPUB có mục lục nhưng không trích xuất được text. File có thể bị lỗi hoặc không phải text-based EPUB.")
 
     return ParsedDocument(document_type="epub", sections=sections)
-
-
-async def extract_epub_chapters(file_obj) -> list[dict]:
-    parsed = await parse_epub_structure(file_obj)
-    chapters = parsed_sections_to_legacy_chapters(parsed.sections)
-    if not chapters:
-        raise DocumentExtractionError("EPUB có mục lục nhưng không trích xuất được text. File có thể bị lỗi hoặc không phải text-based EPUB.")
-    return chapters

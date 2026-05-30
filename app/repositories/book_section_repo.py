@@ -1,10 +1,24 @@
 import uuid
+from dataclasses import dataclass
 
 from sqlalchemy.exc import ProgrammingError
 from sqlmodel import Session, col, select
 
 from app.models.db_models import BookSection
 from app.services.document_structure_types import ParsedDocument, ParsedSection
+
+
+@dataclass(frozen=True)
+class BookSectionOutlineRow:
+    id: uuid.UUID
+    parent_id: uuid.UUID | None
+    section_index: int
+    title: str
+    level: int
+    path: str
+    page_start: int | None
+    page_end: int | None
+    text_char_count: int
 
 
 def delete_sections_by_book(session: Session, book_id: uuid.UUID) -> None:
@@ -58,6 +72,45 @@ def list_book_sections(session: Session, book_id: uuid.UUID) -> list[BookSection
             session.rollback()
             return []
         raise
+
+
+def list_book_section_outline_rows(session: Session, book_id: uuid.UUID) -> list[BookSectionOutlineRow]:
+    try:
+        rows = session.exec(
+            select(
+                BookSection.id,
+                BookSection.parent_id,
+                BookSection.section_index,
+                BookSection.title,
+                BookSection.level,
+                BookSection.path,
+                BookSection.page_start,
+                BookSection.page_end,
+                BookSection.text_char_count,
+            )
+            .where(BookSection.book_id == book_id)
+            .order_by(col(BookSection.section_index))
+        ).all()
+    except ProgrammingError as exc:
+        if "book_sections" in str(exc) and "does not exist" in str(exc):
+            session.rollback()
+            return []
+        raise
+
+    return [
+        BookSectionOutlineRow(
+            id=row[0],
+            parent_id=row[1],
+            section_index=row[2],
+            title=row[3],
+            level=row[4],
+            path=row[5],
+            page_start=row[6],
+            page_end=row[7],
+            text_char_count=row[8],
+        )
+        for row in rows
+    ]
 
 
 def list_book_sections_by_ids(session: Session, section_ids: list[uuid.UUID]) -> list[BookSection]:

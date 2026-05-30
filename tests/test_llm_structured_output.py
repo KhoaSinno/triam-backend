@@ -11,7 +11,7 @@ async def test_call_normalize_llm_uses_schema_and_retries_invalid_json(monkeypat
 
     async def fake_parse(**kwargs):
         calls.append(kwargs)
-        assert kwargs["response_format"] is llm_service.NormalizedChapterPayload
+        assert kwargs["response_format"] is llm_service.NormalizedUnitPayload
 
         if len(calls) == 1:
             return SimpleNamespace(
@@ -26,7 +26,7 @@ async def test_call_normalize_llm_uses_schema_and_retries_invalid_json(monkeypat
             choices=[
                 SimpleNamespace(
                     message=SimpleNamespace(
-                        parsed=llm_service.NormalizedChapterPayload(
+                        parsed=llm_service.NormalizedUnitPayload(
                             main_scripts=[" Nội dung nghe đã chuẩn hóa. "],
                             review_script=" Nội dung ôn tập. ",
                         ),

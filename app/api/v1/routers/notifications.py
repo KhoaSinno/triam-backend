@@ -7,6 +7,8 @@ from sqlmodel import Session
 from app.api.dependencies.auth import CurrentUser
 from app.db.database import get_session
 from app.schemas.notification import (
+    DeviceTokenRegisterRequest,
+    DeviceTokenResponse,
     MarkAllNotificationsReadResponse,
     MarkNotificationReadResponse,
     NotificationListResponse,
@@ -14,6 +16,7 @@ from app.schemas.notification import (
     NotificationSettingsResponse,
 )
 from app.services.notification_service import get_settings, list_notifications, read_all_notifications, read_notification, update_settings
+from app.services.fcm_service import register_user_device_token, unregister_user_device_token
 
 router = APIRouter()
 
@@ -46,3 +49,22 @@ def get_notification_settings(session: Annotated[Session, Depends(get_session)],
 @router.put("/notifications/settings", response_model=NotificationSettingsResponse)
 def update_notification_settings(payload: NotificationSettingsRequest, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser):
     return update_settings(session, current_user.sub, payload)
+
+
+@router.post("/notifications/devices", response_model=DeviceTokenResponse, status_code=201)
+def register_device(
+    payload: DeviceTokenRegisterRequest,
+    session: Annotated[Session, Depends(get_session)],
+    current_user: CurrentUser,
+):
+    return register_user_device_token(session, current_user.sub, payload.device_token)
+
+
+@router.delete("/notifications/devices/{device_token}")
+def unregister_device(
+    device_token: str,
+    session: Annotated[Session, Depends(get_session)],
+    current_user: CurrentUser,
+):
+    success = unregister_user_device_token(session, current_user.sub, device_token)
+    return {"status": "success" if success else "not_found"}

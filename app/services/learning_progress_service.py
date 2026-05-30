@@ -4,10 +4,11 @@ from datetime import datetime, timedelta, timezone
 from sqlmodel import Session, select
 
 from app.core.config import settings
-from app.core.constant import LearningProgressStatus, PlanMode
+from app.core.constant import LearningProgressStatus, PlanMode, PlanStatus
 from app.core.exceptions import BadRequestError, BookNotFoundError, NoPlayableAudioError
-from app.models.db_models import Book, LearningUnit, LearningUnitProgress, LearningUnitSegment
+from app.models.db_models import Book, LearningUnit, LearningUnitProgress, LearningUnitSegment, ReadingPlan
 from app.repositories.learning_progress_repo import get_latest_activity, get_progress, list_book_progress, list_playable_unit_ids, save_progress
+from app.repositories.reading_plan_schedule_repo import deactivate_slots_for_plan
 from app.schemas.learning_progress import (
     BookLearningProgressResponse,
     LearningUnitProgressResponse,
@@ -118,7 +119,7 @@ def _create_reviews_after_completion_once(
         mode=unit.mode,
         review_text=unit.review_text or "",
         completed_at=progress.completed_at,
-        source_progress_id=progress.id,
+        source_unit_progress_id=progress.id,
     )
 
 
@@ -143,6 +144,31 @@ def _should_persist_progress(
 
     last_saved_at = existing.last_activity_at or existing.updated_at
     return bool(last_saved_at and now - last_saved_at >= timedelta(seconds=settings.LEARNING_PROGRESS_STALE_SECONDS))
+
+
+def _check_and_deactivate_plan_on_completion(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    book_id: uuid.UUID,
+    mode: PlanMode,
+) -> None:
+    playable_ids = list_playable_unit_ids(session, book_id=book_id, mode=mode)
+    if not playable_ids:
+        return
+    progress_rows = list_book_progress(session, user_id=user_id, book_id=book_id, mode=mode)
+    completed_count = sum(
+        1
+        for p in progress_rows
+        if p.status == LearningProgressStatus.COMPLETED and p.learning_unit_id in playable_ids
+    )
+    if completed_count >= len(playable_ids):
+        plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
+        if plan and plan.status == PlanStatus.ACTIVE.value:
+            plan.status = PlanStatus.INACTIVE.value
+            session.add(plan)
+            deactivate_slots_for_plan(session, plan_id=plan.id)
+            session.commit()
 
 
 def update_learning_unit_progress(
@@ -209,6 +235,7 @@ def update_learning_unit_progress(
     saved = save_progress(session, progress)
     if first_completion:
         _create_reviews_after_completion_once(session, user_id=user_id, book=book, unit=unit, progress=saved)
+        _check_and_deactivate_plan_on_completion(session, user_id=user_id, book_id=book_id, mode=mode)
     return _to_unit_response(saved)
 
 
@@ -257,6 +284,7 @@ def complete_learning_unit_manually(
     saved = save_progress(session, progress)
     if first_completion:
         _create_reviews_after_completion_once(session, user_id=user_id, book=book, unit=unit, progress=saved)
+        _check_and_deactivate_plan_on_completion(session, user_id=user_id, book_id=book_id, mode=mode_value)
     return _to_unit_response(saved)
 
 

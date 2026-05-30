@@ -69,6 +69,7 @@ def _create_plan_and_job(
     payload: PlanInput,
     user_id: uuid.UUID,
     slots: list,
+    resolved_reminder_time: str,
 ) -> tuple[ProcessingJob, list]:
     planned_units = _planned_units_for_book(session, payload.book_id, payload.mode)
 
@@ -78,6 +79,7 @@ def _create_plan_and_job(
         pace=payload.pace,
         schedule_config=payload.schedule_config,
         status=PlanStatus.ACTIVE,
+        reminder_time=resolved_reminder_time,
     )
     session.add(plan)
     session.flush()
@@ -236,7 +238,13 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
     if book.status not in (BookStatus.DRAFT,):
         raise BookStatusConflictError(f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
 
-    slots = validate_plan_schedule_for_create(session, user_id=user_id, schedule_config=payload.schedule_config)
+    slots = validate_plan_schedule_for_create(
+        session,
+        user_id=user_id,
+        schedule_config=payload.schedule_config,
+        reminder_time=payload.reminder_time,
+    )
+    resolved_reminder_time = slots[0].reminder_time if slots else (payload.reminder_time or "20:00")
 
     # 2. Lưu ReadingPlan + schedule slots + learning units + progress job
     try:
@@ -246,6 +254,7 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
             payload=payload,
             user_id=user_id,
             slots=slots,
+            resolved_reminder_time=resolved_reminder_time,
         )
         session.commit()
         session.refresh(job)

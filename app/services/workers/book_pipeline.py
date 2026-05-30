@@ -205,7 +205,7 @@ async def _track_progress(
     completed_offset: int = 0,
 ) -> None:
     completed = completed_offset
-    partial_threshold = min(total_units, max(1, settings.FIRST_PLAYABLE_CHAPTERS))
+    partial_threshold = min(total_units, max(1, settings.FIRST_PLAYABLE_UNITS))
 
     try:
         for task in asyncio.as_completed(tasks):
@@ -272,7 +272,7 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
         started_at=datetime.now(timezone.utc),
     )
 
-    first_count = min(total_units, max(1, settings.FIRST_PLAYABLE_CHAPTERS))
+    first_count = min(total_units, max(1, settings.FIRST_PLAYABLE_UNITS))
     completed = 0
     for item in work_items[:first_count]:
         await process_learning_unit(

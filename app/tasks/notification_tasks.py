@@ -80,7 +80,7 @@ def deliver_one_notification(outbox_id: uuid.UUID) -> None:
             return
 
         try:
-            if outbox.channel != NotificationChannel.IN_APP:
+            if outbox.channel not in (NotificationChannel.IN_APP, NotificationChannel.PUSH, NotificationChannel.ALL):
                 raise ValueError(f"Unsupported notification channel: {outbox.channel}")
             deliver_outbox_notification(session, outbox, now=now)
         except Exception as exc:

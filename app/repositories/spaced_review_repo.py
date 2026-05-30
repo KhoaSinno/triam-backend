@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
-from app.core.constant import PlanMode, ReviewItemStatus
+from app.core.constant import ReviewItemStatus
 from app.models.db_models import SpacedReviewItem
 
 
@@ -44,44 +44,6 @@ def defer_review_item(session: Session, review_item: SpacedReviewItem, due_at: d
     return review_item
 
 
-def get_review_item_by_chapter_mode_interval(
-    session: Session,
-    *,
-    user_id: uuid.UUID,
-    chapter_id: uuid.UUID,
-    mode: PlanMode,
-    interval_days: int,
-) -> SpacedReviewItem | None:
-    return session.exec(
-        select(SpacedReviewItem).where(
-            SpacedReviewItem.user_id == user_id,
-            SpacedReviewItem.chapter_id == chapter_id,
-            SpacedReviewItem.mode == mode,
-            SpacedReviewItem.interval_days == interval_days,
-        )
-    ).first()
-
-
-def has_active_review_chain_for_chapter(
-    session: Session,
-    *,
-    user_id: uuid.UUID,
-    chapter_id: uuid.UUID,
-) -> bool:
-    return (
-        session.exec(
-            select(SpacedReviewItem.id)
-            .where(
-                SpacedReviewItem.user_id == user_id,
-                SpacedReviewItem.chapter_id == chapter_id,
-                SpacedReviewItem.status != ReviewItemStatus.CANCELLED,
-            )
-            .limit(1)
-        ).first()
-        is not None
-    )
-
-
 def has_active_review_chain_for_unit(
     session: Session,
     *,
@@ -100,29 +62,6 @@ def has_active_review_chain_for_unit(
         ).first()
         is not None
     )
-
-
-def cancel_unanchored_review_items_for_chapter(
-    session: Session,
-    *,
-    user_id: uuid.UUID,
-    chapter_id: uuid.UUID,
-) -> int:
-    rows = session.exec(
-        select(SpacedReviewItem).where(
-            SpacedReviewItem.user_id == user_id,
-            SpacedReviewItem.chapter_id == chapter_id,
-            SpacedReviewItem.source_progress_id.is_(None),
-            SpacedReviewItem.status != ReviewItemStatus.CANCELLED,
-        )
-    ).all()
-    now = datetime.now(timezone.utc)
-    for row in rows:
-        row.status = ReviewItemStatus.CANCELLED
-        row.updated_at = now
-        session.add(row)
-    session.commit()
-    return len(rows)
 
 
 def cancel_unanchored_review_items_for_unit(

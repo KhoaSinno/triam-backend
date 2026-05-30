@@ -13,7 +13,7 @@ from app.repositories.book_knowledge_repo import delete_knowledge_by_learning_un
 from app.repositories.learning_unit_repo import delete_unit_segments, unit_segments_exist, update_learning_unit_processing
 from app.services.async_limiter import get_loop_semaphore
 from app.services.embed_service import embed_and_save_learning_unit
-from app.services.workers.tts_worker import run_learning_unit_tts_pipeline
+from app.services.workers.learning_unit_tts_worker import run_learning_unit_tts_pipeline
 
 
 @dataclass(frozen=True)
@@ -64,7 +64,7 @@ async def process_learning_unit(
     *,
     include_rag: bool = True,
 ) -> LearningUnitProcessingResult:
-    async with get_loop_semaphore("learning_unit_processing", settings.CHAPTER_PROCESSING_CONCURRENCY):
+    async with get_loop_semaphore("learning_unit_processing", settings.LEARNING_UNIT_PROCESSING_CONCURRENCY):
         logger.info(
             f"Learning unit processing start | unit={unit.unit_index + 1} | mode={unit.mode.value} | "
             f"title={unit.title} | chars={raw_text_char_count or len(raw_text)} | "
@@ -140,4 +140,3 @@ async def process_learning_unit(
             except Exception as rollback_err:
                 logger.error(f"Failed to clean failed learning unit {unit.unit_index + 1}: {rollback_err}")
             raise
-

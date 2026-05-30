@@ -12,16 +12,6 @@ def bulk_create_knowledge(session: Session, records: list[BookKnowledge]) -> Non
     session.commit()
 
 
-def delete_knowledge_by_chapter(session: Session, chapter_id: uuid.UUID) -> None:
-    """Xóa toàn bộ vector chunks của 1 chapter (dùng khi rollback)."""
-    records = session.exec(
-        select(BookKnowledge).where(BookKnowledge.chapter_id == chapter_id)
-    ).all()
-    for record in records:
-        session.delete(record)
-    session.commit()
-
-
 def delete_knowledge_by_learning_unit(session: Session, learning_unit_id: uuid.UUID) -> None:
     records = session.exec(
         select(BookKnowledge).where(BookKnowledge.learning_unit_id == learning_unit_id)

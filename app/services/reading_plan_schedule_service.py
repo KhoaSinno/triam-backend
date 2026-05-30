@@ -90,15 +90,19 @@ def validate_plan_schedule_for_create(
     *,
     user_id: uuid.UUID,
     schedule_config: object,
+    reminder_time: str | None = None,
+    exclude_plan_id: uuid.UUID | None = None,
 ) -> list[ScheduleSlotInput]:
     user_settings = get_or_create_notification_settings(session, user_id)
+    resolved_reminder_time = reminder_time or user_settings.reminder_time
     slots = normalize_schedule_config(
         schedule_config,
-        reminder_time=user_settings.reminder_time,
+        reminder_time=resolved_reminder_time,
         timezone_name=user_settings.timezone,
     )
-    validate_active_learning_capacity(session, user_id=user_id)
-    validate_schedule_slots_available(session, user_id=user_id, slots=slots)
+    if exclude_plan_id is None:
+        validate_active_learning_capacity(session, user_id=user_id)
+    validate_schedule_slots_available(session, user_id=user_id, slots=slots, exclude_plan_id=exclude_plan_id)
     return slots
 
 

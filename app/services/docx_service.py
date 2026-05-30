@@ -6,7 +6,7 @@ from docx import Document
 from docx.oxml.ns import qn
 
 from app.core.exceptions import DocumentExtractionError, DocumentOutlineRequiredError
-from app.services.document_structure_types import ParsedDocument, ParsedSection, parsed_sections_to_legacy_chapters
+from app.services.document_structure_types import ParsedDocument, ParsedSection
 
 HEADING_STYLE_NAMES = {
     "heading 1",
@@ -133,11 +133,3 @@ async def parse_docx_structure(file_obj) -> ParsedDocument:
         raise DocumentOutlineRequiredError("DOCX không có Heading/mục lục hợp lệ. Vui lòng dùng Heading 1/Heading 2 cho tên chương.")
 
     return ParsedDocument(document_type="docx", sections=[root.to_parsed() for root in roots])
-
-
-async def extract_docx_chapters(file_obj) -> list[dict]:
-    parsed = await parse_docx_structure(file_obj)
-    chapters = parsed_sections_to_legacy_chapters(parsed.sections)
-    if not chapters:
-        raise DocumentExtractionError("DOCX có Heading nhưng không trích xuất được nội dung text.")
-    return chapters

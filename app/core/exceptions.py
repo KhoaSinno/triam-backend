@@ -146,9 +146,14 @@ class DocumentTooLargeError(AppException):
     detail = "Tài liệu quá lớn để xử lý tự động. Vui lòng tách tài liệu thành file nhỏ hơn."
 
 
-class ChapterTooLargeError(AppException):
+class LearningUnitTooLargeError(AppException):
     status_code = 422
-    detail = "Một chương trong tài liệu quá lớn để xử lý. Vui lòng tách chương hoặc chọn tài liệu nhỏ hơn."
+    detail = "Một bài học trong tài liệu quá lớn để xử lý. Vui lòng tách nội dung hoặc chọn tài liệu nhỏ hơn."
+
+
+# Backward-compatible alias for older tests/imports while Phase 6 removes
+# chapter-based processing paths.
+ChapterTooLargeError = LearningUnitTooLargeError
 
 
 class TTSInputTooShortError(AppException):

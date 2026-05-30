@@ -2,11 +2,11 @@ import uuid
 
 from sqlmodel import Session, select
 
-from app.core.constant import PlanMode, ProcessingJobStatus, ProcessingJobType
+from app.core.constant import PlanMode, ProcessingJobStatus, ProcessingJobType, PlanStatus
 from app.core.exceptions import BookNotFoundError, ExternalServiceError, NoReadingPlanError, ReadingPlanNotFoundError
-from app.models.db_models import Book, BookSection, LearningUnit, LearningUnitSegment, ProcessingJob, ReadingPlan
+from app.models.db_models import Book, LearningUnit, LearningUnitSegment, ProcessingJob, ReadingPlan
 from app.repositories import audiobook_repo
-from app.repositories.book_section_repo import list_book_sections
+from app.repositories.book_section_repo import BookSectionOutlineRow, list_book_section_outline_rows, list_book_sections
 from app.repositories.learning_unit_repo import (
     count_unit_segments_by_book_and_mode,
     create_learning_units,
@@ -14,6 +14,8 @@ from app.repositories.learning_unit_repo import (
     list_unit_segments,
 )
 from app.repositories.processing_job_repo import create_processing_job, update_processing_job
+from app.repositories.reading_plan_schedule_repo import deactivate_slots_for_plan
+from app.services.reading_plan_schedule_service import validate_plan_schedule_for_create, build_slots_for_plan
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
 from app.services.learning_unit_planner_service import plan_learning_units
 from app.tasks.book_tasks import switch_mode_task
@@ -103,8 +105,8 @@ def get_book_outline(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -
     if not book:
         raise BookNotFoundError()
 
-    sections = list_book_sections(session, book_id)
-    by_parent: dict[uuid.UUID | None, list[BookSection]] = {}
+    sections = list_book_section_outline_rows(session, book_id)
+    by_parent: dict[uuid.UUID | None, list[BookSectionOutlineRow]] = {}
     for section in sections:
         by_parent.setdefault(section.parent_id, []).append(section)
 
@@ -233,3 +235,97 @@ def _enqueue_switch_mode_job(session: Session, book_id: uuid.UUID, mode: str, jo
             error_message=str(e),
         )
         raise ExternalServiceError("Không thể đưa tác vụ đổi mode vào hàng đợi xử lý. Vui lòng thử lại sau.") from e
+
+
+def pause_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> dict:
+    book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
+    if not book:
+        raise BookNotFoundError()
+    plan = _active_plan(session, book_id)
+    plan.status = PlanStatus.INACTIVE.value
+    session.add(plan)
+    deactivate_slots_for_plan(session, plan_id=plan.id)
+    session.commit()
+    return {"message": "Đã tạm dừng kế hoạch học tập.", "plan_id": str(plan.id), "status": plan.status}
+
+
+def resume_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> dict:
+    book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
+    if not book:
+        raise BookNotFoundError()
+    plan = _active_plan(session, book_id)
+
+    # Validate slots and check for conflicts
+    slots = validate_plan_schedule_for_create(
+        session,
+        user_id=user_id,
+        schedule_config=plan.schedule_config,
+        reminder_time=plan.reminder_time,
+    )
+
+    plan.status = PlanStatus.ACTIVE.value
+    session.add(plan)
+
+    # Re-create active slots
+    for slot in build_slots_for_plan(
+        user_id=user_id,
+        book_id=book_id,
+        plan_id=plan.id,
+        slots=slots,
+    ):
+        session.add(slot)
+
+    session.commit()
+    return {"message": "Đã tiếp tục kế hoạch học tập.", "plan_id": str(plan.id), "status": plan.status}
+
+
+def update_reading_plan(
+    session: Session,
+    book_id: uuid.UUID,
+    user_id: uuid.UUID,
+    pace: int | None = None,
+    schedule_config: list[str] | None = None,
+    reminder_time: str | None = None,
+) -> dict:
+    book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
+    if not book:
+        raise BookNotFoundError()
+    plan = _active_plan(session, book_id)
+
+    new_pace = pace if pace is not None else plan.pace
+    new_schedule_config = schedule_config if schedule_config is not None else plan.schedule_config
+    new_reminder_time = reminder_time if reminder_time is not None else plan.reminder_time
+
+    # If the plan is active, update slots
+    if plan.status == PlanStatus.ACTIVE.value:
+        slots = validate_plan_schedule_for_create(
+            session,
+            user_id=user_id,
+            schedule_config=new_schedule_config,
+            reminder_time=new_reminder_time,
+            exclude_plan_id=plan.id,
+        )
+
+        deactivate_slots_for_plan(session, plan_id=plan.id)
+
+        for slot in build_slots_for_plan(
+            user_id=user_id,
+            book_id=book_id,
+            plan_id=plan.id,
+            slots=slots,
+        ):
+            session.add(slot)
+
+    plan.pace = new_pace
+    plan.schedule_config = new_schedule_config
+    plan.reminder_time = new_reminder_time
+    session.add(plan)
+    session.commit()
+
+    return {
+        "message": "Đã cập nhật kế hoạch học tập.",
+        "plan_id": str(plan.id),
+        "pace": plan.pace,
+        "schedule_config": plan.schedule_config,
+        "reminder_time": plan.reminder_time,
+    }

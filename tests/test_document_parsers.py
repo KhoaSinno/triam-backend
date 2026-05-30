@@ -8,10 +8,10 @@ from ebooklib import epub
 
 from app.core.exceptions import DocumentOutlineRequiredError
 from app.core.logger import _redact_message
-from app.services.document_parser_service import extract_chapters_by_document_type, parse_document_structure
+from app.services.document_parser_service import parse_document_structure
 from app.services.document_structure_types import flatten_sections
-from app.services.docx_service import extract_docx_chapters, parse_docx_structure
-from app.services.epub_service import extract_epub_chapters, parse_epub_structure
+from app.services.docx_service import parse_docx_structure
+from app.services.epub_service import parse_epub_structure
 
 
 def _run(coro):
@@ -99,22 +99,24 @@ def _build_nested_epub(tmp_path) -> io.BytesIO:
     return io.BytesIO(epub_path.read_bytes())
 
 
-def test_extract_pdf_chapters_from_sample(sample_pdf):
+def test_parse_pdf_structure_from_sample(sample_pdf):
     with open(sample_pdf, "rb") as file_obj:
-        chapters = _run(extract_chapters_by_document_type(file_obj, "pdf"))
+        parsed = _run(parse_document_structure(file_obj, "pdf"))
+    sections = flatten_sections(parsed.sections)
 
-    assert len(chapters) == 2
-    assert chapters[0]["title"] == "Chapter 1: The Science of Memory"
-    assert chapters[0]["page_start"] == 1
-    assert chapters[0]["text"]
+    assert len(sections) == 2
+    assert sections[0].title == "Chapter 1: The Science of Memory"
+    assert sections[0].page_start == 1
+    assert sections[0].text
 
 
-def test_extract_docx_chapters_with_headings():
-    chapters = _run(extract_docx_chapters(_build_docx_with_headings()))
+def test_parse_docx_structure_with_headings():
+    parsed = _run(parse_docx_structure(_build_docx_with_headings()))
+    sections = flatten_sections(parsed.sections)
 
-    assert [chapter["title"] for chapter in chapters] == ["Chương 1: Mở đầu", "Chương 2: Kết luận"]
-    assert chapters[0]["page_start"] is None
-    assert "Nội dung chương một" in chapters[0]["text"]
+    assert [section.title for section in sections] == ["Chương 1: Mở đầu", "Chương 2: Kết luận"]
+    assert sections[0].page_start is None
+    assert "Nội dung chương một" in sections[0].text
 
 
 def test_parse_docx_structure_preserves_heading_tree():
@@ -132,15 +134,16 @@ def test_parse_docx_structure_preserves_heading_tree():
 
 def test_extract_docx_without_headings_fails():
     with pytest.raises(DocumentOutlineRequiredError):
-        _run(extract_docx_chapters(_build_docx_without_headings()))
+        _run(parse_docx_structure(_build_docx_without_headings()))
 
 
-def test_extract_epub_chapters_with_toc(tmp_path):
-    chapters = _run(extract_epub_chapters(_build_epub(tmp_path, with_toc=True)))
+def test_parse_epub_structure_with_toc(tmp_path):
+    parsed = _run(parse_epub_structure(_build_epub(tmp_path, with_toc=True)))
+    sections = flatten_sections(parsed.sections)
 
-    assert [chapter["title"] for chapter in chapters] == ["Chương 1: Mở đầu"]
-    assert chapters[0]["page_start"] is None
-    assert "Nội dung chương một" in chapters[0]["text"]
+    assert [section.title for section in sections] == ["Chương 1: Mở đầu"]
+    assert sections[0].page_start is None
+    assert "Nội dung chương một" in sections[0].text
 
 
 def test_parse_epub_structure_preserves_nested_toc(tmp_path):
@@ -166,7 +169,7 @@ def test_parse_document_structure_dispatches_pdf(sample_pdf):
 
 def test_extract_epub_without_toc_fails(tmp_path):
     with pytest.raises(DocumentOutlineRequiredError):
-        _run(extract_epub_chapters(_build_epub(tmp_path, with_toc=False)))
+        _run(parse_epub_structure(_build_epub(tmp_path, with_toc=False)))
 
 
 def test_redact_message_hides_sensitive_headers():

@@ -5,7 +5,7 @@ from sqlmodel import Session, select
 
 from app.core.constant import BookStatus, NotificationChannel, NotificationStatus, NotificationType, PlanMode, PlanStatus, ProcessingJobStatus
 from app.db.database import engine
-from app.models.db_models import Book, LearningUnit, LearningUnitSegment, NotificationOutbox, NotificationSettings, ReadingPlan, UserNotification
+from app.models.db_models import Book, LearningUnit, LearningUnitSegment, NotificationOutbox, NotificationSettings, ReadingPlan, UserNotification, UserDeviceToken
 from app.repositories.notification_outbox_repo import claim_due_outbox, create_outbox_once, recover_stale_outbox
 from app.services.notification_event_service import _build_plan_reminder_outbox
 from app.tasks.notification_tasks import deliver_one_notification
@@ -179,4 +179,87 @@ def test_plan_reminder_scan_creates_one_outbox_per_day():
             book = session.get(Book, book_id)
             if book:
                 session.delete(book)
+            session.commit()
+
+
+def test_fcm_delivery_and_cleanup_on_failure():
+    from unittest.mock import MagicMock, patch
+    user_id = uuid.uuid4()
+    token_ok = "token-that-is-valid-123"
+    token_bad = "token-that-is-expired-456"
+
+    # Pre-register device tokens
+    with Session(engine) as session:
+        session.add(UserDeviceToken(user_id=user_id, device_token=token_ok))
+        session.add(UserDeviceToken(user_id=user_id, device_token=token_bad))
+        session.commit()
+
+    # Create an outbox item in PROCESSING state with channel = ALL
+    outbox = NotificationOutbox(
+        user_id=user_id,
+        type=NotificationType.CONTENT_READY,
+        channel=NotificationChannel.ALL,
+        status=NotificationStatus.PROCESSING,
+        payload={
+            "message": "FCM test notification.",
+            "action_type": "open_book",
+            "action_payload": {"book_id": str(uuid.uuid4())},
+        },
+        due_at=datetime.now(timezone.utc) - timedelta(minutes=1),
+        idempotency_key=f"test-fcm-cleanup:{uuid.uuid4()}",
+    )
+
+    created_ids = []
+    try:
+        with Session(engine) as session:
+            created = create_outbox_once(session, outbox)
+            assert created is not None
+            created_ids.append(created.id)
+
+        # Mock messaging.send_multicast
+        mock_resp_ok = MagicMock()
+        mock_resp_ok.success = True
+
+        mock_resp_bad = MagicMock()
+        mock_resp_bad.success = False
+        from firebase_admin.messaging import UnregisteredError
+        mock_resp_bad.exception = UnregisteredError("Token unregistered")
+
+        mock_batch_response = MagicMock()
+        mock_batch_response.success_count = 1
+        mock_batch_response.failure_count = 1
+        mock_batch_response.responses = [mock_resp_ok, mock_resp_bad]
+
+        with patch("app.services.fcm_service.init_firebase", return_value=True), \
+             patch("firebase_admin.messaging.send_each_for_multicast", return_value=mock_batch_response) as mock_send:
+
+            deliver_one_notification(created_ids[0])
+            mock_send.assert_called_once()
+
+        with Session(engine) as session:
+            # Check outbox is sent
+            saved = session.get(NotificationOutbox, created_ids[0])
+            assert saved.status == NotificationStatus.SENT
+
+            # Check in-app notification was created
+            notifications = session.exec(select(UserNotification).where(UserNotification.outbox_id == created_ids[0])).all()
+            assert len(notifications) == 1
+
+            # Check that token_bad was deleted and token_ok remains
+            db_tokens = session.exec(select(UserDeviceToken).where(UserDeviceToken.user_id == user_id)).all()
+            remaining_tokens = {t.device_token for t in db_tokens}
+            assert token_ok in remaining_tokens
+            assert token_bad not in remaining_tokens
+    finally:
+        with Session(engine) as session:
+            db_tokens = session.exec(select(UserDeviceToken).where(UserDeviceToken.user_id == user_id)).all()
+            for t in db_tokens:
+                session.delete(t)
+            for cid in created_ids:
+                saved = session.get(NotificationOutbox, cid)
+                if saved:
+                    session.delete(saved)
+                notifications = session.exec(select(UserNotification).where(UserNotification.outbox_id == cid)).all()
+                for n in notifications:
+                    session.delete(n)
             session.commit()

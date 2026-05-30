@@ -1,12 +1,12 @@
 import uuid
 
 import pytest
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from app.core.constant import BookStatus, DocumentType, PlanMode, ProcessingJobStatus, ProcessingJobType
-from app.core.exceptions import ChapterTooLargeError, LLMResponseFormatError, NoPlayableAudioError
+from app.core.exceptions import LearningUnitTooLargeError, LLMResponseFormatError, NoPlayableAudioError
 from app.db.database import engine
-from app.models.db_models import Book, BookSection, Chapter, LearningUnit, LearningUnitSource, ProcessingJob
+from app.models.db_models import Book, BookSection, LearningUnit, LearningUnitSource, ProcessingJob
 from app.services.token_budget_service import estimate_text_budget
 
 MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
@@ -30,7 +30,7 @@ def test_llm_hard_limit_blocks_provider_call(monkeypatch):
     monkeypatch.setattr(settings, "LLM_INPUT_HARD_TOKEN_LIMIT", 1)
     monkeypatch.setattr(llm_service, "_call_normalize_llm", fail_if_called)
 
-    with pytest.raises(ChapterTooLargeError):
+    with pytest.raises(LearningUnitTooLargeError):
         import asyncio
 
         asyncio.run(llm_service.normalize_text_for_speech("nội dung đủ dài để vượt một token", "full"))
@@ -62,33 +62,33 @@ async def test_tts_pipeline_fails_when_llm_returns_no_playable_scripts(monkeypat
     async def fake_normalize(*args, **kwargs):
         return {"main_scripts": [], "review_script": "review"}
 
-    monkeypatch.setattr("app.services.workers.tts_worker.normalize_text_for_speech", fake_normalize)
+    monkeypatch.setattr("app.services.workers.learning_unit_tts_worker.normalize_text_for_speech", fake_normalize)
 
-    from app.services.workers.tts_worker import run_tts_pipeline
+    from app.services.workers.learning_unit_tts_worker import run_learning_unit_tts_pipeline
 
     with pytest.raises(NoPlayableAudioError):
-        await run_tts_pipeline(uuid.uuid4(), uuid.uuid4(), 0, "raw text", "full")
+        await run_learning_unit_tts_pipeline(uuid.uuid4(), uuid.uuid4(), 0, "raw text", "full", "Unit 1")
 
 
 @pytest.mark.asyncio
-async def test_chapter_failure_keeps_chapter_and_marks_state(monkeypatch):
+async def test_learning_unit_failure_keeps_unit_and_marks_error(monkeypatch):
     async def fake_rag(*args, **kwargs):
         return None
 
     async def fake_tts(*args, **kwargs):
         raise NoPlayableAudioError("no audio")
 
-    monkeypatch.setattr("app.services.workers.chapter_worker._run_rag_pipeline", fake_rag)
-    monkeypatch.setattr("app.services.workers.chapter_worker.run_tts_pipeline", fake_tts)
+    monkeypatch.setattr("app.services.workers.learning_unit_worker._run_rag_pipeline", fake_rag)
+    monkeypatch.setattr("app.services.workers.learning_unit_worker.run_learning_unit_tts_pipeline", fake_tts)
 
-    from app.models.db_models import ChapterProcessingState
-    from app.services.workers.chapter_worker import process_chapter
+    from app.services.workers.learning_unit_worker import process_learning_unit
 
     with Session(engine) as session:
         book = Book(
             user_id=MOCK_USER_ID,
-            title="Phase 3 Failure Test",
-            total_chapters=1,
+            title="Phase 6 Unit Failure Test",
+            total_sections=1,
+            total_units=1,
             status=BookStatus.PROCESSING,
             document_type=DocumentType.PDF,
             file_url="https://example.test/storage/v1/object/public/raw_books/test/original.pdf",
@@ -96,40 +96,41 @@ async def test_chapter_failure_keeps_chapter_and_marks_state(monkeypatch):
         session.add(book)
         session.commit()
         session.refresh(book)
-        chapter = Chapter(book_id=book.id, chapter_index=0, title="Chapter 1", status=BookStatus.PROCESSING)
-        session.add(chapter)
+        unit = LearningUnit(
+            user_id=MOCK_USER_ID,
+            book_id=book.id,
+            mode=PlanMode.FULL,
+            unit_index=0,
+            title="Unit 1",
+            unit_type="full",
+            status=ProcessingJobStatus.QUEUED,
+            source_text_char_count=8,
+            estimated_tokens=2,
+            estimated_audio_seconds=1,
+        )
+        session.add(unit)
         session.commit()
-        session.refresh(chapter)
+        session.refresh(unit)
         book_id = book.id
-        chapter_id = chapter.id
+        unit_id = unit.id
 
     with pytest.raises(NoPlayableAudioError):
-        await process_chapter(
+        await process_learning_unit(
             MOCK_USER_ID,
             book_id,
-            "Phase 3 Failure Test",
-            "Chapter 1",
-            chapter_id,
-            0,
+            "Phase 6 Unit Failure Test",
+            unit,
             "raw text",
-            PlanMode.FULL.value,
+            None,
             raw_text_char_count=8,
             estimated_tokens=2,
             estimated_audio_seconds=1,
         )
 
     with Session(engine) as session:
-        chapter = session.get(Chapter, chapter_id)
-        state = session.exec(
-            select(ChapterProcessingState).where(
-                ChapterProcessingState.chapter_id == chapter_id,
-                ChapterProcessingState.mode == PlanMode.FULL,
-            )
-        ).first()
-        assert chapter is not None
-        assert chapter.status == BookStatus.ERROR
-        assert state is not None
-        assert state.status == ProcessingJobStatus.ERROR
+        saved_unit = session.get(LearningUnit, unit_id)
+        assert saved_unit is not None
+        assert saved_unit.status == ProcessingJobStatus.ERROR
 
         book = session.get(Book, book_id)
         if book:

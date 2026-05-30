@@ -1,9 +1,64 @@
 # Phase 6 Cleanup And Refactor Stabilization Plan
 
 Date: 2026-05-29  
-Status: **Proposed**  
+Status: **Implemented locally**  
 Scope: Backend cleanup after Phase 4.2 and Phase 5  
 Audience: Backend developer, Flutter developer, capstone reviewer
+
+---
+
+## 0. Implementation Result
+
+Phase 6 đã được implement theo hướng cleanup có kiểm soát, không thêm feature mới.
+
+Đã hoàn thành:
+
+- Đổi config chính từ `chapter` sang `learning unit`: `FIRST_PLAYABLE_UNITS`, `LEARNING_UNIT_PROCESSING_CONCURRENCY`.
+- Giữ backward compatibility cho env cũ: `FIRST_PLAYABLE_CHAPTERS`, `CHAPTER_PROCESSING_CONCURRENCY`.
+- Tách TTS worker mới: `app/services/workers/learning_unit_tts_worker.py`.
+- Xoá code path chapter legacy không còn dùng:
+  - `app/services/workers/chapter_worker.py`
+  - `app/services/workers/tts_worker.py`
+  - `app/repositories/chapter_repo.py`
+  - `app/repositories/chapter_segment_repo.py`
+  - `app/repositories/chapter_processing_state_repo.py`
+- Xoá `app/repositories/plan_repo.py` vì file này không còn được dùng và có query sai theo schema mới.
+- Xoá parser API flat chapter legacy, giữ parser chuẩn theo document structure.
+- Làm gọn SQLModel schema theo mô hình `BookSection -> LearningUnit`.
+- Thêm Alembic migration cleanup: `c5d6e7f8a901_phase_6_cleanup_legacy_chapter_schema.py`.
+- Xoá schema legacy khỏi DB:
+  - `chapters`
+  - `chapter_segments`
+  - `chapter_processing_states`
+  - `chapter_learning_progress`
+  - `books.total_chapters`
+  - `book_knowledge.chapter_id`
+  - `spaced_review_items.chapter_id`
+  - `spaced_review_items.source_progress_id`
+- Tối ưu `GET /books/{book_id}/outline` để chỉ load metadata, không load toàn bộ `text_content`.
+- Đổi LLM normalize nội bộ sang wording `unit`, đồng thời giữ alias exception cũ để tránh break import.
+- Notification copy dùng `unit_title`, vẫn fallback `chapter_title` cho outbox cũ chưa deliver.
+
+Verification đã chạy:
+
+```powershell
+uv run alembic upgrade head
+uv run alembic current
+uv run ruff check <changed files>
+uv run python -m py_compile <changed files>
+uv run pytest tests/test_document_parsers.py tests/test_llm_structured_output.py tests/test_learning_unit_planner.py tests/test_phase3_generation_guardrails.py tests/test_phase4_2_learning_loop.py tests/test_notification_outbox_repo.py tests/test_auth_user_isolation.py tests/test_processing_jobs_api.py tests/test_notifications_api.py tests/test_notification_services.py tests/test_celery_enqueue.py tests/test_upload_service_batch_commit.py -q
+```
+
+Kết quả:
+
+```text
+Alembic current: c5d6e7f8a901 (head)
+Ruff: pass
+Py compile: pass
+Focused regression: 50 passed
+```
+
+Full `pytest -q` hiện có 55 test pass và 9 test fail vì các integration test cũ gọi trực tiếp `127.0.0.1:8000` khi local server chưa chạy. Đây là điều kiện test environment, không phải lỗi Phase 6 cleanup.
 
 ---
 
@@ -875,4 +930,3 @@ runtime test reports
 capstone chapter 5
 demo script
 ```
-
