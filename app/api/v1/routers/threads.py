@@ -23,7 +23,7 @@ router = APIRouter()
 
 
 @router.get("/threads/{thread_id}/messages", response_model=List[ChatMessageResponse])
-async def get_thread_messages_api(thread_id: uuid.UUID, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser):
+async def get_thread_messages_api(thread_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
     return get_thread_messages(session, current_user.sub, thread_id)
 
 
@@ -31,7 +31,7 @@ async def get_thread_messages_api(thread_id: uuid.UUID, session: Annotated[Sessi
 
 
 @router.get("/threads/for-book/{book_id}")
-async def get_thread_for_book(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser):
+async def get_thread_for_book(book_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
     return get_or_create_thread_for_book(session, user_id=current_user.sub, book_id=book_id, title="New Book Chat")
 
 
@@ -39,11 +39,11 @@ async def get_thread_for_book(book_id: uuid.UUID, session: Annotated[Session, De
 
 
 @router.put("/threads/{thread_id}", response_model=ChatThreadResponse)
-async def update_thread_api(thread_id: uuid.UUID, payload: ChatThreadUpdate, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser):
+async def update_thread_api(thread_id: uuid.UUID, payload: ChatThreadUpdate, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
     return update_thread_by_id(session, current_user.sub, thread_id, payload.title)
 
 
 @router.delete("/threads/{thread_id}")
-async def delete_thread_api(thread_id: uuid.UUID, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser):
+async def delete_thread_api(thread_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
     delete_thread_by_id(session, current_user.sub, thread_id)
     return {"message": "Thread deleted successfully"}

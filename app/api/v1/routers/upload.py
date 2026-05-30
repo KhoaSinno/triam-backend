@@ -16,9 +16,9 @@ router = APIRouter()
 # -----------------------------------------------------------------------
 @router.post("/upload")
 async def upload_document(
+    current_user: CurrentUser,
     session: Annotated[Session, Depends(get_session)],
     file: Annotated[UploadFile, File(...)],
-    current_user: CurrentUser,
 ):
     """
     Bước 1: Nhận file, extract outline, upload tài liệu lên Supabase Storage,
@@ -32,9 +32,9 @@ async def upload_document(
 # -----------------------------------------------------------------------
 @router.post("/generate-plan")
 async def generate_plan(
+    current_user: CurrentUser,
     session: Annotated[Session, Depends(get_session)],
     payload: Annotated[PlanInput, Body(...)],
-    current_user: CurrentUser,
 ):
     """
     Bước 2: Nhận cấu hình kế hoạch học từ Flutter, lưu ReadingPlan,

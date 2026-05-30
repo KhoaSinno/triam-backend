@@ -91,7 +91,7 @@ class Settings(BaseSettings):
     # Provider concurrency
     LEARNING_UNIT_PROCESSING_CONCURRENCY: int = 2
     LLM_NORMALIZE_CONCURRENCY: int = 1
-    TTS_GENERATION_CONCURRENCY: int = 2
+    TTS_GENERATION_CONCURRENCY: int = 4
     EMBEDDING_BATCH_SIZE: int = 64
 
     # Phase 4.1 notification/reminder workflow

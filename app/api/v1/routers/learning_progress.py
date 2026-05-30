@@ -22,8 +22,8 @@ def update_learning_unit_progress_endpoint(
     book_id: uuid.UUID,
     learning_unit_id: uuid.UUID,
     payload: LearningUnitProgressUpdateRequest,
-    session: Annotated[Session, Depends(get_session)],
     current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
 ):
     return update_learning_unit_progress(session, user_id=current_user.sub, book_id=book_id, learning_unit_id=learning_unit_id, payload=payload)
 
@@ -33,8 +33,8 @@ def complete_learning_unit_endpoint(
     book_id: uuid.UUID,
     learning_unit_id: uuid.UUID,
     payload: ManualLearningUnitCompleteRequest,
-    session: Annotated[Session, Depends(get_session)],
     current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
 ):
     return complete_learning_unit_manually(session, user_id=current_user.sub, book_id=book_id, learning_unit_id=learning_unit_id, mode=payload.mode)
 
@@ -43,7 +43,7 @@ def complete_learning_unit_endpoint(
 def get_book_learning_progress_endpoint(
     book_id: uuid.UUID,
     mode: str,
-    session: Annotated[Session, Depends(get_session)],
     current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
 ):
     return get_book_learning_progress(session, user_id=current_user.sub, book_id=book_id, mode=mode)
