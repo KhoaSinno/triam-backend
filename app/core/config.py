@@ -86,10 +86,10 @@ class Settings(BaseSettings):
     LLM_CHUNK_TARGET_TOKENS: int = 5000
     LLM_CHUNK_OVERLAP_TOKENS: int = 300
     MAX_ESTIMATED_AUDIO_SECONDS_PER_BOOK: int = 4 * 60 * 60
-    FIRST_PLAYABLE_CHAPTERS: int = 1
+    FIRST_PLAYABLE_UNITS: int = 1
 
     # Provider concurrency
-    CHAPTER_PROCESSING_CONCURRENCY: int = 2
+    LEARNING_UNIT_PROCESSING_CONCURRENCY: int = 2
     LLM_NORMALIZE_CONCURRENCY: int = 1
     TTS_GENERATION_CONCURRENCY: int = 2
     EMBEDDING_BATCH_SIZE: int = 64
@@ -104,6 +104,10 @@ class Settings(BaseSettings):
     NOTIFICATION_DEFAULT_DAILY_CAP: int = 3
     NOTIFICATION_DEFAULT_QUIET_START: str = "22:00"
     NOTIFICATION_DEFAULT_QUIET_END: str = "07:00"
+
+    # Firebase Cloud Messaging
+    FIREBASE_CREDENTIALS_JSON: str | None = None
+    FIREBASE_CREDENTIALS_FILE: str | None = None
 
     # Phase 4.2 production learning loop
     MAX_ACTIVE_LEARNING_BOOKS_PER_USER: int = 3

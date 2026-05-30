@@ -51,6 +51,8 @@ class NotificationType(str, Enum):
 
 class NotificationChannel(str, Enum):
     IN_APP = "in_app"
+    PUSH = "push"
+    ALL = "all"
 
 
 class NotificationStatus(str, Enum):

@@ -1,10 +1,11 @@
-import app.models.db_models
-from app.core.config import settings
-from sqlmodel import SQLModel
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
+from sqlmodel import SQLModel
+
+import app.models.db_models  # noqa: F401
+from app.core.config import settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -22,8 +23,10 @@ if config.config_file_name is not None:
 # for 'autogenerate' support
 target_metadata = SQLModel.metadata
 
-# Set sqlalchemy.url from our settings dynamically so we don't have to put it in alembic.ini
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+# Set sqlalchemy.url from our settings dynamically so we don't have to put it in alembic.ini.
+# Alembic stores this in ConfigParser, so percent-encoded passwords such as %40
+# must escape percent signs to avoid interpolation errors.
+config.set_main_option("sqlalchemy.url", settings.DATABASE_URL.replace("%", "%%"))
 
 # other values from the config, defined by the needs of env.py,
 # can be acquired:

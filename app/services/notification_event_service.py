@@ -1,3 +1,4 @@
+import json
 import uuid
 from datetime import datetime
 
@@ -17,14 +18,14 @@ from app.core.constant import (
 from app.core.logger import log
 from app.models.db_models import (
     Book,
-    Chapter,
-    ChapterLearningProgress,
+    LearningUnit,
+    LearningUnitProgress,
     NotificationOutbox,
     ReadingPlan,
     SpacedReviewItem,
     UserNotification,
 )
-from app.repositories.learning_progress_repo import has_playable_uncompleted_chapter, has_studied_book_between
+from app.repositories.learning_progress_repo import has_playable_uncompleted_unit, has_studied_book_between
 from app.repositories.notification_outbox_repo import (
     count_outbox_for_user_between,
     create_outbox_once,
@@ -34,6 +35,7 @@ from app.repositories.notification_outbox_repo import (
 from app.repositories.notification_settings_repo import get_or_create_notification_settings
 from app.repositories.spaced_review_repo import defer_review_item, get_due_review_items, mark_review_item_due
 from app.repositories.user_notification_repo import create_user_notification_once
+from app.services.fcm_service import send_fcm_notification
 from app.services.notification_copy_service import build_notification_copy
 from app.services.reminder_schedule_service import (
     local_day_bounds_utc,
@@ -78,8 +80,8 @@ def create_content_ready_outbox_once(
     user_id: uuid.UUID,
     book_id: uuid.UUID,
     book_title: str,
-    chapter_id: uuid.UUID,
-    chapter_title: str,
+    learning_unit_id: uuid.UUID,
+    unit_title: str,
     mode: PlanMode | str,
     due_at: datetime,
 ) -> NotificationOutbox | None:
@@ -88,21 +90,21 @@ def create_content_ready_outbox_once(
     if adjusted_due_at is None:
         log.info(
             f"Skip content-ready notification because daily cap is reached | "
-            f"user_id={user_id} | chapter_id={chapter_id}"
+            f"user_id={user_id} | learning_unit_id={learning_unit_id}"
         )
         return None
 
     payload = {
         "book_id": str(book_id),
         "book_title": book_title,
-        "chapter_id": str(chapter_id),
-        "chapter_title": chapter_title,
+        "learning_unit_id": str(learning_unit_id),
+        "unit_title": unit_title,
         "mode": mode_value,
-        "message": f"{chapter_title} đã sẵn sàng để nghe.",
-        "action_type": "open_chapter",
+        "message": f"{unit_title} đã sẵn sàng để nghe.",
+        "action_type": "open_learning_unit",
         "action_payload": {
             "book_id": str(book_id),
-            "chapter_id": str(chapter_id),
+            "learning_unit_id": str(learning_unit_id),
             "mode": mode_value,
         },
     }
@@ -111,11 +113,11 @@ def create_content_ready_outbox_once(
         NotificationOutbox(
             user_id=user_id,
             type=NotificationType.CONTENT_READY,
-            channel=NotificationChannel.IN_APP,
+            channel=NotificationChannel.ALL,
             status=NotificationStatus.PENDING,
             payload=payload,
             due_at=adjusted_due_at,
-            idempotency_key=f"content-ready:{user_id}:{chapter_id}:{mode_value}",
+            idempotency_key=f"content-ready:{user_id}:{learning_unit_id}:{mode_value}",
         ),
     )
 
@@ -139,7 +141,7 @@ def create_first_playable_ready_outbox_once(
         NotificationOutbox(
             user_id=user_id,
             type=NotificationType.CONTENT_READY,
-            channel=NotificationChannel.IN_APP,
+            channel=NotificationChannel.ALL,
             status=NotificationStatus.PENDING,
             payload={
                 "subtype": "first_playable",
@@ -177,7 +179,7 @@ def create_book_ready_outbox_once(
         NotificationOutbox(
             user_id=user_id,
             type=NotificationType.CONTENT_READY,
-            channel=NotificationChannel.IN_APP,
+            channel=NotificationChannel.ALL,
             status=NotificationStatus.PENDING,
             payload={
                 "subtype": "book_ready",
@@ -202,15 +204,15 @@ def _build_review_outbox(session: Session, review_item: SpacedReviewItem, *, now
         return None
 
     progress = None
-    if review_item.source_progress_id:
-        progress = session.get(ChapterLearningProgress, review_item.source_progress_id)
-    if not progress:
+    if review_item.source_unit_progress_id:
+        progress = session.get(LearningUnitProgress, review_item.source_unit_progress_id)
+    if not progress and review_item.learning_unit_id:
         progress = session.exec(
-            select(ChapterLearningProgress).where(
-                ChapterLearningProgress.user_id == review_item.user_id,
-                ChapterLearningProgress.chapter_id == review_item.chapter_id,
-                ChapterLearningProgress.mode == review_item.mode,
-                ChapterLearningProgress.status == LearningProgressStatus.COMPLETED,
+            select(LearningUnitProgress).where(
+                LearningUnitProgress.user_id == review_item.user_id,
+                LearningUnitProgress.learning_unit_id == review_item.learning_unit_id,
+                LearningUnitProgress.mode == review_item.mode,
+                LearningUnitProgress.status == LearningProgressStatus.COMPLETED,
             )
         ).first()
     if not progress or progress.status != LearningProgressStatus.COMPLETED:
@@ -232,21 +234,21 @@ def _build_review_outbox(session: Session, review_item: SpacedReviewItem, *, now
     if not _daily_cap_available(session, user_id=review_item.user_id, due_at=due_at, user_settings=user_settings):
         return None
 
-    chapter = session.get(Chapter, review_item.chapter_id)
+    unit = session.get(LearningUnit, review_item.learning_unit_id) if review_item.learning_unit_id else None
     book = session.get(Book, review_item.book_id)
     idempotency_key = f"spaced-review:{review_item.id}"
     payload = {
         "book_id": str(review_item.book_id),
         "book_title": book.title if book else "sách của bạn",
-        "chapter_id": str(review_item.chapter_id),
-        "chapter_title": chapter.title if chapter else "một chương đã học",
+        "learning_unit_id": str(review_item.learning_unit_id) if review_item.learning_unit_id else None,
+        "unit_title": unit.title if unit else "một bài học đã học",
         "review_item_id": str(review_item.id),
         "mode": review_item.mode.value,
         "interval_days": review_item.interval_days,
         "action_type": "open_review",
         "action_payload": {
             "book_id": str(review_item.book_id),
-            "chapter_id": str(review_item.chapter_id),
+            "learning_unit_id": str(review_item.learning_unit_id) if review_item.learning_unit_id else None,
             "review_item_id": str(review_item.id),
             "mode": review_item.mode.value,
         },
@@ -256,7 +258,7 @@ def _build_review_outbox(session: Session, review_item: SpacedReviewItem, *, now
         NotificationOutbox(
             user_id=review_item.user_id,
             type=NotificationType.SPACED_REVIEW_DUE,
-            channel=NotificationChannel.IN_APP,
+            channel=NotificationChannel.ALL,
             status=NotificationStatus.PENDING,
             payload=payload,
             due_at=due_at,
@@ -285,10 +287,11 @@ def _build_plan_reminder_outbox(session: Session, plan: ReadingPlan, book: Book,
     if not weekday_is_enabled(plan.schedule_config, local_now):
         return None
 
+    reminder_time = plan.reminder_time or user_settings.reminder_time
     reminder_due_at = reminder_due_at_for_today(
         now_utc=now,
         timezone_name=user_settings.timezone,
-        reminder_time=user_settings.reminder_time,
+        reminder_time=reminder_time,
     )
     if now < reminder_due_at:
         return None
@@ -302,7 +305,7 @@ def _build_plan_reminder_outbox(session: Session, plan: ReadingPlan, book: Book,
     if not _daily_cap_available(session, user_id=book.user_id, due_at=due_at, user_settings=user_settings):
         return None
 
-    if not has_playable_uncompleted_chapter(session, user_id=book.user_id, book_id=book.id, mode=plan.mode):
+    if not has_playable_uncompleted_unit(session, user_id=book.user_id, book_id=book.id, mode=plan.mode):
         return None
 
     start_utc, end_utc = local_day_bounds_utc(local_now.date(), user_settings.timezone)
@@ -334,7 +337,7 @@ def _build_plan_reminder_outbox(session: Session, plan: ReadingPlan, book: Book,
         NotificationOutbox(
             user_id=book.user_id,
             type=NotificationType.PLAN_REMINDER,
-            channel=NotificationChannel.IN_APP,
+            channel=NotificationChannel.ALL,
             status=NotificationStatus.PENDING,
             payload=payload,
             due_at=due_at,
@@ -360,14 +363,31 @@ def create_due_plan_reminder_outbox_rows(session: Session, *, now: datetime) -> 
 
 def deliver_outbox_notification(session: Session, outbox: NotificationOutbox, *, now: datetime) -> None:
     title, body = build_notification_copy(outbox.type, outbox.payload)
-    notification = UserNotification(
-        user_id=outbox.user_id,
-        outbox_id=outbox.id,
-        type=outbox.type,
-        title=title,
-        body=body,
-        action_type=outbox.payload.get("action_type"),
-        action_payload=outbox.payload.get("action_payload"),
-    )
-    create_user_notification_once(session, notification)
+
+    # 1. In-app Delivery
+    if outbox.channel in (NotificationChannel.IN_APP, NotificationChannel.ALL):
+        notification = UserNotification(
+            user_id=outbox.user_id,
+            outbox_id=outbox.id,
+            type=outbox.type,
+            title=title,
+            body=body,
+            action_type=outbox.payload.get("action_type"),
+            action_payload=outbox.payload.get("action_payload"),
+        )
+        create_user_notification_once(session, notification)
+
+    # 2. Push/FCM Delivery
+    if outbox.channel in (NotificationChannel.PUSH, NotificationChannel.ALL):
+        fcm_data = {}
+        if outbox.payload.get("action_type"):
+            fcm_data["action_type"] = outbox.payload["action_type"]
+        if outbox.payload.get("action_payload"):
+            fcm_data["action_payload"] = json.dumps(outbox.payload["action_payload"])
+
+        fcm_data["outbox_id"] = str(outbox.id)
+        fcm_data["notification_type"] = outbox.type.value
+
+        send_fcm_notification(session, user_id=outbox.user_id, title=title, body=body, data=fcm_data)
+
     mark_outbox_sent(session, outbox, now=now)

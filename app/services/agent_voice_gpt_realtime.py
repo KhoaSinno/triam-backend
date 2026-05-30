@@ -189,11 +189,11 @@ class TriamAssistant(Agent):
                     continue
                 if remaining_chars <= 0:
                     break
-                chapter_id = str(item.get("chapter_id", ""))
+                unit_id = str(item.get("learning_unit_id") or "")
                 chunk_index = item.get("chunk_index", "N/A")
                 content = _trim_text(str(item.get("content", "")), remaining_chars)
 
-                chunk_text = f"--- Segment {i + 1} (Chapter ID: ...{chapter_id[-6:]}, Index: {chunk_index}) ---\n{content}"
+                chunk_text = f"--- Segment {i + 1} (Unit ID: ...{unit_id[-6:]}, Index: {chunk_index}) ---\n{content}"
                 formatted_chunks.append(chunk_text)
                 remaining_chars -= len(content)
 

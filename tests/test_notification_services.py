@@ -9,10 +9,10 @@ from app.services.reminder_schedule_service import is_quiet_time, shift_out_of_q
 
 
 def test_notification_copy_is_deterministic():
-    title, body = build_notification_copy(NotificationType.SPACED_REVIEW_DUE, {"chapter_title": "Chương 4"})
+    title, body = build_notification_copy(NotificationType.SPACED_REVIEW_DUE, {"unit_title": "Bài học 4"})
 
     assert title == "Đến lúc ôn lại rồi"
-    assert "Chương 4" in body
+    assert "Bài học 4" in body
 
 
 def test_quiet_hours_cross_midnight():

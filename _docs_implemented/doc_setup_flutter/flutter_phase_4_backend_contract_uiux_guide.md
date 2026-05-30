@@ -1,15 +1,211 @@
-# TRIAM Flutter Implementation Guide - Phase 4 Backend Contract And UI/UX
+# TRIAM Flutter Implementation Guide - Phase 6 Backend Contract And UI/UX
 
-Ngày cập nhật: 2026-05-26  
+Ngày cập nhật: 2026-05-29
 Audience: Flutter team, backend maintainer, capstone reviewer  
-Backend scope: Phase 1 -> Phase 4.2  
-Mục tiêu: Một tài liệu FE contract mới, thay thế cách đọc rời rạc phase 1-3 và bổ sung learning loop/notification Phase 4.2.
+Backend scope: Phase 1 -> Phase 6
+Mục tiêu: Một tài liệu FE contract mới để Flutter refactor UI theo backend chuẩn hiện tại.
+
+> **Superseded note - 2026-05-30:** File này có nhiều phần lịch sử từ Phase 4/5 và chưa được rewrite toàn bộ. Với FE đang refactor sau Phase 6, hãy dùng file mới làm contract chính:
+>
+> `_docs_implemented/doc_setup_flutter/flutter_phase_6_backend_contract_uiux_refactor_guide.md`
+>
+> Nếu hai tài liệu mâu thuẫn, ưu tiên file Phase 6.
 
 Lưu ý cho Flutter team:
 
 - FE đã có UI và cấu trúc project cơ bản, tài liệu này không yêu cầu đổi folder structure.
 - Trọng tâm là map UI hiện tại vào đúng backend state, API, progress flow và business rule.
 - Flutter không tự đoán trạng thái xử lý sách, tiến độ học, reminder hoặc review. Backend là source of truth.
+- Phase 5 đã thay contract chính từ `chapters` sang `learning_units`. Phase 6 đã cleanup schema/code legacy, nên FE mới phải render bằng `units`, không render danh sách bài nghe bằng `chapters`.
+- Nếu gặp đoạn tài liệu cũ còn nhắc `chapters`, xem đó là lịch sử Phase 4.2. Contract chính thức hiện tại là `book_sections` cho mục lục và `learning_units` cho bài nghe.
+
+## Phase 5 Contract Override - Quan Trọng
+
+Các phần cũ trong tài liệu này có nhắc `chapter/segment` theo Phase 4.2 chỉ còn giá trị lịch sử. Contract mới cho màn sách nói là:
+
+```text
+Document outline/heading/toc
+-> book_sections
+-> learning_units
+-> learning_unit_segments
+-> learning_unit_progress
+-> spaced review theo learning unit đã hoàn thành
+```
+
+FE cần map UI như sau:
+
+```text
+Mục lục tài liệu:
+  dùng outline_tree / book_sections để preview cấu trúc gốc của tài liệu.
+
+Danh sách bài nghe:
+  dùng units từ book details.
+
+Audio player:
+  phát unit.segments theo unit_index, segment_index.
+
+Tiến độ nghe:
+  gọi API learning-units/{learning_unit_id}/progress.
+
+Hoàn thành bài:
+  gọi API learning-units/{learning_unit_id}/complete.
+```
+
+Không dùng số lượng đề mục làm số chương học. Ví dụ `trr.docx` có 122 sections nhưng backend planner tạo 4 learning units ở mode Pareto.
+
+Real Phase 5 test đã pass:
+
+```text
+PDF full: ready, 3 units, 82 segments
+DOCX pareto: ready, 4 units, 55 segments
+EPUB full: ready, 1 unit, 2 segments
+```
+
+### Phase 5 API Contract Tối Thiểu Cho FE
+
+Upload:
+
+```http
+POST /api/v1/upload
+Authorization: Bearer <access_token>
+Content-Type: multipart/form-data
+```
+
+Response chính:
+
+```json
+{
+  "book_id": "uuid",
+  "total_sections": 122,
+  "max_depth": 6,
+  "outline_tree": [],
+  "warnings": [],
+  "document_type": "docx"
+}
+```
+
+Generate plan/audio:
+
+```http
+POST /api/v1/generate-plan
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+Body:
+
+```json
+{
+  "book_id": "uuid",
+  "mode": "full",
+  "pace": 1,
+  "schedule_config": ["Mon", "Wed", "Fri"]
+}
+```
+
+Response chính:
+
+```json
+{
+  "book_id": "uuid",
+  "job_id": "uuid",
+  "status": "queued",
+  "progress_percent": 0,
+  "planned_units": [
+    {
+      "learning_unit_id": "uuid",
+      "unit_index": 0,
+      "title": "PHÉP ĐẾM - Phần 1/2",
+      "unit_type": "pareto_focus",
+      "estimated_audio_seconds": 900
+    }
+  ]
+}
+```
+
+Book details/player:
+
+```http
+GET /api/v1/books/{book_id}/details?mode=full
+Authorization: Bearer <access_token>
+```
+
+Response chính:
+
+```json
+{
+  "book_id": "uuid",
+  "book_status": "ready",
+  "mode": "full",
+  "total_sections": 122,
+  "total_units": 4,
+  "units": [
+    {
+      "id": "uuid",
+      "unit_index": 0,
+      "title": "PHÉP ĐẾM - Phần 1/2",
+      "status": "ready",
+      "main_segment_count": 16,
+      "review_text": "...",
+      "review_audio_url": "https://...",
+      "segments": [
+        {
+          "id": 123,
+          "segment_index": 0,
+          "audio_url": "https://...",
+          "text_content": "...",
+          "duration_ms": 18000
+        }
+      ]
+    }
+  ]
+}
+```
+
+Progress:
+
+```http
+GET /api/v1/books/{book_id}/learning-progress?mode=full
+PUT /api/v1/books/{book_id}/learning-units/{learning_unit_id}/progress
+POST /api/v1/books/{book_id}/learning-units/{learning_unit_id}/complete
+```
+
+FE player rule:
+
+- sort `units` by `unit_index`;
+- sort `segments` by `segment_index`;
+- save resume position by `learning_unit_id`, not `chapter_id`;
+- call complete when user reaches completion threshold or taps manual complete;
+- do not create local fake review state before backend confirms.
+
+Switch mode:
+
+```http
+POST /api/v1/books/{book_id}/switch-mode
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+Rule:
+
+- keep old playable mode while new mode is generating;
+- poll `GET /api/v1/jobs/{job_id}`;
+- refresh details with the target mode when job becomes `partial_ready` or `ready`.
+
+Job polling:
+
+```http
+GET /api/v1/jobs/{job_id}
+Authorization: Bearer <access_token>
+```
+
+Terminal statuses:
+
+```text
+ready
+error
+cancelled
+```
 
 ## 0. Trạng Thái Backend Hiện Tại
 
@@ -20,40 +216,35 @@ Backend hiện đã có các nhóm chức năng:
 - Celery/Redis background job.
 - Polling progress bằng `processing_jobs`.
 - Partial-ready unlock.
-- Audiobook playback theo chapter/segment.
+- Audiobook playback theo learning unit/segment.
 - Switch mode `full` / `pareto`.
 - Study Context và thread chat.
 - LiveKit realtime voice/text agent.
 - In-app notification.
-- Learning progress theo chapter/segment.
-- Spaced review sau khi user hoàn thành chapter.
+- Learning progress theo learning unit/segment.
+- Spaced review sau khi user hoàn thành learning unit.
 - Review complete/skip.
 
-Phase 4.2 đã test bằng book thật:
+Phase 5 đã test bằng tài liệu thật:
 
 ```text
 Chương 4_ Phương pháp luận nghiên cứu.pdf
+trr.docx
+generated phase5_sample.epub
 ```
 
-Kết quả backend real-book test:
+Kết quả backend real-flow test:
 
 ```text
-Book READY.
-Job READY 100%.
-3/3 chapters READY.
-99 audio segments.
-35 knowledge chunks.
-first_playable notification sent.
-book_ready notification sent.
-spaced_review_due notification sent.
-review complete API completed.
+PDF full: Book READY, Job READY 100%, 3 units, 82 segments.
+DOCX pareto: Book READY, Job READY 100%, 4 units, 55 segments.
+EPUB full: Book READY, Job READY 100%, 1 unit, 2 segments.
 ```
 
 Log backend:
 
 ```text
-logs/phase4_2_real_book_full_flow.json
-logs/phase4_2_real_book_learning_flow.json
+phase5_real_flow_test.out.log
 ```
 
 ## 1. Auth Contract - Rất Quan Trọng

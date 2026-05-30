@@ -20,11 +20,16 @@ from app.core.exceptions import (
     UnsupportedFileTypeError,
 )
 from app.core.logger import log as logger
-from app.models.db_models import Book, Chapter, ProcessingJob, ReadingPlan
+from app.models.db_models import Book, ProcessingJob, ReadingPlan
 from app.repositories.audiobook_repo import update_book_status
+from app.repositories.book_section_repo import create_book_sections, list_book_sections
+from app.repositories.learning_unit_repo import create_learning_units
 from app.repositories.processing_job_repo import update_processing_job
 from app.schemas.plan import PlanInput
-from app.services.document_parser_service import extract_chapters_by_document_type
+from app.services.document_parser_service import parse_document_structure
+from app.services.document_structure_service import build_outline_preview, detect_structure_warnings, validate_document_structure
+from app.services.document_structure_types import flatten_sections
+from app.services.learning_unit_planner_service import plan_learning_units
 from app.services.reading_plan_schedule_service import build_slots_for_plan, validate_plan_schedule_for_create
 from app.services.storage_service import upload_file_to_supabase
 from app.tasks.book_tasks import process_book_task
@@ -46,16 +51,84 @@ def _detect_document_type(file: UploadFile) -> str:
     raise UnsupportedFileTypeError(f"Loại file không hỗ trợ ({file.content_type}). Chỉ chấp nhận PDF, EPUB, DOCX.")
 
 
-# Dispatcher function to extract chapters based on document type
-async def _extract_chapters_by_type(tmp_filename: str, document_type: str) -> list[dict]:
+def _planned_units_for_book(session: Session, book_id: uuid.UUID, mode) -> list:
+    sections = list_book_sections(session, book_id)
+    if not sections:
+        return []
+
+    planned_units = plan_learning_units(sections, mode)
+    if not planned_units:
+        raise DocumentExtractionError("Không tạo được bài học từ cấu trúc tài liệu.")
+    return planned_units
+
+
+def _create_plan_and_job(
+    session: Session,
+    *,
+    book: Book,
+    payload: PlanInput,
+    user_id: uuid.UUID,
+    slots: list,
+    resolved_reminder_time: str,
+) -> tuple[ProcessingJob, list]:
+    planned_units = _planned_units_for_book(session, payload.book_id, payload.mode)
+
+    plan = ReadingPlan(
+        book_id=payload.book_id,
+        mode=payload.mode,
+        pace=payload.pace,
+        schedule_config=payload.schedule_config,
+        status=PlanStatus.ACTIVE,
+        reminder_time=resolved_reminder_time,
+    )
+    session.add(plan)
+    session.flush()
+
+    for slot in build_slots_for_plan(
+        user_id=user_id,
+        book_id=payload.book_id,
+        plan_id=plan.id,
+        slots=slots,
+    ):
+        session.add(slot)
+
+    if planned_units:
+        created_units = create_learning_units(
+            session,
+            user_id=user_id,
+            book_id=payload.book_id,
+            mode=payload.mode,
+            planned_units=planned_units,
+        )
+        book.total_units = len(created_units)
+
+    job = ProcessingJob(
+        user_id=user_id,
+        book_id=payload.book_id,
+        job_type=ProcessingJobType.GENERATE_PLAN,
+        status=ProcessingJobStatus.QUEUED,
+        mode=payload.mode,
+        total_units=len(planned_units) if planned_units else book.total_units or 0,
+        done_units=0,
+        progress_percent=0,
+        current_step="Đang chờ xử lý sách.",
+    )
+    session.add(job)
+    book.status = BookStatus.PROCESSING
+    session.add(book)
+    return job, planned_units
+
+
+# Dispatcher function to extract document structure based on document type
+async def _extract_structure_by_type(tmp_filename: str, document_type: str):
     with open(tmp_filename, "rb") as f:
-        return await extract_chapters_by_document_type(f, document_type)
+        return await parse_document_structure(f, document_type)
 
 
 async def handle_upload_document(session: Session, file: UploadFile, user_id: uuid.UUID) -> dict:
     """
     Bước 1: Validate file, extract outline từ tài liệu, upload lên Supabase Storage,
-    lưu Book + Chapter (DRAFT) vào DB, trả về outline cho Flutter.
+    lưu Book + BookSection vào DB, trả về outline tree cho Flutter.
     """
     # 1. Validate MIME Type hoặc đuôi file
     is_valid_type = file.content_type in settings.ALLOWED_MIME_TYPES
@@ -75,16 +148,17 @@ async def handle_upload_document(session: Session, file: UploadFile, user_id: uu
     tmp_filename = f"uploads/{book_id}.tmp"
     os.makedirs("uploads", exist_ok=True)
 
-    chapters_data = []
+    parsed_document = None
     file_url = ""
     try:
         async with aiofiles.open(tmp_filename, "wb") as f:
             await f.write(content)
 
-        # 3. Extract outline từ PDF
-        chapters_data = await _extract_chapters_by_type(tmp_filename, document_type)
-
-        if not chapters_data:
+        # 3. Extract deterministic outline tree từ tài liệu
+        parsed_document = await _extract_structure_by_type(tmp_filename, document_type)
+        validate_document_structure(parsed_document)
+        flat_sections = flatten_sections(parsed_document.sections)
+        if not flat_sections:
             raise DocumentExtractionError()
 
         # 4. Upload PDF lên Supabase Storage bucket 'raw_books'
@@ -111,50 +185,44 @@ async def handle_upload_document(session: Session, file: UploadFile, user_id: uu
         if os.path.exists(tmp_filename):
             os.remove(tmp_filename)
 
-    # 5. Lưu DB: Book (DRAFT) + Chapters (DRAFT)
+    if not parsed_document:
+        raise DocumentExtractionError()
+
+    flat_sections = flatten_sections(parsed_document.sections)
+    warnings = detect_structure_warnings(parsed_document)
+
+    # 5. Lưu DB: Book (DRAFT) + BookSection tree
     title = (file.filename or "unknown").rsplit(".", 1)[0]
     try:
         book = Book(
             id=book_id,
             user_id=user_id,
             title=title,
-            total_chapters=len(chapters_data),
+            total_sections=len(flat_sections),
+            total_units=0,
             status=BookStatus.DRAFT,
             file_url=file_url,
             document_type=document_type,
         )
-        chapters = [
-            Chapter(
-                book_id=book_id,
-                chapter_index=i,
-                title=chap.get("title", "Empty Chapter"),
-                status=BookStatus.DRAFT,
-            )
-            for i, chap in enumerate(chapters_data)
-        ]
 
         session.add(book)
-        session.add_all(chapters)
+        session.flush()
+        create_book_sections(session, book_id, parsed_document)
         session.commit()
-        logger.info(f"📘 Created DRAFT book {book_id} | {len(chapters_data)} chapters | file_url saved")
+        logger.info(f"📘 Created DRAFT book {book_id} | {len(flat_sections)} sections | file_url saved")
     except Exception as e:
+        session.rollback()
         logger.error(f"Failed to create book record: {e}")
         raise DatabaseError(f"Lỗi lưu DB: {str(e)}") from e
 
-    # 6. Trả về outline để Flutter hiển thị
-    outline = [
-        {
-            "title": c.get("title", f"Chương {i + 1}"),
-            "page_start": c.get("page_start"),
-        }
-        for i, c in enumerate(chapters_data)
-    ]
-
+    outline_tree = build_outline_preview(parsed_document)
     return {
         "book_id": str(book_id),
-        "total_chapters": len(chapters_data),
+        "total_sections": len(flat_sections),
+        "max_depth": parsed_document.max_depth,
+        "outline_tree": outline_tree,
+        "warnings": warnings,
         "document_type": document_type,
-        "outline": outline,
     }
 
 
@@ -170,43 +238,24 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
     if book.status not in (BookStatus.DRAFT,):
         raise BookStatusConflictError(f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
 
-    slots = validate_plan_schedule_for_create(session, user_id=user_id, schedule_config=payload.schedule_config)
+    slots = validate_plan_schedule_for_create(
+        session,
+        user_id=user_id,
+        schedule_config=payload.schedule_config,
+        reminder_time=payload.reminder_time,
+    )
+    resolved_reminder_time = slots[0].reminder_time if slots else (payload.reminder_time or "20:00")
 
-    # 2. Lưu ReadingPlan + schedule slots + progress job + cập nhật Book status
+    # 2. Lưu ReadingPlan + schedule slots + learning units + progress job
     try:
-        plan = ReadingPlan(
-            book_id=payload.book_id,
-            mode=payload.mode,
-            pace=payload.pace,
-            schedule_config=payload.schedule_config,
-            status=PlanStatus.ACTIVE,
-        )
-        session.add(plan)
-        session.flush()
-
-        for slot in build_slots_for_plan(
+        job, planned_units = _create_plan_and_job(
+            session,
+            book=book,
+            payload=payload,
             user_id=user_id,
-            book_id=payload.book_id,
-            plan_id=plan.id,
             slots=slots,
-        ):
-            session.add(slot)
-
-        job = ProcessingJob(
-            user_id=user_id,
-            book_id=payload.book_id,
-            job_type=ProcessingJobType.GENERATE_PLAN,
-            status=ProcessingJobStatus.QUEUED,
-            mode=payload.mode,
-            total_units=book.total_chapters or 0,
-            done_units=0,
-            progress_percent=0,
-            current_step="Đang chờ xử lý sách.",
+            resolved_reminder_time=resolved_reminder_time,
         )
-        session.add(job)
-
-        book.status = BookStatus.PROCESSING
-        session.add(book)
         session.commit()
         session.refresh(job)
 
@@ -245,4 +294,14 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
         "mode": payload.mode.value,
         "status": job.status,
         "progress_percent": job.progress_percent,
+        "planned_units": [
+            {
+                "unit_index": index,
+                "title": unit.title,
+                "unit_type": unit.unit_type,
+                "source_section_count": len(unit.source_section_ids),
+                "estimated_audio_seconds": unit.estimated_audio_seconds,
+            }
+            for index, unit in enumerate(planned_units)
+        ],
     }

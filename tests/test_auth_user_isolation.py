@@ -15,8 +15,8 @@ def test_books_are_scoped_to_current_user(auth_as):
     book_ids: list[uuid.UUID] = []
 
     with Session(engine) as session:
-        book_a = Book(user_id=user_a, title="User A Book", status=BookStatus.DRAFT, total_chapters=0)
-        book_b = Book(user_id=user_b, title="User B Book", status=BookStatus.DRAFT, total_chapters=0)
+        book_a = Book(user_id=user_a, title="User A Book", status=BookStatus.DRAFT, total_units=0)
+        book_b = Book(user_id=user_b, title="User B Book", status=BookStatus.DRAFT, total_units=0)
         session.add(book_a)
         session.add(book_b)
         session.commit()

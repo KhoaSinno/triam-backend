@@ -8,35 +8,35 @@ from app.api.dependencies.auth import CurrentUser
 from app.db.database import get_session
 from app.schemas.learning_progress import (
     BookLearningProgressResponse,
-    ChapterProgressResponse,
-    ChapterProgressUpdateRequest,
-    ManualChapterCompleteRequest,
+    LearningUnitProgressResponse,
+    LearningUnitProgressUpdateRequest,
+    ManualLearningUnitCompleteRequest,
 )
-from app.services.learning_progress_service import complete_chapter_manually, get_book_learning_progress, update_chapter_progress
+from app.services.learning_progress_service import complete_learning_unit_manually, get_book_learning_progress, update_learning_unit_progress
 
 router = APIRouter()
 
 
-@router.put("/books/{book_id}/chapters/{chapter_id}/progress", response_model=ChapterProgressResponse)
-def update_chapter_progress_endpoint(
+@router.put("/books/{book_id}/learning-units/{learning_unit_id}/progress", response_model=LearningUnitProgressResponse)
+def update_learning_unit_progress_endpoint(
     book_id: uuid.UUID,
-    chapter_id: uuid.UUID,
-    payload: ChapterProgressUpdateRequest,
+    learning_unit_id: uuid.UUID,
+    payload: LearningUnitProgressUpdateRequest,
     session: Annotated[Session, Depends(get_session)],
     current_user: CurrentUser,
 ):
-    return update_chapter_progress(session, user_id=current_user.sub, book_id=book_id, chapter_id=chapter_id, payload=payload)
+    return update_learning_unit_progress(session, user_id=current_user.sub, book_id=book_id, learning_unit_id=learning_unit_id, payload=payload)
 
 
-@router.post("/books/{book_id}/chapters/{chapter_id}/complete", response_model=ChapterProgressResponse)
-def complete_chapter_endpoint(
+@router.post("/books/{book_id}/learning-units/{learning_unit_id}/complete", response_model=LearningUnitProgressResponse)
+def complete_learning_unit_endpoint(
     book_id: uuid.UUID,
-    chapter_id: uuid.UUID,
-    payload: ManualChapterCompleteRequest,
+    learning_unit_id: uuid.UUID,
+    payload: ManualLearningUnitCompleteRequest,
     session: Annotated[Session, Depends(get_session)],
     current_user: CurrentUser,
 ):
-    return complete_chapter_manually(session, user_id=current_user.sub, book_id=book_id, chapter_id=chapter_id, mode=payload.mode)
+    return complete_learning_unit_manually(session, user_id=current_user.sub, book_id=book_id, learning_unit_id=learning_unit_id, mode=payload.mode)
 
 
 @router.get("/books/{book_id}/learning-progress", response_model=BookLearningProgressResponse)

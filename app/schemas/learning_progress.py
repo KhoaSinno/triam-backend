@@ -6,7 +6,7 @@ from pydantic import BaseModel, Field
 from app.core.constant import LearningProgressStatus, PlanMode
 
 
-class ChapterProgressUpdateRequest(BaseModel):
+class LearningUnitProgressUpdateRequest(BaseModel):
     mode: PlanMode
     segment_id: int | None = None
     segment_index: int = Field(ge=0)
@@ -17,12 +17,12 @@ class ChapterProgressUpdateRequest(BaseModel):
     force_persist: bool = False
 
 
-class ManualChapterCompleteRequest(BaseModel):
+class ManualLearningUnitCompleteRequest(BaseModel):
     mode: PlanMode
 
 
-class ChapterProgressResponse(BaseModel):
-    chapter_id: uuid.UUID
+class LearningUnitProgressResponse(BaseModel):
+    learning_unit_id: uuid.UUID
     mode: PlanMode
     segment_id: int | None = None
     segment_index: int
@@ -39,10 +39,10 @@ class BookLearningProgressResponse(BaseModel):
     book_id: uuid.UUID
     mode: PlanMode
     book_progress_percent: int
-    completed_chapters: int
-    playable_chapters: int
-    last_chapter_id: uuid.UUID | None = None
+    completed_units: int
+    playable_units: int
+    last_learning_unit_id: uuid.UUID | None = None
     last_segment_id: int | None = None
     last_segment_index: int | None = None
     position_ms: int | None = None
-    chapters: list[ChapterProgressResponse]
+    units: list[LearningUnitProgressResponse]

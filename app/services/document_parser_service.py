@@ -3,9 +3,10 @@ from __future__ import annotations
 from urllib.parse import unquote, urlparse
 
 from app.core.exceptions import UnsupportedFileTypeError
-from app.services.docx_service import extract_docx_chapters
-from app.services.epub_service import extract_epub_chapters
-from app.services.pdf_service import extract_pdf_chapters
+from app.services.document_structure_types import ParsedDocument
+from app.services.docx_service import parse_docx_structure
+from app.services.epub_service import parse_epub_structure
+from app.services.pdf_service import parse_pdf_structure
 
 SUPPORTED_DOCUMENT_TYPES = {"pdf", "epub", "docx"}
 
@@ -29,16 +30,16 @@ def infer_document_type_from_url(file_url: str | None) -> str:
     return "pdf"
 
 
-async def extract_chapters_by_document_type(file_obj, document_type: str) -> list[dict]:
+async def parse_document_structure(file_obj, document_type: str) -> ParsedDocument:
     normalized_type = normalize_document_type(document_type)
 
     if normalized_type == "pdf":
-        return await extract_pdf_chapters(file_obj)
+        return await parse_pdf_structure(file_obj)
 
     if normalized_type == "epub":
-        return await extract_epub_chapters(file_obj)
+        return await parse_epub_structure(file_obj)
 
     if normalized_type == "docx":
-        return await extract_docx_chapters(file_obj)
+        return await parse_docx_structure(file_obj)
 
     raise UnsupportedFileTypeError()

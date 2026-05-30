@@ -38,7 +38,7 @@ def auth_as():
 def _build_test_pdf(pdf_path: str):
     """
     Tạo file PDF có 2 chương với bookmarks và nội dung tiếng Anh
-    để pipeline extract_pdf_chapters → LLM → TTS hoạt động đúng.
+    để pipeline parse_document_structure → learning units → LLM → TTS hoạt động đúng.
     """
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)

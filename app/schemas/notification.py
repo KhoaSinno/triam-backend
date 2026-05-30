@@ -71,3 +71,13 @@ class MarkNotificationReadResponse(BaseModel):
 class MarkAllNotificationsReadResponse(BaseModel):
     updated_count: int
     read_at: datetime
+
+
+class DeviceTokenRegisterRequest(BaseModel):
+    device_token: str = Field(..., min_length=1, description="Firebase registration token")
+
+
+class DeviceTokenResponse(BaseModel):
+    device_token: str
+    user_id: uuid.UUID
+    created_at: datetime

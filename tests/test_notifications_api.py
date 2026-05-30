@@ -7,7 +7,7 @@ from sqlmodel import Session
 from app.core.constant import NotificationType
 from app.db.database import engine
 from app.main import app
-from app.models.db_models import NotificationSettings, UserNotification
+from app.models.db_models import NotificationSettings, UserNotification, UserDeviceToken
 
 MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
 
@@ -92,4 +92,43 @@ def test_notification_settings_get_update_and_restore():
                 session.add(current)
             elif current:
                 session.delete(current)
+            session.commit()
+
+
+def test_device_token_registration_endpoints():
+    client = TestClient(app)
+    token = "test-fcm-device-token-12345"
+
+    try:
+        # Register token
+        reg_response = client.post(
+            "/api/v1/notifications/devices",
+            json={"device_token": token}
+        )
+        assert reg_response.status_code == 201
+        assert reg_response.json()["device_token"] == token
+        assert reg_response.json()["user_id"] == str(MOCK_USER_ID)
+
+        # Re-register token (should be idempotent)
+        reg_response2 = client.post(
+            "/api/v1/notifications/devices",
+            json={"device_token": token}
+        )
+        assert reg_response2.status_code == 201
+
+        # Delete token
+        del_response = client.delete(f"/api/v1/notifications/devices/{token}")
+        assert del_response.status_code == 200
+        assert del_response.json()["status"] == "success"
+
+        # Delete non-existent token
+        del_response2 = client.delete(f"/api/v1/notifications/devices/{token}")
+        assert del_response2.status_code == 200
+        assert del_response2.json()["status"] == "not_found"
+    finally:
+        with Session(engine) as session:
+            from sqlmodel import select
+            db_tokens = session.exec(select(UserDeviceToken).where(UserDeviceToken.device_token == token)).all()
+            for t in db_tokens:
+                session.delete(t)
             session.commit()
