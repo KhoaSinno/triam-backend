@@ -13,10 +13,10 @@ router = APIRouter()
 
 
 @router.get("/jobs/{job_id}", response_model=ProcessingJobSummaryResponse)
-def read_job_status(job_id: uuid.UUID, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser):
+def read_job_status(job_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
     return get_job_status(session, current_user.sub, job_id)
 
 
 @router.get("/books/{book_id}/processing-status", response_model=ProcessingJobSummaryResponse)
-def read_book_processing_status(book_id: uuid.UUID, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser):
+def read_book_processing_status(book_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
     return get_book_processing_status(session, current_user.sub, book_id)

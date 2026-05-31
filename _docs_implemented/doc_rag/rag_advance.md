@@ -8,7 +8,7 @@
     - `chapter_title`: Tên chương (giúp AI biết đoạn này thuộc chủ đề lớn nào).
     - `summary_context`: Một câu tóm tắt cực ngắn của chương đó.
 2.  **Overlapping & Header:** Khi cắt chunk (ví dụ 1000 ký tự), hãy để overlap khoảng 200 ký tự. Đặc biệt, hãy luôn đính kèm tiêu đề chương vào đầu mỗi chunk trước khi tạo Embedding.
-    - _Ví dụ:_ Thay vì "Ông ấy nói...", hãy lưu là "[Chương 1: Sự tự lừa dối] Ông ấy nói...". Điều này giúp Vector "ám thị" được ngữ cảnh của chương đó.
+    - _Ví dụ:_ Thay vì "Bạn ấy nói...", hãy lưu là "[Chương 1: Sự tự lừa dối] Bạn ấy nói...". Điều này giúp Vector "ám thị" được ngữ cảnh của chương đó.
 
 ### Giai đoạn 2: Công nghệ tìm kiếm lai (Hybrid Search)
 
@@ -31,4 +31,3 @@ Sau khi lấy ra được top 10-15 đoạn văn từ Database, đừng đưa h�
 
 1.  **Cross-Encoder Reranker:** Sử dụng một model rerank nhỏ (như của Cohere hoặc tự dựng một script Python nhẹ) để tính điểm lại độ liên quan giữa câu hỏi và 15 đoạn văn đó.
 2.  **Top-K Selection:** Chỉ lấy ra 3-5 đoạn có điểm cao nhất sau khi rerank để đưa vào Prompt cuối cùng. Điều này giúp giảm nhiễu và tiết kiệm token cho model chính.
-

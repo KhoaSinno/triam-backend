@@ -13,10 +13,10 @@ router = APIRouter()
 
 
 @router.post("/reviews/{review_item_id}/complete", response_model=ReviewActionResponse)
-def complete_review_endpoint(review_item_id: uuid.UUID, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser):
+def complete_review_endpoint(review_item_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
     return complete_review_item(session, user_id=current_user.sub, review_item_id=review_item_id)
 
 
 @router.post("/reviews/{review_item_id}/skip", response_model=ReviewActionResponse)
-def skip_review_endpoint(review_item_id: uuid.UUID, session: Annotated[Session, Depends(get_session)], current_user: CurrentUser):
+def skip_review_endpoint(review_item_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
     return skip_review_item(session, user_id=current_user.sub, review_item_id=review_item_id)

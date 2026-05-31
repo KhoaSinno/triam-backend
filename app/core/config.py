@@ -31,10 +31,24 @@ class Settings(BaseSettings):
     OPENAI_REALTIME_TRANSCRIPTION_MODEL: str = "gpt-4o-transcribe"
     OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE: str = "vi"
     OPENAI_REALTIME_TRANSCRIPTION_PROMPT: str = (
-        "Cuộc trò chuyện bằng tiếng Việt trong ứng dụng sách nói TRIAM. "
-        "Người dùng hỏi về sách, chương, nội dung học tập, phương pháp nghiên cứu, "
-        "hình học Euclid và có thể nói các từ như Tri Âm, chương, sách, định lý."
+        "Vietnamese audio in the TRIAM audiobook study app. "
+        "Expect terms: Tri Âm, chương, sách, định lý, phương pháp, GPT, Gemini."
     )
+    VOICE_AGENT_TEXT_LLM_MODEL: str = "gpt-4o-mini"
+    VOICE_AGENT_ENABLE_WEB_SEARCH_BY_DEFAULT: bool = False
+    VOICE_AGENT_LOG_TRANSCRIPT_TEXT: bool = False
+    VOICE_AGENT_DEDUPE_WINDOW_SECONDS: int = 3
+    VOICE_AGENT_WEB_PERMISSION_TTL_SECONDS: int = 180
+    VOICE_AGENT_WEB_IMPLICIT_GRANT_WINDOW_SECONDS: int = 20
+    VOICE_AGENT_WEB_RESULT_CACHE_TTL_SECONDS: int = 120
+    VOICE_AGENT_PERMISSION_CLASSIFIER_ENABLED: bool = True
+    VOICE_AGENT_PERMISSION_CLASSIFIER_MODEL: str = "gpt-4o-mini"
+    VOICE_AGENT_PERMISSION_CLASSIFIER_TIMEOUT_SECONDS: float = 1.5
+    VOICE_AGENT_PERMISSION_CLASSIFIER_CONFIDENCE_THRESHOLD: float = 0.72
+    VOICE_AGENT_INTERRUPTION_MIN_DURATION_SECONDS: float = 0.8
+    VOICE_AGENT_INTERRUPTION_MIN_WORDS: int = 2
+    VOICE_AGENT_FALSE_INTERRUPTION_TIMEOUT_SECONDS: float = 1.5
+    VOICE_AGENT_PREEMPTIVE_GENERATION_ENABLED: bool = False
     VOICE_AGENT_HISTORY_LIMIT: int = 24
     VOICE_AGENT_RAG_MAX_CHARS: int = 6000
     VOICE_AGENT_CONSOLE_BOOK_ID: str = "1b893d40-e0cc-4ee3-ae5f-a7809834e6dd"
@@ -91,7 +105,7 @@ class Settings(BaseSettings):
     # Provider concurrency
     LEARNING_UNIT_PROCESSING_CONCURRENCY: int = 2
     LLM_NORMALIZE_CONCURRENCY: int = 1
-    TTS_GENERATION_CONCURRENCY: int = 2
+    TTS_GENERATION_CONCURRENCY: int = 4
     EMBEDDING_BATCH_SIZE: int = 64
 
     # Phase 4.1 notification/reminder workflow
