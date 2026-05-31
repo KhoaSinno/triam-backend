@@ -26,6 +26,12 @@ learning_unit_progress = tiến độ nghe theo bài học
 
 Vì vậy tài liệu này là bản refactor guide mới cho FE. Khi có mâu thuẫn giữa Phase 4 guide và file này, ưu tiên file này.
 
+Sau khi refactor Phase 6 xong, FE đọc tiếp realtime permission guide:
+
+```text
+_docs_implemented/doc_setup_flutter/flutter_phase_7_1_realtime_web_permission_uiux_guide.md
+```
+
 ---
 
 ## 2. Tóm Tắt Git Markdown Đã Rà

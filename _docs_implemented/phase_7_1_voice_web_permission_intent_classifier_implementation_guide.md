@@ -135,17 +135,17 @@ Meaning:
 
 Examples:
 
-| User reply | Expected decision |
-| --- | --- |
-| `Yup` | `grant` |
-| `Sure, go ahead` | `grant` |
-| `Ừ tìm đi anh` | `grant` |
-| `Ok thử xem` | `grant` |
-| `Nope` | `deny` |
-| `Khỏi nha` | `deny` |
-| `Thôi bỏ qua đi` | `deny` |
-| `Tùy anh` | `unclear` |
-| `Cái chương này nói gì tiếp?` | `new_question` |
+| User reply                    | Expected decision |
+| ----------------------------- | ----------------- |
+| `Yup`                         | `grant`           |
+| `Sure, go ahead`              | `grant`           |
+| `Ừ tìm đi anh`                | `grant`           |
+| `Ok thử xem`                  | `grant`           |
+| `Nope`                        | `deny`            |
+| `Khỏi nha`                    | `deny`            |
+| `Thôi bỏ qua đi`              | `deny`            |
+| `Tùy anh`                     | `unclear`         |
+| `Cái chương này nói gì tiếp?` | `new_question`    |
 
 ### 3.3 Behavior By Decision
 
@@ -336,15 +336,15 @@ Rules:
 Expected examples:
 
 ```json
-{"intent":"grant","confidence":0.95,"reason":"User said Yup"}
+{ "intent": "grant", "confidence": 0.95, "reason": "User said Yup" }
 ```
 
 ```json
-{"intent":"deny","confidence":0.94,"reason":"User said Nope"}
+{ "intent": "deny", "confidence": 0.94, "reason": "User said Nope" }
 ```
 
 ```json
-{"intent":"unclear","confidence":0.55,"reason":"Ambiguous reply"}
+{ "intent": "unclear", "confidence": 0.55, "reason": "Ambiguous reply" }
 ```
 
 The prompt must not ask the model to answer the user's study question. It only classifies permission intent.
@@ -542,7 +542,7 @@ sequenceDiagram
 
     U->>A: "Câu này ngoài sách hả?"
     A->>P: request_permission(query)
-    A-->>U: "Ông có muốn tôi tìm thêm trên internet không?"
+    A-->>U: "Bạn có muốn tôi tìm thêm trên internet không?"
     U->>A: "Yup"
     A->>P: record_user_reply("Yup")
     A->>P: execute_web_search(query)
@@ -563,7 +563,7 @@ sequenceDiagram
     participant P as Permission Policy
     participant C as Intent Classifier
 
-    A-->>U: "Ông có muốn tôi tìm thêm trên internet không?"
+    A-->>U: "Bạn có muốn tôi tìm thêm trên internet không?"
     U->>A: "Nope"
     A->>P: record_user_reply("Nope")
     A->>P: execute_web_search(query)
@@ -582,12 +582,12 @@ sequenceDiagram
     participant P as Permission Policy
     participant C as Intent Classifier
 
-    A-->>U: "Ông có muốn tôi tìm thêm trên internet không?"
+    A-->>U: "Bạn có muốn tôi tìm thêm trên internet không?"
     U->>A: "Tùy anh"
     A->>P: record_user_reply("Tùy anh")
     P->>C: classify(pending_query, "Tùy anh")
     C-->>P: unclear
-    A-->>U: "Ông muốn tôi tìm trên internet cho câu này không?"
+    A-->>U: "Bạn muốn tôi tìm trên internet cho câu này không?"
 ```
 
 ---

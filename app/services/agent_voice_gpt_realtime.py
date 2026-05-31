@@ -2,7 +2,7 @@ import asyncio
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any
 
 from livekit import agents, rtc
@@ -31,6 +31,7 @@ from app.core.logger import log
 from app.services.voice_agent.contracts import LK_CHAT_TOPIC, LK_CONTROL_TOPIC, VoiceJobMetadata
 from app.services.voice_agent.rag_context import format_rag_context, search_voice_book_context, trim_text
 from app.services.voice_agent.transcript_store import VoiceTranscriptStore, normalize_transcript_text
+from app.services.voice_agent.web_permission_intent_classifier import normalize_intent_text
 from app.services.voice_agent.web_permission_policy import WebSearchPermissionPolicy
 from app.services.web_search_service import search_web as web_search
 
@@ -49,9 +50,15 @@ Core rules:
 
 Tool rules:
 - For any question about book content, concepts, chapters, learning topics, or study context, ALWAYS call `search_book_knowledge` first.
-- If `search_book_knowledge` returns `BOOK_CONTEXT_NOT_FOUND` or insufficient relevant context, call `ask_web_search_permission`.
-- NEVER call `execute_web_search` unless the user already granted permission in the previous turn.
-- If `execute_web_search` returns `WEB_SEARCH_PERMISSION_REQUIRED`, `WEB_SEARCH_PERMISSION_EXPIRED`, or `WEB_SEARCH_PERMISSION_QUERY_MISMATCH`, ask permission again.
+- If book context is missing or weak, call `ask_web_search_permission` exactly once.
+- Read the returned question, then stop and wait for the user.
+- Do not ask web-search permission in your own words. Always use `ask_web_search_permission` so the backend can track the pending request.
+- After the user clearly agrees, call `execute_web_search` once for the pending query and answer from the result.
+- NEVER call `execute_web_search` before the user grants permission.
+- If `execute_web_search` returns a permission error, call `ask_web_search_permission` once and stop.
+- If `execute_web_search` returns `WEB_SEARCH_PERMISSION_DENIED`, acknowledge the refusal and continue without web search.
+- After `execute_web_search` returns a real web result, answer immediately from that result.
+- Do not say you are still searching after a web result has been returned.
 - Do not answer external or out-of-book facts from memory when web permission is required.
 """.strip()
 
@@ -66,7 +73,8 @@ Tool rules:
 - For prices, news, recent events, or out-of-book facts, call `ask_web_search_permission_text` before any web search.
 - If `search_book_knowledge_text` returns `BOOK_CONTEXT_NOT_FOUND`, call `ask_web_search_permission_text`.
 - Call `execute_web_search_text` only after the user granted permission in the previous turn.
-- If a tool returns `WEB_SEARCH_PERMISSION_REQUIRED`, ask permission and stop.
+- If a tool returns `WEB_SEARCH_PERMISSION_REQUIRED` or `WEB_SEARCH_PERMISSION_UNCLEAR`, ask permission and stop.
+- If a tool returns `WEB_SEARCH_PERMISSION_DENIED`, do not search the web.
 - Answer in Vietnamese only, 2-3 short sentences, no Markdown, no emoji.
 """.strip()
 
@@ -78,11 +86,13 @@ Approved query: {query}
 Web result:
 {web_result}
 
-Answer in Vietnamese only, briefly. If the web result is weak or incomplete, say so.
+Answer in Vietnamese only, briefly.
+Do not use Markdown, bullet lists, headings, numbering, or emoji.
+If the web result is weak or incomplete, say so.
 """.strip()
 
 
-GREETING_INSTRUCTIONS = "Chào ông, tôi là TRIAM đây. Ông muốn thảo luận về chương sách nào hôm nay?"
+GREETING_INSTRUCTIONS = "Chào ông, tôi là TRIAM đây. Bạn muốn thảo luận về chương sách nào hôm nay?"
 
 
 def _get_job_executor_type() -> JobExecutorType:
@@ -192,11 +202,27 @@ class ChatTextOutput(voice_io.TextOutput):
 
 class TriamAssistant(Agent):
     def __init__(self, document_ids: list[str], web_search_policy: WebSearchPermissionPolicy) -> None:
-        super().__init__(
-            instructions=VOICE_AGENT_INSTRUCTIONS
-        )
+        super().__init__(instructions=VOICE_AGENT_INSTRUCTIONS)
         self.document_ids = document_ids
         self.web_search_policy = web_search_policy
+        self._web_search_lock = asyncio.Lock()
+        self._cached_web_query: str | None = None
+        self._cached_web_result: str | None = None
+        self._cached_web_at: datetime | None = None
+
+    def _get_cached_web_result(self, query: str) -> str | None:
+        if not self._cached_web_query or not self._cached_web_result or not self._cached_web_at:
+            return None
+        if datetime.now(timezone.utc) - self._cached_web_at > timedelta(seconds=settings.VOICE_AGENT_WEB_RESULT_CACHE_TTL_SECONDS):
+            return None
+        if normalize_intent_text(self._cached_web_query) != normalize_intent_text(query):
+            return None
+        return self._cached_web_result
+
+    def _remember_web_result(self, query: str, result: str) -> None:
+        self._cached_web_query = query
+        self._cached_web_result = result
+        self._cached_web_at = datetime.now(timezone.utc)
 
     @function_tool
     async def search_book_knowledge(
@@ -229,16 +255,24 @@ class TriamAssistant(Agent):
         THỰC HIỆN tìm kiếm thực sự trên internet và trả về kết quả.
         TRAO ĐỔI VUI: Nếu chưa có turn hỏi xin phép trước → không gọi tool này.
         """
-        allowed, reason = self.web_search_policy.can_execute(query)
-        if not allowed:
-            log.info(f"Voice web search blocked | reason={reason}")
-            return reason
+        async with self._web_search_lock:
+            cached_result = self._get_cached_web_result(query)
+            if cached_result is not None:
+                log.info(f"Voice web search cached result reused | query_chars={len(query)}")
+                return cached_result
 
-        log.info(f"Voice web search executing | query_chars={len(query)}")
-        try:
-            return await web_search(query)
-        finally:
-            self.web_search_policy.mark_search_consumed()
+            allowed, reason = await self.web_search_policy.resolve_before_web_search(query)
+            if not allowed:
+                log.info(f"Voice web search blocked | reason={reason}")
+                return reason
+
+            log.info(f"Voice web search executing | query_chars={len(query)}")
+            try:
+                result = await web_search(query)
+                self._remember_web_result(query, result)
+                return result
+            finally:
+                self.web_search_policy.mark_search_consumed()
 
     @function_tool
     async def ask_web_search_permission(
@@ -291,6 +325,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
     web_search_policy = WebSearchPermissionPolicy(
         enabled=settings.VOICE_AGENT_ENABLE_WEB_SEARCH_BY_DEFAULT,
         grant_ttl_seconds=settings.VOICE_AGENT_WEB_PERMISSION_TTL_SECONDS,
+        implicit_grant_window_seconds=settings.VOICE_AGENT_WEB_IMPLICIT_GRANT_WINDOW_SECONDS,
     )
     agent_instance = TriamAssistant(document_ids=document_ids, web_search_policy=web_search_policy)
     chat_llm = OpenAILLM(model=settings.VOICE_AGENT_TEXT_LLM_MODEL, temperature=0.7)
@@ -307,12 +342,19 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         if hasattr(session, "history") and session.history is not None:
             session.history.truncate(max_items=settings.VOICE_AGENT_HISTORY_LIMIT)
 
-    def _observe_web_permission_reply(text: str):
-        decision = web_search_policy.observe_user_reply(text)
+    def _record_web_permission_reply(text: str) -> None:
+        web_search_policy.record_user_reply(text)
+
+    async def _observe_web_permission_reply(text: str):
+        decision = await web_search_policy.observe_user_reply(text)
         if decision.granted_query:
             log.info(f"Web search permission granted | query_chars={len(decision.granted_query)}")
         elif decision.denied:
             log.info("Web search permission denied")
+        elif decision.unclear:
+            log.info("Web search permission unclear")
+        elif decision.new_question:
+            log.info("Web search permission cleared because user asked a new question")
         return decision
 
     # Note: We use a custom data channel ("lk.chat") for text input instead of relying on room_io.TextInputEvent
@@ -416,6 +458,24 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         response = await chat_llm.chat(chat_ctx=temp_ctx).collect()
         return response.text
 
+    async def _publish_assistant_reply(full_reply: str) -> None:
+        full_reply = full_reply.strip()
+        if not full_reply:
+            return
+
+        await transcript_store.save_and_publish_assistant(full_reply)
+        try:
+            await ctx.room.local_participant.publish_data(
+                full_reply.encode("utf-8"),
+                reliable=True,
+                topic=LK_CHAT_TOPIC,
+            )
+        except Exception as exc:
+            log.info(f"Data output publish failed: {exc}")
+
+        session.history.add_message(role="assistant", content=full_reply)
+        _truncate_session_history()
+
     async def handle_data_input(text: str, participant_id: str | None) -> None:
         normalized_text = normalize_transcript_text(text)
         if not normalized_text:
@@ -428,7 +488,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
 
             # Save DB and update transcript immediately (await to guarantee insertion order)
             await transcript_store.save_and_publish_user(normalized_text)
-            permission_decision = _observe_web_permission_reply(normalized_text)
+            permission_decision = await _observe_web_permission_reply(normalized_text)
 
             # Interrupt if livekit is currently speaking
             await session.interrupt()
@@ -442,6 +502,8 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                     full_reply = await _chat_with_granted_web_search(permission_decision.granted_query)
                 elif permission_decision.denied:
                     full_reply = "Được, tôi sẽ không tìm trên internet. Mình tiếp tục trao đổi dựa trên nội dung sách nhé."
+                elif permission_decision.unclear:
+                    full_reply = "Tôi chưa rõ ý ông. Bạn muốn tôi tìm thêm trên internet cho câu vừa rồi không?"
                 # Phân nhánh dựa theo web search policy từ lk.control.
                 elif web_search_policy.enabled:
                     full_reply = await _chat_with_agentic_loop(normalized_text)
@@ -452,22 +514,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 log.info(f"LLM Reply completed. Length: {len(full_reply)}")
 
                 if full_reply:
-                    # Save DB and update transcript immediately
-                    await transcript_store.save_and_publish_assistant(full_reply)
-
-                    # Publish raw text to data channel for UI
-                    try:
-                        await ctx.room.local_participant.publish_data(
-                            full_reply.encode("utf-8"),
-                            reliable=True,
-                            topic=LK_CHAT_TOPIC,
-                        )
-                    except Exception as exc:
-                        log.info(f"Data output publish failed: {exc}")
-
-                    # Update shared memory with assistant reply
-                    session.history.add_message(role="assistant", content=full_reply)
-                    _truncate_session_history()
+                    await _publish_assistant_reply(full_reply)
             except Exception as e:
                 log.error(f"Error in handle_data_input: {e}")
 
@@ -505,14 +552,11 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
     def _handle_user_input_transcribed(ev: Any) -> None:
         is_final = bool(getattr(ev, "is_final", False))
         transcript = str(getattr(ev, "transcript", "") or "").strip()
-        log.info(
-            "user_input_transcribed received | "
-            f"final={is_final} | chars={len(transcript)} | thread_id={thread_uuid}"
-        )
+        log.info(f"user_input_transcribed received | final={is_final} | chars={len(transcript)} | thread_id={thread_uuid}")
         if settings.VOICE_AGENT_LOG_TRANSCRIPT_TEXT and transcript:
             log.debug(f"user_input_transcribed preview: {trim_text(transcript, 160)}")
         if is_final and transcript:
-            _observe_web_permission_reply(transcript)
+            _record_web_permission_reply(transcript)
 
     def _handle_conversation_item_added(ev: ConversationItemAddedEvent) -> None:
         item = ev.item
@@ -525,7 +569,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
 
         if item.role == "user":
             log.info(f"User voice speech saved | text_len={len(text)} | thread_id={thread_uuid}")
-            _observe_web_permission_reply(text)
+            _record_web_permission_reply(text)
             asyncio.create_task(transcript_store.save_and_publish_user(text))
         elif item.role == "assistant":
             log.info(f"Assistant voice speech saved | text_len={len(text)} | thread_id={thread_uuid}")
@@ -556,7 +600,22 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 ),
                 input_audio_noise_reduction="near_field",
             )
-            session = AgentSession(llm=model)
+            session = AgentSession(
+                llm=model,
+                turn_handling={
+                    "interruption": {
+                        "enabled": True,
+                        "min_duration": settings.VOICE_AGENT_INTERRUPTION_MIN_DURATION_SECONDS,
+                        "min_words": settings.VOICE_AGENT_INTERRUPTION_MIN_WORDS,
+                        "resume_false_interruption": True,
+                        "false_interruption_timeout": settings.VOICE_AGENT_FALSE_INTERRUPTION_TIMEOUT_SECONDS,
+                        "discard_audio_if_uninterruptible": True,
+                    },
+                    "preemptive_generation": {
+                        "enabled": settings.VOICE_AGENT_PREEMPTIVE_GENERATION_ENABLED,
+                    },
+                },
+            )
             _attach_session_handlers(session)
 
             await session.start(
