@@ -1,0 +1,37 @@
+from dataclasses import dataclass
+from datetime import datetime
+from typing import Any, Literal
+
+LK_CHAT_TOPIC = "lk.chat"
+LK_CONTROL_TOPIC = "lk.control"
+LK_TRANSCRIPT_TOPIC = "lk.transcript"
+
+TranscriptRole = Literal["user", "assistant"]
+
+
+@dataclass(frozen=True)
+class VoiceJobMetadata:
+    thread_id: str
+    document_ids: list[str]
+
+
+@dataclass(frozen=True)
+class VoiceRagResult:
+    found: bool
+    chunks: list[dict[str, Any]]
+    message: str
+
+
+@dataclass(frozen=True)
+class WebSearchPermissionDecision:
+    granted_query: str | None = None
+    denied: bool = False
+
+
+@dataclass
+class WebSearchPermissionState:
+    enabled: bool = False
+    pending_query: str | None = None
+    granted_query: str | None = None
+    granted_at: datetime | None = None
+

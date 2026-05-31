@@ -2,14 +2,14 @@ import asyncio
 import json
 import os
 import uuid
-from dataclasses import dataclass
 from datetime import datetime, timezone
-from typing import Annotated, Any, cast
+from typing import Annotated, Any
 
 from livekit import agents, rtc
 from livekit.agents import (
     Agent,
     AgentSession,
+    ConversationItemAddedEvent,
     JobContext,
     JobExecutorType,
     WorkerOptions,
@@ -25,17 +25,64 @@ from livekit.plugins import noise_cancellation
 from livekit.plugins.openai import LLM as OpenAILLM
 from livekit.plugins.openai.realtime import RealtimeModel
 from openai.types.realtime import AudioTranscription
-from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.core.logger import log
-from app.db.database import engine
-from app.models.db_models import ChatMessage
-from app.services.rag_service import search_book_knowledge
+from app.services.voice_agent.contracts import LK_CHAT_TOPIC, LK_CONTROL_TOPIC, VoiceJobMetadata
+from app.services.voice_agent.rag_context import format_rag_context, search_voice_book_context, trim_text
+from app.services.voice_agent.transcript_store import VoiceTranscriptStore, normalize_transcript_text
+from app.services.voice_agent.web_permission_policy import WebSearchPermissionPolicy
 from app.services.web_search_service import search_web as web_search
 
 # FIX 1: Ép API Key vào biến môi trường để LiveKit SDK tự động nhận diện ngầm
 os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
+
+
+VOICE_AGENT_INSTRUCTIONS = """
+You are TRIAM, a Vietnamese audiobook study assistant.
+
+Core rules:
+- Answer in Vietnamese only.
+- Keep replies natural and short: 2-3 sentences.
+- Do not use Markdown, bullet lists, headings, or emoji.
+- If audio is unclear, partial, noisy, silent, or unintelligible, ask the user to repeat in Vietnamese.
+
+Tool rules:
+- For any question about book content, concepts, chapters, learning topics, or study context, ALWAYS call `search_book_knowledge` first.
+- If `search_book_knowledge` returns `BOOK_CONTEXT_NOT_FOUND` or insufficient relevant context, call `ask_web_search_permission`.
+- NEVER call `execute_web_search` unless the user already granted permission in the previous turn.
+- If `execute_web_search` returns `WEB_SEARCH_PERMISSION_REQUIRED`, `WEB_SEARCH_PERMISSION_EXPIRED`, or `WEB_SEARCH_PERMISSION_QUERY_MISMATCH`, ask permission again.
+- Do not answer external or out-of-book facts from memory when web permission is required.
+""".strip()
+
+
+TEXT_AGENTIC_SYSTEM_INSTRUCTIONS = """
+System facts:
+- Current server time: {now_str}
+- Use this server time for date/time questions.
+
+Tool rules:
+- For book-content questions, call `search_book_knowledge_text` first.
+- For prices, news, recent events, or out-of-book facts, call `ask_web_search_permission_text` before any web search.
+- If `search_book_knowledge_text` returns `BOOK_CONTEXT_NOT_FOUND`, call `ask_web_search_permission_text`.
+- Call `execute_web_search_text` only after the user granted permission in the previous turn.
+- If a tool returns `WEB_SEARCH_PERMISSION_REQUIRED`, ask permission and stop.
+- Answer in Vietnamese only, 2-3 short sentences, no Markdown, no emoji.
+""".strip()
+
+
+WEB_GRANTED_REPLY_INSTRUCTIONS = """
+The user just granted permission to search the web for the previous question.
+Approved query: {query}
+
+Web result:
+{web_result}
+
+Answer in Vietnamese only, briefly. If the web result is weak or incomplete, say so.
+""".strip()
+
+
+GREETING_INSTRUCTIONS = "Chào ông, tôi là TRIAM đây. Ông muốn thảo luận về chương sách nào hôm nay?"
 
 
 def _get_job_executor_type() -> JobExecutorType:
@@ -53,12 +100,6 @@ def _calculate_agent_load(server: Any) -> float:
     max_jobs = max(settings.LIVEKIT_AGENT_MAX_CONCURRENT_JOBS, 1)
     active_jobs = len(getattr(server, "active_jobs", []) or [])
     return min(active_jobs / max_jobs, 1.0)
-
-
-@dataclass(frozen=True)
-class VoiceJobMetadata:
-    thread_id: str
-    document_ids: list[str]
 
 
 def _coerce_string_list(value: Any) -> list[str]:
@@ -89,17 +130,29 @@ def _parse_job_metadata(raw_metadata: str | None, room_name: str) -> VoiceJobMet
     return VoiceJobMetadata(thread_id=thread_id, document_ids=document_ids)
 
 
-def _trim_text(text: str, max_chars: int) -> str:
-    if max_chars <= 0 or len(text) <= max_chars:
-        return text
-    return f"{text[:max_chars].rstrip()}\n...[truncated]"
+def _extract_conversation_item_text(item: LLMMessage) -> str:
+    text_content = getattr(item, "text_content", None)
+    if isinstance(text_content, str) and text_content.strip():
+        return normalize_transcript_text(text_content)
+
+    content = getattr(item, "content", getattr(item, "text", ""))
+    if isinstance(content, list):
+        text_parts: list[str] = []
+        for part in content:
+            if isinstance(part, str):
+                text_parts.append(part)
+            elif hasattr(part, "text"):
+                text_parts.append(str(part.text))
+        return normalize_transcript_text(" ".join(text_parts))
+
+    return normalize_transcript_text(str(content or ""))
 
 
 class ChatTextOutput(voice_io.TextOutput):
     def __init__(
         self,
         room: rtc.Room,
-        topic: str = "lk.chat",
+        topic: str = LK_CHAT_TOPIC,
     ) -> None:
         super().__init__(label="ChatTextOutput", next_in_chain=None)
         self._room = room
@@ -119,8 +172,7 @@ class ChatTextOutput(voice_io.TextOutput):
 
         message = "".join(self._buffer)
         self._buffer.clear()
-        preview = message if len(message) <= 120 else f"{message[:120]}..."
-        log.info(f"Text output ({len(message)} chars): {preview}")
+        log.info(f"Text output flushed | chars={len(message)} | topic={self._topic}")
 
         async def _publish(topic: str, payload: str) -> None:
             if not self._room.isconnected():
@@ -139,25 +191,12 @@ class ChatTextOutput(voice_io.TextOutput):
 
 
 class TriamAssistant(Agent):
-    def __init__(self, document_ids: list[str]) -> None:
+    def __init__(self, document_ids: list[str], web_search_policy: WebSearchPermissionPolicy) -> None:
         super().__init__(
-            instructions=(
-                "Bạn là trợ lý AI sách nói TRIAM - Trợ lý đọc sách nói thông minh.\n"
-                "\n"
-                "## QUY TẮC SỬ DỤNG TOOL (BẮT BUỘC TUÂN THỦ):\n"
-                "- LUÔN LUÔN gọi 'search_book_knowledge' TRƯỚC TIÊN cho MỌI câu hỏi về kiến thức, nội dung, khái niệm hoặc bất kỳ thông tin nào liên quan đến sách.\n"
-                "- Nếu 'search_book_knowledge' không trả về thông tin đủ và liên quan:\n"
-                "  → PHẢI gọi 'ask_web_search_permission' để xin phép user trước.\n"
-                "  → TUYỆT ĐỐI KHÔNG gọi 'execute_web_search' trực tiếp mà không có bước xin phép trước.\n"
-                "- Chỉ gọi 'execute_web_search' khi user đã xác nhận đồng ý ở turn hội thoại trước.\n"
-                "- KHÔNG được tự trả lời từ bộ nhớ mà không gọi tool khi user hỏi về nội dung sách.\n"
-                "\n"
-                "## PHONG CÁCH TRẢ LỜI:\n"
-                "- Trả lời cực kỳ NGẮN GỌN (2-3 câu), tự nhiên, đi thẳng vào trọng tâm.\n"
-                "- Tuyệt đối KHÔNG dùng Markdown (**, *, #, -) và KHÔNG dùng EMOJI."
-            )
+            instructions=VOICE_AGENT_INSTRUCTIONS
         )
         self.document_ids = document_ids
+        self.web_search_policy = web_search_policy
 
     @function_tool
     async def search_book_knowledge(
@@ -174,36 +213,14 @@ class TriamAssistant(Agent):
         Hệ thống tự động giới hạn tìm kiếm trong tài liệu User đã chọn.
         """
         try:
-            data = await search_book_knowledge(query, self.document_ids)
-
-            if not data:
-                return "RAG don't have data"
-
-            if not isinstance(data, list):
-                return "RAG invalid RAG data format"
-
-            formatted_chunks = []
-            remaining_chars = settings.VOICE_AGENT_RAG_MAX_CHARS
-            for i, item in enumerate(data):
-                if not isinstance(item, dict):
-                    continue
-                if remaining_chars <= 0:
-                    break
-                unit_id = str(item.get("learning_unit_id") or "")
-                chunk_index = item.get("chunk_index", "N/A")
-                content = _trim_text(str(item.get("content", "")), remaining_chars)
-
-                chunk_text = f"--- Segment {i + 1} (Unit ID: ...{unit_id[-6:]}, Index: {chunk_index}) ---\n{content}"
-                formatted_chunks.append(chunk_text)
-                remaining_chars -= len(content)
-
-            context = "\n\n".join(formatted_chunks)
-            return f"Book Knowledge: {context}"
+            result = await search_voice_book_context(query, self.document_ids)
+            return format_rag_context(result)
         except Exception as e:
-            return f"Error: {str(e)}"
+            log.warning(f"Voice RAG search failed | document_count={len(self.document_ids)} | error={e}")
+            return "BOOK_CONTEXT_ERROR: Không thể tìm kiếm dữ liệu trong sách lúc này."
 
     @function_tool
-    async def search_web(
+    async def execute_web_search(
         self,
         query: Annotated[str, "Nội dung cần tìm kiếm trên internet"],
     ) -> str:
@@ -212,8 +229,16 @@ class TriamAssistant(Agent):
         THỰC HIỆN tìm kiếm thực sự trên internet và trả về kết quả.
         TRAO ĐỔI VUI: Nếu chưa có turn hỏi xin phép trước → không gọi tool này.
         """
-        log.info(f"🌐 [Voice] Thực hiện web search: {query}")
-        return await web_search(query)
+        allowed, reason = self.web_search_policy.can_execute(query)
+        if not allowed:
+            log.info(f"Voice web search blocked | reason={reason}")
+            return reason
+
+        log.info(f"Voice web search executing | query_chars={len(query)}")
+        try:
+            return await web_search(query)
+        finally:
+            self.web_search_policy.mark_search_consumed()
 
     @function_tool
     async def ask_web_search_permission(
@@ -224,15 +249,11 @@ class TriamAssistant(Agent):
         [VOICE - Pha 1] Gọi tool này khi search_book_knowledge không có đủ thông tin liên quan.
         Tool này KHÔNG tìm web ngay. Nó chỉ trả về mẫu câu hỏi xác nhận để AI đọc lên cho user nghe.
         Sau khi AI đọc câu hỏi này, AI kết thúc turn và đợi user trả lời ở turn tiếp theo.
-        Nếu user đồng ý (bất kỳ cách nào) → AI tự quyết định gọi 'search_web'.
+        Nếu user đồng ý (bất kỳ cách nào) → AI tự quyết định gọi 'execute_web_search'.
         Nếu user từ chối → AI không gọi tool và trả lời phù hợp.
         """
-        log.info(f"🔔 [Voice] Xin phép tìm web với query: {query}")
-        # Trả về câu hỏi xác nhận → AI sẽ đọc câu này ra giọng nói cho user
-        return (
-            f"Thông tin về '{query}' không có trong sách. "
-            f"Bạn có muốn tôi tìm kiếm thêm trên internet không?"
-        )
+        log.info(f"Voice web search permission requested | query_chars={len(query)}")
+        return self.web_search_policy.request_permission(query)
 
 
 async def entrypoint(ctx: JobContext):  # noqa: C901
@@ -267,12 +288,17 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
     seen_models: set[str] = set()
     model_candidates = [m for m in model_candidates if not (m in seen_models or seen_models.add(m))]
 
-    agent_instance = TriamAssistant(document_ids=document_ids)
-    chat_llm = OpenAILLM(model="gpt-4o-mini", temperature=0.7)
-
-    # Toggle: cho phép AI tự động tìm web khi sách không đủ thông tin.
-    # Frontend bật/tắt qua DataChannel topic "lk.control".
-    web_search_enabled: bool = False
+    web_search_policy = WebSearchPermissionPolicy(
+        enabled=settings.VOICE_AGENT_ENABLE_WEB_SEARCH_BY_DEFAULT,
+        grant_ttl_seconds=settings.VOICE_AGENT_WEB_PERMISSION_TTL_SECONDS,
+    )
+    agent_instance = TriamAssistant(document_ids=document_ids, web_search_policy=web_search_policy)
+    chat_llm = OpenAILLM(model=settings.VOICE_AGENT_TEXT_LLM_MODEL, temperature=0.7)
+    transcript_store = VoiceTranscriptStore(
+        room=ctx.room,
+        thread_id=thread_uuid,
+        dedupe_window_seconds=settings.VOICE_AGENT_DEDUPE_WINDOW_SECONDS,
+    )
 
     session: AgentSession
     text_turn_lock = asyncio.Lock()
@@ -281,66 +307,30 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         if hasattr(session, "history") and session.history is not None:
             session.history.truncate(max_items=settings.VOICE_AGENT_HISTORY_LIMIT)
 
-    async def _publish_transcript(role: str, text: str) -> None:
-        if not text or not ctx.room.isconnected():
-            return
-        payload = {
-            "v": 1,
-            "type": "transcript",
-            "role": role,
-            "text": text,
-            "id": str(uuid.uuid4()),
-            "ts": datetime.now(timezone.utc).isoformat(),
-        }
-        try:
-            await ctx.room.local_participant.publish_data(
-                json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-                reliable=True,
-                topic="lk.transcript",
-            )
-        except Exception as exc:
-            log.info(f"Transcript publish failed: {exc}")
-
-    def _save_message(text: str, is_user: bool):
-        if not thread_uuid:
-            return
-        try:
-            with Session(engine) as db:
-                new_msg = ChatMessage(thread_id=thread_uuid, is_user=is_user, text=text, source="livekit", timestamp=datetime.now(timezone.utc))
-                db.add(new_msg)
-                db.commit()
-        except Exception as e:
-            log.info(f"Lỗi khi lưu message: {e}")
-
-    saved_user_transcripts: dict[str, datetime] = {}
-
-    async def _save_and_publish_user_transcript(text: str) -> None:
-        normalized = " ".join(text.split())
-        if not normalized:
-            return
-
-        # LiveKit realtime transcription can arrive through multiple event paths.
-        # Keep user voice persistence idempotent for near-duplicate event paths only.
-        now = datetime.now(timezone.utc)
-        last_seen = saved_user_transcripts.get(normalized)
-        if last_seen and (now - last_seen).total_seconds() < 3:
-            return
-        saved_user_transcripts[normalized] = now
-
-        await asyncio.to_thread(_save_message, normalized, True)
-        await _publish_transcript("user", normalized)
+    def _observe_web_permission_reply(text: str):
+        decision = web_search_policy.observe_user_reply(text)
+        if decision.granted_query:
+            log.info(f"Web search permission granted | query_chars={len(decision.granted_query)}")
+        elif decision.denied:
+            log.info("Web search permission denied")
+        return decision
 
     # Note: We use a custom data channel ("lk.chat") for text input instead of relying on room_io.TextInputEvent
 
     async def _chat_naive_rag(user_text: str) -> str:
         """Chế độ RAG Naive (toggle TẮT): luôn search sách, không dùng tool web."""
         log.info("[Text Chat] Chế độ Naive RAG (web search TẮT)")
-        search_result = await agent_instance.search_book_knowledge(user_text)
+        rag_result = await search_voice_book_context(user_text, document_ids)
         temp_ctx = session.history.copy()
-        if search_result and "RAG don't have data" not in search_result:
+        if rag_result.found:
             temp_ctx.add_message(
                 role="system",
-                content=f"Thông tin trích xuất từ sách (dùng để trả lời):\n{search_result}",
+                content=f"Thông tin trích xuất từ sách (dùng để trả lời):\n{format_rag_context(rag_result)}",
+            )
+        else:
+            temp_ctx.add_message(
+                role="system",
+                content=("Không tìm thấy thông tin phù hợp trong sách cho câu hỏi này. Hãy nói ngắn gọn rằng nội dung hiện không có trong sách, không tự bịa thông tin ngoài sách."),
             )
         response = await chat_llm.chat(chat_ctx=temp_ctx).collect()
         return response.text
@@ -356,21 +346,23 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         # Tạo standalone async functions để tránh trực tiếp dùng agent_instance.tools.
         # ToolContext.__init__ nội bộ gọi find_function_tools(self) → crash khi agent
         # chưa có activity context. Ta wrap thủ công bằng @function_tool decorator.
-        async def _search_book(
-            query: Annotated[str, "Câu hỏi hoặc nội dung cần tìm trong sách"]
-        ) -> str:
+        async def search_book_knowledge_text(query: Annotated[str, "Câu hỏi hoặc nội dung cần tìm trong sách"]) -> str:
             """Tìm kiếm kiến thức trong sách thuộc Study Context hiện tại."""
-            return await agent_instance.search_book_knowledge(query)
+            result = await search_voice_book_context(query, document_ids)
+            return format_rag_context(result)
 
-        async def _search_web(
-            query: Annotated[str, "Nội dung cần tìm kiếm trên internet"]
-        ) -> str:
-            """Tìm kiếm thông tin trên internet khi nội dung không có trong sách."""
-            return await agent_instance.search_web(query)
+        async def ask_web_search_permission_text(query: Annotated[str, "Nội dung dự kiến sẽ tìm trên web nếu user đồng ý"]) -> str:
+            """Xin phép user trước khi tìm kiếm internet."""
+            return web_search_policy.request_permission(query)
 
-        book_fn_tool = function_tool(_search_book)
-        web_fn_tool = function_tool(_search_web)
-        standalone_tools = [book_fn_tool, web_fn_tool]
+        async def execute_web_search_text(query: Annotated[str, "Nội dung cần tìm kiếm trên internet"]) -> str:
+            """Tìm kiếm thông tin trên internet sau khi user đã đồng ý."""
+            return await agent_instance.execute_web_search(query)
+
+        book_fn_tool = function_tool(search_book_knowledge_text)
+        ask_web_permission_tool = function_tool(ask_web_search_permission_text)
+        web_fn_tool = function_tool(execute_web_search_text)
+        standalone_tools = [book_fn_tool, ask_web_permission_tool, web_fn_tool]
 
         # Tạo ToolContext thủ công để tránh gọi __init__ (nó gọi find_function_tools(self))
         tool_ctx = agents_llm.ToolContext.__new__(agents_llm.ToolContext)
@@ -386,18 +378,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         now_str = datetime.now(timezone.utc).astimezone().strftime("%A, %d/%m/%Y %H:%M (UTC+7)")
         ctx_copy.add_message(
             role="system",
-            content=(
-                f"## THÔNG TIN HỆ THỐNG:\n"
-                f"- Ngày giờ hiện tại (server): {now_str}\n"
-                f"- Hãy dùng thông tin ngày này khi user hỏi về ngày/giờ hiện tại.\n"
-                f"\n"
-                f"## QUY TẮC SỬ DỤNG TOOL (BẮT BUỘC):\n"
-                f"- Câu hỏi về nội dung sách: gọi `_search_book` trước tiên.\n"
-                f"- Câu hỏi về giá cả, tin tức, sự kiện mới, thông tin ngoài sách: "
-                f"PHẢI gọi `_search_web`.\n"
-                f"- Sau khi `_search_book` không đủ thông tin → gọi `_search_web` để bổ sung.\n"
-                f"- Chỉ trả lời bằng text SAU KHI đã dùng tool phù hợp."
-            ),
+            content=TEXT_AGENTIC_SYSTEM_INSTRUCTIONS.format(now_str=now_str),
         )
 
         MAX_STEPS = 4  # Giới hạn vòng lặp tool call, tránh loop vô tận
@@ -424,17 +405,30 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         log.warning("[Agentic] Đạt giới hạn MAX_STEPS, trả về text hiện tại")
         return response.text
 
+    async def _chat_with_granted_web_search(query: str) -> str:
+        log.info(f"[Text Chat] Web search granted by user | query_chars={len(query)}")
+        web_result = await agent_instance.execute_web_search(query)
+        temp_ctx = session.history.copy()
+        temp_ctx.add_message(
+            role="system",
+            content=WEB_GRANTED_REPLY_INSTRUCTIONS.format(query=query, web_result=web_result),
+        )
+        response = await chat_llm.chat(chat_ctx=temp_ctx).collect()
+        return response.text
+
     async def handle_data_input(text: str, participant_id: str | None) -> None:
-        normalized_text = " ".join(text.split())
+        normalized_text = normalize_transcript_text(text)
         if not normalized_text:
             return
 
         async with text_turn_lock:
-            log.info(f"Data input from {participant_id or 'unknown'}: {normalized_text}")
+            log.info(f"Data input received | participant={participant_id or 'unknown'} | chars={len(normalized_text)} | thread_id={thread_uuid}")
+            if settings.VOICE_AGENT_LOG_TRANSCRIPT_TEXT:
+                log.debug(f"Data input preview: {trim_text(normalized_text, 160)}")
 
             # Save DB and update transcript immediately (await to guarantee insertion order)
-            await asyncio.to_thread(_save_message, normalized_text, True)
-            await _publish_transcript("user", normalized_text)
+            await transcript_store.save_and_publish_user(normalized_text)
+            permission_decision = _observe_web_permission_reply(normalized_text)
 
             # Interrupt if livekit is currently speaking
             await session.interrupt()
@@ -444,8 +438,12 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             _truncate_session_history()
 
             try:
-                # Phân nhánh dựa theo toggle web_search_enabled
-                if web_search_enabled:
+                if permission_decision.granted_query:
+                    full_reply = await _chat_with_granted_web_search(permission_decision.granted_query)
+                elif permission_decision.denied:
+                    full_reply = "Được, tôi sẽ không tìm trên internet. Mình tiếp tục trao đổi dựa trên nội dung sách nhé."
+                # Phân nhánh dựa theo web search policy từ lk.control.
+                elif web_search_policy.enabled:
                     full_reply = await _chat_with_agentic_loop(normalized_text)
                 else:
                     full_reply = await _chat_naive_rag(normalized_text)
@@ -455,15 +453,14 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
 
                 if full_reply:
                     # Save DB and update transcript immediately
-                    await asyncio.to_thread(_save_message, full_reply, False)
-                    await _publish_transcript("assistant", full_reply)
+                    await transcript_store.save_and_publish_assistant(full_reply)
 
                     # Publish raw text to data channel for UI
                     try:
                         await ctx.room.local_participant.publish_data(
                             full_reply.encode("utf-8"),
                             reliable=True,
-                            topic="lk.chat",
+                            topic=LK_CHAT_TOPIC,
                         )
                     except Exception as exc:
                         log.info(f"Data output publish failed: {exc}")
@@ -476,21 +473,11 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
 
     async def handle_text_input(sess: AgentSession, ev: room_io.TextInputEvent) -> None:
         participant_id = ev.participant.identity if ev.participant else "unknown"
-        log.info(f"Text input from {participant_id}: {ev.text}")
+        log.info(f"Text input received | participant={participant_id} | chars={len(ev.text or '')}")
         # call handle_data_input to process the text input
         await handle_data_input(ev.text, participant_id)
-        # asyncio.create_task(asyncio.to_thread(_save_message, ev.text, True))
-        # await sess.interrupt()
-        # try:
-        #     sess.generate_reply(user_input=ev.text)
-        # except Exception as exc:
-        #     msg = str(exc)
-        #     if "NOT_FOUND" in msg or "404" in msg:
-        #         log.info(f"Realtime model unavailable ({configured_model_name}); please set OPENAI_STREAM_MODEL_NAME. Error: {exc}")
-        #     raise
 
     def on_data_received(packet: rtc.DataPacket) -> None:
-        nonlocal web_search_enabled
         try:
             raw = packet.data.decode("utf-8")
         except Exception as exc:
@@ -498,62 +485,66 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             return
 
         # --- Kênh điều khiển: bật/tắt web search ---
-        if packet.topic == "lk.control":
+        if packet.topic == LK_CONTROL_TOPIC:
             try:
                 payload = json.loads(raw)
                 if payload.get("type") == "toggle_web_search":
-                    web_search_enabled = bool(payload.get("enabled", False))
-                    log.info(f"🌐 Web search toggle: {'BẬT' if web_search_enabled else 'TẮT'}")
+                    web_search_policy.set_enabled(bool(payload.get("enabled", False)))
+                    log.info(f"Web search toggle: {'BẬT' if web_search_policy.enabled else 'TẮT'}")
             except json.JSONDecodeError:
                 log.info("lk.control: payload không phải JSON hợp lệ")
             return
 
         # --- Kênh chat thông thường ---
-        if packet.topic == "lk.chat":
+        if packet.topic == LK_CHAT_TOPIC:
             participant_id = packet.participant.identity if packet.participant else None
             asyncio.create_task(handle_data_input(raw, participant_id))
 
     ctx.room.on("data_received", on_data_received)
 
+    def _handle_user_input_transcribed(ev: Any) -> None:
+        is_final = bool(getattr(ev, "is_final", False))
+        transcript = str(getattr(ev, "transcript", "") or "").strip()
+        log.info(
+            "user_input_transcribed received | "
+            f"final={is_final} | chars={len(transcript)} | thread_id={thread_uuid}"
+        )
+        if settings.VOICE_AGENT_LOG_TRANSCRIPT_TEXT and transcript:
+            log.debug(f"user_input_transcribed preview: {trim_text(transcript, 160)}")
+        if is_final and transcript:
+            _observe_web_permission_reply(transcript)
+
+    def _handle_conversation_item_added(ev: ConversationItemAddedEvent) -> None:
+        item = ev.item
+        if not isinstance(item, LLMMessage):
+            return
+
+        text = _extract_conversation_item_text(item)
+        if not text:
+            return
+
+        if item.role == "user":
+            log.info(f"User voice speech saved | text_len={len(text)} | thread_id={thread_uuid}")
+            _observe_web_permission_reply(text)
+            asyncio.create_task(transcript_store.save_and_publish_user(text))
+        elif item.role == "assistant":
+            log.info(f"Assistant voice speech saved | text_len={len(text)} | thread_id={thread_uuid}")
+            asyncio.create_task(transcript_store.save_and_publish_assistant(text))
+
     def _attach_session_handlers(sess: AgentSession) -> None:
         @sess.on("user_input_transcribed")  # type: ignore[arg-type]
         def on_user_input_transcribed(ev):
-            is_final = bool(getattr(ev, "is_final", False))
-            transcript = str(getattr(ev, "transcript", "") or "").strip()
-            log.info(
-                f"user_input_transcribed received: final={is_final}, chars={len(transcript)}, transcript={transcript!r}"
-            )
-            if is_final and transcript:
-                asyncio.create_task(_save_and_publish_user_transcript(transcript))
+            _handle_user_input_transcribed(ev)
 
-        @sess.on("user_speech_committed")  # type: ignore[arg-type]
-        def on_user_speech(msg: LLMMessage):
-            content = getattr(msg, "content", getattr(msg, "text", ""))
-            if content:
-                text = str(content)
-                asyncio.create_task(_save_and_publish_user_transcript(text))
-                # Ghi vào session.history để gpt-4o-mini (text chat) cũng thấy
-                sess.history.add_message(role="user", content=text)
-                sess.history.truncate(max_items=settings.VOICE_AGENT_HISTORY_LIMIT)
-
-        @sess.on("agent_speech_committed")  # type: ignore[arg-type]
-        def on_agent_speech(msg: LLMMessage):
-            content = getattr(msg, "content", getattr(msg, "text", ""))
-            if content:
-                text = str(content)
-                asyncio.create_task(asyncio.to_thread(_save_message, text, False))
-                asyncio.create_task(_publish_transcript("assistant", text))
-                # Ghi vào session.history để gpt-4o-mini (text chat) cũng thấy
-                sess.history.add_message(role="assistant", content=text)
-                sess.history.truncate(max_items=settings.VOICE_AGENT_HISTORY_LIMIT)
+        @sess.on("conversation_item_added")  # type: ignore[arg-type]
+        def on_conversation_item_added(ev: ConversationItemAddedEvent):
+            _handle_conversation_item_added(ev)
 
     # Start session with fallback when a configured model is unavailable.
     last_start_exc: Exception | None = None
     for model_name in model_candidates:
         try:
-            log.info(
-                f"Starting realtime session with model: {model_name}, voice: {settings.OPENAI_REALTIME_VOICE}"
-            )
+            log.info(f"Starting realtime session with model: {model_name}, voice: {settings.OPENAI_REALTIME_VOICE}")
             model = RealtimeModel(
                 model=model_name,
                 voice=settings.OPENAI_REALTIME_VOICE,
@@ -582,7 +573,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                         sync_transcription=False,
                         next_in_chain=ChatTextOutput(
                             ctx.room,
-                            topic="lk.chat",
+                            topic=LK_CHAT_TOPIC,
                         ),
                     ),
                     close_on_disconnect=True,
@@ -601,22 +592,8 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         # Defensive: in case we failed before connecting properly.
         raise last_start_exc
 
-    # Load history
-    def _load_history():
-        if not thread_uuid:
-            return []
-        with Session(engine) as db:
-            # Load only the recent window into model memory; full history remains in DB for UI.
-            messages = db.exec(
-                select(ChatMessage)
-                .where(ChatMessage.thread_id == thread_uuid)
-                .order_by(cast(Any, ChatMessage.timestamp).desc())
-                .limit(settings.VOICE_AGENT_HISTORY_LIMIT)
-            ).all()
-            return list(reversed(messages))
-
     try:
-        history_msgs = await asyncio.to_thread(_load_history)
+        history_msgs = await transcript_store.load_recent_history(settings.VOICE_AGENT_HISTORY_LIMIT)
         # type: ignore[attr-defined]
         if hasattr(session, "history") and session.history is not None:
             for msg in history_msgs:
@@ -627,7 +604,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         log.info(f"Lỗi khi load history: {e}")
 
     await session.generate_reply(
-        instructions="Chào ông, tôi là TRIAM đây. Ông muốn thảo luận về chương sách nào hôm nay?",
+        instructions=GREETING_INSTRUCTIONS,
     )
 
 
