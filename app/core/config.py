@@ -14,6 +14,15 @@ class Settings(BaseSettings):
     GEMINI_BASE_URL: str
     GEMINI_API_KEY: str
     DATABASE_URL: str
+    DATABASE_ECHO: bool = False
+    DATABASE_POOL_MODE: str = "auto"
+    DATABASE_POOL_SIZE: int = 3
+    DATABASE_MAX_OVERFLOW: int = 2
+    DATABASE_POOL_TIMEOUT: int = 5
+    DATABASE_POOL_RECYCLE: int = 900
+    DATABASE_POOL_PRE_PING: bool = True
+    DATABASE_POOL_USE_LIFO: bool = True
+    DATABASE_APPLICATION_NAME: str = "triam-backend"
     SUPABASE_URL: str
     SUPABASE_KEY: str
     SUPABASE_SERVICE_ROLE_KEY: str
