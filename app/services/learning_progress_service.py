@@ -8,7 +8,7 @@ from app.core.constant import LearningProgressStatus, PlanMode, PlanStatus
 from app.core.exceptions import BadRequestError, BookNotFoundError, NoPlayableAudioError
 from app.models.db_models import Book, LearningUnit, LearningUnitProgress, LearningUnitSegment, ReadingPlan
 from app.repositories.learning_progress_repo import get_latest_activity, get_progress, list_book_progress, list_playable_unit_ids, save_progress
-from app.repositories.reading_plan_schedule_repo import deactivate_slots_for_plan
+from app.repositories.reading_plan_schedule_repo import delete_slots_for_plan
 from app.schemas.learning_progress import (
     BookLearningProgressResponse,
     LearningUnitProgressResponse,
@@ -167,7 +167,7 @@ def _check_and_deactivate_plan_on_completion(
         if plan and plan.status == PlanStatus.ACTIVE.value:
             plan.status = PlanStatus.INACTIVE.value
             session.add(plan)
-            deactivate_slots_for_plan(session, plan_id=plan.id)
+            delete_slots_for_plan(session, plan_id=plan.id)
             session.commit()
 
 
