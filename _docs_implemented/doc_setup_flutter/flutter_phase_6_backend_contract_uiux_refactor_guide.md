@@ -428,10 +428,25 @@ Response:
 {
   "message": "Kế hoạch học tập đã được tạo! Chúng tôi đang xử lý sách của bạn.",
   "book_id": "uuid",
+  "plan_id": "uuid",
   "job_id": "uuid",
   "mode": "pareto",
+  "plan_status": "active",
+  "pace": 1,
+  "schedule_config": ["Mon", "Wed", "Fri"],
+  "reminder_time": "20:30",
   "status": "queued",
   "progress_percent": 0,
+  "active_slots": [
+    {
+      "id": "uuid",
+      "weekday": 0,
+      "weekday_label": "monday",
+      "reminder_time": "20:30",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "is_active": true
+    }
+  ],
   "planned_units": [
     {
       "unit_index": 0,
@@ -448,6 +463,9 @@ FE rule:
 
 - Show planned units preview if available.
 - Store `job_id`.
+- Store `plan_id`, `schedule_config`, `reminder_time`, and `active_slots` from backend response.
+- Do not silently replace `reminder_time` with a FE default after generate-plan. Backend response is the source of truth.
+- Before user confirms schedule, FE should call `GET /api/v1/reading-plan-slots` and warn/disable exact day-time slots already occupied by another active book.
 - Navigate to processing screen.
 - Start polling job.
 
@@ -774,6 +792,75 @@ force_persist=true
 
 Đây là API mới theo update 30/05.
 
+Get all active reading-plan slots:
+
+```http
+GET /api/v1/reading-plan-slots
+Authorization: Bearer <access_token>
+```
+
+Use this endpoint before create/update schedule pickers. It lets FE disable exact duplicate slots for the current user.
+
+Response:
+
+```json
+[
+  {
+    "id": "uuid",
+    "plan_id": "uuid",
+    "book_id": "uuid",
+    "weekday": 0,
+    "weekday_label": "monday",
+    "reminder_time": "20:30",
+    "timezone": "Asia/Ho_Chi_Minh",
+    "is_active": true
+  }
+]
+```
+
+Get current reading plan:
+
+```http
+GET /api/v1/books/{book_id}/reading-plan
+Authorization: Bearer <access_token>
+```
+
+Response:
+
+```json
+{
+  "plan_id": "uuid",
+  "book_id": "uuid",
+  "mode": "full",
+  "pace": 1,
+  "schedule_config": ["Mon", "Wed", "Fri"],
+  "reminder_time": "20:30",
+  "status": "active",
+  "active_slots": [
+    {
+      "id": "uuid",
+      "weekday": 0,
+      "weekday_label": "monday",
+      "reminder_time": "20:30",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "is_active": true
+    }
+  ],
+  "created_at": "2026-06-01T10:00:00Z",
+  "updated_at": "2026-06-01T10:00:00Z"
+}
+```
+
+FE must call this endpoint before opening the edit schedule screen. This avoids stale/default `reminder_time` bugs where UI shows one time but request sends another time.
+
+If the book is still `draft` and has no plan yet, backend returns `404` with:
+
+```json
+{
+  "detail": "Chưa có ReadingPlan cho sách này."
+}
+```
+
 Pause:
 
 ```http
@@ -832,9 +919,24 @@ Response:
 {
   "message": "Đã cập nhật kế hoạch học tập.",
   "plan_id": "uuid",
+  "book_id": "uuid",
+  "mode": "full",
   "pace": 1,
   "schedule_config": ["Mon", "Wed", "Fri"],
-  "reminder_time": "20:30"
+  "reminder_time": "20:30",
+  "status": "active",
+  "active_slots": [
+    {
+      "id": "uuid",
+      "weekday": 0,
+      "weekday_label": "monday",
+      "reminder_time": "20:30",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "is_active": true
+    }
+  ],
+  "created_at": "2026-06-01T10:00:00Z",
+  "updated_at": "2026-06-01T10:10:00Z"
 }
 ```
 
@@ -846,6 +948,10 @@ UX rule:
 - Update plan không regenerate audio.
 - Update plan chỉ đổi lịch học, pace, reminder time.
 - `reminder_time` riêng theo sách sẽ override notification settings chung cho plan reminder của sách đó.
+- When user edits schedule, prefill from `GET /books/{book_id}/reading-plan`, not from local defaults.
+- When user creates a new plan, check occupied slots from `GET /reading-plan-slots`.
+- When submitting update, send both the selected `schedule_config` and selected `reminder_time`.
+- If backend returns `409`, refresh current plan and ask user to choose another day/time. Conflict message may include the duplicated weekday/time.
 
 ---
 

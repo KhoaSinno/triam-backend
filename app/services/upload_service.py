@@ -25,12 +25,13 @@ from app.repositories.audiobook_repo import update_book_status
 from app.repositories.book_section_repo import create_book_sections, list_book_sections
 from app.repositories.learning_unit_repo import create_learning_units
 from app.repositories.processing_job_repo import update_processing_job
+from app.repositories.reading_plan_schedule_repo import list_slots_for_plan
 from app.schemas.plan import PlanInput
 from app.services.document_parser_service import parse_document_structure
 from app.services.document_structure_service import build_outline_preview, detect_structure_warnings, validate_document_structure
 from app.services.document_structure_types import flatten_sections
 from app.services.learning_unit_planner_service import plan_learning_units
-from app.services.reading_plan_schedule_service import build_slots_for_plan, validate_plan_schedule_for_create
+from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, build_slots_for_plan, validate_plan_schedule_for_create
 from app.services.storage_service import upload_file_to_supabase
 from app.tasks.book_tasks import process_book_task
 
@@ -62,6 +63,17 @@ def _planned_units_for_book(session: Session, book_id: uuid.UUID, mode) -> list:
     return planned_units
 
 
+def _slot_response(slot) -> dict:
+    return {
+        "id": str(slot.id),
+        "weekday": slot.weekday,
+        "weekday_label": WEEKDAY_LABELS.get(slot.weekday, str(slot.weekday)),
+        "reminder_time": slot.reminder_time,
+        "timezone": slot.timezone,
+        "is_active": slot.is_active,
+    }
+
+
 def _create_plan_and_job(
     session: Session,
     *,
@@ -70,7 +82,7 @@ def _create_plan_and_job(
     user_id: uuid.UUID,
     slots: list,
     resolved_reminder_time: str,
-) -> tuple[ProcessingJob, list]:
+) -> tuple[ProcessingJob, list, ReadingPlan]:
     planned_units = _planned_units_for_book(session, payload.book_id, payload.mode)
 
     plan = ReadingPlan(
@@ -116,7 +128,7 @@ def _create_plan_and_job(
     session.add(job)
     book.status = BookStatus.PROCESSING
     session.add(book)
-    return job, planned_units
+    return job, planned_units, plan
 
 
 # Dispatcher function to extract document structure based on document type
@@ -248,7 +260,7 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
 
     # 2. Lưu ReadingPlan + schedule slots + learning units + progress job
     try:
-        job, planned_units = _create_plan_and_job(
+        job, planned_units, plan = _create_plan_and_job(
             session,
             book=book,
             payload=payload,
@@ -258,6 +270,7 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
         )
         session.commit()
         session.refresh(job)
+        session.refresh(plan)
 
         logger.info(f"📋 ReadingPlan created for book {payload.book_id} | mode={payload.mode.value} | job={job.id}")
     except IntegrityError as e:
@@ -290,10 +303,16 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
     return {
         "message": "Kế hoạch học tập đã được tạo! Chúng tôi đang xử lý sách của bạn.",
         "book_id": str(payload.book_id),
+        "plan_id": str(plan.id),
         "job_id": str(job.id),
         "mode": payload.mode.value,
+        "plan_status": plan.status,
+        "pace": plan.pace,
+        "schedule_config": list(plan.schedule_config or []),
+        "reminder_time": plan.reminder_time,
         "status": job.status,
         "progress_percent": job.progress_percent,
+        "active_slots": [_slot_response(slot) for slot in list_slots_for_plan(session, plan_id=plan.id, active_only=True)],
         "planned_units": [
             {
                 "unit_index": index,

@@ -47,6 +47,19 @@ def list_active_slots(session: Session, *, user_id: uuid.UUID) -> list[ReadingPl
     )
 
 
+def list_slots_for_plan(
+    session: Session,
+    *,
+    plan_id: uuid.UUID,
+    active_only: bool = True,
+) -> list[ReadingPlanScheduleSlot]:
+    statement = select(ReadingPlanScheduleSlot).where(ReadingPlanScheduleSlot.plan_id == plan_id)
+    if active_only:
+        statement = statement.where(ReadingPlanScheduleSlot.is_active.is_(True))
+    statement = statement.order_by(col(ReadingPlanScheduleSlot.weekday), col(ReadingPlanScheduleSlot.reminder_time))
+    return list(session.exec(statement).all())
+
+
 def create_slots_for_plan(
     session: Session,
     *,

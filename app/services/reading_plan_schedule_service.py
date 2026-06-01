@@ -11,6 +11,26 @@ from app.repositories.notification_settings_repo import get_or_create_notificati
 from app.repositories.reading_plan_schedule_repo import count_active_learning_books, create_slots_for_plan, find_conflicting_slot
 from app.services.reminder_schedule_service import WEEKDAY_ALIASES, parse_hhmm
 
+WEEKDAY_LABELS = {
+    0: "monday",
+    1: "tuesday",
+    2: "wednesday",
+    3: "thursday",
+    4: "friday",
+    5: "saturday",
+    6: "sunday",
+}
+
+WEEKDAY_VI_LABELS = {
+    0: "Thứ hai",
+    1: "Thứ ba",
+    2: "Thứ tư",
+    3: "Thứ năm",
+    4: "Thứ sáu",
+    5: "Thứ bảy",
+    6: "Chủ nhật",
+}
+
 
 @dataclass(frozen=True)
 class ScheduleSlotInput:
@@ -35,7 +55,10 @@ def normalize_schedule_config(
     if not isinstance(schedule_config, list) or not schedule_config:
         raise ReadingPlanScheduleConflictError("Vui lòng chọn ít nhất một ngày học.")
 
-    parse_hhmm(reminder_time)
+    try:
+        parse_hhmm(reminder_time)
+    except (TypeError, ValueError) as exc:
+        raise ReadingPlanScheduleConflictError(f"Giờ học không hợp lệ: {reminder_time}. Vui lòng dùng định dạng HH:MM.") from exc
     weekdays = sorted({_weekday_from_value(day) for day in schedule_config})
     return [ScheduleSlotInput(weekday=weekday, reminder_time=reminder_time, timezone=timezone_name) for weekday in weekdays]
 
@@ -61,7 +84,10 @@ def validate_schedule_slots_available(
             exclude_plan_id=exclude_plan_id,
         )
         if conflict:
-            raise ReadingPlanScheduleConflictError()
+            weekday_label = WEEKDAY_VI_LABELS.get(slot.weekday, f"ngày {slot.weekday}")
+            raise ReadingPlanScheduleConflictError(
+                f"Lịch học bị trùng vào {weekday_label} lúc {slot.reminder_time}. Hãy chọn ngày hoặc giờ khác."
+            )
 
 
 def build_slots_for_plan(

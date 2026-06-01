@@ -2,9 +2,9 @@ import uuid
 
 from sqlmodel import Session, select
 
-from app.core.constant import PlanMode, ProcessingJobStatus, ProcessingJobType, PlanStatus
+from app.core.constant import PlanMode, PlanStatus, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import BookNotFoundError, ExternalServiceError, NoReadingPlanError, ReadingPlanNotFoundError
-from app.models.db_models import Book, LearningUnit, LearningUnitSegment, ProcessingJob, ReadingPlan
+from app.models.db_models import Book, LearningUnit, LearningUnitSegment, ProcessingJob, ReadingPlan, ReadingPlanScheduleSlot
 from app.repositories import audiobook_repo
 from app.repositories.book_section_repo import BookSectionOutlineRow, list_book_section_outline_rows, list_book_sections
 from app.repositories.learning_unit_repo import (
@@ -14,10 +14,10 @@ from app.repositories.learning_unit_repo import (
     list_unit_segments,
 )
 from app.repositories.processing_job_repo import create_processing_job, update_processing_job
-from app.repositories.reading_plan_schedule_repo import deactivate_slots_for_plan
-from app.services.reading_plan_schedule_service import validate_plan_schedule_for_create, build_slots_for_plan
+from app.repositories.reading_plan_schedule_repo import deactivate_slots_for_plan, list_active_slots, list_slots_for_plan
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
 from app.services.learning_unit_planner_service import plan_learning_units
+from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, build_slots_for_plan, validate_plan_schedule_for_create
 from app.tasks.book_tasks import switch_mode_task
 
 
@@ -54,6 +54,55 @@ def _active_plan(session: Session, book_id: uuid.UUID) -> ReadingPlan:
     if not plan:
         raise NoReadingPlanError()
     return plan
+
+
+def _slot_to_dict(slot: ReadingPlanScheduleSlot) -> dict:
+    return {
+        "id": slot.id,
+        "weekday": slot.weekday,
+        "weekday_label": WEEKDAY_LABELS.get(slot.weekday, str(slot.weekday)),
+        "reminder_time": slot.reminder_time,
+        "timezone": slot.timezone,
+        "is_active": slot.is_active,
+    }
+
+
+def _user_slot_to_dict(slot: ReadingPlanScheduleSlot) -> dict:
+    return {
+        **_slot_to_dict(slot),
+        "plan_id": slot.plan_id,
+        "book_id": slot.book_id,
+    }
+
+
+def _reading_plan_to_dict(session: Session, plan: ReadingPlan) -> dict:
+    active_slots = list_slots_for_plan(session, plan_id=plan.id, active_only=True)
+    return {
+        "plan_id": plan.id,
+        "book_id": plan.book_id,
+        "mode": PlanMode(plan.mode),
+        "pace": plan.pace,
+        "schedule_config": list(plan.schedule_config or []),
+        "reminder_time": plan.reminder_time,
+        "status": plan.status,
+        "active_slots": [_slot_to_dict(slot) for slot in active_slots],
+        "created_at": plan.created_at,
+        "updated_at": plan.updated_at,
+    }
+
+
+def get_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> dict:
+    book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
+    if not book:
+        raise BookNotFoundError()
+    plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
+    if not plan:
+        raise ReadingPlanNotFoundError()
+    return _reading_plan_to_dict(session, plan)
+
+
+def list_reading_plan_slots(session: Session, user_id: uuid.UUID) -> list[dict]:
+    return [_user_slot_to_dict(slot) for slot in list_active_slots(session, user_id=user_id)]
 
 
 def _segments_by_unit(segments: list[LearningUnitSegment]) -> dict[uuid.UUID, list[dict]]:
@@ -324,8 +373,5 @@ def update_reading_plan(
 
     return {
         "message": "Đã cập nhật kế hoạch học tập.",
-        "plan_id": str(plan.id),
-        "pace": plan.pace,
-        "schedule_config": plan.schedule_config,
-        "reminder_time": plan.reminder_time,
+        **_reading_plan_to_dict(session, plan),
     }

@@ -7,7 +7,13 @@ from sqlmodel import Session
 from app.api.dependencies.auth import CurrentUser
 from app.db.database import get_session
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
-from app.schemas.plan import PlanUpdateRequest, SwitchModeRequest
+from app.schemas.plan import (
+    PlanUpdateRequest,
+    ReadingPlanResponse,
+    ReadingPlanUpdateResponse,
+    ReadingPlanUserSlotResponse,
+    SwitchModeRequest,
+)
 from app.schemas.responses import BookDetailResponse, BookResponse, SwitchModeResponse
 from app.services.audiobook_service import (
     create_new_book,
@@ -16,7 +22,9 @@ from app.services.audiobook_service import (
     get_book_details,
     get_book_learning_units,
     get_book_outline,
+    get_reading_plan,
     list_books,
+    list_reading_plan_slots,
     pause_reading_plan,
     resume_reading_plan,
     switch_book_mode,
@@ -100,7 +108,26 @@ def resume_plan(
     return resume_reading_plan(session, book_id, current_user.sub)
 
 
-@router.put("/books/{book_id}/reading-plan")
+@router.get("/reading-plan-slots", response_model=list[ReadingPlanUserSlotResponse])
+def get_active_plan_slots(
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
+):
+    """Lấy toàn bộ slot lịch học active của user để FE tránh chọn trùng khi tạo/sửa plan."""
+    return list_reading_plan_slots(session, current_user.sub)
+
+
+@router.get("/books/{book_id}/reading-plan", response_model=ReadingPlanResponse)
+def get_plan(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
+):
+    """Lấy cấu hình lịch học hiện tại của sách để FE prefill màn hình chỉnh lịch."""
+    return get_reading_plan(session, book_id, current_user.sub)
+
+
+@router.put("/books/{book_id}/reading-plan", response_model=ReadingPlanUpdateResponse)
 def update_plan(
     book_id: uuid.UUID,
     payload: PlanUpdateRequest,
