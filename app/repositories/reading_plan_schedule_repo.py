@@ -1,7 +1,7 @@
 import uuid
 
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, col, select
+from sqlmodel import Session, col, delete, select
 
 from app.models.db_models import ReadingPlanScheduleSlot
 
@@ -77,10 +77,7 @@ def create_slots_for_plan(
         raise
 
 
-def deactivate_slots_for_plan(session: Session, *, plan_id: uuid.UUID) -> int:
-    slots = session.exec(select(ReadingPlanScheduleSlot).where(ReadingPlanScheduleSlot.plan_id == plan_id, ReadingPlanScheduleSlot.is_active.is_(True))).all()
-    for slot in slots:
-        slot.is_active = False
-        session.add(slot)
-    session.commit()
-    return len(slots)
+def delete_slots_for_plan(session: Session, *, plan_id: uuid.UUID) -> int:
+    statement = delete(ReadingPlanScheduleSlot).where(ReadingPlanScheduleSlot.plan_id == plan_id)
+    result = session.exec(statement)
+    return int(result.rowcount or 0)

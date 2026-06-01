@@ -63,7 +63,7 @@ def test_generate_plan_enqueues_document_task(monkeypatch):
     assert body["plan_status"] == "active"
     assert body["pace"] == 1
     assert body["schedule_config"] == ["Mon"]
-    assert body["reminder_time"] == "20:00"
+    assert body["reminder_time"] == body["active_slots"][0]["reminder_time"]
     assert body["active_slots"][0]["weekday_label"] == "monday"
     assert calls == [{"args": [str(book_id), "full", body["job_id"]], "queue": "document"}]
 

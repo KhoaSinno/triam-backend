@@ -1,9 +1,10 @@
 import uuid
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.core.constant import PlanMode, PlanStatus, ProcessingJobStatus, ProcessingJobType
-from app.core.exceptions import BookNotFoundError, ExternalServiceError, NoReadingPlanError, ReadingPlanNotFoundError
+from app.core.exceptions import BookNotFoundError, ExternalServiceError, NoReadingPlanError, ReadingPlanNotFoundError, ReadingPlanScheduleConflictError
 from app.models.db_models import Book, LearningUnit, LearningUnitSegment, ProcessingJob, ReadingPlan, ReadingPlanScheduleSlot
 from app.repositories import audiobook_repo
 from app.repositories.book_section_repo import BookSectionOutlineRow, list_book_section_outline_rows, list_book_sections
@@ -14,7 +15,7 @@ from app.repositories.learning_unit_repo import (
     list_unit_segments,
 )
 from app.repositories.processing_job_repo import create_processing_job, update_processing_job
-from app.repositories.reading_plan_schedule_repo import deactivate_slots_for_plan, list_active_slots, list_slots_for_plan
+from app.repositories.reading_plan_schedule_repo import delete_slots_for_plan, list_active_slots, list_slots_for_plan
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
 from app.services.learning_unit_planner_service import plan_learning_units
 from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, build_slots_for_plan, validate_plan_schedule_for_create
@@ -293,7 +294,7 @@ def pause_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID)
     plan = _active_plan(session, book_id)
     plan.status = PlanStatus.INACTIVE.value
     session.add(plan)
-    deactivate_slots_for_plan(session, plan_id=plan.id)
+    delete_slots_for_plan(session, plan_id=plan.id)
     session.commit()
     return {"message": "Đã tạm dừng kế hoạch học tập.", "plan_id": str(plan.id), "status": plan.status}
 
@@ -324,7 +325,11 @@ def resume_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID
     ):
         session.add(slot)
 
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        raise ReadingPlanScheduleConflictError() from exc
     return {"message": "Đã tiếp tục kế hoạch học tập.", "plan_id": str(plan.id), "status": plan.status}
 
 
@@ -355,7 +360,7 @@ def update_reading_plan(
             exclude_plan_id=plan.id,
         )
 
-        deactivate_slots_for_plan(session, plan_id=plan.id)
+        delete_slots_for_plan(session, plan_id=plan.id)
 
         for slot in build_slots_for_plan(
             user_id=user_id,
@@ -369,7 +374,11 @@ def update_reading_plan(
     plan.schedule_config = new_schedule_config
     plan.reminder_time = new_reminder_time
     session.add(plan)
-    session.commit()
+    try:
+        session.commit()
+    except IntegrityError as exc:
+        session.rollback()
+        raise ReadingPlanScheduleConflictError() from exc
 
     return {
         "message": "Đã cập nhật kế hoạch học tập.",

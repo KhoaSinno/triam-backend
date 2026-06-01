@@ -88,6 +88,7 @@ async def delete_book(book_id: uuid.UUID, current_user: CurrentUser, session: An
     return {"message": "Book deleted"}
 
 
+# READING PLAN
 @router.post("/books/{book_id}/pause")
 def pause_plan(
     book_id: uuid.UUID,

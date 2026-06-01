@@ -913,6 +913,8 @@ Body:
 }
 ```
 
+All fields in this body are optional for backward compatibility. Backend keeps the current value for any omitted field.
+
 Response:
 
 ```json
@@ -950,7 +952,7 @@ UX rule:
 - `reminder_time` riêng theo sách sẽ override notification settings chung cho plan reminder của sách đó.
 - When user edits schedule, prefill from `GET /books/{book_id}/reading-plan`, not from local defaults.
 - When user creates a new plan, check occupied slots from `GET /reading-plan-slots`.
-- When submitting update, send both the selected `schedule_config` and selected `reminder_time`.
+- When submitting update from the edit schedule screen, FE should send both the selected `schedule_config` and selected `reminder_time` after prefill. Backend still accepts partial payloads for old clients.
 - If backend returns `409`, refresh current plan and ask user to choose another day/time. Conflict message may include the duplicated weekday/time.
 
 ---

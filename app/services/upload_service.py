@@ -256,7 +256,7 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
         schedule_config=payload.schedule_config,
         reminder_time=payload.reminder_time,
     )
-    resolved_reminder_time = slots[0].reminder_time if slots else (payload.reminder_time or "20:00")
+    resolved_reminder_time = slots[0].reminder_time
 
     # 2. Lưu ReadingPlan + schedule slots + learning units + progress job
     try:
