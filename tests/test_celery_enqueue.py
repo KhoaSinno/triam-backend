@@ -58,7 +58,13 @@ def test_generate_plan_enqueues_document_task(monkeypatch):
     assert response.status_code == 200
     body = response.json()
     assert body["job_id"]
+    assert body["plan_id"]
     assert body["status"] == "queued"
+    assert body["plan_status"] == "active"
+    assert body["pace"] == 1
+    assert body["schedule_config"] == ["Mon"]
+    assert body["reminder_time"] == "20:00"
+    assert body["active_slots"][0]["weekday_label"] == "monday"
     assert calls == [{"args": [str(book_id), "full", body["job_id"]], "queue": "document"}]
 
     with Session(engine) as session:
