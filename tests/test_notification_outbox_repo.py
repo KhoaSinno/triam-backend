@@ -5,7 +5,7 @@ from sqlmodel import Session, select
 
 from app.core.constant import BookStatus, NotificationChannel, NotificationStatus, NotificationType, PlanMode, PlanStatus, ProcessingJobStatus
 from app.db.database import engine
-from app.models.db_models import Book, LearningUnit, LearningUnitSegment, NotificationOutbox, NotificationSettings, ReadingPlan, UserNotification, UserDeviceToken
+from app.models.db_models import Book, LearningUnit, LearningUnitSegment, NotificationOutbox, NotificationSettings, ReadingPlan, UserDeviceToken, UserNotification
 from app.repositories.notification_outbox_repo import claim_due_outbox, create_outbox_once, recover_stale_outbox
 from app.services.notification_event_service import _build_plan_reminder_outbox
 from app.tasks.notification_tasks import deliver_one_notification

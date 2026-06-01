@@ -744,7 +744,7 @@ uv run pytest tests/test_health_api.py tests/test_celery_enqueue.py tests/test_p
 Run parser and study-context tests:
 
 ```powershell
-uv run pytest tests/test_document_parsers.py tests/test_api_study_context.py tests/test_threads_for_book.py -q
+uv run pytest tests/test_document_parsers.py tests/test_api_study_context.py tests/test_auth_user_isolation.py -q
 ```
 
 Run lint:

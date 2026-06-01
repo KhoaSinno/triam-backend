@@ -11,9 +11,8 @@ import asyncio
 
 import aiofiles
 
-from app.core.supabase import supabase
-
 from app.core.logger import log as logger
+from app.core.supabase import supabase
 
 
 async def upload_file_to_supabase(

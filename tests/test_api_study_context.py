@@ -1,12 +1,13 @@
 import base64
-import json
+
 import pytest
 from fastapi.testclient import TestClient
+
 from app.main import app
 
 client = TestClient(app)
 
-# Sử dụng book ID có sẵn theo môi trường của bạn (thường dùng ở test_agent_text_chat)
+# Sử dụng book ID có sẵn trong môi trường test/local.
 MOCK_BOOK_ID = "1b893d40-e0cc-4ee3-ae5f-a7809834e6dd"
 
 

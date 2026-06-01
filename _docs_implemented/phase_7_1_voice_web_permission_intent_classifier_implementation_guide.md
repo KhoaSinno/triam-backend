@@ -626,7 +626,7 @@ Cases:
 
 ### 12.3 Integration Tests - Text
 
-Use existing `tests/test_agent_chat_text_only.py` style:
+Use the current manual integration style in `tests/test_phase7_realtime_voice_chat.py`:
 
 ```text
 1. Ask an out-of-book question.

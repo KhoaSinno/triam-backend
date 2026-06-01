@@ -1,8 +1,8 @@
-import os
 import json
+import os
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Optional
+from hashlib import sha256
 
 import firebase_admin
 from firebase_admin import credentials, messaging
@@ -13,6 +13,43 @@ from app.core.logger import log
 from app.models.db_models import UserDeviceToken
 
 _firebase_initialized = False
+
+
+def _token_fingerprint(device_token: str) -> str:
+    return sha256(device_token.encode("utf-8")).hexdigest()[:12]
+
+
+def _stringify_fcm_data(data: dict[str, str] | None) -> dict[str, str]:
+    if not data:
+        return {}
+    return {str(key): str(value) for key, value in data.items()}
+
+
+def _delete_device_tokens(session: Session, device_tokens: list[str]) -> None:
+    if not device_tokens:
+        return
+    db_tokens = session.exec(select(UserDeviceToken).where(UserDeviceToken.device_token.in_(device_tokens))).all()
+    for token_record in db_tokens:
+        session.delete(token_record)
+    session.commit()
+    log.info(f"Đã xóa {len(device_tokens)} token không khả dụng khỏi DB.")
+
+
+def _collect_invalid_tokens(response: messaging.BatchResponse, device_tokens: list[str]) -> list[str]:
+    tokens_to_delete: list[str] = []
+    for idx, resp in enumerate(response.responses):
+        if resp.success:
+            continue
+
+        exc = resp.exception
+        token = device_tokens[idx]
+        token_hash = _token_fingerprint(token)
+        if isinstance(exc, (messaging.UnregisteredError, messaging.SenderIdMismatchError)):
+            log.info(f"FCM token không khả dụng ({type(exc).__name__}), token_hash={token_hash}")
+            tokens_to_delete.append(token)
+        else:
+            log.warning(f"Lỗi gửi push cho token_hash={token_hash}: {exc}")
+    return tokens_to_delete
 
 
 def init_firebase() -> bool:
@@ -57,34 +94,25 @@ def send_fcm_notification(
     user_id: uuid.UUID,
     title: str,
     body: str,
-    data: Optional[dict[str, str]] = None,
+    data: dict[str, str] | None = None,
 ) -> None:
     """
     Gửi thông báo Push qua FCM đến tất cả thiết bị của user_id.
     Tự động dọn dẹp các token bị báo lỗi Unregistered/SenderIdMismatch.
     """
-    # 1. Truy vấn toàn bộ token của người dùng
-    device_tokens = session.exec(select(UserDeviceToken.device_token).where(UserDeviceToken.user_id == user_id)).all()
+    device_tokens = list(session.exec(select(UserDeviceToken.device_token).where(UserDeviceToken.user_id == user_id)).all())
 
     if not device_tokens:
         log.debug(f"User {user_id} không có device token đăng ký. Bỏ qua gửi push.")
         return
 
-    # 2. Đảm bảo Firebase được khởi tạo
     initialized = init_firebase()
     if not initialized:
         log.warning(f"[MOCK PUSH] Gửi đến user {user_id} ({len(device_tokens)} thiết bị) | Title: '{title}' | Body: '{body}' | Data: {data}")
         return
 
-    # 3. Chuẩn bị gửi multicast
     log.info(f"Đang gửi push notification cho user {user_id} tới {len(device_tokens)} thiết bị...")
-
-    # Ép kiểu dữ liệu data thành string (FCM yêu cầu các giá trị data phải là string)
-    string_data = {}
-    if data:
-        for k, v in data.items():
-            string_data[str(k)] = str(v)
-
+    string_data = _stringify_fcm_data(data)
     message = messaging.MulticastMessage(
         notification=messaging.Notification(
             title=title,
@@ -98,27 +126,8 @@ def send_fcm_notification(
         response = messaging.send_each_for_multicast(message)
         log.info(f"FCM multicast done | success={response.success_count} | failure={response.failure_count}")
 
-        # 4. Kiểm tra lỗi và tự động xóa token hỏng
         if response.failure_count > 0:
-            tokens_to_delete = []
-            for idx, resp in enumerate(response.responses):
-                if not resp.success:
-                    exc = resp.exception
-                    # UnregisteredError và SenderIdMismatchError là các lỗi token không còn khả dụng
-                    if isinstance(exc, (messaging.UnregisteredError, messaging.SenderIdMismatchError)):
-                        bad_token = device_tokens[idx]
-                        log.info(f"FCM token không khả dụng ({type(exc).__name__}), chuẩn bị xóa: {bad_token}")
-                        tokens_to_delete.append(bad_token)
-                    else:
-                        log.warning(f"Lỗi gửi push cho token {device_tokens[idx]}: {exc}")
-
-            if tokens_to_delete:
-                # Xóa các token lỗi khỏi cơ sở dữ liệu
-                db_tokens = session.exec(select(UserDeviceToken).where(UserDeviceToken.device_token.in_(tokens_to_delete))).all()
-                for t in db_tokens:
-                    session.delete(t)
-                session.commit()
-                log.info(f"Đã xóa {len(tokens_to_delete)} token không khả dụng khỏi DB.")
+            _delete_device_tokens(session, _collect_invalid_tokens(response, device_tokens))
     except Exception as e:
         log.error(f"Gửi multicast FCM gặp lỗi hệ thống: {e}")
 

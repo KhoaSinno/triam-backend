@@ -130,7 +130,7 @@ Các case chính:
 ### 3.2 Non-live Regression Suite
 
 ```powershell
-uv run pytest -q --ignore=tests/test_agent_chat_text_only.py --ignore=tests/test_threads_for_book.py
+uv run pytest -q
 ```
 
 Kết quả:
@@ -141,10 +141,10 @@ Kết quả:
 
 ### 3.3 Threads Integration
 
-Bật FastAPI tạm ở `127.0.0.1:8000`, chạy:
+Legacy live-server script `tests/test_threads_for_book.py` has been removed. Use the API/auth regression suite instead:
 
 ```powershell
-uv run pytest tests/test_threads_for_book.py -q
+uv run pytest tests/test_api_study_context.py tests/test_auth_user_isolation.py -q
 ```
 
 Kết quả:
