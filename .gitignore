@@ -39,5 +39,6 @@ tests/fixtures/*.wav
 # Local/generated project material
 _codebase/
 scratch_*.py
+.codegraph/
 
 triam-notification-firebase-adminsdk-fbsvc-77f3e9eac6.json
