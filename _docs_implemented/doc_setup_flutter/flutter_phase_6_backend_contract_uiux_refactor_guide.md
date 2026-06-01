@@ -412,7 +412,8 @@ Request:
   "mode": "pareto",
   "pace": 1,
   "schedule_config": ["Mon", "Wed", "Fri"],
-  "reminder_time": "20:30"
+  "reminder_time": "20:30",
+  "activate": false
 }
 ```
 
@@ -421,6 +422,12 @@ Request:
 - Nếu gửi: kế hoạch của sách dùng giờ đó.
 - Nếu không gửi: backend fallback từ notification settings của user.
 - Format: `HH:MM`, 24-hour.
+
+`activate` là field mới của deferred upload flow:
+
+- FE upload wizard nên gửi `activate=false`.
+- `activate=false`: chỉ cấu hình plan và generate nội dung/audio, chưa chiếm lịch học.
+- `activate=true`: active lịch ngay và có thể bị `409` nếu trùng lịch.
 
 Response:
 
@@ -431,22 +438,13 @@ Response:
   "plan_id": "uuid",
   "job_id": "uuid",
   "mode": "pareto",
-  "plan_status": "active",
+  "plan_status": "inactive",
   "pace": 1,
   "schedule_config": ["Mon", "Wed", "Fri"],
   "reminder_time": "20:30",
   "status": "queued",
   "progress_percent": 0,
-  "active_slots": [
-    {
-      "id": "uuid",
-      "weekday": 0,
-      "weekday_label": "monday",
-      "reminder_time": "20:30",
-      "timezone": "Asia/Ho_Chi_Minh",
-      "is_active": true
-    }
-  ],
+  "active_slots": [],
   "planned_units": [
     {
       "unit_index": 0,
@@ -465,7 +463,8 @@ FE rule:
 - Store `job_id`.
 - Store `plan_id`, `schedule_config`, `reminder_time`, and `active_slots` from backend response.
 - Do not silently replace `reminder_time` with a FE default after generate-plan. Backend response is the source of truth.
-- Before user confirms schedule, FE should call `GET /api/v1/reading-plan-slots` and warn/disable exact day-time slots already occupied by another active book.
+- When `activate=false`, schedule conflict should not block upload/configure. Conflict is checked later when user presses "Bắt đầu học".
+- Before user activates a plan, FE may call `GET /api/v1/reading-plan-slots` to warn about exact day-time slots already occupied by another active book.
 - Navigate to processing screen.
 - Start polling job.
 
@@ -836,6 +835,7 @@ Response:
   "schedule_config": ["Mon", "Wed", "Fri"],
   "reminder_time": "20:30",
   "status": "active",
+  "plan_status": "active",
   "active_slots": [
     {
       "id": "uuid",
@@ -874,7 +874,14 @@ Response:
 {
   "message": "Đã tạm dừng kế hoạch học tập.",
   "plan_id": "uuid",
-  "status": "inactive"
+  "book_id": "uuid",
+  "mode": "full",
+  "pace": 1,
+  "schedule_config": ["Mon", "Wed", "Fri"],
+  "reminder_time": "20:30",
+  "status": "inactive",
+  "plan_status": "inactive",
+  "active_slots": []
 }
 ```
 
@@ -891,7 +898,23 @@ Response:
 {
   "message": "Đã tiếp tục kế hoạch học tập.",
   "plan_id": "uuid",
-  "status": "active"
+  "book_id": "uuid",
+  "mode": "full",
+  "pace": 1,
+  "schedule_config": ["Mon", "Wed", "Fri"],
+  "reminder_time": "20:30",
+  "status": "active",
+  "plan_status": "active",
+  "active_slots": [
+    {
+      "id": "uuid",
+      "weekday": 0,
+      "weekday_label": "monday",
+      "reminder_time": "20:30",
+      "timezone": "Asia/Ho_Chi_Minh",
+      "is_active": true
+    }
+  ]
 }
 ```
 
@@ -927,6 +950,7 @@ Response:
   "schedule_config": ["Mon", "Wed", "Fri"],
   "reminder_time": "20:30",
   "status": "active",
+  "plan_status": "active",
   "active_slots": [
     {
       "id": "uuid",
@@ -946,12 +970,18 @@ UX rule:
 
 - Show pause/resume on active learning book.
 - Pause giải phóng lịch học của sách đó.
+- Resume là action "Bắt đầu học" chính thức cho plan đang `inactive`.
+- Resume có thể trả `409` nếu tài liệu chưa `partial_ready/ready`.
 - Resume có thể trả `409` nếu lịch bị trùng với sách khác.
 - Update plan không regenerate audio.
 - Update plan chỉ đổi lịch học, pace, reminder time.
+- Update inactive plan không check conflict và không chiếm lịch.
+- Update active plan vẫn check conflict.
 - `reminder_time` riêng theo sách sẽ override notification settings chung cho plan reminder của sách đó.
 - When user edits schedule, prefill from `GET /books/{book_id}/reading-plan`, not from local defaults.
-- When user creates a new plan, check occupied slots from `GET /reading-plan-slots`.
+- When user creates/configures a new plan with `activate=false`, do not treat occupied slots as a blocking upload error.
+- Show ready CTA when `book.status in ["partial_ready", "ready"]` and reading plan `plan_status == "inactive"`.
+- CTA action is `POST /api/v1/books/{book_id}/resume`.
 - When submitting update from the edit schedule screen, FE should send both the selected `schedule_config` and selected `reminder_time` after prefill. Backend still accepts partial payloads for old clients.
 - If backend returns `409`, refresh current plan and ask user to choose another day/time. Conflict message may include the duplicated weekday/time.
 

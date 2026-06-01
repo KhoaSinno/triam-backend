@@ -60,11 +60,60 @@ def test_generate_plan_enqueues_document_task(monkeypatch):
     assert body["job_id"]
     assert body["plan_id"]
     assert body["status"] == "queued"
-    assert body["plan_status"] == "active"
+    assert body["plan_status"] == "inactive"
     assert body["pace"] == 1
     assert body["schedule_config"] == ["Mon"]
-    assert body["reminder_time"] == body["active_slots"][0]["reminder_time"]
-    assert body["active_slots"][0]["weekday_label"] == "monday"
+    assert body["reminder_time"]
+    assert body["active_slots"] == []
+    assert calls == [{"args": [str(book_id), "full", body["job_id"]], "queue": "document"}]
+
+    with Session(engine) as session:
+        saved = session.get(Book, book_id)
+        if saved:
+            session.delete(saved)
+            session.commit()
+
+
+def test_generate_plan_activate_true_creates_active_slots(monkeypatch):
+    calls = []
+
+    def fake_apply_async(*, args, queue):
+        calls.append({"args": args, "queue": queue})
+
+    monkeypatch.setattr("app.services.upload_service.process_book_task.apply_async", fake_apply_async)
+
+    with Session(engine) as session:
+        book = Book(
+            user_id=MOCK_USER_ID,
+            title="Active Generate Plan Test",
+            total_sections=1,
+            status=BookStatus.DRAFT,
+            document_type=DocumentType.PDF,
+            file_url="https://example.test/storage/v1/object/public/raw_books/test/active-original.pdf",
+        )
+        session.add(book)
+        session.commit()
+        session.refresh(book)
+
+        _add_section(session, book.id, title="Active Unit Source")
+        book_id = book.id
+
+    response = TestClient(app).post(
+        "/api/v1/generate-plan",
+        json={
+            "book_id": str(book_id),
+            "mode": "full",
+            "pace": 1,
+            "schedule_config": ["Tue"],
+            "reminder_time": "06:30",
+            "activate": True,
+        },
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["plan_status"] == "active"
+    assert [(slot["weekday_label"], slot["reminder_time"]) for slot in body["active_slots"]] == [("tuesday", "06:30")]
     assert calls == [{"args": [str(book_id), "full", body["job_id"]], "queue": "document"}]
 
     with Session(engine) as session:

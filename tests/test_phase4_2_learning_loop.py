@@ -12,6 +12,7 @@ from app.db.database import engine
 from app.main import app
 from app.models.db_models import (
     Book,
+    BookSection,
     LearningUnit,
     LearningUnitProgress,
     LearningUnitSegment,
@@ -89,6 +90,33 @@ def _delete_notification_settings(user_id: uuid.UUID) -> None:
         if settings_row:
             session.delete(settings_row)
             session.commit()
+
+
+def _create_draft_book_with_section(session: Session, *, user_id: uuid.UUID, title: str = "Draft Book") -> Book:
+    book = Book(
+        user_id=user_id,
+        title=title,
+        total_sections=1,
+        status=BookStatus.DRAFT,
+        file_url="https://example.test/storage/v1/object/public/raw_books/test/original.pdf",
+        document_type="pdf",
+    )
+    session.add(book)
+    session.flush()
+    session.add(
+        BookSection(
+            book_id=book.id,
+            section_index=0,
+            title="Unit Source",
+            level=1,
+            path="1",
+            text_content="Nội dung đủ để tạo bài học.",
+            text_char_count=28,
+        )
+    )
+    session.commit()
+    session.refresh(book)
+    return book
 
 
 def test_learning_progress_creates_reviews_only_after_completion():
@@ -552,6 +580,81 @@ def test_get_reading_plan_returns_current_schedule_for_prefill(auth_as):
         _delete_notification_settings(user_id)
 
 
+def test_generate_plan_inactive_does_not_conflict_with_active_schedule(auth_as, monkeypatch):
+    calls = []
+
+    def fake_apply_async(*, args, queue):
+        calls.append({"args": args, "queue": queue})
+
+    monkeypatch.setattr("app.services.upload_service.process_book_task.apply_async", fake_apply_async)
+
+    client = TestClient(app)
+    user_id = uuid.uuid4()
+    auth_as(user_id)
+    book_ids: list[uuid.UUID] = []
+    try:
+        with Session(engine) as session:
+            active_book, _, _ = _create_playable_book(session, user_id=user_id, title="Already Active Book")
+            draft_book = _create_draft_book_with_section(session, user_id=user_id, title="Deferred Draft Book")
+            book_ids = [active_book.id, draft_book.id]
+
+            active_plan = ReadingPlan(
+                book_id=active_book.id,
+                mode=PlanMode.FULL,
+                pace=1,
+                schedule_config=["Mon"],
+                status=PlanStatus.ACTIVE.value,
+                reminder_time="20:00",
+            )
+            session.add(active_plan)
+            session.commit()
+            slots = validate_plan_schedule_for_create(session, user_id=user_id, schedule_config=["Mon"], reminder_time="20:00")
+            session.add_all(build_slots_for_plan(user_id=user_id, book_id=active_book.id, plan_id=active_plan.id, slots=slots))
+            session.commit()
+
+        response = client.post(
+            "/api/v1/generate-plan",
+            json={
+                "book_id": str(book_ids[1]),
+                "mode": "full",
+                "pace": 1,
+                "schedule_config": ["Mon"],
+                "reminder_time": "20:00",
+                "activate": False,
+            },
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["plan_status"] == PlanStatus.INACTIVE.value
+        assert body["active_slots"] == []
+        assert body["job_id"]
+        assert calls == [{"args": [str(book_ids[1]), "full", body["job_id"]], "queue": "document"}]
+
+        with Session(engine) as session:
+            inactive_plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_ids[1])).first()
+            assert inactive_plan is not None
+            assert inactive_plan.status == PlanStatus.INACTIVE.value
+            active_slots = session.exec(
+                select(ReadingPlanScheduleSlot).where(
+                    ReadingPlanScheduleSlot.book_id == book_ids[1],
+                    ReadingPlanScheduleSlot.is_active.is_(True),
+                )
+            ).all()
+            assert active_slots == []
+
+        slots_response = client.get("/api/v1/reading-plan-slots")
+        assert slots_response.status_code == 200
+        occupied_slots = slots_response.json()
+        assert {(slot["book_id"], slot["weekday_label"], slot["reminder_time"]) for slot in occupied_slots} == {
+            (str(book_ids[0]), "monday", "20:00")
+        }
+    finally:
+        for book_id in book_ids:
+            _delete_book(book_id)
+        _delete_notification_settings(user_id)
+
+
 def test_get_reading_plan_without_plan_returns_404(auth_as):
     client = TestClient(app)
     user_id = uuid.uuid4()
@@ -635,6 +738,191 @@ def test_update_reading_plan_keeps_self_slot_and_rejects_other_book_conflict(aut
             assert len(active_slots_b) == 1
             assert active_slots_b[0].weekday == 2
             assert active_slots_b[0].reminder_time == "21:00"
+    finally:
+        for book_id in book_ids:
+            _delete_book(book_id)
+        _delete_notification_settings(user_id)
+
+
+def test_resume_inactive_plan_rejects_processing_book(auth_as):
+    client = TestClient(app)
+    user_id = uuid.uuid4()
+    auth_as(user_id)
+    book_id = None
+    try:
+        with Session(engine) as session:
+            book = Book(user_id=user_id, title="Processing Deferred Book", status=BookStatus.PROCESSING)
+            session.add(book)
+            session.commit()
+            session.refresh(book)
+            book_id = book.id
+
+            plan = ReadingPlan(
+                book_id=book.id,
+                mode=PlanMode.FULL,
+                pace=1,
+                schedule_config=["Tue"],
+                status=PlanStatus.INACTIVE.value,
+                reminder_time="21:00",
+            )
+            session.add(plan)
+            session.commit()
+
+        response = client.post(f"/api/v1/books/{book_id}/resume")
+
+        assert response.status_code == 409
+        assert "Tài liệu chưa sẵn sàng" in response.json()["detail"]
+        with Session(engine) as session:
+            db_plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
+            assert db_plan.status == PlanStatus.INACTIVE.value
+            slots = session.exec(select(ReadingPlanScheduleSlot).where(ReadingPlanScheduleSlot.book_id == book_id)).all()
+            assert slots == []
+    finally:
+        if book_id:
+            _delete_book(book_id)
+        _delete_notification_settings(user_id)
+
+
+def test_resume_inactive_plan_detects_conflict_without_activating(auth_as):
+    client = TestClient(app)
+    user_id = uuid.uuid4()
+    auth_as(user_id)
+    book_ids: list[uuid.UUID] = []
+    try:
+        with Session(engine) as session:
+            active_book, _, _ = _create_playable_book(session, user_id=user_id, title="Resume Conflict Active")
+            inactive_book, _, _ = _create_playable_book(session, user_id=user_id, title="Resume Conflict Deferred")
+            book_ids = [active_book.id, inactive_book.id]
+
+            active_plan = ReadingPlan(
+                book_id=active_book.id,
+                mode=PlanMode.FULL,
+                pace=1,
+                schedule_config=["Mon"],
+                status=PlanStatus.ACTIVE.value,
+                reminder_time="20:00",
+            )
+            inactive_plan = ReadingPlan(
+                book_id=inactive_book.id,
+                mode=PlanMode.FULL,
+                pace=1,
+                schedule_config=["Mon"],
+                status=PlanStatus.INACTIVE.value,
+                reminder_time="20:00",
+            )
+            session.add(active_plan)
+            session.add(inactive_plan)
+            session.commit()
+
+            slots = validate_plan_schedule_for_create(session, user_id=user_id, schedule_config=["Mon"], reminder_time="20:00")
+            session.add_all(build_slots_for_plan(user_id=user_id, book_id=active_book.id, plan_id=active_plan.id, slots=slots))
+            session.commit()
+
+        response = client.post(f"/api/v1/books/{book_ids[1]}/resume")
+
+        assert response.status_code == 409
+        assert "Thứ hai lúc 20:00" in response.json()["detail"]
+        with Session(engine) as session:
+            db_plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_ids[1])).first()
+            assert db_plan.status == PlanStatus.INACTIVE.value
+            slots = session.exec(select(ReadingPlanScheduleSlot).where(ReadingPlanScheduleSlot.book_id == book_ids[1])).all()
+            assert slots == []
+    finally:
+        for book_id in book_ids:
+            _delete_book(book_id)
+        _delete_notification_settings(user_id)
+
+
+def test_resume_inactive_plan_success_is_idempotent(auth_as):
+    client = TestClient(app)
+    user_id = uuid.uuid4()
+    auth_as(user_id)
+    book_id = None
+    try:
+        with Session(engine) as session:
+            book, _, _ = _create_playable_book(session, user_id=user_id, title="Resume Success Deferred")
+            book_id = book.id
+            plan = ReadingPlan(
+                book_id=book.id,
+                mode=PlanMode.FULL,
+                pace=1,
+                schedule_config=["Tue"],
+                status=PlanStatus.INACTIVE.value,
+                reminder_time="21:00",
+            )
+            session.add(plan)
+            session.commit()
+
+        first = client.post(f"/api/v1/books/{book_id}/resume")
+        second = client.post(f"/api/v1/books/{book_id}/resume")
+
+        assert first.status_code == 200
+        assert second.status_code == 200
+        assert first.json()["plan_status"] == PlanStatus.ACTIVE.value
+        assert second.json()["plan_status"] == PlanStatus.ACTIVE.value
+
+        with Session(engine) as session:
+            active_slots = session.exec(
+                select(ReadingPlanScheduleSlot).where(
+                    ReadingPlanScheduleSlot.book_id == book_id,
+                    ReadingPlanScheduleSlot.is_active.is_(True),
+                )
+            ).all()
+            assert len(active_slots) == 1
+            assert active_slots[0].weekday == 1
+            assert active_slots[0].reminder_time == "21:00"
+    finally:
+        if book_id:
+            _delete_book(book_id)
+        _delete_notification_settings(user_id)
+
+
+def test_update_inactive_plan_does_not_validate_active_conflict(auth_as):
+    client = TestClient(app)
+    user_id = uuid.uuid4()
+    auth_as(user_id)
+    book_ids: list[uuid.UUID] = []
+    try:
+        with Session(engine) as session:
+            active_book, _, _ = _create_playable_book(session, user_id=user_id, title="Update Inactive Active")
+            inactive_book, _, _ = _create_playable_book(session, user_id=user_id, title="Update Inactive Deferred")
+            book_ids = [active_book.id, inactive_book.id]
+
+            active_plan = ReadingPlan(
+                book_id=active_book.id,
+                mode=PlanMode.FULL,
+                pace=1,
+                schedule_config=["Mon"],
+                status=PlanStatus.ACTIVE.value,
+                reminder_time="20:00",
+            )
+            inactive_plan = ReadingPlan(
+                book_id=inactive_book.id,
+                mode=PlanMode.FULL,
+                pace=1,
+                schedule_config=["Tue"],
+                status=PlanStatus.INACTIVE.value,
+                reminder_time="21:00",
+            )
+            session.add(active_plan)
+            session.add(inactive_plan)
+            session.commit()
+
+            slots = validate_plan_schedule_for_create(session, user_id=user_id, schedule_config=["Mon"], reminder_time="20:00")
+            session.add_all(build_slots_for_plan(user_id=user_id, book_id=active_book.id, plan_id=active_plan.id, slots=slots))
+            session.commit()
+
+        response = client.put(
+            f"/api/v1/books/{book_ids[1]}/reading-plan",
+            json={"schedule_config": ["Mon"], "reminder_time": "20:00"},
+        )
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["plan_status"] == PlanStatus.INACTIVE.value
+        assert body["schedule_config"] == ["Mon"]
+        assert body["reminder_time"] == "20:00"
+        assert body["active_slots"] == []
     finally:
         for book_id in book_ids:
             _delete_book(book_id)

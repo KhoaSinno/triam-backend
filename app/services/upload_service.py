@@ -31,7 +31,7 @@ from app.services.document_parser_service import parse_document_structure
 from app.services.document_structure_service import build_outline_preview, detect_structure_warnings, validate_document_structure
 from app.services.document_structure_types import flatten_sections
 from app.services.learning_unit_planner_service import plan_learning_units
-from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, build_slots_for_plan, validate_plan_schedule_for_create
+from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
 from app.services.storage_service import upload_file_to_supabase
 from app.tasks.book_tasks import process_book_task
 
@@ -82,6 +82,7 @@ def _create_plan_and_job(
     user_id: uuid.UUID,
     slots: list,
     resolved_reminder_time: str,
+    plan_status: PlanStatus,
 ) -> tuple[ProcessingJob, list, ReadingPlan]:
     planned_units = _planned_units_for_book(session, payload.book_id, payload.mode)
 
@@ -90,7 +91,7 @@ def _create_plan_and_job(
         mode=payload.mode,
         pace=payload.pace,
         schedule_config=payload.schedule_config,
-        status=PlanStatus.ACTIVE,
+        status=plan_status.value,
         reminder_time=resolved_reminder_time,
     )
     session.add(plan)
@@ -250,12 +251,24 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
     if book.status not in (BookStatus.DRAFT,):
         raise BookStatusConflictError(f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
 
-    slots = validate_plan_schedule_for_create(
-        session,
-        user_id=user_id,
-        schedule_config=payload.schedule_config,
-        reminder_time=payload.reminder_time,
-    )
+    if payload.activate:
+        slots = validate_plan_schedule_for_activation(
+            session,
+            user_id=user_id,
+            schedule_config=payload.schedule_config,
+            reminder_time=payload.reminder_time,
+        )
+        plan_status = PlanStatus.ACTIVE
+        slots_to_create = slots
+    else:
+        slots = validate_plan_schedule_shape(
+            session,
+            user_id=user_id,
+            schedule_config=payload.schedule_config,
+            reminder_time=payload.reminder_time,
+        )
+        plan_status = PlanStatus.INACTIVE
+        slots_to_create = []
     resolved_reminder_time = slots[0].reminder_time
 
     # 2. Lưu ReadingPlan + schedule slots + learning units + progress job
@@ -265,8 +278,9 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
             book=book,
             payload=payload,
             user_id=user_id,
-            slots=slots,
+            slots=slots_to_create,
             resolved_reminder_time=resolved_reminder_time,
+            plan_status=plan_status,
         )
         session.commit()
         session.refresh(job)
@@ -312,7 +326,7 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
         "reminder_time": plan.reminder_time,
         "status": job.status,
         "progress_percent": job.progress_percent,
-        "active_slots": [_slot_response(slot) for slot in list_slots_for_plan(session, plan_id=plan.id, active_only=True)],
+        "active_slots": [_slot_response(slot) for slot in list_slots_for_plan(session, plan_id=plan.id, active_only=True)] if plan.status == PlanStatus.ACTIVE.value else [],
         "planned_units": [
             {
                 "unit_index": index,

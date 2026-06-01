@@ -3,8 +3,8 @@ import uuid
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
-from app.core.constant import PlanMode, PlanStatus, ProcessingJobStatus, ProcessingJobType
-from app.core.exceptions import BookNotFoundError, ExternalServiceError, NoReadingPlanError, ReadingPlanNotFoundError, ReadingPlanScheduleConflictError
+from app.core.constant import BookStatus, PlanMode, PlanStatus, ProcessingJobStatus, ProcessingJobType
+from app.core.exceptions import BookNotFoundError, BookStatusConflictError, ExternalServiceError, NoReadingPlanError, ReadingPlanNotFoundError, ReadingPlanScheduleConflictError
 from app.models.db_models import Book, LearningUnit, LearningUnitSegment, ProcessingJob, ReadingPlan, ReadingPlanScheduleSlot
 from app.repositories import audiobook_repo
 from app.repositories.book_section_repo import BookSectionOutlineRow, list_book_section_outline_rows, list_book_sections
@@ -18,7 +18,7 @@ from app.repositories.processing_job_repo import create_processing_job, update_p
 from app.repositories.reading_plan_schedule_repo import delete_slots_for_plan, list_active_slots, list_slots_for_plan
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
 from app.services.learning_unit_planner_service import plan_learning_units
-from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, build_slots_for_plan, validate_plan_schedule_for_create
+from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
 from app.tasks.book_tasks import switch_mode_task
 
 
@@ -86,6 +86,7 @@ def _reading_plan_to_dict(session: Session, plan: ReadingPlan) -> dict:
         "schedule_config": list(plan.schedule_config or []),
         "reminder_time": plan.reminder_time,
         "status": plan.status,
+        "plan_status": plan.status,
         "active_slots": [_slot_to_dict(slot) for slot in active_slots],
         "created_at": plan.created_at,
         "updated_at": plan.updated_at,
@@ -296,7 +297,7 @@ def pause_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID)
     session.add(plan)
     delete_slots_for_plan(session, plan_id=plan.id)
     session.commit()
-    return {"message": "Đã tạm dừng kế hoạch học tập.", "plan_id": str(plan.id), "status": plan.status}
+    return {"message": "Đã tạm dừng kế hoạch học tập.", **_reading_plan_to_dict(session, plan)}
 
 
 def resume_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> dict:
@@ -305,8 +306,13 @@ def resume_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID
         raise BookNotFoundError()
     plan = _active_plan(session, book_id)
 
-    # Validate slots and check for conflicts
-    slots = validate_plan_schedule_for_create(
+    if plan.status == PlanStatus.ACTIVE.value:
+        return {"message": "Kế hoạch học tập đang hoạt động.", **_reading_plan_to_dict(session, plan)}
+
+    if book.status not in (BookStatus.PARTIAL_READY.value, BookStatus.READY.value):
+        raise BookStatusConflictError("Tài liệu chưa sẵn sàng để bắt đầu học. Vui lòng chờ hệ thống xử lý thêm.")
+
+    slots = validate_plan_schedule_for_activation(
         session,
         user_id=user_id,
         schedule_config=plan.schedule_config,
@@ -315,8 +321,8 @@ def resume_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID
 
     plan.status = PlanStatus.ACTIVE.value
     session.add(plan)
+    delete_slots_for_plan(session, plan_id=plan.id)
 
-    # Re-create active slots
     for slot in build_slots_for_plan(
         user_id=user_id,
         book_id=book_id,
@@ -330,7 +336,7 @@ def resume_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID
     except IntegrityError as exc:
         session.rollback()
         raise ReadingPlanScheduleConflictError() from exc
-    return {"message": "Đã tiếp tục kế hoạch học tập.", "plan_id": str(plan.id), "status": plan.status}
+    return {"message": "Đã tiếp tục kế hoạch học tập.", **_reading_plan_to_dict(session, plan)}
 
 
 def update_reading_plan(
@@ -350,9 +356,8 @@ def update_reading_plan(
     new_schedule_config = schedule_config if schedule_config is not None else plan.schedule_config
     new_reminder_time = reminder_time if reminder_time is not None else plan.reminder_time
 
-    # If the plan is active, update slots
     if plan.status == PlanStatus.ACTIVE.value:
-        slots = validate_plan_schedule_for_create(
+        slots = validate_plan_schedule_for_activation(
             session,
             user_id=user_id,
             schedule_config=new_schedule_config,
@@ -369,6 +374,14 @@ def update_reading_plan(
             slots=slots,
         ):
             session.add(slot)
+    else:
+        validate_plan_schedule_shape(
+            session,
+            user_id=user_id,
+            schedule_config=new_schedule_config,
+            reminder_time=new_reminder_time,
+        )
+        delete_slots_for_plan(session, plan_id=plan.id)
 
     plan.pace = new_pace
     plan.schedule_config = new_schedule_config

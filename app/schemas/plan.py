@@ -12,6 +12,7 @@ class PlanInput(BaseModel):
     pace: int  # số chương/ngày
     schedule_config: list[str]  # VD: ["Mon", "Wed", "Fri"]
     reminder_time: str | None = None  # VD: "20:00", nếu None sẽ lấy từ user settings
+    activate: bool = False  # False: chỉ cấu hình/generate, True: active lịch ngay
 
 
 class SwitchModeRequest(BaseModel):
@@ -46,6 +47,7 @@ class ReadingPlanResponse(BaseModel):
     schedule_config: list[str] = Field(default_factory=list)
     reminder_time: str
     status: str
+    plan_status: str
     active_slots: list[ReadingPlanSlotResponse] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
