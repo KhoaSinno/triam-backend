@@ -17,7 +17,7 @@ from app.repositories.learning_unit_repo import (
 from app.repositories.processing_job_repo import create_processing_job, update_processing_job
 from app.repositories.reading_plan_schedule_repo import delete_slots_for_plan, list_active_slots, list_slots_for_plan
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
-from app.services.learning_unit_planner_service import plan_learning_units
+from app.services.learning_unit_planner_service import plan_learning_units_async
 from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
 from app.tasks.book_tasks import switch_mode_task
 
@@ -197,13 +197,13 @@ def get_book_learning_units(session: Session, book_id: uuid.UUID, user_id: uuid.
     }
 
 
-def _ensure_learning_units_for_mode(session: Session, *, book: Book, user_id: uuid.UUID, mode: PlanMode) -> list[LearningUnit]:
+async def _ensure_learning_units_for_mode(session: Session, *, book: Book, user_id: uuid.UUID, mode: PlanMode) -> list[LearningUnit]:
     existing = list_learning_units(session, book.id, mode)
     if existing:
         return existing
 
     sections = list_book_sections(session, book.id)
-    planned_units = plan_learning_units(sections, mode)
+    planned_units = await plan_learning_units_async(sections, mode)
     if not planned_units:
         raise NoReadingPlanError()
     units = create_learning_units(session, user_id=user_id, book_id=book.id, mode=mode, planned_units=planned_units)
@@ -213,7 +213,7 @@ def _ensure_learning_units_for_mode(session: Session, *, book: Book, user_id: uu
     return units
 
 
-def switch_book_mode(
+async def switch_book_mode(
     session: Session,
     book_id: uuid.UUID,
     user_id: uuid.UUID,
@@ -228,7 +228,7 @@ def switch_book_mode(
     if not plan:
         raise ReadingPlanNotFoundError()
 
-    units = _ensure_learning_units_for_mode(session, book=book, user_id=user_id, mode=requested_mode)
+    units = await _ensure_learning_units_for_mode(session, book=book, user_id=user_id, mode=requested_mode)
     total_segments = count_unit_segments_by_book_and_mode(session, book_id, requested_mode)
     needs_generation = total_segments == 0
 

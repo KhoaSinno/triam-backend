@@ -30,7 +30,7 @@ from app.schemas.plan import PlanInput
 from app.services.document_parser_service import parse_document_structure
 from app.services.document_structure_service import build_outline_preview, detect_structure_warnings, validate_document_structure
 from app.services.document_structure_types import flatten_sections
-from app.services.learning_unit_planner_service import plan_learning_units
+from app.services.learning_unit_planner_service import plan_learning_units_async
 from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
 from app.services.storage_service import upload_file_to_supabase
 from app.tasks.book_tasks import process_book_task
@@ -52,12 +52,12 @@ def _detect_document_type(file: UploadFile) -> str:
     raise UnsupportedFileTypeError(f"Loại file không hỗ trợ ({file.content_type}). Chỉ chấp nhận PDF, EPUB, DOCX.")
 
 
-def _planned_units_for_book(session: Session, book_id: uuid.UUID, mode) -> list:
+async def _planned_units_for_book(session: Session, book_id: uuid.UUID, mode) -> list:
     sections = list_book_sections(session, book_id)
     if not sections:
         return []
 
-    planned_units = plan_learning_units(sections, mode)
+    planned_units = await plan_learning_units_async(sections, mode)
     if not planned_units:
         raise DocumentExtractionError("Không tạo được bài học từ cấu trúc tài liệu.")
     return planned_units
@@ -74,7 +74,7 @@ def _slot_response(slot) -> dict:
     }
 
 
-def _create_plan_and_job(
+async def _create_plan_and_job_async(
     session: Session,
     *,
     book: Book,
@@ -84,7 +84,7 @@ def _create_plan_and_job(
     resolved_reminder_time: str,
     plan_status: PlanStatus,
 ) -> tuple[ProcessingJob, list, ReadingPlan]:
-    planned_units = _planned_units_for_book(session, payload.book_id, payload.mode)
+    planned_units = await _planned_units_for_book(session, payload.book_id, payload.mode)
 
     plan = ReadingPlan(
         book_id=payload.book_id,
@@ -273,7 +273,7 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
 
     # 2. Lưu ReadingPlan + schedule slots + learning units + progress job
     try:
-        job, planned_units, plan = _create_plan_and_job(
+        job, planned_units, plan = await _create_plan_and_job_async(
             session,
             book=book,
             payload=payload,

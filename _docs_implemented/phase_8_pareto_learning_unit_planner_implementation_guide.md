@@ -1,7 +1,7 @@
 # Phase 8 Implementation Guide - Production Pareto Learning Unit Planner
 
 Date: 2026-06-02  
-Status: **Proposed - not implemented yet**  
+Status: **Implemented locally - automated regression passed**  
 Scope: Backend planner quality upgrade for `pareto` mode  
 Depends on: Phase 5 `BookSection -> LearningUnit`, Phase 6 cleanup, current Celery generation pipeline  
 Audience: Backend developer, Flutter developer, capstone reviewer
@@ -32,6 +32,47 @@ Mà nên hiểu là:
 Chọn nhóm nhỏ nội dung có giá trị học tập cao nhất,
 gom các mục nhỏ liên quan thành các bài học trọng tâm,
 rồi mới chuyển thành audio ngắn, rõ, dễ ôn.
+```
+
+---
+
+## 0. Implementation Result
+
+Phase 8 đã được implement theo hướng không breaking API và không migration DB.
+
+Đã hoàn thành:
+
+- Thêm `app/services/pareto_planner_service.py`.
+- Thêm structured output schema cho Pareto planner.
+- Thêm English system prompt cho planner để giảm token và rõ vai trò.
+- Thêm `SectionCard` builder: gửi metadata + excerpt ngắn, không gửi toàn bộ source text.
+- Thêm LLM planner có timeout.
+- Thêm validation: chỉ nhận section id có thật trong tài liệu, sort lại theo thứ tự tài liệu, loại unit rỗng.
+- Thêm deterministic fallback khi LLM disabled/timeout/schema lỗi/invalid id.
+- Cải thiện fallback cũ để không chọn mục dài chỉ vì dài; ưu tiên keyword học tập như khái niệm, định nghĩa, quy tắc, phương pháp, công thức.
+- Thêm async planner facade `plan_learning_units_async()`.
+- Tích hợp vào `generate-plan` và `switch-mode`.
+- Giữ nguyên response shape hiện tại cho FE.
+- Không thêm bảng/cột DB mới.
+
+Verification đã chạy:
+
+```powershell
+uv run ruff check app tests --exclude app/db/migrations --output-format=concise
+uv run python -m py_compile app\services\pareto_planner_service.py app\services\learning_unit_planner_service.py app\services\upload_service.py app\services\audiobook_service.py app\api\v1\routers\audiobooks.py tests\test_pareto_planner_service.py
+uv run pytest tests\test_pareto_planner_service.py tests\test_learning_unit_planner.py -q
+uv run pytest tests\test_celery_enqueue.py tests\test_upload_service_batch_commit.py tests\test_phase3_generation_guardrails.py tests\test_processing_jobs_api.py tests\test_auth_user_isolation.py -q
+uv run pytest tests\test_phase4_2_learning_loop.py tests\test_notifications_api.py tests\test_notification_outbox_repo.py -q
+uv run pytest -q
+```
+
+Kết quả:
+
+```text
+Ruff: pass
+Planner tests: 7 passed
+Focused regression: 46 passed
+Full regression: 104 passed
 ```
 
 ---
@@ -679,4 +720,3 @@ Phase 8 is done when:
 - Generate-plan still returns same response shape to FE.
 - Full regression tests pass.
 - A real document test confirms Pareto unit titles and grouping look reasonable.
-

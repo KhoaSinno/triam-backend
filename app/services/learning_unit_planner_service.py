@@ -3,6 +3,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass
 
+from app.core.config import settings
 from app.core.constant import PlanMode
 from app.models.db_models import BookSection
 from app.services.token_budget_service import estimate_text_budget
@@ -11,7 +12,6 @@ FULL_UNIT_TARGET_TOKENS = 5000
 FULL_UNIT_MAX_TOKENS = 12000
 MIN_UNIT_TOKENS = 300
 PARETO_MAX_UNITS = 8
-PARETO_TARGET_COVERAGE_RATIO = 0.4
 PARETO_UNIT_MAX_TOKENS = 8000
 
 
@@ -205,13 +205,19 @@ def plan_full_learning_units(sections: list[BookSection]) -> list[PlannedLearnin
     return _merge_tiny_units(units)
 
 
-def _pareto_score(root: BookSection, subtree: list[BookSection]) -> int:
+def _pareto_score(root: BookSection, subtree: list[BookSection]) -> float:
     title = root.title.lower()
     keyword_score = 0
-    for keyword in ("khái niệm", "nguyên lý", "phương pháp", "định lý", "công thức", "quy trình", "logic", "tổng quan"):
+    for keyword in ("khái niệm", "định nghĩa", "nguyên lý", "phương pháp", "định lý", "công thức", "quy tắc", "quy trình", "logic", "tổng quan", "kết luận", "suy luận"):
         if keyword in title:
-            keyword_score += 1500
-    return sum(section.text_char_count for section in subtree) + len(subtree) * 250 + keyword_score
+            keyword_score += 5000
+
+    subtree_text = _sections_text(subtree)
+    estimated_tokens = estimate_text_budget(subtree_text).estimated_tokens
+    capped_content_score = min(estimated_tokens, 2000) * 0.4
+    hierarchy_score = max(0, 5 - root.level) * 150
+    child_score = len(subtree) * 250
+    return keyword_score + capped_content_score + hierarchy_score + child_score
 
 
 def fallback_pareto_learning_units(sections: list[BookSection]) -> list[PlannedLearningUnit]:
@@ -227,12 +233,12 @@ def fallback_pareto_learning_units(sections: list[BookSection]) -> list[PlannedL
     candidates.sort(key=lambda item: item[0], reverse=True)
 
     total_tokens = sum(estimate_text_budget(section.text_content or "").estimated_tokens for section in sections)
-    target_tokens = max(1, int(total_tokens * PARETO_TARGET_COVERAGE_RATIO))
+    target_tokens = max(1, int(total_tokens * settings.PARETO_TARGET_COVERAGE_RATIO))
     selected: list[tuple[BookSection, list[BookSection]]] = []
     selected_tokens = 0
 
     for _, root, subtree in candidates:
-        if len(selected) >= PARETO_MAX_UNITS:
+        if len(selected) >= settings.PARETO_PLANNER_MAX_UNITS:
             break
         unit_text = _sections_text(subtree)
         unit_tokens = estimate_text_budget(unit_text).estimated_tokens
@@ -259,7 +265,7 @@ def fallback_pareto_learning_units(sections: list[BookSection]) -> list[PlannedL
         else:
             units.append(unit)
 
-    return units[:PARETO_MAX_UNITS]
+    return units[: settings.PARETO_PLANNER_MAX_UNITS]
 
 
 def plan_learning_units(sections: list[BookSection], mode: PlanMode | str) -> list[PlannedLearningUnit]:
@@ -267,3 +273,13 @@ def plan_learning_units(sections: list[BookSection], mode: PlanMode | str) -> li
     if mode_value == PlanMode.FULL:
         return plan_full_learning_units(sections)
     return fallback_pareto_learning_units(sections)
+
+
+async def plan_learning_units_async(sections: list[BookSection], mode: PlanMode | str) -> list[PlannedLearningUnit]:
+    mode_value = PlanMode(mode)
+    if mode_value == PlanMode.FULL:
+        return plan_full_learning_units(sections)
+
+    from app.services.pareto_planner_service import plan_pareto_learning_units
+
+    return await plan_pareto_learning_units(sections)
