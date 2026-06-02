@@ -13,24 +13,10 @@ from app.core.logger import log
 from app.models.db_models import BookSection
 from app.services.async_limiter import get_loop_semaphore
 from app.services.learning_unit_planner_service import PlannedLearningUnit, fallback_pareto_learning_units
+from app.services.pareto_signal_service import extract_pareto_signal_hints, guess_section_language
 from app.services.token_budget_service import estimate_text_budget
 
 client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY, base_url=settings.GEMINI_BASE_URL)
-
-PARETO_CORE_KEYWORDS = {
-    "khái niệm": "core_concept",
-    "định nghĩa": "definition",
-    "nguyên lý": "principle",
-    "định lý": "theorem",
-    "công thức": "formula",
-    "quy tắc": "rule",
-    "phương pháp": "method",
-    "quy trình": "procedure",
-    "tổng quan": "overview",
-    "kết luận": "conclusion",
-    "suy luận": "reasoning",
-    "logic": "logic",
-}
 
 PARETO_PLANNER_SYSTEM_PROMPT = """
 You are TRIAM's Pareto learning planner.
@@ -39,6 +25,10 @@ Your job is to select and group the vital few source sections that give the lear
 
 Rules:
 - Return only valid JSON matching the requested schema.
+- Section titles may be Vietnamese, English, or mixed-language.
+- Use the original document language when naming learning units unless the source title is unclear.
+- Treat signal_hints as helpful hints, not strict rules.
+- Prefer structurally important sections even when there are no obvious keywords.
 - Select 3 to 8 learning units unless the document is very small.
 - Prefer foundational definitions, principles, formulas, methods, procedures, and representative examples.
 - Merge small related sections into one coherent learning unit.
@@ -61,7 +51,8 @@ class SectionCard:
     text_char_count: int
     estimated_tokens: int
     child_count: int
-    keyword_hints: list[str]
+    language: str
+    signal_hints: list[str]
     excerpt: str
 
     def to_prompt_dict(self) -> dict:
@@ -73,7 +64,8 @@ class SectionCard:
             "parent_path": self.parent_path,
             "estimated_tokens": self.estimated_tokens,
             "child_count": self.child_count,
-            "keyword_hints": self.keyword_hints,
+            "language": self.language,
+            "signal_hints": self.signal_hints,
             "excerpt": self.excerpt,
         }
 
@@ -109,11 +101,6 @@ def _children_by_parent(sections: list[BookSection]) -> dict[uuid.UUID | None, l
     return children
 
 
-def _keyword_hints(title: str) -> list[str]:
-    normalized = title.lower()
-    return [hint for keyword, hint in PARETO_CORE_KEYWORDS.items() if keyword in normalized]
-
-
 def _excerpt(text: str | None) -> str:
     normalized = " ".join((text or "").split())
     limit = max(100, settings.PARETO_SECTION_EXCERPT_CHARS)
@@ -127,6 +114,7 @@ def build_section_cards(sections: list[BookSection]) -> list[SectionCard]:
 
     for section in sorted(sections, key=lambda item: item.section_index):
         text = section.text_content or ""
+        excerpt = _excerpt(text)
         budget = estimate_text_budget(text)
         parent = by_id.get(section.parent_id) if section.parent_id else None
         cards.append(
@@ -140,8 +128,9 @@ def build_section_cards(sections: list[BookSection]) -> list[SectionCard]:
                 text_char_count=section.text_char_count,
                 estimated_tokens=budget.estimated_tokens,
                 child_count=len(children.get(section.id, [])),
-                keyword_hints=_keyword_hints(section.title),
-                excerpt=_excerpt(text),
+                language=guess_section_language(section.title, excerpt),
+                signal_hints=extract_pareto_signal_hints(section.title, excerpt),
+                excerpt=excerpt,
             )
         )
 

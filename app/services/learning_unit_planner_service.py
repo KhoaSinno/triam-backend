@@ -6,6 +6,11 @@ from dataclasses import dataclass
 from app.core.config import settings
 from app.core.constant import PlanMode
 from app.models.db_models import BookSection
+from app.services.pareto_signal_service import (
+    extract_pareto_signal_hints,
+    infer_unit_type_from_signals,
+    score_pareto_signals,
+)
 from app.services.token_budget_service import estimate_text_budget
 
 FULL_UNIT_TARGET_TOKENS = 5000
@@ -206,18 +211,13 @@ def plan_full_learning_units(sections: list[BookSection]) -> list[PlannedLearnin
 
 
 def _pareto_score(root: BookSection, subtree: list[BookSection]) -> float:
-    title = root.title.lower()
-    keyword_score = 0
-    for keyword in ("khái niệm", "định nghĩa", "nguyên lý", "phương pháp", "định lý", "công thức", "quy tắc", "quy trình", "logic", "tổng quan", "kết luận", "suy luận"):
-        if keyword in title:
-            keyword_score += 5000
-
     subtree_text = _sections_text(subtree)
+    signal_score = score_pareto_signals(root.title, subtree_text)
     estimated_tokens = estimate_text_budget(subtree_text).estimated_tokens
     capped_content_score = min(estimated_tokens, 2000) * 0.4
     hierarchy_score = max(0, 5 - root.level) * 150
     child_score = len(subtree) * 250
-    return keyword_score + capped_content_score + hierarchy_score + child_score
+    return signal_score + capped_content_score + hierarchy_score + child_score
 
 
 def fallback_pareto_learning_units(sections: list[BookSection]) -> list[PlannedLearningUnit]:
@@ -252,16 +252,25 @@ def fallback_pareto_learning_units(sections: list[BookSection]) -> list[PlannedL
     selected.sort(key=lambda item: item[0].section_index)
     units: list[PlannedLearningUnit] = []
     for root, subtree in selected:
+        subtree_text = _sections_text(subtree)
+        hints = extract_pareto_signal_hints(root.title, subtree_text)
         unit = _make_unit(
             root.title,
-            "pareto_focus",
+            infer_unit_type_from_signals(hints),
             subtree,
             "Pareto chọn cụm nội dung có nhiều giá trị hoặc đóng vai trò nền tảng.",
         )
         if not unit:
             continue
         if unit.estimated_tokens > PARETO_UNIT_MAX_TOKENS:
-            units.extend(_split_large_group(root.title, subtree, "pareto_focus", max_tokens=PARETO_UNIT_MAX_TOKENS))
+            units.extend(
+                _split_large_group(
+                    root.title,
+                    subtree,
+                    infer_unit_type_from_signals(hints),
+                    max_tokens=PARETO_UNIT_MAX_TOKENS,
+                )
+            )
         else:
             units.append(unit)
 

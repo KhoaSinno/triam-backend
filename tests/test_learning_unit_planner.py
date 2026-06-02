@@ -81,3 +81,38 @@ def test_pareto_planner_selects_fewer_focus_units_than_full():
     assert pareto_units
     assert len(pareto_units) <= len(full_units)
     assert sum(unit.source_text_char_count for unit in pareto_units) < sum(unit.source_text_char_count for unit in full_units)
+
+
+def test_pareto_fallback_supports_english_core_signals(monkeypatch):
+    monkeypatch.setattr(planner_service.settings, "PARETO_PLANNER_MAX_UNITS", 1)
+    monkeypatch.setattr(planner_service.settings, "PARETO_TARGET_COVERAGE_RATIO", 0.9)
+
+    book_id = uuid.uuid4()
+    long_note = _section(book_id=book_id, section_index=1, title="Extended Notes", path="1.1", level=1, text="minor note " * 3000)
+    core = _section(book_id=book_id, section_index=2, title="Core Concepts", path="1.2", level=1, text="concept " * 100)
+
+    units = plan_learning_units([long_note, core], PlanMode.PARETO)
+
+    assert len(units) == 1
+    assert units[0].source_section_ids == [core.id]
+    assert units[0].unit_type == "pareto_core"
+
+
+def test_pareto_fallback_values_structural_importance_without_keywords(monkeypatch):
+    monkeypatch.setattr(planner_service.settings, "PARETO_PLANNER_MAX_UNITS", 1)
+    monkeypatch.setattr(planner_service.settings, "PARETO_TARGET_COVERAGE_RATIO", 0.9)
+
+    book_id = uuid.uuid4()
+    long_note = _section(book_id=book_id, section_index=1, title="Extended Notes", path="1", level=1, text="minor note " * 3000)
+    root = _section(book_id=book_id, section_index=2, title="Boolean Algebra", path="2", level=1, text="boolean algebra " * 80)
+    children = [
+        _section(book_id=book_id, section_index=3, title="AND", path="2.1", level=2, text="and operator " * 80, parent_id=root.id),
+        _section(book_id=book_id, section_index=4, title="OR", path="2.2", level=2, text="or operator " * 80, parent_id=root.id),
+        _section(book_id=book_id, section_index=5, title="NOT", path="2.3", level=2, text="not operator " * 80, parent_id=root.id),
+        _section(book_id=book_id, section_index=6, title="Karnaugh Map", path="2.4", level=2, text="map simplification " * 80, parent_id=root.id),
+    ]
+
+    units = plan_learning_units([long_note, root, *children], PlanMode.PARETO)
+
+    assert len(units) == 1
+    assert units[0].source_section_ids == [root.id, *[child.id for child in children]]

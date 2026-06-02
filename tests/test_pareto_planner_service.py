@@ -54,7 +54,27 @@ def test_section_cards_do_not_include_full_source_text(monkeypatch):
     assert cards[0].excerpt
     assert cards[0].excerpt != long_text
     assert len(cards[0].excerpt) <= 120
-    assert "core_concept" in cards[0].keyword_hints
+    assert cards[0].language == "vi"
+    assert "core_concept" in cards[0].signal_hints
+
+
+def test_section_cards_include_english_signal_hints(monkeypatch):
+    monkeypatch.setattr(pareto_planner_service.settings, "PARETO_SECTION_EXCERPT_CHARS", 120)
+    book_id = uuid.uuid4()
+    section = _section(
+        book_id=book_id,
+        section_index=1,
+        title="Rules of Inference",
+        path="1.1",
+        level=2,
+        text="These rules explain how valid arguments are derived from premises. " * 20,
+    )
+
+    cards = build_section_cards([section])
+
+    assert cards[0].language == "en"
+    assert "rule" in cards[0].signal_hints
+    assert "reasoning" in cards[0].signal_hints
 
 
 @pytest.mark.asyncio
