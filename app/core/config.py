@@ -39,10 +39,7 @@ class Settings(BaseSettings):
     OPENAI_REALTIME_VOICE: str = "cedar"
     OPENAI_REALTIME_TRANSCRIPTION_MODEL: str = "gpt-4o-transcribe"
     OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE: str = "vi"
-    OPENAI_REALTIME_TRANSCRIPTION_PROMPT: str = (
-        "Vietnamese audio in the TRIAM audiobook study app. "
-        "Expect terms: Tri Âm, chương, sách, định lý, phương pháp, GPT, Gemini."
-    )
+    OPENAI_REALTIME_TRANSCRIPTION_PROMPT: str = "Vietnamese audio in the TRIAM audiobook study app. Expect terms: Tri Âm, chương, sách, định lý, phương pháp, GPT, Gemini."
     VOICE_AGENT_TEXT_LLM_MODEL: str = "gpt-4o-mini"
     VOICE_AGENT_ENABLE_WEB_SEARCH_BY_DEFAULT: bool = False
     VOICE_AGENT_LOG_TRANSCRIPT_TEXT: bool = False

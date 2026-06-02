@@ -94,14 +94,10 @@ async def generate_audio_and_get_duration(
 
             except Exception as e:
                 if attempt < max_retries - 1:
-                    wait = 3 * (2 ** attempt)  # 3s, 6s, 12s, 24s, 48s
-                    log.warning(
-                        f"TTS attempt {attempt + 1}/{max_retries} failed "
-                        f"({len(cleaned)} chars): {e}. Retry in {wait}s..."
-                    )
+                    wait = 3 * (2**attempt)  # 3s, 6s, 12s, 24s, 48s
+                    log.warning(f"TTS attempt {attempt + 1}/{max_retries} failed ({len(cleaned)} chars): {e}. Retry in {wait}s...")
                     await asyncio.sleep(wait)
                 else:
-                    log.error(
-                        f"TTS failed after {max_retries} attempts ({len(cleaned)} chars): {e}")
+                    log.error(f"TTS failed after {max_retries} attempts ({len(cleaned)} chars): {e}")
                     raise
     return 0  # unreachable

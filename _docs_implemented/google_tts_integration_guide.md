@@ -1,5 +1,9 @@
 # Google Cloud Text-to-Speech Chirp 3 HD Integration Guide
 
+> Update 2026-06-02: Bản implement chính thức mới nằm ở
+> `_docs_implemented/phase_9_tts_provider_switch_google_chirp3_implementation_guide.md`.
+> Dự án đã test Google TTS thành công bằng biến `TTS_GOOGLE_API_KEY`, nên các phase sau nên dùng biến này thay vì dùng chung `GOOGLE_API_KEY` hoặc `GEMINI_API_KEY`.
+
 Tài liệu này mô tả cách tích hợp **Google Cloud Text-to-Speech Chirp 3 HD** vào TRIAM Backend để tạo audio tiếng Việt chất lượng cao cho audiobook học tập.
 
 Mục tiêu của lần implement này:
@@ -49,48 +53,27 @@ Lý do:
 
 ## 2. Cấu Hình Google Cloud
 
-### 2.1. Bật API
+### 2.1. Bật API & Cấu Hình API Key
 
 Trong Google Cloud Console:
 
-1. Tạo hoặc chọn project.
+1. Chọn project của bạn.
 2. Bật **Cloud Text-to-Speech API**.
-3. Bật billing.
-4. Tạo service account cho backend.
-5. Gán quyền tối thiểu: **Cloud Text-to-Speech User**.
-6. Tạo JSON key cho service account.
+3. Bật billing cho project (để Chirp 3 HD hoạt động).
+4. Vào **APIs & Services > Credentials** để cấu hình API Key:
+   - Bạn có thể tái sử dụng chính **Gemini API Key** (khóa `triam_be` của bạn) để gọi Text-to-Speech API.
+   - **LƯU Ý QUAN TRỌNG:** API Key này cần được cấp phép gọi cả 2 API. Bấm Edit API Key, ở mục **API restrictions**, thêm **Cloud Text-to-Speech API** vào danh sách các API được phép truy cập (bên cạnh **Generative Language API**).
+   - Nếu không muốn giới hạn, có thể chuyển sang "Don't restrict key", nhưng khuyến khích giới hạn cụ thể 2 API này để bảo mật tốt nhất.
 
-### 2.2. Local credential
+### 2.2. Cấu Hình Biến Môi Trường (.env)
 
-Local có thể dùng file JSON:
-
-```env
-GOOGLE_APPLICATION_CREDENTIALS=./secrets/google-tts-service-account.json
-```
-
-Không commit file JSON vào git. Nên thêm vào `.gitignore`:
-
-```gitignore
-secrets/
-*.service-account.json
-google-tts-service-account*.json
-```
-
-### 2.3. Hugging Face credential
-
-Trên Hugging Face Space, không nên upload file JSON vào repo. Dùng secret env:
+Với phương pháp API Key này, chúng ta **không cần** tạo Service Account và tải file JSON phức tạp. Chỉ cần cấu hình:
 
 ```env
-GOOGLE_TTS_CREDENTIALS_JSON=<base64-json-service-account>
+GOOGLE_API_KEY=<khoá-api-key-cua-ban>
 ```
 
-Tạo base64 trên Windows PowerShell:
-
-```powershell
-[Convert]::ToBase64String([IO.File]::ReadAllBytes(".\secrets\google-tts-service-account.json"))
-```
-
-Backend sẽ decode env này ra file tạm trong runtime và set `GOOGLE_APPLICATION_CREDENTIALS`.
+_Lưu ý: Nếu không cấu hình `GOOGLE_API_KEY`, hệ thống sẽ tự động fallback và lấy giá trị của `GEMINI_API_KEY` trong file `.env` làm khóa gọi Google TTS. Điều này giúp cấu hình của bạn cực kỳ tối giản._
 
 ---
 
@@ -131,8 +114,7 @@ Thêm các field vào class `Settings`:
     TTS_RETRY_BASE_SECONDS: int = 3
 
     # Google Cloud Text-to-Speech
-    GOOGLE_APPLICATION_CREDENTIALS: str | None = None
-    GOOGLE_TTS_CREDENTIALS_JSON: str | None = None
+    GOOGLE_API_KEY: str | None = None
     GOOGLE_TTS_LANGUAGE_CODE: str = "vi-VN"
     GOOGLE_TTS_VOICE: str = "vi-VN-Chirp3-HD-Iapetus"
     GOOGLE_TTS_MAX_BYTES_PER_REQUEST: int = 4500
@@ -159,14 +141,12 @@ GOOGLE_TTS_MONTHLY_FREE_CHAR_LIMIT=1000000
 GOOGLE_TTS_ENABLE_COST_LOG=true
 ```
 
-Gợi ý production `.env`:
-
-```env
 TTS_PROVIDER=google
 GOOGLE_TTS_VOICE=vi-VN-Chirp3-HD-Iapetus
-GOOGLE_TTS_CREDENTIALS_JSON=<base64-json-service-account>
+GOOGLE_API_KEY=<khoá-api-key-cua-ban>
 TTS_GENERATION_CONCURRENCY=1
-```
+
+````
 
 Vì Chirp 3 HD là paid provider sau free quota, production nên bắt đầu với `TTS_GENERATION_CONCURRENCY=1`. Sau khi đo chi phí và rate limit ổn định thì mới tăng.
 
@@ -180,7 +160,7 @@ Không nên nhồi toàn bộ logic vào `generate_audio_and_get_duration()`. H�
 
 ```text
 clean text -> validate -> select provider -> retry -> generate file -> measure duration
-```
+````
 
 Các việc nhỏ nên tách thành helper:
 
@@ -258,37 +238,7 @@ def _selected_tts_provider() -> str:
 
 Không silently fallback khi config sai. Config sai phải fail rõ để dễ debug.
 
-### 5.6. Helper credential cho Google
-
-```python
-def _prepare_google_credentials() -> None:
-    if os.getenv("GOOGLE_APPLICATION_CREDENTIALS"):
-        return
-
-    raw_credentials = settings.GOOGLE_TTS_CREDENTIALS_JSON
-    if not raw_credentials:
-        raise ExternalServiceError(
-            "Thiếu Google TTS credentials. Cấu hình GOOGLE_APPLICATION_CREDENTIALS "
-            "hoặc GOOGLE_TTS_CREDENTIALS_JSON."
-        )
-
-    try:
-        stripped = raw_credentials.strip()
-        if stripped.startswith("{"):
-            credentials_json = stripped
-        else:
-            credentials_json = base64.b64decode(stripped).decode("utf-8")
-    except Exception as exc:
-        raise ExternalServiceError("GOOGLE_TTS_CREDENTIALS_JSON không hợp lệ.") from exc
-
-    credentials_path = Path(tempfile.gettempdir()) / "triam-google-tts-service-account.json"
-    credentials_path.write_text(credentials_json, encoding="utf-8")
-    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(credentials_path)
-```
-
-Không log nội dung credential. Nếu cần debug, chỉ log provider và voice.
-
-### 5.7. Helper lấy Google client
+### 5.6. Helper lấy Google client bằng API Key
 
 ```python
 def _get_google_tts_client():
@@ -297,16 +247,30 @@ def _get_google_tts_client():
     if _google_tts_client is None:
         try:
             from google.cloud import texttospeech
+            from google.api_core.client_options import ClientOptions
         except ImportError as exc:
             raise ExternalServiceError(
                 "Thiếu dependency google-cloud-texttospeech. Chạy: uv add google-cloud-texttospeech"
             ) from exc
 
-        _prepare_google_credentials()
-        _google_tts_client = texttospeech.TextToSpeechClient()
+        api_key = settings.GOOGLE_API_KEY or settings.GEMINI_API_KEY
+        if not api_key:
+            raise ExternalServiceError(
+                "Thiếu GOOGLE_API_KEY hoặc GEMINI_API_KEY để gọi Google Text-to-Speech."
+            )
+
+        try:
+            options = ClientOptions(api_key=api_key)
+            _google_tts_client = texttospeech.TextToSpeechClient(client_options=options)
+        except Exception as exc:
+            raise ExternalServiceError(
+                f"Không thể khởi tạo Google Text-to-Speech Client: {exc}"
+            ) from exc
 
     return _google_tts_client
 ```
+
+````
 
 Lý do cache client:
 
@@ -347,7 +311,7 @@ def _generate_audio_file_google_sync(text: str, filename: str, voice_name: str) 
 
     Path(filename).write_bytes(response.audio_content)
     return len(response.audio_content)
-```
+````
 
 Tại sao không tự split và nối MP3 trong `tts_service.py`:
 
