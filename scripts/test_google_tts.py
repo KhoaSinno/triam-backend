@@ -1,4 +1,5 @@
 import os
+
 from dotenv import load_dotenv
 
 # Load env variables
@@ -16,8 +17,8 @@ def test_tts():
     print(f"🔑 Loaded API Key: {masked_key}")
 
     try:
-        from google.cloud import texttospeech
         from google.api_core.client_options import ClientOptions
+        from google.cloud import texttospeech
     except ImportError:
         print("❌ Error: google-cloud-texttospeech is not installed! Please run 'uv add google-cloud-texttospeech'.")
         return

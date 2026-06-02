@@ -26,7 +26,16 @@ class Settings(BaseSettings):
     SUPABASE_URL: str
     SUPABASE_KEY: str
     SUPABASE_SERVICE_ROLE_KEY: str
-    EDGE_TTS_VOICE: str = "en-US-AvaMultilingualNeural"
+    EDGE_TTS_VOICE: str = "vi-VN-HoaiMyNeural"
+    TTS_PROVIDER: str = "edge"
+    TTS_RECEIVE_TIMEOUT_SECONDS: int = 300
+    TTS_RETRY_BASE_SECONDS: int = 3
+    TTS_MIN_TEXT_CHARS: int = 10
+    TTS_GOOGLE_API_KEY: str | None = None
+    GOOGLE_TTS_LANGUAGE_CODE: str = "vi-VN"
+    GOOGLE_TTS_VOICE: str = "vi-VN-Chirp3-HD-Iapetus"
+    GOOGLE_TTS_MAX_BYTES_PER_REQUEST: int = 4500
+    GOOGLE_TTS_ENABLE_COST_LOG: bool = True
     LIVEKIT_API_KEY: str
     LIVEKIT_API_SECRET: str
     LIVEKIT_AGENT_NAME: str

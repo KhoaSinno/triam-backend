@@ -1,10 +1,75 @@
 # Phase 9 Implementation Guide - TTS Provider Switch With Google Chirp 3 HD
 
 Date: 2026-06-02  
-Status: **Planned - ready for implementation**  
+Status: **Implemented locally - automated regression and provider smoke passed**
 Scope: Backend TTS provider switch for audiobook generation  
 Depends on: Current `app/services/tts_service.py`, worker pipeline, successful `scripts/test_google_tts.py` smoke test  
 Audience: Backend developer, capstone reviewer
+
+---
+
+## 0. Implementation Result
+
+Phase 9 đã được implement theo hướng không đổi API cho FE, không đổi DB, và không đổi worker contract.
+
+Đã hoàn thành:
+
+- Thêm config `TTS_PROVIDER=edge|google`.
+- Thêm alias `gg` cho `google`.
+- Thêm config `TTS_GOOGLE_API_KEY`, `GOOGLE_TTS_LANGUAGE_CODE`, `GOOGLE_TTS_VOICE`, `GOOGLE_TTS_MAX_BYTES_PER_REQUEST`, `GOOGLE_TTS_ENABLE_COST_LOG`.
+- Đổi default `EDGE_TTS_VOICE` trong config sang `vi-VN-HoaiMyNeural`.
+- Refactor `app/services/tts_service.py` thành provider-based helpers.
+- Giữ public function `generate_audio_and_get_duration(text, filename, voice=None, max_retries=6)`.
+- Giữ `stream_text_to_speech_edge()` và `generate_audio_file_edge()` để không phá import cũ.
+- Google TTS dùng `TTS_GOOGLE_API_KEY` với `ClientOptions(api_key=...)`, giống script test đã thành công.
+- Google input có guardrail `GOOGLE_TTS_MAX_BYTES_PER_REQUEST`.
+- Không log API key hoặc full input text.
+- Thêm sanitizer cho exception message để không log nhầm `TTS_GOOGLE_API_KEY`.
+- Thêm `tests/test_tts_service_provider_switch.py` để mock Edge/Google và test config errors.
+- Cập nhật `.env.example`.
+- Cập nhật `scripts/test_google_tts.py` import order để ruff sạch.
+
+Verification đã chạy:
+
+```powershell
+uv run python -m py_compile app\services\tts_service.py app\core\config.py tests\test_tts_service_provider_switch.py scripts\test_google_tts.py
+uv run ruff check app\services\tts_service.py app\core\config.py tests\test_tts_service_provider_switch.py scripts\test_google_tts.py --output-format=concise
+uv run pytest tests\test_tts_service_provider_switch.py -q
+uv run pytest tests\test_celery_enqueue.py tests\test_upload_service_batch_commit.py tests\test_phase3_generation_guardrails.py tests\test_processing_jobs_api.py -q
+uv run ruff check app tests --exclude app/db/migrations --output-format=concise
+uv run ruff check scripts\test_google_tts.py --output-format=concise
+uv run pytest -q
+```
+
+Kết quả:
+
+```text
+TTS provider unit tests: 8 passed
+Worker/job focused regression: 16 passed
+Full pytest: 122 passed
+Ruff app/tests: pass
+Ruff scripts/test_google_tts.py: pass
+```
+
+Provider smoke test thật đã chạy:
+
+```text
+Edge provider:
+duration_ms=9288, size=55728, generated file cleaned
+
+Google provider:
+duration_ms=11496, size=45984, generated file cleaned
+```
+
+Lưu ý:
+
+- Khi chạy Edge smoke, local `.env` hiện đang override voice thành `en-US-AvaMultilingualNeural`. Code default đã đổi sang `vi-VN-HoaiMyNeural`, nhưng `.env` luôn có ưu tiên cao hơn. Nếu muốn Edge local đọc giọng Việt, set:
+
+```env
+EDGE_TTS_VOICE=vi-VN-HoaiMyNeural
+```
+
+- Ruff toàn bộ thư mục `scripts/` vẫn có lỗi legacy ở các script cũ ngoài scope Phase 9. Phase này chỉ làm sạch `scripts/test_google_tts.py`.
 
 ---
 
@@ -757,13 +822,12 @@ bytes -> request safety
 
 Phase 9 is complete when:
 
-- [ ] `TTS_PROVIDER=edge|google` works.
-- [ ] `TTS_GOOGLE_API_KEY` is read from settings.
-- [ ] Edge regression still generates MP3.
-- [ ] Google service-level smoke generates MP3.
-- [ ] Worker can generate audio using active provider without code change.
-- [ ] Invalid config fails clearly.
-- [ ] No API key or full text is logged.
-- [ ] Focused TTS tests pass.
-- [ ] Full backend regression pass.
-
+- [x] `TTS_PROVIDER=edge|google` works.
+- [x] `TTS_GOOGLE_API_KEY` is read from settings.
+- [x] Edge regression still generates MP3.
+- [x] Google service-level smoke generates MP3.
+- [x] Worker can generate audio using active provider without code change.
+- [x] Invalid config fails clearly.
+- [x] No API key or full text is logged.
+- [x] Focused TTS tests pass.
+- [x] Full backend regression pass.
