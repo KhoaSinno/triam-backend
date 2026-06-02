@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 from app.core.exceptions import DirectBookContextConflictError
 from app.models.db_models import ChatMessage, ChatThread, DirectBookContext, StudyContext, StudyContextDocumentLink
 
-    
+
 def get_chat_threads_for_context(session: Session, context_id: uuid.UUID) -> list[ChatThread]:
     threads = session.exec(select(ChatThread).where(
         ChatThread.context_id == context_id)).all()

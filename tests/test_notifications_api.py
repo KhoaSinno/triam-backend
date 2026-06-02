@@ -7,7 +7,7 @@ from sqlmodel import Session
 from app.core.constant import NotificationType
 from app.db.database import engine
 from app.main import app
-from app.models.db_models import NotificationSettings, UserNotification, UserDeviceToken
+from app.models.db_models import NotificationSettings, UserDeviceToken, UserNotification
 
 MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
 

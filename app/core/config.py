@@ -14,10 +14,28 @@ class Settings(BaseSettings):
     GEMINI_BASE_URL: str
     GEMINI_API_KEY: str
     DATABASE_URL: str
+    DATABASE_ECHO: bool = False
+    DATABASE_POOL_MODE: str = "auto"
+    DATABASE_POOL_SIZE: int = 3
+    DATABASE_MAX_OVERFLOW: int = 2
+    DATABASE_POOL_TIMEOUT: int = 5
+    DATABASE_POOL_RECYCLE: int = 900
+    DATABASE_POOL_PRE_PING: bool = True
+    DATABASE_POOL_USE_LIFO: bool = True
+    DATABASE_APPLICATION_NAME: str = "triam-backend"
     SUPABASE_URL: str
     SUPABASE_KEY: str
     SUPABASE_SERVICE_ROLE_KEY: str
-    EDGE_TTS_VOICE: str = "en-US-AvaMultilingualNeural"
+    EDGE_TTS_VOICE: str = "vi-VN-HoaiMyNeural"
+    TTS_PROVIDER: str = "edge"
+    TTS_RECEIVE_TIMEOUT_SECONDS: int = 300
+    TTS_RETRY_BASE_SECONDS: int = 3
+    TTS_MIN_TEXT_CHARS: int = 10
+    TTS_GOOGLE_API_KEY: str | None = None
+    GOOGLE_TTS_LANGUAGE_CODE: str = "vi-VN"
+    GOOGLE_TTS_VOICE: str = "vi-VN-Chirp3-HD-Iapetus"
+    GOOGLE_TTS_MAX_BYTES_PER_REQUEST: int = 4500
+    GOOGLE_TTS_ENABLE_COST_LOG: bool = True
     LIVEKIT_API_KEY: str
     LIVEKIT_API_SECRET: str
     LIVEKIT_AGENT_NAME: str
@@ -30,10 +48,7 @@ class Settings(BaseSettings):
     OPENAI_REALTIME_VOICE: str = "cedar"
     OPENAI_REALTIME_TRANSCRIPTION_MODEL: str = "gpt-4o-transcribe"
     OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE: str = "vi"
-    OPENAI_REALTIME_TRANSCRIPTION_PROMPT: str = (
-        "Vietnamese audio in the TRIAM audiobook study app. "
-        "Expect terms: Tri Âm, chương, sách, định lý, phương pháp, GPT, Gemini."
-    )
+    OPENAI_REALTIME_TRANSCRIPTION_PROMPT: str = "Vietnamese audio in the TRIAM audiobook study app. Expect terms: Tri Âm, chương, sách, định lý, phương pháp, GPT, Gemini."
     VOICE_AGENT_TEXT_LLM_MODEL: str = "gpt-4o-mini"
     VOICE_AGENT_ENABLE_WEB_SEARCH_BY_DEFAULT: bool = False
     VOICE_AGENT_LOG_TRANSCRIPT_TEXT: bool = False
@@ -107,6 +122,16 @@ class Settings(BaseSettings):
     LLM_NORMALIZE_CONCURRENCY: int = 1
     TTS_GENERATION_CONCURRENCY: int = 4
     EMBEDDING_BATCH_SIZE: int = 64
+
+    # Pareto learning unit planner
+    PARETO_PLANNER_LLM_ENABLED: bool = True
+    PARETO_PLANNER_MODEL: str = "gemini-2.5-flash"
+    PARETO_PLANNER_TIMEOUT_SECONDS: float = 8.0
+    PARETO_PLANNER_MAX_UNITS: int = 8
+    PARETO_PLANNER_MIN_UNITS: int = 3
+    PARETO_TARGET_COVERAGE_RATIO: float = 0.25
+    PARETO_SECTION_EXCERPT_CHARS: int = 700
+    PARETO_PLANNER_MAX_SECTION_CARDS: int = 120
 
     # Phase 4.1 notification/reminder workflow
     NOTIFICATION_SCAN_INTERVAL_SECONDS: int = 60

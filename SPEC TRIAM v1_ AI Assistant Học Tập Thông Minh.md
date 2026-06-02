@@ -813,7 +813,7 @@ Recommended commands:
 ```powershell
 uv run ruff check app tests
 uv run pytest tests/test_health_api.py tests/test_celery_enqueue.py tests/test_processing_jobs_api.py -q
-uv run pytest tests/test_document_parsers.py tests/test_api_study_context.py tests/test_threads_for_book.py -q
+uv run pytest tests/test_document_parsers.py tests/test_api_study_context.py tests/test_auth_user_isolation.py -q
 ```
 
 ### 14.2 Manual Integration Tests
@@ -1442,7 +1442,7 @@ uv run pytest tests/test_document_parsers.py -q
 If feature touches Study Context/Threads:
 
 ```powershell
-uv run pytest tests/test_api_study_context.py tests/test_threads_for_book.py -q
+uv run pytest tests/test_api_study_context.py tests/test_auth_user_isolation.py -q
 ```
 
 ### 25.2 After start.sh/Dockerfile Changes

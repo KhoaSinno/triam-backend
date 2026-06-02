@@ -5,9 +5,9 @@ from sqlmodel import Session, select
 
 from app.core.constant import BookStatus, NotificationChannel, NotificationStatus, NotificationType, PlanMode, PlanStatus, ProcessingJobStatus
 from app.db.database import engine
-from app.models.db_models import Book, LearningUnit, LearningUnitSegment, NotificationOutbox, NotificationSettings, ReadingPlan, UserNotification, UserDeviceToken
+from app.models.db_models import Book, LearningUnit, LearningUnitSegment, NotificationOutbox, NotificationSettings, ReadingPlan, UserDeviceToken, UserNotification
 from app.repositories.notification_outbox_repo import claim_due_outbox, create_outbox_once, recover_stale_outbox
-from app.services.notification_event_service import _build_plan_reminder_outbox
+from app.services.notification_event_service import _build_plan_reminder_outbox, create_due_plan_reminder_outbox_rows
 from app.tasks.notification_tasks import deliver_one_notification
 
 
@@ -170,6 +170,76 @@ def test_plan_reminder_scan_creates_one_outbox_per_day():
             created_outbox_ids.extend(outbox.id for outbox in outboxes)
             assert len(outboxes) == 1
             assert outboxes[0].type == NotificationType.PLAN_REMINDER
+    finally:
+        _cleanup(created_outbox_ids)
+        with Session(engine) as session:
+            notification_settings = session.get(NotificationSettings, user_id)
+            if notification_settings:
+                session.delete(notification_settings)
+            book = session.get(Book, book_id)
+            if book:
+                session.delete(book)
+            session.commit()
+
+
+def test_plan_reminder_scan_skips_plan_deleted_after_initial_query(monkeypatch):
+    user_id = uuid.uuid4()
+    book_id = uuid.uuid4()
+    plan_id: uuid.UUID | None = None
+    created_outbox_ids: list[uuid.UUID] = []
+
+    try:
+        with Session(engine) as session:
+            book = Book(
+                id=book_id,
+                user_id=user_id,
+                title="Deleted During Scan Book",
+                status=BookStatus.READY,
+                total_units=1,
+            )
+            session.add(book)
+            session.flush()
+            plan = ReadingPlan(
+                book_id=book_id,
+                mode=PlanMode.FULL,
+                pace=1,
+                schedule_config=["Mon"],
+                status=PlanStatus.ACTIVE,
+            )
+            session.add(plan)
+            session.commit()
+            plan_id = plan.id
+
+        original_get = Session.get
+
+        def get_missing_plan_once(self, entity, ident, *args, **kwargs):
+            if entity is ReadingPlan and ident == plan_id and not getattr(get_missing_plan_once, "done", False):
+                get_missing_plan_once.done = True
+                return None
+            return original_get(self, entity, ident, *args, **kwargs)
+
+        original_exec = Session.exec
+
+        class _PlanIdRows:
+            def all(self):
+                return [plan_id]
+
+        def exec_only_test_plan_once(self, statement, *args, **kwargs):
+            if not getattr(exec_only_test_plan_once, "done", False):
+                exec_only_test_plan_once.done = True
+                return _PlanIdRows()
+            return original_exec(self, statement, *args, **kwargs)
+
+        monkeypatch.setattr(Session, "exec", exec_only_test_plan_once)
+        monkeypatch.setattr(Session, "get", get_missing_plan_once)
+
+        with Session(engine) as session:
+            # 2026-05-25 20:01 Asia/Ho_Chi_Minh, Monday.
+            now = datetime(2026, 5, 25, 13, 1, tzinfo=timezone.utc)
+            assert create_due_plan_reminder_outbox_rows(session, now=now) == 0
+            outboxes = session.exec(select(NotificationOutbox).where(NotificationOutbox.user_id == user_id)).all()
+            created_outbox_ids.extend(outbox.id for outbox in outboxes)
+            assert outboxes == []
     finally:
         _cleanup(created_outbox_ids)
         with Session(engine) as session:

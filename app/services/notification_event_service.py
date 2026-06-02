@@ -2,6 +2,7 @@ import json
 import uuid
 from datetime import datetime
 
+from sqlalchemy.orm.exc import ObjectDeletedError
 from sqlmodel import Session, select
 
 from app.core.config import settings
@@ -273,8 +274,13 @@ def _build_review_outbox(session: Session, review_item: SpacedReviewItem, *, now
 def create_due_review_outbox_rows(session: Session, *, now: datetime) -> int:
     created_count = 0
     for review_item in get_due_review_items(session, now=now, limit=settings.NOTIFICATION_DELIVERY_BATCH_SIZE * 2):
-        if _build_review_outbox(session, review_item, now=now):
-            created_count += 1
+        try:
+            if _build_review_outbox(session, review_item, now=now):
+                created_count += 1
+        except ObjectDeletedError:
+            session.rollback()
+            log.warning(f"Review item was deleted concurrently during scan | review_item_id={getattr(review_item, 'id', 'unknown')}")
+            continue
     return created_count
 
 
@@ -347,17 +353,28 @@ def _build_plan_reminder_outbox(session: Session, plan: ReadingPlan, book: Book,
 
 
 def create_due_plan_reminder_outbox_rows(session: Session, *, now: datetime) -> int:
-    plans = session.exec(
-        select(ReadingPlan, Book)
+    plan_ids = session.exec(
+        select(ReadingPlan.id)
         .join(Book, ReadingPlan.book_id == Book.id)
         .where(ReadingPlan.status == PlanStatus.ACTIVE)
         .where(Book.status.in_([BookStatus.PARTIAL_READY.value, BookStatus.READY.value]))
     ).all()
 
     created_count = 0
-    for plan, book in plans:
-        if _build_plan_reminder_outbox(session, plan, book, now=now):
-            created_count += 1
+    for plan_id in plan_ids:
+        try:
+            plan = session.get(ReadingPlan, plan_id)
+            if not plan:
+                continue
+            book = session.get(Book, plan.book_id)
+            if not book or book.status not in (BookStatus.PARTIAL_READY.value, BookStatus.READY.value):
+                continue
+            if _build_plan_reminder_outbox(session, plan, book, now=now):
+                created_count += 1
+        except ObjectDeletedError:
+            session.rollback()
+            log.warning(f"Reading plan or book was deleted concurrently during scan | plan_id={plan_id}")
+            continue
     return created_count
 
 

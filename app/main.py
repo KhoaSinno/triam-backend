@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from app.api.v1.routers import audiobooks, health, jobs, learning_progress, live, notifications, reviews, study_context, threads, upload
 from app.core.exceptions import AppException
 from app.core.logger import log
+from app.db.database import dispose_engine
 from app.services.tts_service import stream_text_to_speech_edge
 
 
@@ -19,6 +20,7 @@ async def lifespan(app: FastAPI):
     yield
     # --- Chạy khi SHUTDOWN ---
     log.info("Đang dọn dẹp tài nguyên...")
+    dispose_engine()
 
 
 app = FastAPI(title="TRIAM Assistant API", lifespan=lifespan)

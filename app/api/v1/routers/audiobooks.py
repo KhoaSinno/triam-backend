@@ -61,14 +61,14 @@ def get_book_learning_units_endpoint(book_id: uuid.UUID, mode: str, current_user
 
 
 @router.post("/books/{book_id}/switch-mode", response_model=SwitchModeResponse)
-def switch_book_mode_endpoint(
+async def switch_book_mode_endpoint(
     book_id: uuid.UUID,
     payload: SwitchModeRequest,
     current_user: CurrentUser,
     session: Annotated[Session, Depends(get_session)],
 ):
     """Đổi mode đang active và sinh audio mới nếu mode này chưa từng được gen."""
-    return switch_book_mode(session, book_id, current_user.sub, payload.mode)
+    return await switch_book_mode(session, book_id, current_user.sub, payload.mode)
 
 
 @router.post("/books", response_model=BookResponse)

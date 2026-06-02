@@ -1,18 +1,28 @@
 import os
-import asyncio
-from supabase import create_client, Client
 
-url = "https://drlbwntplyteqvrpnmdi.supabase.co"
-key = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRybGJ3bnRwbHl0ZXF2cnBubWRpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA1Mzk1MzQsImV4cCI6MjA4NjExNTUzNH0.9GxV8X3iSls_0JQrzVIbRvgR6YOSW2jWMCJmiCGrdM0"
-supabase: Client = create_client(url, key)
+from supabase import Client, create_client
 
-token = "eyJhbGciOiJFUzI1NiIsImtpZCI6ImNmNWVmZmQyLWY0MWMtNDdiNS04YTBkLTE4YTBlYzMxNWZjZCIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2RybGJ3bnRwbHl0ZXF2cnBubWRpLnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiI4MzliYzhkYi1iZTMzLTQyOTAtYWNhZC05YmRmODk0YjA5MGIiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc4MDgxOTQ3LCJpYXQiOjE3NzgwNzgzNDcsImVtYWlsIjoia2hvYWxtaHQwQGdtYWlsLmNvbSIsInBob25lIjoiIiwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiZW1haWwiLCJwcm92aWRlcnMiOlsiZW1haWwiXX0sInVzZXJfbWV0YWRhdGEiOnsiZW1haWxfdmVyaWZpZWQiOnRydWV9LCJyb2xlIjoiYXV0aGVudGljYXRlZCIsImFhbCI6ImFhbDEiLCJhbXIiOlt7Im1ldGhvZCI6InBhc3N3b3JkIiwidGltZXN0YW1wIjoxNzc4MDc4MzQ3fV0sInNlc3Npb25faWQiOiJlZjY4MDBkYi1hNjUyLTRiM2MtYWVlOC0yODBhMmZlNjVmYjUiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.XnrOiN1jWfIOKj06uFwI3yzKaG7Mo8pofWo63V5YdKadKJY7egY103q-ESb-REjhG2uz0a1FZVsIOwqSOq6xUw"
 
-async def test():
-    try:
-        user = supabase.auth.get_user(token)
-        print("User:", user.user.id)
-    except Exception as e:
-        print("Error:", e)
+def _required_env(name: str) -> str:
+    value = os.getenv(name)
+    if not value:
+        raise SystemExit(f"Missing required environment variable: {name}")
+    return value
 
-asyncio.run(test())
+
+def main() -> None:
+    supabase_url = _required_env("SUPABASE_URL")
+    anon_key = _required_env("SUPABASE_KEY")
+    access_token = _required_env("SUPABASE_ACCESS_TOKEN")
+
+    supabase: Client = create_client(supabase_url, anon_key)
+    user_response = supabase.auth.get_user(access_token)
+    user = user_response.user
+
+    print("Supabase SDK auth check succeeded.")
+    print(f"User ID: {user.id}")
+    print(f"Email: {user.email}")
+
+
+if __name__ == "__main__":
+    main()

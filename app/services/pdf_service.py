@@ -90,6 +90,84 @@ def _replace_section_text(section: ParsedSection, text_by_path: dict[str, tuple[
     )
 
 
+def _pdf_outline_sort_key(pair: tuple[int, ParsedSection]) -> tuple[int, float]:
+    _, section = pair
+    page = section.page_start or 1
+    top = section.top
+    if top is None:
+        top = float("inf")
+    return (page, -top)
+
+
+def _crop_text(page, y_start: float, y_end: float) -> str:
+    page_height = float(page.height)
+    y_start = max(0.0, min(y_start, page_height))
+    y_end = max(0.0, min(y_end, page_height))
+    if y_start >= y_end:
+        return ""
+    return page.crop((0, y_start, page.width, y_end)).extract_text() or ""
+
+
+def _y_from_outline_top(page, outline_top: float | None, *, default: float) -> float:
+    if outline_top is None:
+        return default
+    return float(page.height) - outline_top
+
+
+def _extract_same_page_section_text(page, start_top: float | None, end_top: float | None) -> str:
+    page_height = float(page.height)
+    y_start = _y_from_outline_top(page, start_top, default=0.0)
+    y_end = _y_from_outline_top(page, end_top, default=page_height)
+    return _crop_text(page, y_start, y_end)
+
+
+def _extract_first_page_section_text(page, start_top: float | None) -> str:
+    y_start = _y_from_outline_top(page, start_top, default=0.0)
+    return _crop_text(page, y_start, float(page.height))
+
+
+def _extract_last_page_section_text(page, end_top: float | None) -> str:
+    y_end = _y_from_outline_top(page, end_top, default=float(page.height))
+    return _crop_text(page, 0.0, y_end)
+
+
+def _append_non_empty(parts: list[str], text: str) -> None:
+    if text.strip():
+        parts.append(text)
+
+
+def _extract_multi_page_section_text(pdf, p_start: int, p_end: int, start_top: float | None, end_top: float | None) -> str:
+    parts: list[str] = []
+    _append_non_empty(parts, _extract_first_page_section_text(pdf.pages[p_start - 1], start_top))
+
+    for page_number in range(p_start + 1, p_end):
+        _append_non_empty(parts, pdf.pages[page_number - 1].extract_text() or "")
+
+    if p_end <= len(pdf.pages):
+        _append_non_empty(parts, _extract_last_page_section_text(pdf.pages[p_end - 1], end_top))
+
+    return "\n".join(parts).strip()
+
+
+def _extract_section_text_from_pdf(pdf, current_section: ParsedSection, next_section: ParsedSection | None) -> tuple[str, int]:
+    total_pages = len(pdf.pages)
+    start_page = current_section.page_start or 1
+    start_top = current_section.top
+    end_page = (next_section.page_start or (total_pages + 1)) if next_section else total_pages + 1
+    end_top = next_section.top if next_section else 0.0
+
+    p_start = max(1, min(start_page, total_pages))
+    p_end = max(1, min(end_page, total_pages + 1))
+
+    if p_start == p_end:
+        text = _extract_same_page_section_text(pdf.pages[p_start - 1], start_top, end_top)
+    else:
+        text = _extract_multi_page_section_text(pdf, p_start, p_end, start_top, end_top)
+
+    section_page_end = min(total_pages, max(start_page, end_page - 1))
+    return text, section_page_end
+
+
 async def parse_pdf_structure(file_obj) -> ParsedDocument:
     file_obj.seek(0)
     outline_tree = _read_pdf_outline_tree(file_obj)
@@ -105,81 +183,14 @@ async def parse_pdf_structure(file_obj) -> ParsedDocument:
 
     try:
         with pdfplumber.open(file_obj) as pdf:
-            total_pages = len(pdf.pages)
-            
-            def get_sort_key(pair):
-                _, sec = pair
-                p = sec.page_start or 1
-                t = sec.top
-                if t is None:
-                    t = float('inf')
-                return (p, -t)
-
             ordered_items = sorted(
                 enumerate(outline_items),
-                key=get_sort_key,
+                key=_pdf_outline_sort_key,
             )
 
             for i, (_, current_section) in enumerate(ordered_items):
-                start_page = current_section.page_start or 1
-                start_top = current_section.top
-                
-                if i < len(ordered_items) - 1:
-                    next_section = ordered_items[i + 1][1]
-                    end_page = next_section.page_start or (total_pages + 1)
-                    end_top = next_section.top
-                else:
-                    end_page = total_pages + 1
-                    end_top = 0.0
-
-                p_start = max(1, min(start_page, total_pages))
-                p_end = max(1, min(end_page, total_pages + 1))
-
-                chapter_text_parts = []
-
-                if p_start == p_end:
-                    page = pdf.pages[p_start - 1]
-                    page_height = float(page.height)
-                    y_start = page_height - start_top if start_top is not None else 0.0
-                    y_end = page_height - end_top if end_top is not None else page_height
-                    y_start = max(0.0, min(y_start, page_height))
-                    y_end = max(0.0, min(y_end, page_height))
-                    if y_start < y_end:
-                        cropped = page.crop((0, y_start, page.width, y_end))
-                        text = cropped.extract_text() or ""
-                        if text.strip():
-                            chapter_text_parts.append(text)
-                else:
-                    # 1. First page
-                    page = pdf.pages[p_start - 1]
-                    page_height = float(page.height)
-                    y_start = page_height - start_top if start_top is not None else 0.0
-                    y_start = max(0.0, min(y_start, page_height))
-                    cropped = page.crop((0, y_start, page.width, page_height))
-                    text = cropped.extract_text() or ""
-                    if text.strip():
-                        chapter_text_parts.append(text)
-
-                    # 2. Intermediate pages
-                    for p_num in range(p_start + 1, p_end):
-                        page = pdf.pages[p_num - 1]
-                        text = page.extract_text() or ""
-                        if text.strip():
-                            chapter_text_parts.append(text)
-
-                    # 3. Last page
-                    if p_end <= total_pages:
-                        page = pdf.pages[p_end - 1]
-                        page_height = float(page.height)
-                        y_end = page_height - end_top if end_top is not None else page_height
-                        y_end = max(0.0, min(y_end, page_height))
-                        cropped = page.crop((0, 0, page.width, y_end))
-                        text = cropped.extract_text() or ""
-                        if text.strip():
-                            chapter_text_parts.append(text)
-
-                chapter_text = "\n".join(chapter_text_parts).strip()
-                section_page_end = min(total_pages, max(start_page, end_page - 1))
+                next_section = ordered_items[i + 1][1] if i < len(ordered_items) - 1 else None
+                chapter_text, section_page_end = _extract_section_text_from_pdf(pdf, current_section, next_section)
                 text_by_path[current_section.path] = (chapter_text, section_page_end)
 
     except DocumentOutlineRequiredError:
