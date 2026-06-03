@@ -1,12 +1,13 @@
 from contextlib import asynccontextmanager
 
+from alembic.autogenerate.api import log
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse, StreamingResponse
 
-from app.api.v1.routers import audiobooks, health, jobs, learning_progress, live, notifications, reviews, study_context, threads, upload
+from app.api.v1.routers import admin, audiobooks, health, jobs, learning_progress, live, notifications, reviews, study_context, threads, upload
 from app.core.exceptions import AppException
-from app.core.logger import log
 from app.db.database import dispose_engine
 from app.services.tts_service import stream_text_to_speech_edge
 
@@ -24,6 +25,15 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="TRIAM Assistant API", lifespan=lifespan)
+
+# Allow Cross-Origin Resource Sharing (CORS) for development
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # ---------------------------------------------------------------------------
@@ -55,6 +65,7 @@ app.include_router(notifications.router, prefix="/api/v1", tags=["Notifications"
 app.include_router(learning_progress.router, prefix="/api/v1", tags=["Learning Progress"])
 app.include_router(reviews.router, prefix="/api/v1", tags=["Reviews"])
 app.include_router(study_context.router, prefix="/api/v1", tags=["Study Context"])
+app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 
 app.include_router(threads.router, prefix="/api/v1", tags=["Threads Chat"])
 

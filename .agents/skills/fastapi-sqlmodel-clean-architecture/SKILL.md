@@ -47,6 +47,8 @@ Rules:
 - Inject DB sessions with `Depends(get_session)` in routers.
 - Use `Annotated[..., Depends(...)]`, `Annotated[..., Body(...)]`, and `Annotated[..., File(...)]` where the file already follows that style.
 - Return explicit response dictionaries or schema instances; keep response shape stable for FE.
+- Admin routes must live under `/api/v1/admin`, require the admin dependency, and return curated DTOs instead of raw DB models.
+- Admin mutations must create an audit log row. Do not expose raw server logs, provider secrets, Supabase keys, full document text, embeddings, or request headers to the admin frontend.
 - Use `BackgroundTasks` only for tasks that can safely run in-process and can tolerate app restart loss.
 - For durable/long-running production jobs, prefer a worker/queue design; do not hide a multi-minute critical workflow inside a request handler.
 - Keep upload endpoints fail-fast: validate type/size/structure before Storage and DB writes.
