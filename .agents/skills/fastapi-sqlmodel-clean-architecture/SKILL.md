@@ -113,7 +113,18 @@ After autogenerate:
 - EPUB/DOCX have no stable page numbers; return `page_start: None`.
 - Validate before upload to Storage and DB whenever possible.
 
-## 8. Exceptions and Logging
+## 8. TTS Script and LLM Rewrite Rules
+
+- Treat the LLM rewrite output as product content, not a temporary helper string. Anything stored in `LearningUnitSegment.text_content` may be spoken by TTS and shown by FE.
+- Prompt rules must be general, not patched for one test book or one acronym. Do not hard-code fixes for current examples such as specific benchmark names unless they are part of a documented reusable glossary feature.
+- For any acronym, initialism, symbol, benchmark, method name, or domain-specific abbreviation, the first occurrence in a learning unit must be briefly explained using the document's own expansion when available. Later occurrences in the same unit may use the short form for brevity.
+- Review scripts can be played independently days later, so essential abbreviations should be explained again in `review_script`.
+- The rewrite output must be plain spoken text: no Markdown, no heading markers, no bullet/table syntax, no inline code markers, no raw citation markers, and no visual emphasis symbols such as `**`.
+- Add deterministic post-processing after LLM output and before DB/TTS storage for format artifacts that are never useful in speech. Use validators or tests to catch regressions.
+- Do not rely on TTS providers to fix malformed content. Edge/Google/OpenAI TTS should receive already-clean, listener-friendly text.
+- Prefer quality logs that report counts or terms, not full script text, because generated scripts may contain user document content.
+
+## 9. Exceptions and Logging
 
 - Add domain errors as `AppException` subclasses in `app/core/exceptions.py`.
 - Use 400 for bad input type/size, 404 for missing resources, 409 for state conflicts, 422 for semantically invalid documents, 500 for real internal failures.
@@ -125,7 +136,7 @@ After autogenerate:
 - Disable verbose traceback local-variable dumping in production logging, such as Loguru `diagnose=True` or equivalent, because third-party stack traces can expose provider credentials.
 - Add regression tests whenever a real leaked-log pattern is discovered.
 
-## 9. Python Clean Code Rules
+## 10. Python Clean Code Rules
 
 - Prefer small functions with one reason to change.
 - Use type hints on service/repository boundaries.
@@ -135,7 +146,7 @@ After autogenerate:
 - Keep comments for business rules or non-obvious constraints, not for line-by-line narration.
 - Preserve existing Vietnamese user-facing messages when they are part of FE contract.
 
-## 10. Testing Rules
+## 11. Testing Rules
 
 Add tests proportional to risk:
 
@@ -153,7 +164,7 @@ uv run pytest <focused tests> -q
 uv run python -m py_compile <changed python files>
 ```
 
-## 11. Review Checklist
+## 12. Review Checklist
 
 Before finalizing a backend change, verify:
 
