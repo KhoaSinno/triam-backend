@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any
@@ -10,6 +11,7 @@ from livekit.agents import (
     Agent,
     AgentSession,
     ConversationItemAddedEvent,
+    FunctionToolsExecutedEvent,
     JobContext,
     JobExecutorType,
     WorkerOptions,
@@ -28,6 +30,7 @@ from openai.types.realtime import AudioTranscription
 
 from app.core.config import settings
 from app.core.logger import log
+from app.services.agent_observability import AgentAnswerSource, AgentInputMode, AgentTurnTracer
 from app.services.voice_agent.contracts import LK_CHAT_TOPIC, LK_CONTROL_TOPIC, VoiceJobMetadata
 from app.services.voice_agent.rag_context import format_rag_context, search_voice_book_context, trim_text
 from app.services.voice_agent.transcript_store import VoiceTranscriptStore, normalize_transcript_text
@@ -201,10 +204,16 @@ class ChatTextOutput(voice_io.TextOutput):
 
 
 class TriamAssistant(Agent):
-    def __init__(self, document_ids: list[str], web_search_policy: WebSearchPermissionPolicy) -> None:
+    def __init__(
+        self,
+        document_ids: list[str],
+        web_search_policy: WebSearchPermissionPolicy,
+        tracer: AgentTurnTracer,
+    ) -> None:
         super().__init__(instructions=VOICE_AGENT_INSTRUCTIONS)
         self.document_ids = document_ids
         self.web_search_policy = web_search_policy
+        self.tracer = tracer
         self._web_search_lock = asyncio.Lock()
         self._cached_web_query: str | None = None
         self._cached_web_result: str | None = None
@@ -238,10 +247,19 @@ class TriamAssistant(Agent):
         - Câu hỏi kiến thức mà User đang học từ sách
         Hệ thống tự động giới hạn tìm kiếm trong tài liệu User đã chọn.
         """
+        self.tracer.record_tool(AgentInputMode.VOICE, "search_book_knowledge")
         try:
-            result = await search_voice_book_context(query, self.document_ids)
+            result = await search_voice_book_context(
+                query,
+                self.document_ids,
+                tracer=self.tracer,
+                input_mode=AgentInputMode.VOICE,
+            )
+            if result.found:
+                self.tracer.record_answer_source(AgentInputMode.VOICE, AgentAnswerSource.BOOK_RAG)
             return format_rag_context(result)
         except Exception as e:
+            self.tracer.record_error(AgentInputMode.VOICE, "voice_rag_search_error")
             log.warning(f"Voice RAG search failed | document_count={len(self.document_ids)} | error={e}")
             return "BOOK_CONTEXT_ERROR: Không thể tìm kiếm dữ liệu trong sách lúc này."
 
@@ -255,22 +273,35 @@ class TriamAssistant(Agent):
         THỰC HIỆN tìm kiếm thực sự trên internet và trả về kết quả.
         TRAO ĐỔI VUI: Nếu chưa có turn hỏi xin phép trước → không gọi tool này.
         """
+        return await self._execute_web_search_for_mode(query, AgentInputMode.VOICE)
+
+    async def _execute_web_search_for_mode(self, query: str, input_mode: AgentInputMode) -> str:
+        self.tracer.record_tool(input_mode, "execute_web_search")
         async with self._web_search_lock:
             cached_result = self._get_cached_web_result(query)
             if cached_result is not None:
+                self.tracer.record_answer_source(input_mode, AgentAnswerSource.WEB)
                 log.info(f"Voice web search cached result reused | query_chars={len(query)}")
                 return cached_result
 
             allowed, reason = await self.web_search_policy.resolve_before_web_search(query)
             if not allowed:
+                self.tracer.record_answer_source(input_mode, AgentAnswerSource.POLICY)
                 log.info(f"Voice web search blocked | reason={reason}")
                 return reason
 
             log.info(f"Voice web search executing | query_chars={len(query)}")
+            started = time.perf_counter()
             try:
                 result = await web_search(query)
                 self._remember_web_result(query, result)
+                self.tracer.record_latency(input_mode, "web_search", int((time.perf_counter() - started) * 1000))
+                self.tracer.record_answer_source(input_mode, AgentAnswerSource.WEB)
                 return result
+            except Exception:
+                self.tracer.record_latency(input_mode, "web_search", int((time.perf_counter() - started) * 1000))
+                self.tracer.record_error(input_mode, "web_search_error")
+                raise
             finally:
                 self.web_search_policy.mark_search_consumed()
 
@@ -286,6 +317,8 @@ class TriamAssistant(Agent):
         Nếu user đồng ý (bất kỳ cách nào) → AI tự quyết định gọi 'execute_web_search'.
         Nếu user từ chối → AI không gọi tool và trả lời phù hợp.
         """
+        self.tracer.record_tool(AgentInputMode.VOICE, "ask_web_search_permission")
+        self.tracer.record_answer_source(AgentInputMode.VOICE, AgentAnswerSource.POLICY)
         log.info(f"Voice web search permission requested | query_chars={len(query)}")
         return self.web_search_policy.request_permission(query)
 
@@ -327,7 +360,18 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         grant_ttl_seconds=settings.VOICE_AGENT_WEB_PERMISSION_TTL_SECONDS,
         implicit_grant_window_seconds=settings.VOICE_AGENT_WEB_IMPLICIT_GRANT_WINDOW_SECONDS,
     )
-    agent_instance = TriamAssistant(document_ids=document_ids, web_search_policy=web_search_policy)
+    tracer = AgentTurnTracer(
+        enabled=settings.AGENT_TRACE_ENABLED,
+        thread_id=str(thread_uuid) if thread_uuid else None,
+        room_name=ctx.room.name,
+        score_precision=settings.AGENT_TRACE_SCORE_PRECISION,
+        late_transcript_window_seconds=settings.AGENT_TRACE_LATE_TRANSCRIPT_WINDOW_SECONDS,
+    )
+    agent_instance = TriamAssistant(
+        document_ids=document_ids,
+        web_search_policy=web_search_policy,
+        tracer=tracer,
+    )
     chat_llm = OpenAILLM(model=settings.VOICE_AGENT_TEXT_LLM_MODEL, temperature=0.7)
     transcript_store = VoiceTranscriptStore(
         room=ctx.room,
@@ -362,9 +406,16 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
     async def _chat_naive_rag(user_text: str) -> str:
         """Chế độ RAG Naive (toggle TẮT): luôn search sách, không dùng tool web."""
         log.info("[Text Chat] Chế độ Naive RAG (web search TẮT)")
-        rag_result = await search_voice_book_context(user_text, document_ids)
+        tracer.record_tool(AgentInputMode.TEXT, "search_book_knowledge_text")
+        rag_result = await search_voice_book_context(
+            user_text,
+            document_ids,
+            tracer=tracer,
+            input_mode=AgentInputMode.TEXT,
+        )
         temp_ctx = session.history.copy()
         if rag_result.found:
+            tracer.record_answer_source(AgentInputMode.TEXT, AgentAnswerSource.BOOK_RAG)
             temp_ctx.add_message(
                 role="system",
                 content=f"Thông tin trích xuất từ sách (dùng để trả lời):\n{format_rag_context(rag_result)}",
@@ -390,16 +441,26 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         # chưa có activity context. Ta wrap thủ công bằng @function_tool decorator.
         async def search_book_knowledge_text(query: Annotated[str, "Câu hỏi hoặc nội dung cần tìm trong sách"]) -> str:
             """Tìm kiếm kiến thức trong sách thuộc Study Context hiện tại."""
-            result = await search_voice_book_context(query, document_ids)
+            tracer.record_tool(AgentInputMode.TEXT, "search_book_knowledge_text")
+            result = await search_voice_book_context(
+                query,
+                document_ids,
+                tracer=tracer,
+                input_mode=AgentInputMode.TEXT,
+            )
+            if result.found:
+                tracer.record_answer_source(AgentInputMode.TEXT, AgentAnswerSource.BOOK_RAG)
             return format_rag_context(result)
 
         async def ask_web_search_permission_text(query: Annotated[str, "Nội dung dự kiến sẽ tìm trên web nếu user đồng ý"]) -> str:
             """Xin phép user trước khi tìm kiếm internet."""
+            tracer.record_tool(AgentInputMode.TEXT, "ask_web_search_permission_text")
+            tracer.record_answer_source(AgentInputMode.TEXT, AgentAnswerSource.POLICY)
             return web_search_policy.request_permission(query)
 
         async def execute_web_search_text(query: Annotated[str, "Nội dung cần tìm kiếm trên internet"]) -> str:
             """Tìm kiếm thông tin trên internet sau khi user đã đồng ý."""
-            return await agent_instance.execute_web_search(query)
+            return await agent_instance._execute_web_search_for_mode(query, AgentInputMode.TEXT)
 
         book_fn_tool = function_tool(search_book_knowledge_text)
         ask_web_permission_tool = function_tool(ask_web_search_permission_text)
@@ -438,6 +499,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             # Thực thi tool calls theo đúng chuẩn SDK
             log.info(f"[Agentic] Bước {step + 1}: thực thi {len(response.tool_calls)} tool call(s)")
             for tc in response.tool_calls:
+                tracer.record_tool(AgentInputMode.TEXT, str(getattr(tc, "name", "unknown_tool")))
                 result = await agents_llm.execute_function_call(tc, tool_ctx)
                 ctx_copy.insert(result.fnc_call)
                 if result.fnc_call_out:
@@ -449,7 +511,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
 
     async def _chat_with_granted_web_search(query: str) -> str:
         log.info(f"[Text Chat] Web search granted by user | query_chars={len(query)}")
-        web_result = await agent_instance.execute_web_search(query)
+        web_result = await agent_instance._execute_web_search_for_mode(query, AgentInputMode.TEXT)
         temp_ctx = session.history.copy()
         temp_ctx.add_message(
             role="system",
@@ -482,6 +544,12 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             return
 
         async with text_turn_lock:
+            tracer.begin_turn(AgentInputMode.TEXT)
+            tracer.record_transcript(
+                AgentInputMode.TEXT,
+                char_count=len(normalized_text),
+                language="text",
+            )
             log.info(f"Data input received | participant={participant_id or 'unknown'} | chars={len(normalized_text)} | thread_id={thread_uuid}")
             if settings.VOICE_AGENT_LOG_TRANSCRIPT_TEXT:
                 log.debug(f"Data input preview: {trim_text(normalized_text, 160)}")
@@ -501,21 +569,31 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 if permission_decision.granted_query:
                     full_reply = await _chat_with_granted_web_search(permission_decision.granted_query)
                 elif permission_decision.denied:
+                    tracer.record_answer_source(AgentInputMode.TEXT, AgentAnswerSource.POLICY)
                     full_reply = "Được, tôi sẽ không tìm trên internet. Mình tiếp tục trao đổi dựa trên nội dung sách nhé."
                 elif permission_decision.unclear:
+                    tracer.record_answer_source(AgentInputMode.TEXT, AgentAnswerSource.CLARIFICATION)
                     full_reply = "Tôi chưa rõ ý ông. Bạn muốn tôi tìm thêm trên internet cho câu vừa rồi không?"
                 # Phân nhánh dựa theo web search policy từ lk.control.
                 elif web_search_policy.enabled:
+                    started = time.perf_counter()
                     full_reply = await _chat_with_agentic_loop(normalized_text)
+                    tracer.record_latency(AgentInputMode.TEXT, "answer_pipeline", int((time.perf_counter() - started) * 1000))
                 else:
+                    started = time.perf_counter()
                     full_reply = await _chat_naive_rag(normalized_text)
+                    tracer.record_latency(AgentInputMode.TEXT, "answer_pipeline", int((time.perf_counter() - started) * 1000))
 
                 full_reply = full_reply.strip()
                 log.info(f"LLM Reply completed. Length: {len(full_reply)}")
 
                 if full_reply:
                     await _publish_assistant_reply(full_reply)
+                    tracer.record_assistant(AgentInputMode.TEXT, char_count=len(full_reply))
+                tracer.complete_turn(AgentInputMode.TEXT)
             except Exception as e:
+                tracer.record_error(AgentInputMode.TEXT, type(e).__name__)
+                tracer.complete_turn(AgentInputMode.TEXT, error_code=type(e).__name__)
                 log.error(f"Error in handle_data_input: {e}")
 
     async def handle_text_input(sess: AgentSession, ev: room_io.TextInputEvent) -> None:
@@ -552,10 +630,16 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
     def _handle_user_input_transcribed(ev: Any) -> None:
         is_final = bool(getattr(ev, "is_final", False))
         transcript = str(getattr(ev, "transcript", "") or "").strip()
+        language = getattr(ev, "language", None)
         log.info(f"user_input_transcribed received | final={is_final} | chars={len(transcript)} | thread_id={thread_uuid}")
         if settings.VOICE_AGENT_LOG_TRANSCRIPT_TEXT and transcript:
             log.debug(f"user_input_transcribed preview: {trim_text(transcript, 160)}")
         if is_final and transcript:
+            tracer.record_transcript(
+                AgentInputMode.VOICE,
+                char_count=len(transcript),
+                language=str(language) if language else None,
+            )
             _record_web_permission_reply(transcript)
 
     def _handle_conversation_item_added(ev: ConversationItemAddedEvent) -> None:
@@ -568,12 +652,24 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             return
 
         if item.role == "user":
+            tracer.ensure_turn(AgentInputMode.VOICE)
             log.info(f"User voice speech saved | text_len={len(text)} | thread_id={thread_uuid}")
             _record_web_permission_reply(text)
             asyncio.create_task(transcript_store.save_and_publish_user(text))
         elif item.role == "assistant":
+            tracer.record_assistant(AgentInputMode.VOICE, char_count=len(text))
+            tracer.complete_turn(AgentInputMode.VOICE)
             log.info(f"Assistant voice speech saved | text_len={len(text)} | thread_id={thread_uuid}")
             asyncio.create_task(transcript_store.save_and_publish_assistant(text))
+
+    def _handle_function_tools_executed(ev: FunctionToolsExecutedEvent) -> None:
+        if not tracer.has_active_turn(AgentInputMode.VOICE):
+            return
+        for function_call in ev.function_calls:
+            tracer.record_tool(
+                AgentInputMode.VOICE,
+                str(getattr(function_call, "name", "unknown_tool")),
+            )
 
     def _attach_session_handlers(sess: AgentSession) -> None:
         @sess.on("user_input_transcribed")  # type: ignore[arg-type]
@@ -583,6 +679,10 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         @sess.on("conversation_item_added")  # type: ignore[arg-type]
         def on_conversation_item_added(ev: ConversationItemAddedEvent):
             _handle_conversation_item_added(ev)
+
+        @sess.on("function_tools_executed")  # type: ignore[arg-type]
+        def on_function_tools_executed(ev: FunctionToolsExecutedEvent):
+            _handle_function_tools_executed(ev)
 
     # Start session with fallback when a configured model is unavailable.
     last_start_exc: Exception | None = None

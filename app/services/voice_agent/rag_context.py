@@ -1,6 +1,8 @@
+import time
 from typing import Any, Awaitable, Callable
 
 from app.core.config import settings
+from app.services.agent_observability import AgentInputMode, AgentTurnTracer
 from app.services.rag_service import search_book_knowledge
 from app.services.voice_agent.contracts import VoiceRagResult
 
@@ -37,8 +39,24 @@ async def search_voice_book_context(
     document_ids: list[str],
     *,
     search_fn: RawRagSearch = search_book_knowledge,
+    tracer: AgentTurnTracer | None = None,
+    input_mode: AgentInputMode = AgentInputMode.VOICE,
 ) -> VoiceRagResult:
-    payload = await search_fn(query, document_ids)
+    started = time.perf_counter()
+    try:
+        payload = await search_fn(query, document_ids)
+    except Exception:
+        if tracer is not None:
+            tracer.record_latency(input_mode, "retrieval", int((time.perf_counter() - started) * 1000))
+            tracer.record_error(input_mode, "retrieval_error")
+        raise
+
+    if tracer is not None:
+        tracer.record_retrieval(
+            input_mode,
+            payload,
+            elapsed_ms=int((time.perf_counter() - started) * 1000),
+        )
     return normalize_rag_payload(payload)
 
 

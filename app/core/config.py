@@ -68,6 +68,9 @@ class Settings(BaseSettings):
     VOICE_AGENT_RAG_MAX_CHARS: int = 6000
     VOICE_AGENT_CONSOLE_BOOK_ID: str = "1b893d40-e0cc-4ee3-ae5f-a7809834e6dd"
     VOICE_AGENT_CONSOLE_THREAD_ID: str = "5bb8da1d-7326-4d67-b0b3-0b4dd9bb17d7"
+    AGENT_TRACE_ENABLED: bool = True
+    AGENT_TRACE_SCORE_PRECISION: int = 4
+    AGENT_TRACE_LATE_TRANSCRIPT_WINDOW_SECONDS: float = 15.0
 
     # Upload file
     MAX_FILE_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB

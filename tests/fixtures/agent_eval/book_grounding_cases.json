@@ -1,0 +1,122 @@
+[
+  {
+    "id": "mice-author-vi-text",
+    "input_mode": "text",
+    "question": "Tác giả của quyển sách là ai?",
+    "expected_intent": "book_metadata.author",
+    "expected_answer_source": "book_metadata",
+    "expected_section_paths": [],
+    "must_include": ["John Steinbeck"],
+    "must_not_include": ["Curley nổi giận"],
+    "web_search_enabled": false,
+    "web_search_allowed": false
+  },
+  {
+    "id": "mice-title-vi-text",
+    "input_mode": "text",
+    "question": "Tên của quyển sách này là gì?",
+    "expected_intent": "book_metadata.title",
+    "expected_answer_source": "book_metadata",
+    "expected_section_paths": [],
+    "must_include": ["Of Mice and Men"],
+    "must_not_include": [],
+    "web_search_enabled": false,
+    "web_search_allowed": false
+  },
+  {
+    "id": "mice-section-count-vi-text",
+    "input_mode": "text",
+    "question": "Quyển sách này có bao nhiêu phần chính?",
+    "expected_intent": "book_metadata.section_count",
+    "expected_answer_source": "book_metadata",
+    "expected_section_paths": [],
+    "must_include": ["6"],
+    "must_not_include": [],
+    "web_search_enabled": false,
+    "web_search_allowed": false
+  },
+  {
+    "id": "mice-chapter-four-summary-vi-text",
+    "input_mode": "text",
+    "question": "Tóm tắt chương 4 của quyển sách.",
+    "expected_intent": "book_section.summary",
+    "expected_answer_source": "book_section",
+    "expected_section_paths": ["4"],
+    "must_include": ["Crooks"],
+    "must_not_include": ["Curley làm gãy tay"],
+    "web_search_enabled": true,
+    "web_search_allowed": false
+  },
+  {
+    "id": "mice-chapter-five-summary-vi-text",
+    "input_mode": "text",
+    "question": "Chương 5 xảy ra chuyện gì?",
+    "expected_intent": "book_section.summary",
+    "expected_answer_source": "book_section",
+    "expected_section_paths": ["5"],
+    "must_include": ["Lennie", "vợ"],
+    "must_not_include": [],
+    "web_search_enabled": false,
+    "web_search_allowed": false
+  },
+  {
+    "id": "mice-chapter-six-summary-en-text",
+    "input_mode": "text",
+    "question": "What happens in chapter 6?",
+    "expected_intent": "book_section.summary",
+    "expected_answer_source": "book_section",
+    "expected_section_paths": ["6"],
+    "must_include": ["George", "Lennie"],
+    "must_not_include": [],
+    "web_search_enabled": false,
+    "web_search_allowed": false
+  },
+  {
+    "id": "mice-crooks-semantic-vi-text",
+    "input_mode": "text",
+    "question": "Crooks cảm thấy như thế nào và vì sao?",
+    "expected_intent": "book_semantic_question",
+    "expected_answer_source": "book_rag",
+    "expected_section_paths": ["4"],
+    "must_include": ["Crooks"],
+    "must_not_include": [],
+    "web_search_enabled": false,
+    "web_search_allowed": false
+  },
+  {
+    "id": "mice-curley-wife-death-vi-text",
+    "input_mode": "text",
+    "question": "Ai đã gây ra cái chết của vợ Curley?",
+    "expected_intent": "book_semantic_question",
+    "expected_answer_source": "book_rag",
+    "expected_section_paths": ["5"],
+    "must_include": ["Lennie"],
+    "must_not_include": [],
+    "web_search_enabled": false,
+    "web_search_allowed": false
+  },
+  {
+    "id": "mice-ambiguous-chapter-vi-text",
+    "input_mode": "text",
+    "question": "Tóm tắt chương.",
+    "expected_intent": "clarification_required",
+    "expected_answer_source": "clarification",
+    "expected_section_paths": [],
+    "must_include": [],
+    "must_not_include": [],
+    "web_search_enabled": false,
+    "web_search_allowed": false
+  },
+  {
+    "id": "mice-current-bitcoin-vi-text",
+    "input_mode": "text",
+    "question": "Giá Bitcoin hôm nay là bao nhiêu?",
+    "expected_intent": "external_current_info",
+    "expected_answer_source": "policy",
+    "expected_section_paths": [],
+    "must_include": [],
+    "must_not_include": [],
+    "web_search_enabled": true,
+    "web_search_allowed": false
+  }
+]
