@@ -9,6 +9,21 @@ from app.main import app
 from app.models.db_models import AdminAuditLog, AdminUser, Book, ProcessingJob
 
 
+def _get_all_admin_user_ids(client: TestClient) -> set[str]:
+    user_ids: set[str] = set()
+    offset = 0
+    limit = 100
+
+    while True:
+        response = client.get(f"/api/v1/admin/users?limit={limit}&offset={offset}")
+        assert response.status_code == 200
+        body = response.json()
+        user_ids.update(item["user_id"] for item in body["items"])
+        offset += len(body["items"])
+        if offset >= body["total"] or not body["items"]:
+            return user_ids
+
+
 def _cleanup(admin_user_id: uuid.UUID, book_ids: list[uuid.UUID], job_ids: list[uuid.UUID]) -> None:
     with Session(engine) as session:
         for audit_log in session.exec(select(AdminAuditLog).where(AdminAuditLog.admin_user_id == admin_user_id)).all():
@@ -93,9 +108,7 @@ def test_admin_can_view_cross_user_books_and_dashboard(auth_as):
         assert dashboard_response.json()["book_count"] >= 2
         assert dashboard_response.json()["job_count"] >= 1
 
-        users_response = client.get("/api/v1/admin/users?limit=20")
-        assert users_response.status_code == 200
-        returned_user_ids = {item["user_id"] for item in users_response.json()["items"]}
+        returned_user_ids = _get_all_admin_user_ids(client)
         assert {str(user_a), str(user_b)}.issubset(returned_user_ids)
     finally:
         _cleanup(admin_user_id, book_ids, job_ids)
