@@ -35,8 +35,10 @@ from app.services.agent_grounding import GroundingResult, GroundingRoute, Ground
 from app.services.agent_grounding.response_renderer import format_grounding_tool_result
 from app.services.agent_observability import AgentAnswerSource, AgentInputMode, AgentTurnTracer
 from app.services.voice_agent.contracts import LK_CHAT_TOPIC, LK_CONTROL_TOPIC, VoiceJobMetadata
+from app.services.voice_agent.query_guard import VoiceQueryGuardConfig, guard_voice_book_query
 from app.services.voice_agent.rag_context import format_rag_context, search_voice_book_context, trim_text
 from app.services.voice_agent.transcript_store import VoiceTranscriptStore, normalize_transcript_text
+from app.services.voice_agent.turn_state import VoiceTurnState
 from app.services.voice_agent.web_permission_intent_classifier import normalize_intent_text
 from app.services.voice_agent.web_permission_policy import WebSearchPermissionPolicy
 from app.services.web_search_service import search_web as web_search
@@ -59,6 +61,7 @@ Tool rules:
 - Treat `BOOK_METADATA_FOUND` as authoritative database metadata.
 - Treat `BOOK_SECTION_FOUND` as the only source for the requested section.
 - If the tool returns `CLARIFICATION_REQUIRED`, read the clarification and stop.
+- If the tool returns `WEB_PERMISSION_REPLY_DETECTED`, continue the pending web-search permission flow; do not answer from book memory.
 - Never request web search for `CLARIFICATION_REQUIRED` or a resolved book section.
 - If the tool returns `EXTERNAL_INFO_REQUIRED` or `BOOK_CONTEXT_NOT_FOUND`, call `ask_web_search_permission` exactly once.
 - Read the returned question, then stop and wait for the user.
@@ -233,16 +236,26 @@ class TriamAssistant(Agent):
         web_search_policy: WebSearchPermissionPolicy,
         tracer: AgentTurnTracer,
         grounding_router: GroundingRouter | None = None,
+        voice_turn_state: VoiceTurnState | None = None,
     ) -> None:
         super().__init__(instructions=VOICE_AGENT_INSTRUCTIONS)
         self.document_ids = document_ids
         self.web_search_policy = web_search_policy
         self.tracer = tracer
         self.grounding_router = grounding_router
+        self.voice_turn_state = voice_turn_state or VoiceTurnState()
         self._web_search_lock = asyncio.Lock()
         self._cached_web_query: str | None = None
         self._cached_web_result: str | None = None
         self._cached_web_at: datetime | None = None
+
+    def _voice_query_guard_config(self) -> VoiceQueryGuardConfig:
+        return VoiceQueryGuardConfig(
+            min_chars=settings.VOICE_AGENT_QUERY_GUARD_MIN_CHARS,
+            min_tokens=settings.VOICE_AGENT_QUERY_GUARD_MIN_TOKENS,
+            min_overlap_ratio=settings.VOICE_AGENT_QUERY_GUARD_MIN_OVERLAP_RATIO,
+            min_important_overlap_ratio=settings.VOICE_AGENT_QUERY_GUARD_MIN_IMPORTANT_OVERLAP_RATIO,
+        )
 
     def _get_cached_web_result(self, query: str) -> str | None:
         if not self._cached_web_query or not self._cached_web_result or not self._cached_web_at:
@@ -276,6 +289,34 @@ class TriamAssistant(Agent):
         return await self.resolve_book_query(query, AgentInputMode.VOICE)
 
     async def resolve_book_query(self, query: str, input_mode: AgentInputMode) -> str:
+        if input_mode == AgentInputMode.VOICE and settings.VOICE_AGENT_QUERY_GUARD_ENABLED:
+            transcript = self.voice_turn_state.recent_transcript(settings.VOICE_AGENT_QUERY_GUARD_TRANSCRIPT_TTL_SECONDS)
+            guard_result = guard_voice_book_query(
+                query,
+                transcript,
+                config=self._voice_query_guard_config(),
+            )
+            if not guard_result.valid:
+                self.tracer.record_answer_source(input_mode, AgentAnswerSource.CLARIFICATION)
+                if settings.VOICE_AGENT_QUERY_GUARD_LOG_DETAILS:
+                    log.info(
+                        "Voice query guard blocked | "
+                        f"reason={guard_result.reason_code} | "
+                        f"query_chars={len(query)} | "
+                        f"tokens={guard_result.token_count} | "
+                        f"important_tokens={guard_result.important_token_count} | "
+                        f"overlap={guard_result.overlap_ratio} | "
+                        f"important_overlap={guard_result.important_overlap_ratio} | "
+                        f"transcript_source={guard_result.transcript_source}"
+                    )
+                if guard_result.reason_code == "permission_reply":
+                    return (
+                        "WEB_PERMISSION_REPLY_DETECTED: This user turn looks like a reply to a pending "
+                        "web-search permission request, not a new book question. Follow the existing "
+                        "web-search permission flow for the pending query."
+                    )
+                return f"CLARIFICATION_REQUIRED:\n{guard_result.clarification or 'Bạn vui lòng nói rõ câu hỏi.'}"
+
         if self.grounding_router is not None:
             grounding_result = await self.grounding_router.resolve(
                 query,
@@ -432,11 +473,13 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         except Exception as exc:
             log.warning(f"Grounding router initialization failed; using legacy RAG flow | error_type={type(exc).__name__}")
 
+    voice_turn_state = VoiceTurnState()
     agent_instance = TriamAssistant(
         document_ids=document_ids,
         web_search_policy=web_search_policy,
         tracer=tracer,
         grounding_router=grounding_router,
+        voice_turn_state=voice_turn_state,
     )
     chat_llm = OpenAILLM(model=settings.VOICE_AGENT_TEXT_LLM_MODEL, temperature=0.7)
     transcript_store = VoiceTranscriptStore(
@@ -788,6 +831,10 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         if settings.VOICE_AGENT_LOG_TRANSCRIPT_TEXT and transcript:
             log.debug(f"user_input_transcribed preview: {trim_text(transcript, 160)}")
         if is_final and transcript:
+            voice_turn_state.record_final_transcript(
+                transcript,
+                str(language) if language else None,
+            )
             tracer.record_transcript(
                 AgentInputMode.VOICE,
                 char_count=len(transcript),
@@ -807,6 +854,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         if item.role == "user":
             tracer.ensure_turn(AgentInputMode.VOICE)
             log.info(f"User voice speech saved | text_len={len(text)} | thread_id={thread_uuid}")
+            voice_turn_state.record_committed_user_text(text)
             _record_web_permission_reply(text)
             asyncio.create_task(transcript_store.save_and_publish_user(text))
         elif item.role == "assistant":
