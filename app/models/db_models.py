@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Integer, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, Text, UniqueConstraint, func
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlmodel import Field, PrimaryKeyConstraint, Relationship, SQLModel
@@ -336,6 +336,32 @@ class BookKnowledge(SQLModel, table=True):
     embedding: Optional[list[float]] = Field(default=None, sa_column=Column(Vector(1536)))
 
     __table_args__ = (UniqueConstraint("learning_unit_id", "chunk_index", name="uq_book_knowledge_unit_chunk_index"),)
+
+
+class BookSectionKnowledge(SQLModel, table=True):
+    __tablename__ = "book_section_knowledge"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
+    section_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("book_sections.id", ondelete="CASCADE"), index=True, nullable=False))
+    chunk_index: int = Field(sa_column=Column(Integer, nullable=False))
+    content: str = Field(sa_column=Column(Text, nullable=False))
+    content_hash: str = Field(sa_column=Column(Text, nullable=False))
+    embedding_model: str = Field(sa_column=Column(Text, nullable=False))
+    embedding_version: str = Field(sa_column=Column(Text, nullable=False))
+    char_count: int = Field(default=0, sa_column=Column(Integer, nullable=False))
+    token_count: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    embedding: Optional[list[float]] = Field(default=None, sa_column=Column(Vector(1536)))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+
+    __table_args__ = (
+        UniqueConstraint("section_id", "chunk_index", "embedding_version", name="uq_book_section_knowledge_section_chunk_version"),
+        UniqueConstraint("section_id", "content_hash", "embedding_version", name="uq_book_section_knowledge_section_hash_version"),
+        Index("ix_bsk_book_version", "book_id", "embedding_version"),
+        Index("ix_bsk_section_version", "section_id", "embedding_version"),
+        Index("ix_bsk_book_section_version", "book_id", "section_id", "embedding_version"),
+    )
 
 
 # === CONTEXT STUDY CONVERSATION===

@@ -8,6 +8,7 @@ from app.core.constant import ProcessingJobStatus
 from app.core.logger import log
 from app.db.database import engine
 from app.models.db_models import ProcessingJob
+from app.services.book_section_knowledge_indexer import index_book_sections
 from app.services.workers.book_pipeline import run_background_processing, run_switch_mode_processing
 
 
@@ -54,4 +55,18 @@ def switch_mode_task(book_id: str, mode: str, job_id: str) -> None:
             mode,
             parsed_job_id,
         )
+    )
+
+
+@celery_app.task(name="triam.books.index_sections")
+def index_book_sections_task(book_id: str) -> None:
+    """Build canonical BookSection vector knowledge for grounded RAG."""
+    parsed_book_id = uuid.UUID(book_id)
+    log.info(f"Celery index_book_sections_task started | book_id={parsed_book_id}")
+    with Session(engine) as session:
+        result = asyncio.run(index_book_sections(session, book_id=parsed_book_id))
+    log.info(
+        "Celery index_book_sections_task done | "
+        f"book_id={parsed_book_id} | sections={result.total_sections} | "
+        f"indexed={result.indexed_sections} | skipped={result.skipped_sections} | chunks={result.chunks_created}"
     )

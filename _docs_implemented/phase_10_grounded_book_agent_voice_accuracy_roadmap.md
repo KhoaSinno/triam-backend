@@ -545,14 +545,14 @@ Phase 10 chỉ được xem là hoàn thành khi:
 
 ## 16. Bước Tiếp Theo
 
-Phase nên implement tiếp theo là:
+Phase 10.2 đã hoàn thành canonical BookSection knowledge index. Phase nên implement tiếp theo là:
 
 ```text
-Phase 10.1 - Deterministic Metadata And Section Router
+Phase 10.3 - Hybrid Retrieval, Reranking And Evidence Validation
 ```
 
 Tài liệu implementation:
 
 ```text
-_docs_implemented/phase_10_1_deterministic_metadata_section_router_implementation_guide.md
+_docs_implemented/phase_10_3_hybrid_retrieval_reranking_evidence_validation_implementation_guide.md
 ```

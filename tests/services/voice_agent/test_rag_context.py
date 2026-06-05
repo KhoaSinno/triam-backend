@@ -1,6 +1,7 @@
 import pytest
 
 from app.services.agent_observability import AgentInputMode, AgentTurnTracer
+from app.services.voice_agent.contracts import VoiceRagResult
 from app.services.voice_agent.rag_context import format_rag_context, search_voice_book_context
 
 
@@ -71,4 +72,26 @@ async def test_search_voice_book_context_records_safe_retrieval_trace():
     assert retrieval_payload["retrieval_chunk_ids"] == ["9"]
     assert retrieval_payload["retrieval_scores"] == [0.75]
     assert "private source content" not in str(retrieval_payload)
+
+
+def test_format_rag_context_prefers_section_source_when_available():
+    result = VoiceRagResult(
+        found=True,
+        chunks=[
+            {
+                "section_id": "11111111-1111-1111-1111-abcdef654321",
+                "section_path": "Chương 4 > Crooks",
+                "chunk_index": 0,
+                "content": "Crooks sống một mình trong phòng của mình.",
+            }
+        ],
+        message="",
+    )
+
+    context = format_rag_context(result, max_chars=1000)
+
+    assert "BOOK_CONTEXT_FOUND" in context
+    assert "Section: Chương 4 > Crooks" in context
+    assert "abcdef654321"[-6:] in context
+    assert "Crooks sống một mình" in context
 
