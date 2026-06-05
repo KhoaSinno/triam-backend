@@ -1031,3 +1031,187 @@ Mục tiêu Phase 10.4:
 - phát hiện transcript mơ hồ;
 - ép voice dùng cùng retrieval policy với text;
 - giảm tình trạng realtime model bỏ qua tool hoặc trả lời từ model memory.
+
+---
+
+## 19. Implementation Status - 2026-06-05
+
+Phase 10.3 đã được implement trong backend.
+
+### 19.1 Code đã thêm/cập nhật
+
+- `book_section_knowledge.search_text`
+  - thêm cột normalized lexical text;
+  - nội dung được tạo từ `section_path + section_title + content`;
+  - mục tiêu là hỗ trợ tiếng Việt có dấu/không dấu, tiếng Anh, tên riêng, acronym và thuật ngữ exact-match.
+
+- Alembic migration:
+  - `f1b2c3d4e5f6_phase_10_3_hybrid_retrieval.py`;
+  - bật `pg_trgm`;
+  - tạo trigram index cho `search_text`;
+  - tạo full-text index cho `content`;
+  - tạo RPC `match_book_section_knowledge_lexical`;
+  - harden lại RPC vector `match_book_section_knowledge` để `filter_section_ids=null` và `filter_section_ids=[]` đều được hiểu là không filter section.
+
+- `app/services/agent_grounding/hybrid_retrieval.py`
+  - merge vector + lexical candidates;
+  - dedupe bằng chunk id;
+  - rerank deterministic theo source-aware scoring;
+  - lexical-only hit mạnh không bị phạt oan khi vector không tìm thấy;
+  - boost nhẹ khi match section title/path;
+  - boost nhẹ khi cùng trúng vector và lexical;
+  - giới hạn số chunks mỗi section;
+  - validate evidence với reason code:
+    - `no_candidates`;
+    - `low_confidence`;
+    - `missing_named_entity`;
+    - `valid`.
+
+- `app/services/rag_service.py`
+  - thêm lexical RPC call;
+  - thêm `search_book_hybrid_knowledge`;
+  - bọc Supabase RPC sync bằng `asyncio.to_thread` để tránh block event loop của chat/voice;
+  - normalize `section_ids=[]` thành `None` trước khi gọi RPC;
+  - log rejection/score an toàn: reason, candidate count, top id, vector score, lexical score, final score, missing token count;
+  - `search_book_knowledge` vẫn là entrypoint cũ;
+  - hybrid chỉ chạy khi `AGENT_HYBRID_RAG_ENABLED=true`.
+
+- `app/services/voice_agent/rag_context.py`
+  - trace retrieval method tự nhận `hybrid` khi payload có `retrieval_method=hybrid`;
+  - không đổi contract FE.
+
+- `scripts/backfill_book_section_knowledge.py`
+  - thêm `--search-text-only --run-now`;
+  - dùng để backfill lexical `search_text` mà không gọi embedding lại.
+
+### 19.2 Config mới
+
+```env
+AGENT_HYBRID_RAG_ENABLED=false
+AGENT_HYBRID_VECTOR_WEIGHT=0.60
+AGENT_HYBRID_LEXICAL_WEIGHT=0.30
+AGENT_HYBRID_TITLE_MATCH_BOOST=0.07
+AGENT_HYBRID_MULTI_SOURCE_BOOST=0.03
+AGENT_HYBRID_MIN_FINAL_SCORE=0.25
+AGENT_HYBRID_VECTOR_CANDIDATES=12
+AGENT_HYBRID_LEXICAL_CANDIDATES=12
+AGENT_HYBRID_MAX_CONTEXT_CHUNKS=6
+AGENT_HYBRID_MAX_CHUNKS_PER_SECTION=2
+```
+
+Default vẫn là `false` để không breaking Phase 10.2 khi deploy.
+
+### 19.3 Test đã chạy
+
+```powershell
+uv run pytest tests/services/test_book_section_chunker.py tests/services/agent_grounding/test_hybrid_retrieval.py tests/services/test_rag_service.py tests/services/voice_agent/test_rag_context.py -q
+```
+
+Kết quả:
+
+```text
+22 passed
+```
+
+```powershell
+uv run ruff check app/services/agent_grounding/hybrid_retrieval.py app/services/rag_service.py app/services/voice_agent/rag_context.py app/services/book_section_chunker.py app/services/book_section_knowledge_indexer.py app/repositories/book_section_knowledge_repo.py app/models/db_models.py app/core/config.py scripts/backfill_book_section_knowledge.py tests/services/test_book_section_chunker.py tests/services/agent_grounding/test_hybrid_retrieval.py tests/services/test_rag_service.py tests/services/voice_agent/test_rag_context.py
+```
+
+Kết quả:
+
+```text
+All checks passed
+```
+
+```powershell
+uv run pytest tests/services/agent_grounding -q
+```
+
+Kết quả:
+
+```text
+40 passed
+```
+
+```powershell
+uv run pytest tests/services/voice_agent tests/services/agent_observability tests/services/test_rag_service.py tests/services/test_book_section_chunker.py -q
+```
+
+Kết quả:
+
+```text
+49 passed
+```
+
+```powershell
+uv run pytest tests -q
+```
+
+Kết quả:
+
+```text
+195 passed
+```
+
+```powershell
+uv run alembic heads
+```
+
+Kết quả:
+
+```text
+f1b2c3d4e5f6 (head)
+```
+
+### 19.4 Việc cần làm khi test DB dev/prod
+
+Chạy migration:
+
+```powershell
+uv run alembic upgrade head
+```
+
+Backfill sách cũ để có lexical `search_text`:
+
+```powershell
+uv run python scripts/backfill_book_section_knowledge.py --book-id <book_id> --search-text-only --run-now
+```
+
+Sau khi backfill xong, bật hybrid ở môi trường cần test:
+
+```env
+AGENT_HYBRID_RAG_ENABLED=true
+```
+
+Nếu có vấn đề:
+
+```env
+AGENT_HYBRID_RAG_ENABLED=false
+```
+
+Rollback flag này sẽ đưa hệ thống về Phase 10.2 canonical vector RAG.
+
+### 19.5 Audit hardening đã xử lý
+
+Sau audit Phase 10.3, các điểm sau đã được fix ngay trong phase này:
+
+1. Empty section filter:
+   - Python service không truyền mảng section rỗng xuống RPC;
+   - SQL RPC vẫn tự xử lý `cardinality(filter_section_ids) = 0` để an toàn nếu caller khác truyền mảng rỗng.
+
+2. Single-source lexical scoring:
+   - scoring không còn lấy `0.60 * vector + 0.30 * lexical` một cách làm lexical-only bị tụt điểm;
+   - ứng viên chỉ có lexical mạnh vẫn giữ được confidence;
+   - ứng viên có cả vector và lexical vẫn được boost nhẹ.
+
+3. Blocking Supabase RPC:
+   - các RPC sync trong `rag_service.py` được đưa vào `asyncio.to_thread`;
+   - giảm rủi ro block event loop trong realtime voice/chat.
+
+4. Normalization drift:
+   - giữ nguyên hướng đúng: backfill bằng Python `normalized_key()`;
+   - không backfill `search_text` bằng SQL thuần.
+
+5. Observability:
+   - log thêm score/reason/id/count an toàn;
+   - không log raw query, full chunk, embedding, transcript hoặc token.

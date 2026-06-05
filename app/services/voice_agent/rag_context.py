@@ -34,6 +34,14 @@ def normalize_rag_payload(payload: Any) -> VoiceRagResult:
     return VoiceRagResult(found=True, chunks=chunks, message="")
 
 
+def infer_retrieval_method(payload: Any) -> str:
+    if isinstance(payload, list):
+        for item in payload:
+            if isinstance(item, dict) and item.get("retrieval_method"):
+                return str(item["retrieval_method"])
+    return "vector"
+
+
 async def search_voice_book_context(
     query: str,
     document_ids: list[str],
@@ -56,6 +64,7 @@ async def search_voice_book_context(
             input_mode,
             payload,
             elapsed_ms=int((time.perf_counter() - started) * 1000),
+            method=infer_retrieval_method(payload),
         )
     return normalize_rag_payload(payload)
 

@@ -95,3 +95,36 @@ def test_format_rag_context_prefers_section_source_when_available():
     assert "abcdef654321"[-6:] in context
     assert "Crooks sống một mình" in context
 
+
+@pytest.mark.asyncio
+async def test_search_voice_book_context_records_hybrid_retrieval_method():
+    emitted: list[tuple[str, dict]] = []
+    tracer = AgentTurnTracer(
+        enabled=True,
+        thread_id="thread-1",
+        room_name="room-1",
+        emitter=lambda event, payload: emitted.append((event, payload)),
+    )
+
+    async def fake_search(query: str, document_ids: list[str]):
+        return [
+            {
+                "id": 10,
+                "section_id": "section-1",
+                "similarity": 0.82,
+                "retrieval_method": "hybrid",
+                "content": "private source content",
+            }
+        ]
+
+    await search_voice_book_context(
+        "câu hỏi",
+        ["book-1"],
+        search_fn=fake_search,
+        tracer=tracer,
+        input_mode=AgentInputMode.TEXT,
+    )
+
+    retrieval_payload = next(payload for event, payload in emitted if event == "retrieval_completed")
+    assert retrieval_payload["retrieval_method"] == "hybrid"
+

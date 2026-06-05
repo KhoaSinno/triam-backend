@@ -1,6 +1,10 @@
 import uuid
 
-from app.services.book_section_chunker import build_section_chunks, normalize_section_text
+from app.services.book_section_chunker import (
+    build_section_chunks,
+    build_section_search_text,
+    normalize_section_text,
+)
 
 
 def test_normalize_section_text_removes_empty_lines_and_extra_spaces():
@@ -26,6 +30,8 @@ def test_build_section_chunks_adds_stable_section_metadata_and_hashes():
 
     assert chunks
     assert chunks[0].section_id == section_id
+    assert chunks[0].section_title == "Mục 1"
+    assert chunks[0].section_path == "Chương 1 > Mục 1"
     assert chunks[0].content.startswith("[Chương 1 > Mục 1]")
     assert "Book: Sách thử nghiệm" in chunks[0].embedding_text
     assert "Author: Tác giả A" in chunks[0].embedding_text
@@ -44,6 +50,18 @@ def test_build_section_chunks_adds_stable_section_metadata_and_hashes():
         embedding_version="section-v1",
     )
     assert [chunk.content_hash for chunk in chunks] == [chunk.content_hash for chunk in same_chunks]
+
+
+def test_build_section_search_text_normalizes_accents_and_metadata():
+    search_text = build_section_search_text(
+        section_path="Chương 4 > Mục 4.1",
+        section_title="Khái niệm SLR",
+        content="Systematic Literature Review là phương pháp tổng hợp tài liệu.",
+    )
+
+    assert "chuong 4 muc 4.1" in search_text
+    assert "khai niem slr" in search_text
+    assert "systematic literature review" in search_text
 
 
 def test_build_section_chunks_skips_empty_text():

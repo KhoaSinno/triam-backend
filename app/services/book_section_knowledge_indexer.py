@@ -12,8 +12,10 @@ from app.repositories.book_section_knowledge_repo import (
     bulk_create_section_knowledge,
     delete_section_knowledge,
     list_section_hashes,
+    list_section_knowledge_rows_for_search_text,
+    update_section_knowledge_search_text,
 )
-from app.services.book_section_chunker import SectionChunk, build_section_chunks
+from app.services.book_section_chunker import SectionChunk, build_section_chunks, build_section_search_text
 
 
 class SectionEmbeddingProvider(Protocol):
@@ -40,6 +42,12 @@ class BookSectionIndexResult:
     chunks_created: int
 
 
+@dataclass(frozen=True)
+class BookSectionSearchTextBackfillResult:
+    book_id: uuid.UUID
+    updated_rows: int
+
+
 def _build_records(
     *,
     book_id: uuid.UUID,
@@ -52,6 +60,11 @@ def _build_records(
             section_id=chunk.section_id,
             chunk_index=chunk.chunk_index,
             content=chunk.content,
+            search_text=build_section_search_text(
+                section_path=chunk.section_path,
+                section_title=chunk.section_title,
+                content=chunk.content,
+            ),
             content_hash=chunk.content_hash,
             embedding_model=settings.BOOK_SECTION_EMBEDDING_MODEL,
             embedding_version=settings.BOOK_SECTION_EMBEDDING_VERSION,
@@ -154,3 +167,21 @@ async def index_book_sections(
         skipped_sections=skipped_sections,
         chunks_created=chunks_created,
     )
+
+
+def backfill_book_section_search_text(session: Session, *, book_id: uuid.UUID) -> BookSectionSearchTextBackfillResult:
+    rows = list_section_knowledge_rows_for_search_text(session, book_id=book_id)
+    updated_rows = 0
+    for row in rows:
+        next_search_text = build_section_search_text(
+            section_path=row.section_path,
+            section_title=row.section_title,
+            content=row.content,
+        )
+        if row.search_text == next_search_text:
+            continue
+        update_section_knowledge_search_text(session, knowledge_id=row.id, search_text=next_search_text)
+        updated_rows += 1
+    session.commit()
+    log.info(f"BookSectionKnowledge search_text backfill done | book_id={book_id} | updated_rows={updated_rows}")
+    return BookSectionSearchTextBackfillResult(book_id=book_id, updated_rows=updated_rows)

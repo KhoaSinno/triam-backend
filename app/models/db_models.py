@@ -346,6 +346,7 @@ class BookSectionKnowledge(SQLModel, table=True):
     section_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("book_sections.id", ondelete="CASCADE"), index=True, nullable=False))
     chunk_index: int = Field(sa_column=Column(Integer, nullable=False))
     content: str = Field(sa_column=Column(Text, nullable=False))
+    search_text: str = Field(default="", sa_column=Column(Text, nullable=False, server_default=""))
     content_hash: str = Field(sa_column=Column(Text, nullable=False))
     embedding_model: str = Field(sa_column=Column(Text, nullable=False))
     embedding_version: str = Field(sa_column=Column(Text, nullable=False))

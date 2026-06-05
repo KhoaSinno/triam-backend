@@ -5,12 +5,16 @@ from dataclasses import dataclass
 
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 
+from app.services.agent_grounding.query_normalizer import normalized_key
+
 _WHITESPACE_RE = re.compile(r"[ \t\r\f\v]+")
 
 
 @dataclass(frozen=True)
 class SectionChunk:
     section_id: uuid.UUID
+    section_title: str
+    section_path: str
     chunk_index: int
     content: str
     embedding_text: str
@@ -24,6 +28,10 @@ def normalize_section_text(text: str | None) -> str:
     lines = [_WHITESPACE_RE.sub(" ", line).strip() for line in text.splitlines()]
     compact_lines = [line for line in lines if line]
     return "\n".join(compact_lines).strip()
+
+
+def build_section_search_text(*, section_path: str, section_title: str, content: str) -> str:
+    return normalized_key(f"{section_path} {section_title} {content}")
 
 
 def build_section_chunks(
@@ -66,6 +74,8 @@ def build_section_chunks(
         chunks.append(
             SectionChunk(
                 section_id=section_id,
+                section_title=section_title,
+                section_path=section_path,
                 chunk_index=index,
                 content=content,
                 embedding_text=embedding_text,

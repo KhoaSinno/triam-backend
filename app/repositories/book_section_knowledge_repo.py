@@ -1,9 +1,19 @@
 import uuid
+from dataclasses import dataclass
 
-from sqlalchemy import delete, func
+from sqlalchemy import delete, func, update
 from sqlmodel import Session, col, select
 
 from app.models.db_models import BookSection, BookSectionKnowledge
+
+
+@dataclass(frozen=True)
+class SectionKnowledgeSearchTextRow:
+    id: int
+    section_path: str
+    section_title: str
+    content: str
+    search_text: str
 
 
 def bulk_create_section_knowledge(session: Session, records: list[BookSectionKnowledge]) -> None:
@@ -69,4 +79,42 @@ def count_indexable_sections(session: Session, *, book_id: uuid.UUID) -> int:
             )
         ).one()
         or 0
+    )
+
+
+def list_section_knowledge_rows_for_search_text(
+    session: Session,
+    *,
+    book_id: uuid.UUID,
+) -> list[SectionKnowledgeSearchTextRow]:
+    rows = session.exec(
+        select(
+            BookSectionKnowledge.id,
+            BookSection.path,
+            BookSection.title,
+            BookSectionKnowledge.content,
+            BookSectionKnowledge.search_text,
+        )
+        .join(BookSection, BookSection.id == BookSectionKnowledge.section_id)
+        .where(BookSectionKnowledge.book_id == book_id)
+        .order_by(col(BookSection.section_index), col(BookSectionKnowledge.chunk_index))
+    ).all()
+    return [
+        SectionKnowledgeSearchTextRow(
+            id=row[0],
+            section_path=row[1],
+            section_title=row[2],
+            content=row[3],
+            search_text=row[4],
+        )
+        for row in rows
+        if row[0] is not None
+    ]
+
+
+def update_section_knowledge_search_text(session: Session, *, knowledge_id: int, search_text: str) -> None:
+    session.exec(
+        update(BookSectionKnowledge)
+        .where(BookSectionKnowledge.id == knowledge_id)
+        .values(search_text=search_text)
     )
