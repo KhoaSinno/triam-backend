@@ -27,7 +27,7 @@
     "id": "mice-section-count-vi-text",
     "input_mode": "text",
     "question": "Quyển sách này có bao nhiêu phần chính?",
-    "expected_intent": "book_metadata.section_count",
+    "expected_intent": "book_metadata.root_section_count",
     "expected_answer_source": "book_metadata",
     "expected_section_paths": [],
     "must_include": ["6"],

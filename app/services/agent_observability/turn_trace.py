@@ -140,6 +140,26 @@ class AgentTurnTracer:
         trace.stage_latency_ms["retrieval"] = max(0, elapsed_ms)
         self._emit_safe("retrieval_completed", self._summary(trace))
 
+    def record_grounding_decision(
+        self,
+        input_mode: AgentInputMode,
+        *,
+        intent: str,
+        route: str,
+        reason_code: str,
+        resolved_book_ids: list[str],
+        resolved_section_ids: list[str],
+    ) -> None:
+        trace = self._get_or_begin(input_mode)
+        if trace is None:
+            return
+        trace.detected_intent = intent
+        trace.grounding_route = route
+        trace.grounding_reason_code = reason_code
+        trace.resolved_book_ids = list(dict.fromkeys(resolved_book_ids))
+        trace.resolved_section_ids = list(dict.fromkeys(resolved_section_ids))
+        self._emit_safe("grounding_resolved", self._summary(trace))
+
     def record_latency(self, input_mode: AgentInputMode, stage: str, elapsed_ms: int) -> None:
         trace = self._get_or_begin(input_mode)
         if trace is not None:
@@ -205,6 +225,8 @@ class AgentTurnTracer:
             "transcript_char_count": trace.transcript_char_count,
             "detected_language": trace.detected_language,
             "detected_intent": trace.detected_intent,
+            "grounding_route": trace.grounding_route,
+            "grounding_reason_code": trace.grounding_reason_code,
             "resolved_book_ids": trace.resolved_book_ids,
             "resolved_section_ids": trace.resolved_section_ids,
             "retrieval_method": trace.retrieval_method,

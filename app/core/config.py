@@ -39,6 +39,9 @@ class Settings(BaseSettings):
     LIVEKIT_API_KEY: str
     LIVEKIT_API_SECRET: str
     LIVEKIT_AGENT_NAME: str
+    LIVEKIT_ROOM_EMPTY_TIMEOUT_SECONDS: int = 60
+    LIVEKIT_ROOM_DEPARTURE_TIMEOUT_SECONDS: int = 20
+    LIVEKIT_AGENT_EMPTY_ROOM_GRACE_SECONDS: float = 8.0
     GEMINI_MODEL_NATIVE_AUDIO: str = "gemini-2.5-flash-native-audio-latest"
     GEMINI_MODEL_LLM: str = "gemini-2.5-flash"
     DEEPGRAM_API_KEY: str
@@ -71,6 +74,8 @@ class Settings(BaseSettings):
     AGENT_TRACE_ENABLED: bool = True
     AGENT_TRACE_SCORE_PRECISION: int = 4
     AGENT_TRACE_LATE_TRANSCRIPT_WINDOW_SECONDS: float = 15.0
+    AGENT_GROUNDING_ROUTER_ENABLED: bool = True
+    AGENT_SECTION_CONTEXT_MAX_CHARS: int = 24000
 
     # Upload file
     MAX_FILE_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB

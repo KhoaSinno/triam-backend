@@ -30,6 +30,9 @@ from openai.types.realtime import AudioTranscription
 
 from app.core.config import settings
 from app.core.logger import log
+from app.repositories.agent_grounding_repo import load_grounding_scope, load_scoped_section_texts
+from app.services.agent_grounding import GroundingResult, GroundingRoute, GroundingRouter
+from app.services.agent_grounding.response_renderer import format_grounding_tool_result
 from app.services.agent_observability import AgentAnswerSource, AgentInputMode, AgentTurnTracer
 from app.services.voice_agent.contracts import LK_CHAT_TOPIC, LK_CONTROL_TOPIC, VoiceJobMetadata
 from app.services.voice_agent.rag_context import format_rag_context, search_voice_book_context, trim_text
@@ -53,7 +56,11 @@ Core rules:
 
 Tool rules:
 - For any question about book content, concepts, chapters, learning topics, or study context, ALWAYS call `search_book_knowledge` first.
-- If book context is missing or weak, call `ask_web_search_permission` exactly once.
+- Treat `BOOK_METADATA_FOUND` as authoritative database metadata.
+- Treat `BOOK_SECTION_FOUND` as the only source for the requested section.
+- If the tool returns `CLARIFICATION_REQUIRED`, read the clarification and stop.
+- Never request web search for `CLARIFICATION_REQUIRED` or a resolved book section.
+- If the tool returns `EXTERNAL_INFO_REQUIRED` or `BOOK_CONTEXT_NOT_FOUND`, call `ask_web_search_permission` exactly once.
 - Read the returned question, then stop and wait for the user.
 - Do not ask web-search permission in your own words. Always use `ask_web_search_permission` so the backend can track the pending request.
 - After the user clearly agrees, call `execute_web_search` once for the pending query and answer from the result.
@@ -73,12 +80,28 @@ System facts:
 
 Tool rules:
 - For book-content questions, call `search_book_knowledge_text` first.
+- Treat `BOOK_METADATA_FOUND` and `BOOK_SECTION_FOUND` as authoritative.
+- If a tool returns `CLARIFICATION_REQUIRED`, ask that clarification and stop.
+- If a tool returns `EXTERNAL_INFO_REQUIRED`, call `ask_web_search_permission_text`.
 - For prices, news, recent events, or out-of-book facts, call `ask_web_search_permission_text` before any web search.
 - If `search_book_knowledge_text` returns `BOOK_CONTEXT_NOT_FOUND`, call `ask_web_search_permission_text`.
 - Call `execute_web_search_text` only after the user granted permission in the previous turn.
 - If a tool returns `WEB_SEARCH_PERMISSION_REQUIRED` or `WEB_SEARCH_PERMISSION_UNCLEAR`, ask permission and stop.
 - If a tool returns `WEB_SEARCH_PERMISSION_DENIED`, do not search the web.
 - Answer in Vietnamese only, 2-3 short sentences, no Markdown, no emoji.
+""".strip()
+
+SECTION_TEXT_ANSWER_INSTRUCTIONS = """
+Answer the user's question in Vietnamese using only SECTION_CONTEXT below.
+Do not use model memory, other chapters, or web search.
+For a summary or "what happens" question, cover the major events or ideas across
+the beginning, middle, and ending of the entire available section context.
+Do not stop after describing only the opening excerpt.
+Keep the answer factual and concise, normally 3-5 sentences.
+If the context says it was truncated, state that the answer is based on the available excerpt.
+
+SECTION_CONTEXT:
+{section_context}
 """.strip()
 
 
@@ -209,11 +232,13 @@ class TriamAssistant(Agent):
         document_ids: list[str],
         web_search_policy: WebSearchPermissionPolicy,
         tracer: AgentTurnTracer,
+        grounding_router: GroundingRouter | None = None,
     ) -> None:
         super().__init__(instructions=VOICE_AGENT_INSTRUCTIONS)
         self.document_ids = document_ids
         self.web_search_policy = web_search_policy
         self.tracer = tracer
+        self.grounding_router = grounding_router
         self._web_search_lock = asyncio.Lock()
         self._cached_web_query: str | None = None
         self._cached_web_result: str | None = None
@@ -248,19 +273,31 @@ class TriamAssistant(Agent):
         Hệ thống tự động giới hạn tìm kiếm trong tài liệu User đã chọn.
         """
         self.tracer.record_tool(AgentInputMode.VOICE, "search_book_knowledge")
+        return await self.resolve_book_query(query, AgentInputMode.VOICE)
+
+    async def resolve_book_query(self, query: str, input_mode: AgentInputMode) -> str:
+        if self.grounding_router is not None:
+            grounding_result = await self.grounding_router.resolve(
+                query,
+                input_mode=input_mode,
+                tracer=self.tracer,
+            )
+            if grounding_result.decision.route != GroundingRoute.BOOK_RAG:
+                return format_grounding_tool_result(grounding_result)
+
         try:
             result = await search_voice_book_context(
                 query,
                 self.document_ids,
                 tracer=self.tracer,
-                input_mode=AgentInputMode.VOICE,
+                input_mode=input_mode,
             )
             if result.found:
-                self.tracer.record_answer_source(AgentInputMode.VOICE, AgentAnswerSource.BOOK_RAG)
+                self.tracer.record_answer_source(input_mode, AgentAnswerSource.BOOK_RAG)
             return format_rag_context(result)
         except Exception as e:
-            self.tracer.record_error(AgentInputMode.VOICE, "voice_rag_search_error")
-            log.warning(f"Voice RAG search failed | document_count={len(self.document_ids)} | error={e}")
+            self.tracer.record_error(input_mode, "book_rag_search_error")
+            log.warning(f"Book RAG search failed | input_mode={input_mode.value} | document_count={len(self.document_ids)} | error_type={type(e).__name__}")
             return "BOOK_CONTEXT_ERROR: Không thể tìm kiếm dữ liệu trong sách lúc này."
 
     @function_tool
@@ -367,10 +404,39 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         score_precision=settings.AGENT_TRACE_SCORE_PRECISION,
         late_transcript_window_seconds=settings.AGENT_TRACE_LATE_TRANSCRIPT_WINDOW_SECONDS,
     )
+
+    grounding_router: GroundingRouter | None = None
+    if settings.AGENT_GROUNDING_ROUTER_ENABLED:
+        try:
+            grounding_started = time.perf_counter()
+            grounding_scope = await asyncio.to_thread(load_grounding_scope, document_ids)
+
+            async def _load_section_texts(book_id: uuid.UUID, section_ids: tuple[uuid.UUID, ...]):
+                return await asyncio.to_thread(
+                    load_scoped_section_texts,
+                    book_id,
+                    section_ids,
+                    grounding_scope.allowed_book_ids,
+                )
+
+            grounding_router = GroundingRouter(
+                grounding_scope,
+                _load_section_texts,
+                section_context_max_chars=settings.AGENT_SECTION_CONTEXT_MAX_CHARS,
+            )
+            log.info(
+                "Grounding router ready | "
+                f"books={len(grounding_scope.books)} | sections={len(grounding_scope.sections)} | "
+                f"load_ms={int((time.perf_counter() - grounding_started) * 1000)}"
+            )
+        except Exception as exc:
+            log.warning(f"Grounding router initialization failed; using legacy RAG flow | error_type={type(exc).__name__}")
+
     agent_instance = TriamAssistant(
         document_ids=document_ids,
         web_search_policy=web_search_policy,
         tracer=tracer,
+        grounding_router=grounding_router,
     )
     chat_llm = OpenAILLM(model=settings.VOICE_AGENT_TEXT_LLM_MODEL, temperature=0.7)
     transcript_store = VoiceTranscriptStore(
@@ -428,6 +494,41 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         response = await chat_llm.chat(chat_ctx=temp_ctx).collect()
         return response.text
 
+    async def _chat_from_grounding_result(result: GroundingResult, user_text: str) -> str:
+        route = result.decision.route
+        if route == GroundingRoute.BOOK_METADATA:
+            return result.deterministic_answer or "Tôi chưa có thông tin metadata phù hợp."
+        if route == GroundingRoute.CLARIFICATION:
+            return result.decision.clarification or "Bạn vui lòng nói rõ câu hỏi."
+        if route == GroundingRoute.BOOK_SECTION:
+            if result.deterministic_answer:
+                return result.deterministic_answer
+            temp_ctx = session.history.copy()
+            temp_ctx.add_message(
+                role="system",
+                content=SECTION_TEXT_ANSWER_INSTRUCTIONS.format(section_context=result.section_context or ""),
+            )
+            response = await chat_llm.chat(chat_ctx=temp_ctx).collect()
+            return response.text
+        if route == GroundingRoute.WEB_POLICY:
+            tracer.record_answer_source(AgentInputMode.TEXT, AgentAnswerSource.POLICY)
+            if web_search_policy.enabled:
+                return web_search_policy.request_permission(user_text)
+            return "Câu hỏi này cần thông tin ngoài sách, nhưng tìm kiếm internet hiện đang tắt."
+        raise ValueError(f"Unsupported direct grounding route: {route}")
+
+    async def _try_chat_grounding_route(user_text: str) -> tuple[bool, str]:
+        if grounding_router is None:
+            return False, ""
+        result = await grounding_router.resolve(
+            user_text,
+            input_mode=AgentInputMode.TEXT,
+            tracer=tracer,
+        )
+        if result.decision.route == GroundingRoute.BOOK_RAG:
+            return False, ""
+        return True, await _chat_from_grounding_result(result, user_text)
+
     async def _chat_with_agentic_loop(user_text: str) -> str:
         """
         Chế độ Agentic (toggle BẬT): gpt-4o-mini tự quyết định dùng tool nào.
@@ -442,15 +543,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         async def search_book_knowledge_text(query: Annotated[str, "Câu hỏi hoặc nội dung cần tìm trong sách"]) -> str:
             """Tìm kiếm kiến thức trong sách thuộc Study Context hiện tại."""
             tracer.record_tool(AgentInputMode.TEXT, "search_book_knowledge_text")
-            result = await search_voice_book_context(
-                query,
-                document_ids,
-                tracer=tracer,
-                input_mode=AgentInputMode.TEXT,
-            )
-            if result.found:
-                tracer.record_answer_source(AgentInputMode.TEXT, AgentAnswerSource.BOOK_RAG)
-            return format_rag_context(result)
+            return await agent_instance.resolve_book_query(query, AgentInputMode.TEXT)
 
         async def ask_web_search_permission_text(query: Annotated[str, "Nội dung dự kiến sẽ tìm trên web nếu user đồng ý"]) -> str:
             """Xin phép user trước khi tìm kiếm internet."""
@@ -566,6 +659,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             _truncate_session_history()
 
             try:
+                handled_by_grounding = False
                 if permission_decision.granted_query:
                     full_reply = await _chat_with_granted_web_search(permission_decision.granted_query)
                 elif permission_decision.denied:
@@ -574,14 +668,11 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 elif permission_decision.unclear:
                     tracer.record_answer_source(AgentInputMode.TEXT, AgentAnswerSource.CLARIFICATION)
                     full_reply = "Tôi chưa rõ ý ông. Bạn muốn tôi tìm thêm trên internet cho câu vừa rồi không?"
-                # Phân nhánh dựa theo web search policy từ lk.control.
-                elif web_search_policy.enabled:
-                    started = time.perf_counter()
-                    full_reply = await _chat_with_agentic_loop(normalized_text)
-                    tracer.record_latency(AgentInputMode.TEXT, "answer_pipeline", int((time.perf_counter() - started) * 1000))
                 else:
                     started = time.perf_counter()
-                    full_reply = await _chat_naive_rag(normalized_text)
+                    handled_by_grounding, full_reply = await _try_chat_grounding_route(normalized_text)
+                    if not handled_by_grounding:
+                        full_reply = await _chat_with_agentic_loop(normalized_text) if web_search_policy.enabled else await _chat_naive_rag(normalized_text)
                     tracer.record_latency(AgentInputMode.TEXT, "answer_pipeline", int((time.perf_counter() - started) * 1000))
 
                 full_reply = full_reply.strip()
@@ -620,12 +711,74 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 log.info("lk.control: payload không phải JSON hợp lệ")
             return
 
+
         # --- Kênh chat thông thường ---
         if packet.topic == LK_CHAT_TOPIC:
             participant_id = packet.participant.identity if packet.participant else None
             asyncio.create_task(handle_data_input(raw, participant_id))
 
     ctx.room.on("data_received", on_data_received)
+
+    session: AgentSession | None = None
+    empty_room_cleanup_task: asyncio.Task[None] | None = None
+
+    def _remote_participant_identities(exclude_identity: str | None = None) -> list[str]:
+        return [
+            participant.identity
+            for participant in ctx.room.remote_participants.values()
+            if participant.identity != exclude_identity
+        ]
+
+    async def _close_empty_room_after_grace() -> None:
+        try:
+            await asyncio.sleep(settings.LIVEKIT_AGENT_EMPTY_ROOM_GRACE_SECONDS)
+            remaining = _remote_participant_identities()
+            if remaining:
+                log.info(f"Empty-room cleanup skipped | remaining_remote_participants={len(remaining)}")
+                return
+
+            log.info("No remote participants after grace period. Closing agent session and room.")
+            if session is not None:
+                await session.aclose()
+            if ctx.room.isconnected():
+                await ctx.room.disconnect()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            log.warning(f"Empty-room cleanup failed | error_type={type(exc).__name__}")
+
+    @ctx.room.on("participant_connected")
+    def on_participant_connected(participant: rtc.RemoteParticipant):
+        nonlocal empty_room_cleanup_task
+        if empty_room_cleanup_task and not empty_room_cleanup_task.done():
+            empty_room_cleanup_task.cancel()
+            log.info(f"Empty-room cleanup cancelled | participant={participant.identity}")
+
+    @ctx.room.on("participant_disconnected")
+    def on_participant_disconnected(participant: rtc.RemoteParticipant):
+        nonlocal empty_room_cleanup_task
+        log.info(f"Participant disconnected: {participant.identity}")
+        active_remotes = _remote_participant_identities(exclude_identity=participant.identity)
+        log.info(f"Active remote participants remaining: {len(active_remotes)}")
+        if active_remotes:
+            return
+        if empty_room_cleanup_task and not empty_room_cleanup_task.done():
+            return
+        log.info(
+            "No remote participants left. Scheduling agent cleanup "
+            f"after {settings.LIVEKIT_AGENT_EMPTY_ROOM_GRACE_SECONDS}s grace period."
+        )
+        empty_room_cleanup_task = asyncio.create_task(_close_empty_room_after_grace())
+
+    async def _cancel_empty_room_cleanup() -> None:
+        if empty_room_cleanup_task and not empty_room_cleanup_task.done():
+            empty_room_cleanup_task.cancel()
+            try:
+                await empty_room_cleanup_task
+            except asyncio.CancelledError:
+                pass
+
+    ctx.add_shutdown_callback(_cancel_empty_room_cleanup)
 
     def _handle_user_input_transcribed(ev: Any) -> None:
         is_final = bool(getattr(ev, "is_final", False))
@@ -736,6 +889,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                         ),
                     ),
                     close_on_disconnect=True,
+                    delete_room_on_close=True,
                 ),
             )
 

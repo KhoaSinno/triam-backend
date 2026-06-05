@@ -328,16 +328,24 @@ Tình huống:
 
 - Mạng rớt → room disconnect.
 
-Khuyến nghị:
+Rule mới sau hardening LiveKit lifecycle:
 
-1. UI chuyển trạng thái “Reconnecting…”
-2. Disconnect room cũ (nếu cần)
-3. Call lại `GET /live-token/thread/{thread_id}` để lấy token mới
-4. Connect lại room
+1. Mỗi màn voice/chat chỉ được có **một connect attempt** đang chạy.
+2. Không append lỗi kết nối thành nhiều chat bubble. Chỉ hiển thị một trạng thái lỗi/retry ở UI.
+3. Khi LiveKit SDK đang reconnect nội bộ, FE không gọi lại `/live-token/thread/{thread_id}`.
+4. Chỉ lấy token mới khi:
+   - user chủ động bắt đầu phiên mới;
+   - token hết hạn;
+   - SDK báo reconnect thất bại hoàn toàn;
+   - user bấm retry sau khi state machine đã về trạng thái failed.
+5. Retry phải dùng exponential backoff và phải hủy timer retry cũ trước khi tạo timer mới.
+6. Khi rời màn hình, FE phải gọi `room.disconnect()` và dispose toàn bộ listener/timer.
 
 Lưu ý:
 
-- Token identity hiện random; reconnect sẽ tạo identity mới → đừng phụ thuộc identity cho persistence UI.
+- Backend hiện tạo `room_name` mới khi cấp token mới. Vì vậy nếu FE gọi token mới trong vòng retry liên tục, hệ thống sẽ tạo nhiều room LiveKit và dispatch nhiều agent không cần thiết.
+- Token identity hiện random; đừng phụ thuộc identity cho persistence UI.
+- Persistence UI phải dựa vào `thread_id`, transcript `id`, và message history từ backend.
 
 ---
 

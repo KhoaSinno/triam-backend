@@ -33,6 +33,8 @@ class AgentTurnTrace:
     transcript_char_count: int = 0
     detected_language: str | None = None
     detected_intent: str | None = None
+    grounding_route: str | None = None
+    grounding_reason_code: str | None = None
     resolved_book_ids: list[str] = field(default_factory=list)
     resolved_section_ids: list[str] = field(default_factory=list)
     retrieval_method: str | None = None

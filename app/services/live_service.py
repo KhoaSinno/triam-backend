@@ -17,7 +17,11 @@ def _build_livekit_token(room_name: str, metadata: dict) -> dict:
         agent_name=settings.LIVEKIT_AGENT_NAME,
         metadata=json.dumps(metadata),
     )
-    room_config = api.RoomConfiguration(agents=[agent_dispatch])
+    room_config = api.RoomConfiguration(
+        agents=[agent_dispatch],
+        empty_timeout=settings.LIVEKIT_ROOM_EMPTY_TIMEOUT_SECONDS,
+        departure_timeout=settings.LIVEKIT_ROOM_DEPARTURE_TIMEOUT_SECONDS,
+    )
 
     token = (
         api.AccessToken(settings.LIVEKIT_API_KEY, settings.LIVEKIT_API_SECRET)

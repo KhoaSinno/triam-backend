@@ -1,9 +1,24 @@
 # Phase 10.1 Implementation Guide - Deterministic Metadata And Section Router
 
 Date: 2026-06-04  
-Status: Proposed, not implemented  
+Status: Implemented and verified locally; known realtime voice orchestration trade-offs deferred
 Depends on: Phase 5 document structure, Phase 7 realtime stabilization, Phase 10.0 evaluation baseline  
 Primary scope: book-grounded text chat and realtime voice
+
+Implementation result:
+
+- Added a shared deterministic grounding router for metadata, explicit sections, clarification, semantic RAG fallback, and external-information policy.
+- Added scoped repository reads for allowed books and canonical `BookSection` content.
+- Integrated the router directly into typed chat and into the realtime voice `search_book_knowledge` tool.
+- Extended safe agent traces with grounding route and reason code.
+- Preserved the existing Flutter DataChannel contract and required no database migration.
+- Verified by unit, full regression, real typed-chat, and supervised realtime voice evaluation.
+
+Detailed result:
+
+```text
+_docs_implemented/phase_10_1_deterministic_metadata_section_router_test_report.md
+```
 
 ---
 
