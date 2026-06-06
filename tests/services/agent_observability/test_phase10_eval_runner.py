@@ -1,10 +1,18 @@
 import json
 import wave
+from argparse import Namespace
+
+import pytest
 
 from scripts.manual_integration.phase10_agent_eval import (
     access_token_passed_via_cli,
+    case_isolation_quality,
+    eval_thread_ids,
+    evaluate_case,
     inspect_wav_fixture,
+    load_case_thread_map,
     read_trace_events,
+    validate_voice_isolation_args,
 )
 
 
@@ -107,3 +115,128 @@ def test_inspect_wav_fixture_returns_safe_metadata(tmp_path):
     assert metadata["channels"] == 1
     assert metadata["sample_width_bytes"] == 2
     assert metadata["duration_ms"] == 100
+
+
+def test_load_case_thread_map_validates_uuid_values(tmp_path):
+    map_path = tmp_path / "case_threads.json"
+    map_path.write_text(json.dumps({"voice-case": "11111111-1111-1111-1111-111111111111"}), encoding="utf-8")
+
+    mapping = load_case_thread_map(str(map_path))
+
+    assert mapping == {"voice-case": "11111111-1111-1111-1111-111111111111"}
+
+
+def test_load_case_thread_map_rejects_invalid_uuid(tmp_path):
+    map_path = tmp_path / "case_threads.json"
+    map_path.write_text(json.dumps({"voice-case": "not-a-uuid"}), encoding="utf-8")
+
+    with pytest.raises(ValueError, match="invalid thread_id"):
+        load_case_thread_map(str(map_path))
+
+
+def test_case_thread_strategy_requires_isolated_voice_cases():
+    args = Namespace(
+        isolate_voice_cases=False,
+        voice_isolation_strategy="case_thread_new_room",
+        thread_id="00000000-0000-0000-0000-000000000000",
+    )
+    cases = [{"id": "voice-case", "input_mode": "voice"}]
+
+    with pytest.raises(ValueError, match="requires --isolate-voice-cases"):
+        validate_voice_isolation_args(args, cases, {"voice-case": "11111111-1111-1111-1111-111111111111"})
+
+
+def test_case_thread_strategy_requires_map_entry_for_each_voice_case():
+    args = Namespace(
+        isolate_voice_cases=True,
+        voice_isolation_strategy="case_thread_new_room",
+        thread_id="00000000-0000-0000-0000-000000000000",
+    )
+    cases = [{"id": "voice-case", "input_mode": "voice"}]
+
+    with pytest.raises(ValueError, match="Missing case thread ids"):
+        validate_voice_isolation_args(args, cases, {})
+
+
+def test_eval_thread_ids_include_case_thread_map_values():
+    args = Namespace(
+        voice_isolation_strategy="case_thread_new_room",
+        thread_id="00000000-0000-0000-0000-000000000000",
+    )
+    cases = [
+        {"id": "text-case", "input_mode": "text"},
+        {"id": "voice-case", "input_mode": "voice"},
+    ]
+
+    thread_ids = eval_thread_ids(cases, args, {"voice-case": "11111111-1111-1111-1111-111111111111"})
+
+    assert thread_ids == [
+        "00000000-0000-0000-0000-000000000000",
+        "11111111-1111-1111-1111-111111111111",
+    ]
+
+
+def test_case_isolation_quality_reports_room_only_for_shared_thread_reconnect():
+    args = Namespace(isolate_voice_cases=True, voice_isolation_strategy="shared_thread_new_room")
+
+    assert case_isolation_quality({"input_mode": "voice"}, args) == "room_only"
+    assert case_isolation_quality({"input_mode": "text"}, args) == "not_applicable"
+
+
+def test_evaluate_case_accepts_clarification_source_as_clarification_intent():
+    result = evaluate_case(
+        {
+            "id": "ambiguous",
+            "input_mode": "voice",
+            "expected_intent": "clarification_required",
+            "expected_answer_source": "clarification",
+            "expected_section_paths": [],
+            "must_include": [],
+            "must_not_include": [],
+            "web_search_allowed": False,
+        },
+        response_text="Bạn muốn tóm tắt chương nào?",
+        user_transcript="Tóm tắt chương",
+        trace={
+            "detected_intent": None,
+            "answer_source": "clarification",
+            "resolved_section_ids": [],
+            "retrieval_section_ids": [],
+        },
+        section_id_by_path={},
+        include_text_preview=False,
+    )
+
+    assert result["status"] == "passed"
+    assert result["checks"]["expected_intent"] is True
+    assert result["checks"]["expected_answer_source"] is True
+
+
+def test_evaluate_case_marks_minor_stt_warning_without_failing_semantic_success():
+    result = evaluate_case(
+        {
+            "id": "author",
+            "input_mode": "voice",
+            "expected_intent": "book_metadata.author",
+            "expected_answer_source": "book_metadata",
+            "expected_section_paths": [],
+            "transcript_must_include_any": ["tác giả"],
+            "must_include": ["John Steinbeck"],
+            "must_not_include": [],
+            "web_search_allowed": False,
+        },
+        response_text="Tác giả là John Steinbeck.",
+        user_transcript="Giả của quyển sách là ai?",
+        trace={
+            "detected_intent": "book_metadata.author",
+            "answer_source": "book_metadata",
+            "resolved_section_ids": [],
+            "retrieval_section_ids": [],
+        },
+        section_id_by_path={},
+        include_text_preview=False,
+    )
+
+    assert result["status"] == "passed"
+    assert result["checks"]["voice_transcript_meaning"] is False
+    assert result["warnings"] == ["INPUT_STT_MINOR"]

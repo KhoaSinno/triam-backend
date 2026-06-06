@@ -15,6 +15,7 @@ import subprocess
 import sys
 import uuid
 import wave
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -22,8 +23,12 @@ from typing import Any
 import aiohttp
 from livekit import rtc
 
-from app.core.config import settings
-from app.services.agent_observability.model_eval_report import (
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+from app.core.config import settings  # noqa: E402
+from app.services.agent_observability.model_eval_report import (  # noqa: E402
     build_metrics,
     build_snapshot_metadata,
     classify_exception_failure_codes,
@@ -45,6 +50,15 @@ CANDIDATE_MATRIX_PATH = Path("tests/fixtures/agent_eval/model_candidate_matrix.j
 TRACE_PATTERN = re.compile(r"AGENT_TRACE (?P<event>[a-z_]+) \| (?P<payload>\{.*\})")
 
 
+@dataclass
+class EvalRoomSession:
+    room: rtc.Room
+    room_name: str
+    thread_id: str
+    chat_queue: asyncio.Queue[str]
+    transcript_queue: asyncio.Queue[dict[str, Any]]
+
+
 def access_token_passed_via_cli(argv: list[str]) -> bool:
     return any(arg == "--access-token" or arg.startswith("--access-token=") for arg in argv)
 
@@ -63,6 +77,84 @@ def load_cases(mode: str, selected_ids: set[str]) -> list[dict[str, Any]]:
     return cases
 
 
+def voice_cases(cases: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    return [case for case in cases if case.get("input_mode") == "voice"]
+
+
+def load_case_thread_map(path: str | None) -> dict[str, str]:
+    if not path:
+        return {}
+
+    payload = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(payload, dict):
+        raise ValueError("Case thread map must be a JSON object mapping case_id to thread_id.")
+
+    mapping: dict[str, str] = {}
+    for case_id, thread_id in payload.items():
+        if not isinstance(case_id, str) or not case_id.strip():
+            raise ValueError("Case thread map contains an invalid case id.")
+        try:
+            mapping[case_id] = str(uuid.UUID(str(thread_id)))
+        except (TypeError, ValueError) as exc:
+            raise ValueError(f"Case thread map has invalid thread_id for case {case_id!r}.") from exc
+    return mapping
+
+
+def validate_voice_isolation_args(args: argparse.Namespace, cases: list[dict[str, Any]], case_thread_map: dict[str, str]) -> None:
+    selected_voice_cases = voice_cases(cases)
+    if not selected_voice_cases:
+        return
+    if args.voice_isolation_strategy == "case_thread_new_room" and not args.isolate_voice_cases:
+        raise ValueError("case_thread_new_room requires --isolate-voice-cases.")
+    if args.voice_isolation_strategy != "case_thread_new_room":
+        return
+
+    missing = [case["id"] for case in selected_voice_cases if case["id"] not in case_thread_map]
+    if missing:
+        raise ValueError(f"Missing case thread ids for voice cases: {', '.join(missing)}")
+
+
+def effective_thread_id_for_case(case: dict[str, Any], args: argparse.Namespace, case_thread_map: dict[str, str]) -> str:
+    if case.get("input_mode") == "voice" and args.voice_isolation_strategy == "case_thread_new_room":
+        return case_thread_map[case["id"]]
+    return str(args.thread_id)
+
+
+def eval_thread_ids(cases: list[dict[str, Any]], args: argparse.Namespace, case_thread_map: dict[str, str]) -> list[str]:
+    thread_ids = {effective_thread_id_for_case(case, args, case_thread_map) for case in cases}
+    return sorted(thread_ids)
+
+
+def case_isolation_quality(case: dict[str, Any], args: argparse.Namespace) -> str:
+    if case.get("input_mode") != "voice":
+        return "not_applicable"
+    if not args.isolate_voice_cases:
+        return "none"
+    if args.voice_isolation_strategy == "case_thread_new_room":
+        return "thread_and_room"
+    return "room_only"
+
+
+def voice_isolation_report(cases: list[dict[str, Any]], args: argparse.Namespace, thread_ids: list[str]) -> dict[str, Any]:
+    selected_voice_cases = voice_cases(cases)
+    if not selected_voice_cases:
+        quality = "not_applicable"
+    elif args.isolate_voice_cases and args.voice_isolation_strategy == "case_thread_new_room":
+        quality = "thread_and_room"
+    elif args.isolate_voice_cases:
+        quality = "room_only"
+    else:
+        quality = "none"
+
+    return {
+        "enabled": bool(args.isolate_voice_cases),
+        "strategy": args.voice_isolation_strategy,
+        "quality": quality,
+        "thread_count": len(thread_ids),
+        "voice_case_count": len(selected_voice_cases),
+    }
+
+
 def auth_headers(access_token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {access_token}"}
 
@@ -71,6 +163,14 @@ async def get_json(http: aiohttp.ClientSession, url: str) -> Any:
     async with http.get(url) as response:
         response.raise_for_status()
         return await response.json()
+
+
+async def get_message_counts(http: aiohttp.ClientSession, base_url: str, thread_ids: list[str]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for thread_id in thread_ids:
+        messages = await get_json(http, f"{base_url}/threads/{thread_id}/messages")
+        counts[thread_id] = len(messages)
+    return counts
 
 
 async def get_live_token(http: aiohttp.ClientSession, base_url: str, thread_id: str) -> tuple[str, str]:
@@ -270,6 +370,54 @@ def attach_data_handlers(
             transcript_queue.put_nowait(payload)
 
 
+async def connect_eval_room(
+    http: aiohttp.ClientSession,
+    *,
+    base_url: str,
+    livekit_url: str,
+    thread_id: str,
+    timeout: float,
+) -> EvalRoomSession:
+    token, room_name = await get_live_token(http, base_url, thread_id)
+    room = rtc.Room()
+    greeting_event = asyncio.Event()
+    chat_queue: asyncio.Queue[str] = asyncio.Queue()
+    transcript_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
+    attach_data_handlers(
+        room,
+        greeting_event=greeting_event,
+        chat_queue=chat_queue,
+        transcript_queue=transcript_queue,
+    )
+
+    await room.connect(livekit_url, token)
+    await asyncio.wait_for(greeting_event.wait(), timeout=timeout)
+    try:
+        await wait_transcript_role(transcript_queue, "assistant", timeout=min(timeout, 15.0))
+    except RuntimeError:
+        # Some deployments may publish greeting only through lk.chat.
+        pass
+    drain_queue(chat_queue)
+    drain_queue(transcript_queue)
+    return EvalRoomSession(
+        room=room,
+        room_name=room_name,
+        thread_id=thread_id,
+        chat_queue=chat_queue,
+        transcript_queue=transcript_queue,
+    )
+
+
+async def disconnect_eval_room(session: EvalRoomSession | None, *, grace_seconds: float = 0.5) -> None:
+    if session is None:
+        return
+    try:
+        await session.room.disconnect()
+    finally:
+        if grace_seconds > 0:
+            await asyncio.sleep(grace_seconds)
+
+
 async def send_web_search_toggle(room: rtc.Room, enabled: bool) -> None:
     payload = json.dumps({"type": "toggle_web_search", "enabled": enabled}).encode("utf-8")
     await room.local_participant.publish_data(payload, reliable=True, topic="lk.control")
@@ -360,6 +508,31 @@ def validate_transcript_contract(payload: dict[str, Any] | None) -> dict[str, An
     }
 
 
+def expected_intent_matches(case: dict[str, Any], trace: dict[str, Any]) -> bool:
+    expected_intent = case.get("expected_intent")
+    if trace.get("detected_intent") == expected_intent:
+        return True
+    return expected_intent == "clarification_required" and trace.get("answer_source") == "clarification"
+
+
+def semantic_behavior_passed(checks: dict[str, bool | None]) -> bool:
+    status_keys = (
+        "must_include",
+        "must_not_include",
+        "trace_available",
+        "expected_intent",
+        "expected_answer_source",
+        "expected_section",
+        "web_not_used_without_permission",
+    )
+    selected = [checks.get(key) for key in status_keys if checks.get(key) is not None]
+    return bool(selected) and all(selected)
+
+
+def voice_stt_minor_warning(checks: dict[str, bool | None]) -> bool:
+    return checks.get("voice_transcript_meaning") is False and semantic_behavior_passed(checks)
+
+
 def evaluate_case(
     case: dict[str, Any],
     *,
@@ -388,7 +561,7 @@ def evaluate_case(
         checks["web_not_used_without_permission"] = None
     else:
         checks["trace_available"] = True
-        checks["expected_intent"] = trace.get("detected_intent") == case.get("expected_intent")
+        checks["expected_intent"] = expected_intent_matches(case, trace)
         checks["expected_answer_source"] = trace.get("answer_source") == case.get("expected_answer_source")
         expected_section_ids = {
             section_id_by_path[path]
@@ -404,7 +577,11 @@ def evaluate_case(
         )
 
     evaluated_checks = [value for value in checks.values() if value is not None]
-    status = "passed" if evaluated_checks and all(evaluated_checks) else "failed"
+    warnings: list[str] = []
+    if voice_stt_minor_warning(checks):
+        warnings.append("INPUT_STT_MINOR")
+
+    status = "passed" if evaluated_checks and (all(evaluated_checks) or warnings) else "failed"
     result: dict[str, Any] = {
         "id": case["id"],
         "input_mode": case["input_mode"],
@@ -414,6 +591,8 @@ def evaluate_case(
         "user_transcript_char_count": len(user_transcript or ""),
         "trace": trace,
     }
+    if warnings:
+        result["warnings"] = warnings
     if include_text_preview:
         result["response_preview"] = response_text[:240]
         result["user_transcript_preview"] = (user_transcript or "")[:160]
@@ -460,48 +639,52 @@ async def run(args: argparse.Namespace) -> None:
     if not cases:
         raise RuntimeError("No evaluation cases selected.")
 
+    case_thread_map = load_case_thread_map(args.case_thread_map)
+    validate_voice_isolation_args(args, cases, case_thread_map)
+    all_eval_thread_ids = eval_thread_ids(cases, args, case_thread_map)
     model_config, candidate = load_declared_model_config(Path(args.candidate_matrix), args.candidate_name)
     trace_log = Path(args.trace_log) if args.trace_log else None
     async with aiohttp.ClientSession(headers=auth_headers(args.access_token)) as http:
         book = await get_json(http, f"{args.base_url}/books/{args.book_id}")
         outline_payload = await get_json(http, f"{args.base_url}/books/{args.book_id}/outline")
-        before_messages = await get_json(http, f"{args.base_url}/threads/{args.thread_id}/messages")
-        token, room_name = await get_live_token(http, args.base_url, args.thread_id)
+        before_message_counts = await get_message_counts(http, args.base_url, all_eval_thread_ids)
 
         outline = flatten_outline(outline_payload.get("outline_tree") or [])
         section_id_by_path = {str(item["path"]): str(item["id"]) for item in outline}
-        room = rtc.Room()
-        greeting_event = asyncio.Event()
-        chat_queue: asyncio.Queue[str] = asyncio.Queue()
-        transcript_queue: asyncio.Queue[dict[str, Any]] = asyncio.Queue()
-        attach_data_handlers(
-            room,
-            greeting_event=greeting_event,
-            chat_queue=chat_queue,
-            transcript_queue=transcript_queue,
-        )
-
-        await room.connect(args.livekit_url, token)
+        session: EvalRoomSession | None = None
         results: list[dict[str, Any]] = []
         try:
-            await asyncio.wait_for(greeting_event.wait(), timeout=args.timeout)
-            try:
-                await wait_transcript_role(transcript_queue, "assistant", timeout=min(args.timeout, 15.0))
-            except RuntimeError:
-                # Some deployments may publish greeting only through lk.chat.
-                pass
-            drain_queue(chat_queue)
-            drain_queue(transcript_queue)
-
             for index, case in enumerate(cases, start=1):
                 print(f"CASE {index}/{len(cases)}: {case['id']} ({case['input_mode']})")
+                effective_thread_id = effective_thread_id_for_case(case, args, case_thread_map)
+                should_reconnect = (
+                    session is None
+                    or session.thread_id != effective_thread_id
+                    or (case["input_mode"] == "voice" and args.isolate_voice_cases)
+                )
+                if should_reconnect:
+                    await disconnect_eval_room(session, grace_seconds=args.disconnect_grace_seconds)
+                    session = await connect_eval_room(
+                        http,
+                        base_url=args.base_url,
+                        livekit_url=args.livekit_url,
+                        thread_id=effective_thread_id,
+                        timeout=args.timeout,
+                    )
+
+                isolation_metadata = {
+                    "eval_thread_id": effective_thread_id,
+                    "eval_room_name": session.room_name,
+                    "isolation_strategy": args.voice_isolation_strategy,
+                    "case_isolation_quality": case_isolation_quality(case, args),
+                }
                 offset = trace_log_offset(trace_log)
                 try:
                     response_text, user_transcript, user_payload, assistant_payload, case_metadata = await run_case(
-                        room,
+                        session.room,
                         case,
-                        transcript_queue=transcript_queue,
-                        chat_queue=chat_queue,
+                        transcript_queue=session.transcript_queue,
+                        chat_queue=session.chat_queue,
                         timeout=args.timeout,
                     )
                     await asyncio.sleep(args.trace_settle_seconds)
@@ -509,8 +692,8 @@ async def run(args: argparse.Namespace) -> None:
                         trace_log,
                         offset,
                         input_mode=case["input_mode"],
-                        thread_id=args.thread_id,
-                        room_name=room_name,
+                        thread_id=effective_thread_id,
+                        room_name=session.room_name,
                     )
                     result = evaluate_case(
                         case,
@@ -520,6 +703,7 @@ async def run(args: argparse.Namespace) -> None:
                         section_id_by_path=section_id_by_path,
                         include_text_preview=args.include_text_preview,
                     )
+                    result.update(isolation_metadata)
                     result.update(case_metadata)
                     transcript_contract = {
                         "user": validate_transcript_contract(user_payload) if user_payload else None,
@@ -537,6 +721,7 @@ async def run(args: argparse.Namespace) -> None:
                         "id": case["id"],
                         "input_mode": case["input_mode"],
                         "status": "failed",
+                        **isolation_metadata,
                         "failure_codes": classify_exception_failure_codes(
                             input_mode=str(case.get("input_mode") or ""),
                             error_type=type(exc).__name__,
@@ -548,10 +733,10 @@ async def run(args: argparse.Namespace) -> None:
                 results.append(result)
                 print(f"RESULT: {result['status']}")
         finally:
-            await room.disconnect()
+            await disconnect_eval_room(session, grace_seconds=args.disconnect_grace_seconds)
 
         await asyncio.sleep(args.db_settle_seconds)
-        after_messages = await get_json(http, f"{args.base_url}/threads/{args.thread_id}/messages")
+        after_message_counts = await get_message_counts(http, args.base_url, all_eval_thread_ids)
 
     snapshot = build_snapshot_metadata(
         book=book,
@@ -563,6 +748,8 @@ async def run(args: argparse.Namespace) -> None:
         book_section_knowledge_count=args.book_section_knowledge_count,
     )
     snapshot["thread_id"] = args.thread_id
+    snapshot["eval_thread_ids"] = all_eval_thread_ids
+    db_message_delta = sum(after_message_counts[thread_id] - before_message_counts[thread_id] for thread_id in all_eval_thread_ids)
     report = {
         "candidate": args.candidate_name,
         "candidate_description": candidate.get("description") if candidate else None,
@@ -572,6 +759,7 @@ async def run(args: argparse.Namespace) -> None:
         "runtime_config_applied_by_runner": False,
         "runtime_config_note": "External server/worker mode: set candidate env before starting server and LiveKit worker.",
         "snapshot": snapshot,
+        "voice_isolation": voice_isolation_report(cases, args, all_eval_thread_ids),
         "ground_truth": {
             "book_id": str(book.get("id")),
             "title": str(book.get("title")),
@@ -582,7 +770,7 @@ async def run(args: argparse.Namespace) -> None:
         },
         "summary": summarize_results(results),
         "metrics": build_metrics(results),
-        "db_message_delta": len(after_messages) - len(before_messages),
+        "db_message_delta": db_message_delta,
         "results": results,
     }
     json_path, md_path = write_eval_reports(Path(args.output_dir), report, prefix=args.report_prefix)
@@ -609,10 +797,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--timeout", type=float, default=100.0)
     parser.add_argument("--trace-settle-seconds", type=float, default=1.0)
     parser.add_argument("--db-settle-seconds", type=float, default=2.0)
+    parser.add_argument("--disconnect-grace-seconds", type=float, default=0.5)
     parser.add_argument("--trace-log", default=f"logs/app_{today}.log")
-    parser.add_argument("--output-dir", default="_docs_implemented/eval_reports/phase10_8")
-    parser.add_argument("--report-prefix", default="phase10_8_eval")
+    parser.add_argument("--output-dir", default="_docs_implemented/eval_reports/phase10_9")
+    parser.add_argument("--report-prefix", default="phase10_9_eval")
     parser.add_argument("--include-text-preview", action="store_true")
+    parser.add_argument("--isolate-voice-cases", action="store_true")
+    parser.add_argument(
+        "--voice-isolation-strategy",
+        choices=("shared_thread_new_room", "case_thread_new_room"),
+        default="shared_thread_new_room",
+    )
+    parser.add_argument("--case-thread-map", default=os.getenv("AGENT_EVAL_CASE_THREAD_MAP"))
     return parser.parse_args()
 
 

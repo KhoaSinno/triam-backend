@@ -10,6 +10,7 @@ from app.services.agent_observability.model_eval_report import (
     load_candidate_matrix,
     snapshots_compatible,
     validate_candidate_matrix,
+    write_eval_reports,
 )
 
 
@@ -169,6 +170,59 @@ def test_classify_failure_codes_marks_direct_section_content_gap_as_fixture_revi
     assert failures == ["EVAL_FIXTURE_MISMATCH"]
 
 
+def test_classify_failure_codes_marks_voice_tool_bypass_for_grounded_book_answer():
+    case = {
+        "input_mode": "voice",
+        "expected_answer_source": "book_section",
+    }
+    checks = {
+        "trace_available": True,
+        "voice_transcript_meaning": True,
+        "web_not_used_without_permission": True,
+        "expected_intent": False,
+        "expected_answer_source": False,
+        "expected_section": False,
+        "must_include": True,
+        "must_not_include": True,
+    }
+    trace = {
+        "answer_source": "unknown",
+        "tool_names": [],
+        "retrieval_result_count": 0,
+    }
+
+    failures = classify_failure_codes(case, checks, trace)
+
+    assert failures == ["VOICE_TOOL_BYPASS"]
+
+
+def test_classify_failure_codes_does_not_mark_voice_tool_bypass_when_stt_failed():
+    case = {
+        "input_mode": "voice",
+        "expected_answer_source": "book_section",
+    }
+    checks = {
+        "trace_available": True,
+        "voice_transcript_meaning": False,
+        "web_not_used_without_permission": True,
+        "expected_intent": False,
+        "expected_answer_source": False,
+        "expected_section": False,
+        "must_include": True,
+        "must_not_include": True,
+    }
+    trace = {
+        "answer_source": "unknown",
+        "tool_names": [],
+        "retrieval_result_count": 0,
+    }
+
+    failures = classify_failure_codes(case, checks, trace)
+
+    assert "INPUT_STT" in failures
+    assert "VOICE_TOOL_BYPASS" not in failures
+
+
 def test_classify_exception_failure_codes_separates_voice_transcript_timeout():
     failures = classify_exception_failure_codes(
         input_mode="voice",
@@ -242,3 +296,46 @@ def test_compare_reports_allows_safe_candidate_with_equal_or_better_accuracy():
     assert comparison["recommendation"] == "go"
     assert comparison["hard_gate_failures"] == []
     assert comparison["metric_deltas"]["answer_source_accuracy"] > 0
+
+
+def test_build_metrics_counts_non_fatal_warnings():
+    metrics = build_metrics(
+        [
+            _result("passed"),
+            {
+                **_result("passed"),
+                "warnings": ["INPUT_STT_MINOR"],
+            },
+        ]
+    )
+
+    assert metrics["warning_counts"] == {"INPUT_STT_MINOR": 1}
+
+
+def test_write_eval_reports_renders_voice_isolation_section(tmp_path):
+    report = {
+        "candidate": "baseline",
+        "environment": "local",
+        "ground_truth": {"title": "Book"},
+        "summary": {"total": 1, "passed": 1, "failed": 0},
+        "db_message_delta": 2,
+        "voice_isolation": {
+            "enabled": True,
+            "strategy": "case_thread_new_room",
+            "quality": "thread_and_room",
+            "thread_count": 5,
+        },
+        "model_config": {},
+        "snapshot": {},
+        "metrics": {"accuracy": {}, "failure_counts": {}, "warning_counts": {"INPUT_STT_MINOR": 1}},
+        "results": [{"id": "case-1", "input_mode": "voice", "status": "passed", "warnings": ["INPUT_STT_MINOR"]}],
+    }
+
+    _, md_path = write_eval_reports(tmp_path, report, prefix="test_eval")
+
+    content = md_path.read_text(encoding="utf-8")
+    assert "## Voice Isolation" in content
+    assert "- Strategy: `case_thread_new_room`" in content
+    assert "- Isolation Quality: `thread_and_room`" in content
+    assert "## Warnings" in content
+    assert "| INPUT_STT_MINOR | 1 |" in content

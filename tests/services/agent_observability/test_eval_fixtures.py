@@ -1,9 +1,11 @@
 import json
+import uuid
 from pathlib import Path
 
 TEXT_CASES = Path("tests/fixtures/agent_eval/book_grounding_cases.json")
 VOICE_CASES = Path("tests/fixtures/agent_eval/voice_manifest.json")
 CANDIDATE_MATRIX = Path("tests/fixtures/agent_eval/model_candidate_matrix.json")
+VOICE_CASE_THREAD_MAP_EXAMPLE = Path("tests/fixtures/agent_eval/voice_case_threads.example.json")
 
 
 def _load(path: Path) -> list[dict]:
@@ -52,3 +54,12 @@ def test_chapter_five_fixture_checks_fact_not_single_translation():
     chapter_five = cases["mice-chapter-five-summary-vi-text"]
 
     assert chapter_five["must_include"] == ["Lennie", "Curley"]
+
+
+def test_voice_case_thread_map_example_matches_voice_cases():
+    voice_cases = {case["id"] for case in _load(VOICE_CASES)}
+    mapping = json.loads(VOICE_CASE_THREAD_MAP_EXAMPLE.read_text(encoding="utf-8"))
+
+    assert set(mapping) == voice_cases
+    for thread_id in mapping.values():
+        uuid.UUID(thread_id)

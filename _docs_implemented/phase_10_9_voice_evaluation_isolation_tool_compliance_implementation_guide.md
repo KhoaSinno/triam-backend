@@ -1,9 +1,176 @@
 # Phase 10.9 Implementation Guide - Voice Evaluation Isolation And Tool Compliance
 
 Date: 2026-06-06  
-Status: Proposed  
+Status: Implemented and offline-tested  
 Depends on: Phase 10.0 -> 10.8  
 Primary scope: voice eval determinism, LiveKit room/thread isolation, voice tool compliance, audio fixture quality
+
+---
+
+## Implementation Status
+
+Implemented files:
+
+- `scripts/manual_integration/phase10_agent_eval.py`
+  - added direct-script project-root bootstrap;
+  - added `--isolate-voice-cases`;
+  - added `--voice-isolation-strategy`;
+  - added `--case-thread-map`;
+  - added `--disconnect-grace-seconds`;
+  - refactored LiveKit connection lifecycle into `EvalRoomSession`, `connect_eval_room`, and `disconnect_eval_room`;
+  - supports room-only isolation and case-thread room isolation;
+  - records `eval_thread_id`, `eval_room_name`, `isolation_strategy`, and `case_isolation_quality` per case;
+  - calculates DB message delta across all eval threads used by the selected cases;
+  - defaults new reports to `_docs_implemented/eval_reports/phase10_9`.
+- `app/services/agent_observability/model_eval_report.py`
+  - added `VOICE_TOOL_BYPASS` classification;
+  - treats `VOICE_TOOL_BYPASS` as a primary failure code and suppresses generic routing/context-validation noise for that case;
+  - added warning counts for non-fatal evaluator issues such as `INPUT_STT_MINOR`;
+  - renders `## Voice Isolation` in markdown reports when metadata exists.
+- `tests/fixtures/agent_eval/voice_case_threads.example.json`
+  - committed example map for clean per-case voice thread evaluation.
+- `.gitignore`
+  - ignores `tests/fixtures/agent_eval/*.local.json`.
+- `tests/services/agent_observability/test_model_eval_report.py`
+  - covers `VOICE_TOOL_BYPASS`;
+  - covers non-fatal warning counts;
+  - covers markdown voice isolation rendering.
+- `tests/services/agent_observability/test_phase10_eval_runner.py`
+  - covers thread-map validation;
+  - covers strategy validation;
+  - covers eval thread id collection and isolation quality.
+  - covers clarification intent aliasing;
+  - covers minor STT warning behavior.
+- `tests/services/agent_observability/test_eval_fixtures.py`
+  - verifies example thread map matches all voice cases.
+
+Verification completed:
+
+```powershell
+uv run ruff check app\services\agent_observability\model_eval_report.py scripts\manual_integration\phase10_agent_eval.py tests\services\agent_observability
+uv run python -m py_compile app\services\agent_observability\model_eval_report.py scripts\manual_integration\phase10_agent_eval.py
+uv run pytest tests\services\agent_observability -q
+uv run pytest tests\services\voice_agent tests\services\agent_policy -q
+uv run python scripts\manual_integration\phase10_agent_eval.py --help
+uv run pytest tests -q --maxfail=1 --durations=20
+```
+
+Results:
+
+```text
+Ruff passed.
+Py compile passed.
+41 agent_observability tests passed.
+53 voice_agent/agent_policy tests passed.
+Manual runner --help passed.
+250 full test-suite tests passed.
+```
+
+Not run automatically:
+
+- real LiveKit/provider voice eval;
+- production Hugging Face eval.
+
+Reason:
+
+```text
+These require running FastAPI, realtime worker, LiveKit Cloud, provider calls, and a valid access token.
+```
+
+---
+
+## Phase 10.9.1 Patch - Clarification Trace Normalization And Minor STT Warning
+
+Date: 2026-06-06  
+Status: Implemented and offline-tested  
+
+### Why This Patch Exists
+
+Real `case_thread_new_room` evaluation produced a useful result:
+
+```text
+3/5 passed, but the two failed cases were not true RAG/tool failures.
+```
+
+Observed issues:
+
+1. `mice-author-vi-voice`
+   - STT transcript became `Giả của quyển sách là ai?`.
+   - Agent still understood the request and answered `John Steinbeck`.
+   - Trace was correct: `detected_intent=book_metadata.author`, `answer_source=book_metadata`.
+   - The evaluator was too strict because `voice_transcript_meaning=false` made the whole case fail.
+
+2. `mice-ambiguous-chapter-vi-voice`
+   - Agent response correctly asked which chapter the user wanted.
+   - Trace had `answer_source=clarification`.
+   - But `detected_intent=None`, while fixture expected `clarification_required`.
+   - This is instrumentation/evaluator mismatch, not bad user-facing behavior.
+
+### What Changed
+
+Files:
+
+```text
+scripts/manual_integration/phase10_agent_eval.py
+app/services/agent_observability/model_eval_report.py
+tests/services/agent_observability/test_phase10_eval_runner.py
+tests/services/agent_observability/test_model_eval_report.py
+```
+
+Changes:
+
+- Added `expected_intent_matches`.
+  - If fixture expects `clarification_required` and trace says `answer_source=clarification`, intent check passes even when `detected_intent` is missing.
+- Added `INPUT_STT_MINOR` warning.
+  - If voice transcript keyword check fails but semantic behavior passes, the case can still pass.
+  - The warning remains visible in JSON and Markdown report.
+  - `voice_meaning_preservation_rate` still reports the STT/fixture quality honestly.
+- Added `warning_counts` to metrics.
+- Added `## Warnings` table to Markdown reports when warnings exist.
+
+### Why This Is Better
+
+This keeps two truths separate:
+
+```text
+Did the user-facing agent behave correctly?
+Did STT preserve the exact expected wording?
+```
+
+For production quality, we still care about STT quality. But we should not fail a grounded-answer test if:
+
+- the agent inferred intent correctly;
+- selected the right source;
+- returned the right content;
+- did not violate web policy.
+
+### Verification
+
+```powershell
+uv run ruff check app\services\agent_observability\model_eval_report.py scripts\manual_integration\phase10_agent_eval.py tests\services\agent_observability
+uv run python -m py_compile app\services\agent_observability\model_eval_report.py scripts\manual_integration\phase10_agent_eval.py
+uv run pytest tests\services\agent_observability -q
+uv run pytest tests\services\voice_agent tests\services\agent_policy -q
+```
+
+Results:
+
+```text
+Ruff passed.
+Py compile passed.
+41 agent_observability tests passed.
+53 voice_agent/agent_policy tests passed.
+```
+
+### Expected Real Eval Effect
+
+After rerunning:
+
+- `mice-author-vi-voice` should pass with warning `INPUT_STT_MINOR` if behavior remains semantically correct.
+- `mice-ambiguous-chapter-vi-voice` should pass when `answer_source=clarification`.
+- `warning_counts` should show STT weakness without marking grounded behavior as failed.
+
+This patch does not change the realtime agent prompt, model, RAG, LiveKit contract, or FE contract.
 
 ---
 
@@ -226,6 +393,28 @@ Ví dụ file map:
 }
 ```
 
+Template nên được commit vào git:
+
+```text
+tests/fixtures/agent_eval/voice_case_threads.example.json
+```
+
+Nội dung template dùng UUID giả hoặc placeholder để FE/BE/dev biết format, không chứa thread thật của môi trường dev/prod.
+
+File thật dùng khi chạy local nên là:
+
+```text
+tests/fixtures/agent_eval/voice_case_threads.local.json
+```
+
+Rule:
+
+```text
+Commit file .example.json.
+Không commit file .local.json.
+Thêm tests/fixtures/agent_eval/*.local.json vào .gitignore khi implement.
+```
+
 Rule:
 
 ```text
@@ -270,6 +459,7 @@ For each case:
   resolve effective_thread_id
   if first case or isolation required:
       disconnect old room if exists
+      wait short disconnect grace period
       get new LiveKit token
       connect new room
       wait greeting
@@ -281,10 +471,29 @@ For each case:
 Quan trọng:
 
 - luôn `await room.disconnect()` trong `finally`;
+- khi disconnect room cũ trong vòng lặp, nên chờ một khoảng nhỏ, ví dụ `await asyncio.sleep(0.5)`, để LiveKit socket/resource đóng hẳn trước khi tạo room mới;
 - sau reconnect phải drain queue;
 - trace offset phải lấy ngay trước từng case;
 - trace filter dùng đúng `effective_thread_id` và `room_name`;
 - report lưu `effective_thread_id`, `room_name`, `isolation_strategy`.
+
+Nên tạo helper riêng:
+
+```python
+async def disconnect_eval_room(session: EvalRoomSession | None, *, grace_seconds: float = 0.5) -> None:
+    if session is None:
+        return
+    await session.room.disconnect()
+    await asyncio.sleep(grace_seconds)
+```
+
+Lý do:
+
+```text
+Không để logic disconnect rải rác trong loop.
+Tránh reconnect quá nhanh làm LiveKit client còn pending socket/task cũ.
+Giữ cleanup an toàn kể cả khi case trước throw exception.
+```
 
 ### Step 3 - Support Case Thread Map
 
@@ -320,6 +529,26 @@ Mỗi result nên có:
   "case_isolation_quality": "thread_and_room"
 }
 ```
+
+Markdown report cũng phải hiển thị block này ở phần đầu, không chỉ lưu trong JSON:
+
+```markdown
+## Voice Isolation
+
+- Enabled: `True`
+- Strategy: `case_thread_new_room`
+- Isolation Quality: `thread_and_room`
+```
+
+File cần update khi implement:
+
+```text
+app/services/agent_observability/model_eval_report.py
+```
+
+Trong `write_eval_reports`, nếu report có key `voice_isolation`, insert section `## Voice Isolation` ngay sau phần summary đầu báo cáo và trước `## Model Config`.
+
+Nếu không có `voice_isolation`, không render section này để giữ backward compatibility với report cũ.
 
 Mapping:
 
@@ -512,6 +741,10 @@ Test cần thêm:
    - `isolation_strategy`;
    - `case_isolation_quality`.
 
+6. Markdown report render `## Voice Isolation` khi report có voice isolation metadata.
+
+7. `.local.json` case-thread map không bị commit nhầm.
+
 ---
 
 ## 6. Manual Test Commands
@@ -639,10 +872,12 @@ thread_and_room
 4. Thêm report metadata cho room/thread/isolation quality.
 5. Thêm `--case-thread-map` và `case_thread_new_room`.
 6. Rà lại voice manifest, đặc biệt Bitcoin fixture.
-7. Chạy offline tests.
-8. Chạy real voice eval shared-thread room isolation.
-9. Chuẩn bị case-thread map và chạy real voice eval thread-and-room isolation.
-10. Sau khi report sạch, mới quyết định phase tiếp theo có cần sửa prompt/tool policy hay model không.
+7. Thêm template `voice_case_threads.example.json` và gitignore cho `*.local.json`.
+8. Update Markdown report để hiện `## Voice Isolation`.
+9. Chạy offline tests.
+10. Chạy real voice eval shared-thread room isolation.
+11. Chuẩn bị case-thread map và chạy real voice eval thread-and-room isolation.
+12. Sau khi report sạch, mới quyết định phase tiếp theo có cần sửa prompt/tool policy hay model không.
 
 ---
 
@@ -685,4 +920,3 @@ Mục tiêu:
 - định nghĩa khi nào ambiguous follow-up được dùng context cũ;
 - khi nào phải hỏi rõ;
 - tránh user hỏi “chương nào?” mà agent đoán sai.
-

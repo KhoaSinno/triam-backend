@@ -108,6 +108,29 @@ def _content_failures(
     return ["RETRIEVAL_RELEVANCE" if retrieval_count else "RETRIEVAL_COVERAGE"]
 
 
+def _voice_tool_bypass_failures(
+    case: dict[str, Any],
+    checks: dict[str, bool | None],
+    trace: dict[str, Any] | None,
+) -> list[str]:
+    if trace is None:
+        return []
+    if case.get("input_mode") != "voice":
+        return []
+    if case.get("expected_answer_source") not in BOOK_SOURCES:
+        return []
+    if checks.get("voice_transcript_meaning") is False:
+        return []
+    if checks.get("must_include") is False or checks.get("must_not_include") is False:
+        return []
+
+    actual_source = str(trace.get("answer_source") or "unknown").casefold()
+    tool_names = trace.get("tool_names") or []
+    if actual_source in {"unknown", "none", ""} and not tool_names:
+        return ["VOICE_TOOL_BYPASS"]
+    return []
+
+
 def percentile(values: list[int], quantile: float) -> int | None:
     if not values:
         return None
@@ -138,10 +161,12 @@ def classify_failure_codes(
     retrieval_count = int(trace.get("retrieval_result_count") or 0) if trace else 0
 
     failures.extend(_input_and_web_failures(case, checks, actual_source=actual_source))
-    failures.extend(_routing_failures(checks, trace))
-    if checks.get("expected_answer_source") is False and "WEB_PERMISSION" not in failures:
-        failures.append("CONTEXT_VALIDATION")
-    failures.extend(_content_failures(checks, actual_source=actual_source, retrieval_count=retrieval_count))
+    failures.extend(_voice_tool_bypass_failures(case, checks, trace))
+    if "VOICE_TOOL_BYPASS" not in failures:
+        failures.extend(_routing_failures(checks, trace))
+        if checks.get("expected_answer_source") is False and "WEB_PERMISSION" not in failures:
+            failures.append("CONTEXT_VALIDATION")
+        failures.extend(_content_failures(checks, actual_source=actual_source, retrieval_count=retrieval_count))
 
     return list(dict.fromkeys(failures)) or ["UNKNOWN"]
 
@@ -206,12 +231,14 @@ def build_metrics(results: list[dict[str, Any]]) -> dict[str, Any]:
             }
 
     failure_counts = Counter(code for result in results for code in result.get("failure_codes", []))
+    warning_counts = Counter(code for result in results for code in result.get("warnings", []))
     web_permission_violations = failure_counts.get("WEB_PERMISSION", 0)
     return {
         "strict_case_pass_rate": round(sum(result.get("status") == "passed" for result in results) / len(results), 4) if results else 0.0,
         "accuracy": accuracy,
         "latency": latency,
         "failure_counts": dict(sorted(failure_counts.items())),
+        "warning_counts": dict(sorted(warning_counts.items())),
         "web_permission_violations": web_permission_violations,
     }
 
@@ -409,11 +436,29 @@ def write_eval_reports(output_dir: Path, report: dict[str, Any], *, prefix: str 
         f"- Failed: `{report.get('summary', {}).get('failed')}`",
         f"- DB message delta: `{report.get('db_message_delta')}`",
         "",
-        "## Model Config",
-        "",
-        "| Key | Value |",
-        "| --- | --- |",
     ]
+    voice_isolation = report.get("voice_isolation")
+    if isinstance(voice_isolation, dict):
+        lines.extend(
+            [
+                "## Voice Isolation",
+                "",
+                f"- Enabled: `{voice_isolation.get('enabled')}`",
+                f"- Strategy: `{voice_isolation.get('strategy')}`",
+                f"- Isolation Quality: `{voice_isolation.get('quality')}`",
+                f"- Eval Threads: `{voice_isolation.get('thread_count')}`",
+                "",
+            ]
+        )
+
+    lines.extend(
+        [
+            "## Model Config",
+            "",
+            "| Key | Value |",
+            "| --- | --- |",
+        ]
+    )
     lines.extend(f"| `{key}` | `{value}` |" for key, value in (report.get("model_config") or {}).items())
     lines.extend(
         [
@@ -448,6 +493,18 @@ def write_eval_reports(output_dir: Path, report: dict[str, Any], *, prefix: str 
         ]
     )
     lines.extend(f"| {code} | {count} |" for code, count in report.get("metrics", {}).get("failure_counts", {}).items())
+    warning_counts = report.get("metrics", {}).get("warning_counts", {})
+    if warning_counts:
+        lines.extend(
+            [
+                "",
+                "## Warnings",
+                "",
+                "| Warning code | Count |",
+                "| --- | ---: |",
+            ]
+        )
+        lines.extend(f"| {code} | {count} |" for code, count in warning_counts.items())
     lines.extend(
         [
             "",

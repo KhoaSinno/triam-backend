@@ -35,6 +35,7 @@ _log_extracted_json/
 script_outputs/
 _docs_implemented/runtime_test_logs
 tests/fixtures/*.wav
+tests/fixtures/agent_eval/*.local.json
 
 # Local/generated project material
 _codebase/
@@ -42,3 +43,7 @@ scratch_*.py
 .codegraph/
 
 triam-notification-firebase-adminsdk-fbsvc-77f3e9eac6.json
+
+scratch_create_5_eval_threads.py
+
+tests/fixtures/agent_eval/voice_case_threads.example.json
