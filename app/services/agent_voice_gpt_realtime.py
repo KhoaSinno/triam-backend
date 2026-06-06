@@ -451,6 +451,14 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
     # de-dupe while preserving order
     seen_models: set[str] = set()
     model_candidates = [m for m in model_candidates if not (m in seen_models or seen_models.add(m))]
+    log.info(
+        "Agent model profile active | "
+        f"profile={settings.AGENT_MODEL_PROFILE} | "
+        f"text_model={settings.VOICE_AGENT_TEXT_LLM_MODEL} | "
+        f"realtime_model={settings.OPENAI_STREAM_MODEL_NAME} | "
+        f"transcription_model={settings.OPENAI_REALTIME_TRANSCRIPTION_MODEL} | "
+        f"classifier_model={settings.VOICE_AGENT_PERMISSION_CLASSIFIER_MODEL}"
+    )
 
     web_search_policy = WebSearchPermissionPolicy(
         enabled=settings.VOICE_AGENT_ENABLE_WEB_SEARCH_BY_DEFAULT,

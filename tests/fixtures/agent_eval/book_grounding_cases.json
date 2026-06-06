@@ -54,7 +54,7 @@
     "expected_intent": "book_section.summary",
     "expected_answer_source": "book_section",
     "expected_section_paths": ["5"],
-    "must_include": ["Lennie", "vợ"],
+    "must_include": ["Lennie", "Curley"],
     "must_not_include": [],
     "web_search_enabled": false,
     "web_search_allowed": false

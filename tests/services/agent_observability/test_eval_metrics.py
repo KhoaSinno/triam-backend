@@ -1,4 +1,4 @@
-from scripts.manual_integration.phase10_agent_eval import build_metrics, classify_failure_codes
+from app.services.agent_observability.model_eval_report import build_metrics, classify_failure_codes
 
 
 def test_classify_failure_codes_separates_stt_routing_and_web_policy():

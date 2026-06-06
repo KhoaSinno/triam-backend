@@ -1,0 +1,1134 @@
+{
+  "candidate": "baseline",
+  "candidate_description": "Current production defaults for Triam grounded chat and realtime voice.",
+  "environment": "http://127.0.0.1:8000/api/v1",
+  "generated_at": "2026-06-06T16:42:41.834900+07:00",
+  "model_config": {
+    "AGENT_MODEL_PROFILE": "baseline",
+    "VOICE_AGENT_TEXT_LLM_MODEL": "gpt-4o-mini",
+    "OPENAI_STREAM_MODEL_NAME": "gpt-realtime",
+    "OPENAI_REALTIME_TRANSCRIPTION_MODEL": "gpt-4o-transcribe",
+    "VOICE_AGENT_PERMISSION_CLASSIFIER_MODEL": "gpt-4o-mini",
+    "AGENT_CANONICAL_SECTION_RAG_ENABLED": "True",
+    "AGENT_HYBRID_RAG_ENABLED": "True"
+  },
+  "runtime_config_applied_by_runner": false,
+  "runtime_config_note": "External server/worker mode: set candidate env before starting server and LiveKit worker.",
+  "snapshot": {
+    "book_id": "dae3b3ae-8740-4485-9c16-12e685c6c970",
+    "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+    "book_sections_count": 6,
+    "book_section_knowledge_count": 53,
+    "embedding_model": "text-embedding-3-small",
+    "embedding_version": "section-v1",
+    "outline_hash": "d8752dc8c2d6334edba1436537622e0cfd5f0b64b07107b5a2513e7d7b48acd3",
+    "app_git_sha": "25f2ba834ae110606a4aa110ef6873754818a83a",
+    "database_label": "dev"
+  },
+  "ground_truth": {
+    "book_id": "dae3b3ae-8740-4485-9c16-12e685c6c970",
+    "title": "Of Mice and Men",
+    "author": "John Steinbeck",
+    "document_type": "epub",
+    "total_sections": 6,
+    "section_paths": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6"
+    ]
+  },
+  "summary": {
+    "total": 15,
+    "passed": 11,
+    "failed": 4
+  },
+  "metrics": {
+    "strict_case_pass_rate": 0.7333,
+    "accuracy": {
+      "content_accuracy": {
+        "passed": 15,
+        "evaluated": 15,
+        "rate": 1.0
+      },
+      "intent_accuracy": {
+        "passed": 12,
+        "evaluated": 15,
+        "rate": 0.8
+      },
+      "answer_source_accuracy": {
+        "passed": 13,
+        "evaluated": 15,
+        "rate": 0.8667
+      },
+      "section_resolution_accuracy": {
+        "passed": 6,
+        "evaluated": 7,
+        "rate": 0.8571
+      },
+      "web_policy_safety_rate": {
+        "passed": 15,
+        "evaluated": 15,
+        "rate": 1.0
+      },
+      "voice_meaning_preservation_rate": {
+        "passed": 4,
+        "evaluated": 5,
+        "rate": 0.8
+      }
+    },
+    "latency": {
+      "text": {
+        "turn_total": {
+          "samples": 10,
+          "p50_ms": 4376,
+          "p95_ms": 10959,
+          "max_ms": 11156
+        },
+        "retrieval": {
+          "samples": 2,
+          "p50_ms": 3276,
+          "p95_ms": 4495,
+          "max_ms": 4630
+        }
+      },
+      "voice": {
+        "turn_total": {
+          "samples": 5,
+          "p50_ms": 9985,
+          "p95_ms": 19990,
+          "max_ms": 21453
+        },
+        "retrieval": {
+          "samples": 0,
+          "p50_ms": null,
+          "p95_ms": null,
+          "max_ms": null
+        }
+      }
+    },
+    "failure_counts": {
+      "CONTEXT_VALIDATION": 2,
+      "INPUT_STT": 1,
+      "ROUTING_INTENT": 3,
+      "ROUTING_SECTION": 1
+    },
+    "web_permission_violations": 0
+  },
+  "db_message_delta": 31,
+  "results": [
+    {
+      "id": "mice-author-vi-text",
+      "input_mode": "text",
+      "status": "passed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": null,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 48,
+      "user_transcript_char_count": 0,
+      "trace": {
+        "answer_source": "book_metadata",
+        "assistant_char_count": 48,
+        "completed_at": "2026-06-06T09:39:59.221589+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": "book_metadata.author",
+        "detected_language": "text",
+        "error_code": null,
+        "grounding_reason_code": "single_book_scope",
+        "grounding_route": "book_metadata",
+        "input_mode": "text",
+        "resolved_book_ids": [
+          "dae3b3ae-8740-4485-9c16-12e685c6c970"
+        ],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_b17f9e4a_c24d8a",
+        "stage_latency_ms": {
+          "answer_pipeline": 1,
+          "grounding_total": 0,
+          "turn_total": 2594
+        },
+        "started_at": "2026-06-06T09:39:56.617556+00:00",
+        "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+        "tool_names": [],
+        "trace_id": "d6ee47a1-7c17-41a4-9db6-e7cc72910d09",
+        "transcript_char_count": 29,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-title-vi-text",
+      "input_mode": "text",
+      "status": "passed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": null,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 30,
+      "user_transcript_char_count": 0,
+      "trace": {
+        "answer_source": "book_metadata",
+        "assistant_char_count": 30,
+        "completed_at": "2026-06-06T09:40:03.144851+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": "book_metadata.title",
+        "detected_language": "text",
+        "error_code": null,
+        "grounding_reason_code": "single_book_scope",
+        "grounding_route": "book_metadata",
+        "input_mode": "text",
+        "resolved_book_ids": [
+          "dae3b3ae-8740-4485-9c16-12e685c6c970"
+        ],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_b17f9e4a_c24d8a",
+        "stage_latency_ms": {
+          "answer_pipeline": 1,
+          "grounding_total": 0,
+          "turn_total": 2390
+        },
+        "started_at": "2026-06-06T09:40:00.755811+00:00",
+        "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+        "tool_names": [],
+        "trace_id": "408c200b-4f2e-4ef2-8ea4-673bdf375402",
+        "transcript_char_count": 29,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-section-count-vi-text",
+      "input_mode": "text",
+      "status": "passed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": null,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 34,
+      "user_transcript_char_count": 0,
+      "trace": {
+        "answer_source": "book_metadata",
+        "assistant_char_count": 34,
+        "completed_at": "2026-06-06T09:40:07.109782+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": "book_metadata.root_section_count",
+        "detected_language": "text",
+        "error_code": null,
+        "grounding_reason_code": "single_book_scope",
+        "grounding_route": "book_metadata",
+        "input_mode": "text",
+        "resolved_book_ids": [
+          "dae3b3ae-8740-4485-9c16-12e685c6c970"
+        ],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_b17f9e4a_c24d8a",
+        "stage_latency_ms": {
+          "answer_pipeline": 1,
+          "grounding_total": 0,
+          "turn_total": 2422
+        },
+        "started_at": "2026-06-06T09:40:04.679847+00:00",
+        "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+        "tool_names": [],
+        "trace_id": "e2d28931-3628-4ebd-bc2a-368132c2d3b7",
+        "transcript_char_count": 39,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-chapter-four-summary-vi-text",
+      "input_mode": "text",
+      "status": "passed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": true,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 576,
+      "user_transcript_char_count": 0,
+      "trace": {
+        "answer_source": "book_section",
+        "assistant_char_count": 576,
+        "completed_at": "2026-06-06T09:40:19.491020+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": "book_section.summary",
+        "detected_language": "text",
+        "error_code": null,
+        "grounding_reason_code": "exact_section_path",
+        "grounding_route": "book_section",
+        "input_mode": "text",
+        "resolved_book_ids": [
+          "dae3b3ae-8740-4485-9c16-12e685c6c970"
+        ],
+        "resolved_section_ids": [
+          "7b6a637f-5331-4ef3-a356-7dba305669fa"
+        ],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_b17f9e4a_c24d8a",
+        "stage_latency_ms": {
+          "answer_pipeline": 8429,
+          "grounding_total": 602,
+          "turn_total": 10719
+        },
+        "started_at": "2026-06-06T09:40:08.785509+00:00",
+        "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+        "tool_names": [],
+        "trace_id": "3cb027b5-6230-475a-a4f9-64708ea0ff77",
+        "transcript_char_count": 32,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-chapter-five-summary-vi-text",
+      "input_mode": "text",
+      "status": "passed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": true,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 635,
+      "user_transcript_char_count": 0,
+      "trace": {
+        "answer_source": "book_section",
+        "assistant_char_count": 635,
+        "completed_at": "2026-06-06T09:40:31.221835+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": "book_section.summary",
+        "detected_language": "text",
+        "error_code": null,
+        "grounding_reason_code": "exact_section_path",
+        "grounding_route": "book_section",
+        "input_mode": "text",
+        "resolved_book_ids": [
+          "dae3b3ae-8740-4485-9c16-12e685c6c970"
+        ],
+        "resolved_section_ids": [
+          "e67cc281-c263-43cb-9b96-4c2985bee8d3"
+        ],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_b17f9e4a_c24d8a",
+        "stage_latency_ms": {
+          "answer_pipeline": 7954,
+          "grounding_total": 624,
+          "turn_total": 10188
+        },
+        "started_at": "2026-06-06T09:40:21.026109+00:00",
+        "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+        "tool_names": [],
+        "trace_id": "e6eb6fa5-abbd-4679-9767-0386946dbd55",
+        "transcript_char_count": 26,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-chapter-six-summary-en-text",
+      "input_mode": "text",
+      "status": "passed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": true,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 671,
+      "user_transcript_char_count": 0,
+      "trace": {
+        "answer_source": "book_section",
+        "assistant_char_count": 671,
+        "completed_at": "2026-06-06T09:40:41.179943+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": "book_section.summary",
+        "detected_language": "text",
+        "error_code": null,
+        "grounding_reason_code": "exact_section_path",
+        "grounding_route": "book_section",
+        "input_mode": "text",
+        "resolved_book_ids": [
+          "dae3b3ae-8740-4485-9c16-12e685c6c970"
+        ],
+        "resolved_section_ids": [
+          "dd1fa848-a820-42a8-8463-3bc78fcb36b4"
+        ],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_b17f9e4a_c24d8a",
+        "stage_latency_ms": {
+          "answer_pipeline": 5975,
+          "grounding_total": 523,
+          "turn_total": 8420
+        },
+        "started_at": "2026-06-06T09:40:32.757811+00:00",
+        "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+        "tool_names": [],
+        "trace_id": "db43ecf6-6b56-40b3-afbf-e384747a7a82",
+        "transcript_char_count": 26,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-crooks-semantic-vi-text",
+      "input_mode": "text",
+      "status": "passed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": true,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 376,
+      "user_transcript_char_count": 0,
+      "trace": {
+        "answer_source": "book_rag",
+        "assistant_char_count": 376,
+        "completed_at": "2026-06-06T09:40:53.895516+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": "book_semantic_question",
+        "detected_language": "text",
+        "error_code": null,
+        "grounding_reason_code": "semantic_rag_fallback",
+        "grounding_route": "book_rag",
+        "input_mode": "text",
+        "resolved_book_ids": [],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [
+          "40"
+        ],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": "hybrid",
+        "retrieval_result_count": 1,
+        "retrieval_scores": [
+          0.3039
+        ],
+        "retrieval_section_ids": [
+          "7b6a637f-5331-4ef3-a356-7dba305669fa"
+        ],
+        "room_name": "triam_b17f9e4a_c24d8a",
+        "stage_latency_ms": {
+          "answer_pipeline": 7951,
+          "grounding_total": 0,
+          "retrieval": 4630,
+          "turn_total": 11156
+        },
+        "started_at": "2026-06-06T09:40:42.731598+00:00",
+        "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+        "tool_names": [],
+        "trace_id": "d42fea39-c456-4a06-a00d-626dde9ba8fc",
+        "transcript_char_count": 38,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-curley-wife-death-vi-text",
+      "input_mode": "text",
+      "status": "passed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": true,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 247,
+      "user_transcript_char_count": 0,
+      "trace": {
+        "answer_source": "book_rag",
+        "assistant_char_count": 247,
+        "completed_at": "2026-06-06T09:41:01.592728+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": "book_semantic_question",
+        "detected_language": "text",
+        "error_code": null,
+        "grounding_reason_code": "semantic_rag_fallback",
+        "grounding_route": "book_rag",
+        "input_mode": "text",
+        "resolved_book_ids": [],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [
+          "49",
+          "46",
+          "38",
+          "13",
+          "15",
+          "53"
+        ],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": "hybrid",
+        "retrieval_result_count": 6,
+        "retrieval_scores": [
+          0.4474,
+          0.4375,
+          0.3933,
+          0.385,
+          0.3722,
+          0.3626
+        ],
+        "retrieval_section_ids": [
+          "e67cc281-c263-43cb-9b96-4c2985bee8d3",
+          "7b6a637f-5331-4ef3-a356-7dba305669fa",
+          "7418f6ff-7ca6-4140-8553-c54b6d984e40",
+          "dd1fa848-a820-42a8-8463-3bc78fcb36b4"
+        ],
+        "room_name": "triam_b17f9e4a_c24d8a",
+        "stage_latency_ms": {
+          "answer_pipeline": 4006,
+          "grounding_total": 0,
+          "retrieval": 1923,
+          "turn_total": 6157
+        },
+        "started_at": "2026-06-06T09:40:55.443334+00:00",
+        "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+        "tool_names": [],
+        "trace_id": "b2d8b367-5467-4d64-bf8a-b8bef73c4054",
+        "transcript_char_count": 36,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-ambiguous-chapter-vi-text",
+      "input_mode": "text",
+      "status": "passed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": null,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 36,
+      "user_transcript_char_count": 0,
+      "trace": {
+        "answer_source": "clarification",
+        "assistant_char_count": 36,
+        "completed_at": "2026-06-06T09:41:05.345003+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": "clarification_required",
+        "detected_language": "text",
+        "error_code": null,
+        "grounding_reason_code": "missing_section_reference",
+        "grounding_route": "clarification",
+        "input_mode": "text",
+        "resolved_book_ids": [],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_b17f9e4a_c24d8a",
+        "stage_latency_ms": {
+          "answer_pipeline": 1,
+          "grounding_total": 0,
+          "turn_total": 2203
+        },
+        "started_at": "2026-06-06T09:41:03.134670+00:00",
+        "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+        "tool_names": [],
+        "trace_id": "d9e721f1-aeb7-49ee-925b-93d6e195ee1e",
+        "transcript_char_count": 15,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-current-bitcoin-vi-text",
+      "input_mode": "text",
+      "status": "passed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": null,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 120,
+      "user_transcript_char_count": 0,
+      "trace": {
+        "answer_source": "policy",
+        "assistant_char_count": 120,
+        "completed_at": "2026-06-06T09:41:09.119787+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": "external_current_info",
+        "detected_language": "text",
+        "error_code": null,
+        "grounding_reason_code": "clear_external_current_info",
+        "grounding_route": "web_policy",
+        "input_mode": "text",
+        "resolved_book_ids": [],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_b17f9e4a_c24d8a",
+        "stage_latency_ms": {
+          "answer_pipeline": 1,
+          "grounding_total": 0,
+          "turn_total": 2234
+        },
+        "started_at": "2026-06-06T09:41:06.886959+00:00",
+        "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+        "tool_names": [
+          "ask_web_search_permission_text"
+        ],
+        "trace_id": "b74c411a-45ae-4adc-b77f-292c6b51eb44",
+        "transcript_char_count": 33,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-author-vi-voice",
+      "input_mode": "voice",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": false,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": null,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 84,
+      "user_transcript_char_count": 25,
+      "trace": {
+        "answer_source": "book_metadata",
+        "assistant_char_count": 84,
+        "completed_at": "2026-06-06T09:41:20.321917+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": "book_metadata.author",
+        "detected_language": null,
+        "error_code": null,
+        "grounding_reason_code": "single_book_scope",
+        "grounding_route": "book_metadata",
+        "input_mode": "voice",
+        "resolved_book_ids": [
+          "dae3b3ae-8740-4485-9c16-12e685c6c970"
+        ],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_b17f9e4a_c24d8a",
+        "stage_latency_ms": {
+          "grounding_total": 0,
+          "turn_total": 6359
+        },
+        "started_at": "2026-06-06T09:41:13.961999+00:00",
+        "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+        "tool_names": [
+          "search_book_knowledge"
+        ],
+        "trace_id": "5500faec-787b-4ba0-95b7-589b963ed00c",
+        "transcript_char_count": 25,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "failure_codes": [
+        "INPUT_STT"
+      ],
+      "audio": {
+        "path": "tests\\fixtures\\voice_author.wav",
+        "sample_rate": 48000,
+        "channels": 1,
+        "sample_width_bytes": 2,
+        "duration_ms": 2560
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-chapter-four-summary-vi-voice",
+      "input_mode": "voice",
+      "status": "passed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": true,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 322,
+      "user_transcript_char_count": 25,
+      "trace": {
+        "answer_source": "book_section",
+        "assistant_char_count": 322,
+        "completed_at": "2026-06-06T09:41:47.587087+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": "book_section.summary",
+        "detected_language": null,
+        "error_code": null,
+        "grounding_reason_code": "exact_section_path",
+        "grounding_route": "book_section",
+        "input_mode": "voice",
+        "resolved_book_ids": [
+          "dae3b3ae-8740-4485-9c16-12e685c6c970"
+        ],
+        "resolved_section_ids": [
+          "7b6a637f-5331-4ef3-a356-7dba305669fa"
+        ],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_b17f9e4a_c24d8a",
+        "stage_latency_ms": {
+          "grounding_total": 572,
+          "turn_total": 21453
+        },
+        "started_at": "2026-06-06T09:41:26.143234+00:00",
+        "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+        "tool_names": [
+          "search_book_knowledge"
+        ],
+        "trace_id": "b82e9b24-8e33-4810-af77-fd55bba90ceb",
+        "transcript_char_count": 25,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "audio": {
+        "path": "tests\\fixtures\\voice_chapter_4_summary.wav",
+        "sample_rate": 48000,
+        "channels": 1,
+        "sample_width_bytes": 2,
+        "duration_ms": 2496
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-chapter-four-idea-vi-voice",
+      "input_mode": "voice",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "trace_available": true,
+        "expected_intent": false,
+        "expected_answer_source": false,
+        "expected_section": false,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 173,
+      "user_transcript_char_count": 23,
+      "trace": {
+        "answer_source": "unknown",
+        "assistant_char_count": 173,
+        "completed_at": "2026-06-06T09:42:03.266238+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": null,
+        "detected_language": null,
+        "error_code": null,
+        "grounding_reason_code": null,
+        "grounding_route": null,
+        "input_mode": "voice",
+        "resolved_book_ids": [],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_b17f9e4a_c24d8a",
+        "stage_latency_ms": {
+          "turn_total": 9985
+        },
+        "started_at": "2026-06-06T09:41:53.281595+00:00",
+        "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+        "tool_names": [],
+        "trace_id": "53165b72-7431-4041-917b-b634edf12004",
+        "transcript_char_count": 23,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "failure_codes": [
+        "ROUTING_INTENT",
+        "ROUTING_SECTION",
+        "CONTEXT_VALIDATION"
+      ],
+      "audio": {
+        "path": "tests\\fixtures\\voice_chapter_4_idea.wav",
+        "sample_rate": 48000,
+        "channels": 1,
+        "sample_width_bytes": 2,
+        "duration_ms": 2432
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-ambiguous-chapter-vi-voice",
+      "input_mode": "voice",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "trace_available": true,
+        "expected_intent": false,
+        "expected_answer_source": false,
+        "expected_section": null,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 218,
+      "user_transcript_char_count": 14,
+      "trace": {
+        "answer_source": "unknown",
+        "assistant_char_count": 218,
+        "completed_at": "2026-06-06T09:42:22.523111+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": null,
+        "detected_language": null,
+        "error_code": null,
+        "grounding_reason_code": null,
+        "grounding_route": null,
+        "input_mode": "voice",
+        "resolved_book_ids": [],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_b17f9e4a_c24d8a",
+        "stage_latency_ms": {
+          "turn_total": 14139
+        },
+        "started_at": "2026-06-06T09:42:08.381743+00:00",
+        "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+        "tool_names": [],
+        "trace_id": "f808612b-e3c3-479b-85f7-c61c92c00cfe",
+        "transcript_char_count": 14,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "failure_codes": [
+        "ROUTING_INTENT",
+        "CONTEXT_VALIDATION"
+      ],
+      "audio": {
+        "path": "tests\\fixtures\\voice_ambiguous_chapter.wav",
+        "sample_rate": 48000,
+        "channels": 1,
+        "sample_width_bytes": 2,
+        "duration_ms": 1792
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-current-bitcoin-vi-voice",
+      "input_mode": "voice",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "trace_available": true,
+        "expected_intent": false,
+        "expected_answer_source": true,
+        "expected_section": null,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 106,
+      "user_transcript_char_count": 33,
+      "trace": {
+        "answer_source": "policy",
+        "assistant_char_count": 106,
+        "completed_at": "2026-06-06T09:42:35.544566+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": null,
+        "detected_language": null,
+        "error_code": null,
+        "grounding_reason_code": null,
+        "grounding_route": null,
+        "input_mode": "voice",
+        "resolved_book_ids": [],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_b17f9e4a_c24d8a",
+        "stage_latency_ms": {
+          "turn_total": 7046
+        },
+        "started_at": "2026-06-06T09:42:28.492602+00:00",
+        "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+        "tool_names": [
+          "ask_web_search_permission"
+        ],
+        "trace_id": "ee5ac358-1614-4760-9bb9-e4f99be0ba7e",
+        "transcript_char_count": 33,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "failure_codes": [
+        "ROUTING_INTENT"
+      ],
+      "audio": {
+        "path": "tests\\fixtures\\voice_not_in_book.wav",
+        "sample_rate": 48000,
+        "channels": 1,
+        "sample_width_bytes": 2,
+        "duration_ms": 2795
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    }
+  ]
+}

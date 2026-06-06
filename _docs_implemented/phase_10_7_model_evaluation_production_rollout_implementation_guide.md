@@ -1,9 +1,71 @@
 # Phase 10.7 Implementation Guide - Model Evaluation And Production Rollout
 
 Date: 2026-06-06  
-Status: Proposed implementation guide  
+Status: Implemented and offline-tested; real provider evaluation pending  
 Depends on: Phase 10.0 -> 10.6  
 Primary scope: model selection, chat/voice evaluation, canary rollout, rollback safety
+
+---
+
+## 0. Implementation Status
+
+Implemented files:
+
+- `app/services/agent_observability/model_eval_report.py`
+  - pure/offline metrics builder;
+  - candidate matrix validation;
+  - model config snapshot helper;
+  - safe DB/RAG snapshot metadata builder;
+  - baseline/candidate comparator with hard gates;
+  - JSON/Markdown report writer.
+- `tests/fixtures/agent_eval/model_candidate_matrix.json`
+  - baseline profile;
+  - typed-chat candidate placeholder;
+  - realtime-voice candidate placeholder;
+  - permission-classifier candidate placeholder.
+- `scripts/manual_integration/phase10_agent_eval.py`
+  - candidate name/matrix args;
+  - model config snapshot in report;
+  - DB/RAG snapshot metadata in report;
+  - Phase 10.6 transcript contract validation;
+  - output path defaults to `_docs_implemented/eval_reports/phase10_7`.
+- `scripts/manual_integration/compare_phase10_model_reports.py`
+  - offline baseline/candidate report comparator.
+- `app/core/config.py` and `.env.example`
+  - added `AGENT_MODEL_PROFILE`.
+- `app/services/agent_voice_gpt_realtime.py`
+  - logs safe active model profile at startup.
+
+Offline tests completed:
+
+```powershell
+uv run pytest tests\services\agent_observability -q
+uv run pytest tests\services\voice_agent tests\services\agent_policy tests\services\agent_observability -q
+uv run ruff check app\core\config.py app\services\agent_voice_gpt_realtime.py app\services\agent_observability scripts\manual_integration tests\services\agent_observability tests\services\voice_agent tests\services\agent_policy
+uv run python -m py_compile app\core\config.py app\services\agent_voice_gpt_realtime.py app\services\agent_observability\model_eval_report.py scripts\manual_integration\phase10_agent_eval.py scripts\manual_integration\compare_phase10_model_reports.py
+uv run pytest tests -q --maxfail=1 --durations=20
+```
+
+Result:
+
+```text
+17 agent_observability tests passed.
+70 voice_agent/agent_policy/agent_observability tests passed.
+226 full test-suite tests passed.
+Ruff passed for changed runtime/script/test scopes.
+Py compile passed for changed Python files.
+```
+
+Not run automatically:
+
+- real LiveKit/provider evaluation;
+- production Hugging Face smoke test.
+
+Reason:
+
+```text
+These require running server/worker, real access token, LiveKit Cloud room, provider calls and potentially paid tokens. They remain manual integration steps.
+```
 
 ---
 
@@ -164,6 +226,84 @@ Rule:
 - Trước khi đưa model name vào matrix, phải verify model tồn tại bằng provider API/docs chính thức hoặc script list model local.
 - Nếu provider/model không ổn định, ghi rõ trong report, không đưa thẳng lên production.
 
+### 6.1 Runtime config override warning
+
+Code hiện tại dùng singleton:
+
+```python
+settings = Settings()
+```
+
+trong:
+
+```text
+app/core/config.py
+```
+
+Điều này có nghĩa là:
+
+```text
+Nếu một Python process đã import settings,
+việc đổi os.environ sau đó không tự làm settings reload.
+```
+
+Vì vậy Phase 10.7 phải phân biệt 2 chế độ evaluation:
+
+#### Mode A - External server/worker evaluation
+
+Runner gọi một FastAPI server và LiveKit worker đang chạy sẵn qua HTTP/LiveKit.
+
+Trong mode này:
+
+- `phase10_agent_eval.py` không thể tự đổi model của server/worker bằng `os.environ`;
+- candidate env phải được set trước khi start server/worker;
+- sau khi đổi candidate env phải restart server/worker;
+- runner chỉ ghi lại candidate name/model config được khai báo, và nên verify bằng startup log hoặc safe config endpoint nếu sau này có.
+
+Ví dụ:
+
+```powershell
+$env:VOICE_AGENT_TEXT_LLM_MODEL="<candidate-model>"
+$env:AGENT_MODEL_PROFILE="candidate_text_stronger"
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
+uv run python -m app.services.agent_voice_gpt_realtime start
+```
+
+Sau đó mới chạy:
+
+```powershell
+uv run python scripts/manual_integration/phase10_agent_eval.py `
+  --candidate-name candidate_text_stronger
+```
+
+#### Mode B - In-process/offline policy evaluation
+
+Nếu sau này có evaluator chạy policy trực tiếp trong cùng Python process, không được chỉ set `os.environ`.
+
+Phải override trực tiếp object:
+
+```python
+setattr(settings, "VOICE_AGENT_TEXT_LLM_MODEL", candidate_model)
+```
+
+và chỉ làm trong test/evaluation scope có rollback:
+
+```python
+old_value = settings.VOICE_AGENT_TEXT_LLM_MODEL
+try:
+    settings.VOICE_AGENT_TEXT_LLM_MODEL = candidate_model
+    ...
+finally:
+    settings.VOICE_AGENT_TEXT_LLM_MODEL = old_value
+```
+
+Rule:
+
+```text
+Candidate matrix là nguồn mô tả profile.
+Nó không tự động đổi runtime của server/worker nếu server/worker đã chạy.
+```
+
 ---
 
 ## 7. Evaluation Dataset
@@ -177,6 +317,54 @@ tests/fixtures/*.wav
 ```
 
 Phase 10.7 nên mở rộng dataset theo nhóm lỗi thật đã gặp:
+
+### 7.0 Snapshot lock rule
+
+Baseline và candidate chỉ so sánh hợp lệ khi chạy trên cùng một snapshot dữ liệu.
+
+Lý do:
+
+```text
+Nếu baseline chạy trên RAG index tuần trước,
+còn candidate chạy sau khi upload/index thêm sách mới,
+khác biệt accuracy có thể đến từ DB/RAG index chứ không phải model.
+```
+
+Vì vậy mỗi evaluation report phải ghi lại snapshot metadata an toàn:
+
+```json
+{
+  "snapshot": {
+    "book_id": "...",
+    "thread_id": "...",
+    "book_sections_count": 42,
+    "book_section_knowledge_count": 180,
+    "embedding_model": "text-embedding-3-small",
+    "embedding_version": "section-v1",
+    "app_git_sha": "...",
+    "database_label": "dev|staging|production"
+  }
+}
+```
+
+Không ghi:
+
+- `DATABASE_URL`;
+- Supabase key;
+- access token;
+- full chunk text;
+- raw transcript/audio.
+
+Rule bắt buộc:
+
+```text
+Baseline and candidate evaluations must run against the identical database and RAG index snapshots.
+```
+
+Nếu snapshot khác nhau:
+
+- comparator phải warning hoặc reject comparison;
+- report chỉ được đọc như smoke test riêng, không được kết luận model A tốt hơn model B.
 
 ### 7.1 Metadata cases
 
@@ -362,7 +550,56 @@ Rule:
 
 ## 9. Implementation Plan
 
-### Step 1 - Extend manual eval runner
+### Step 1 - Add candidate matrix fixture
+
+Create:
+
+```text
+tests/fixtures/agent_eval/model_candidate_matrix.json
+```
+
+Include at least:
+
+- `baseline`;
+- one typed-chat candidate placeholder;
+- one realtime-voice candidate placeholder;
+- one permission-classifier candidate placeholder.
+
+Validation rules:
+
+- candidate names must be unique;
+- env keys must be allowlisted;
+- each candidate should change only one model surface unless explicitly marked as `combined_experiment`;
+- never store secrets in the matrix.
+
+### Step 2 - Add deterministic metric/comparator unit tests first
+
+Before running expensive provider evaluation, create pure helpers and tests.
+
+Files:
+
+```text
+app/services/agent_observability/model_eval_report.py
+tests/services/agent_observability/test_model_eval_report.py
+```
+
+Test:
+
+- report summary calculates accuracy correctly;
+- hard gate fails when web search runs without permission;
+- comparator rejects candidate with worse metadata accuracy;
+- comparator rejects baseline/candidate if snapshot metadata mismatches;
+- comparator allows candidate with equal safety and better accuracy.
+
+Keep this offline. Do not call provider APIs in pytest.
+
+Why this step comes before manual eval:
+
+```text
+If the comparator is wrong, expensive real reports are not trustworthy.
+```
+
+### Step 3 - Extend manual eval runner
 
 File:
 
@@ -376,6 +613,7 @@ Add:
 - `--candidate-matrix`;
 - `--output-dir`;
 - model/env snapshot in report;
+- safe DB/RAG snapshot metadata in report;
 - transcript payload ID validation after Phase 10.6;
 - latency timestamps for:
   - request sent;
@@ -406,6 +644,12 @@ JSON report should include:
     "OPENAI_REALTIME_TRANSCRIPTION_MODEL": "...",
     "VOICE_AGENT_PERMISSION_CLASSIFIER_MODEL": "..."
   },
+  "snapshot": {
+    "book_sections_count": 42,
+    "book_section_knowledge_count": 180,
+    "embedding_version": "section-v1",
+    "app_git_sha": "..."
+  },
   "summary": {
     "total_cases": 12,
     "passed_cases": 11,
@@ -421,7 +665,14 @@ JSON report should include:
 }
 ```
 
-### Step 2 - Add offline report comparator
+Important:
+
+```text
+In external server mode, this runner does not apply env overrides to the running server.
+Start/restart server and LiveKit worker with the candidate env before running the script.
+```
+
+### Step 4 - Add offline report comparator
 
 Create:
 
@@ -432,6 +683,7 @@ scripts/manual_integration/compare_phase10_model_reports.py
 Responsibilities:
 
 - load baseline report and candidate report;
+- verify snapshot metadata compatibility;
 - compare pass rate, source accuracy, hallucination signals, latency and cost;
 - print go/no-go recommendation;
 - fail with non-zero exit code if candidate violates hard gates.
@@ -444,24 +696,7 @@ uv run python scripts/manual_integration/compare_phase10_model_reports.py `
   --candidate _docs_implemented/eval_reports/phase10_7/20260606_candidate_text_stronger.json
 ```
 
-### Step 3 - Add deterministic unit tests for metrics
-
-File:
-
-```text
-tests/services/agent_observability/test_model_eval_report.py
-```
-
-Test:
-
-- report summary calculates accuracy correctly;
-- hard gate fails when web search runs without permission;
-- comparator rejects candidate with worse metadata accuracy;
-- comparator allows candidate with equal safety and better accuracy.
-
-Keep this offline. Do not call provider APIs in pytest.
-
-### Step 4 - Add rollout config contract
+### Step 5 - Add rollout config contract
 
 No DB migration.
 
@@ -487,7 +722,7 @@ Purpose:
 
 Do not add dynamic per-request model switching yet unless product needs A/B per user.
 
-### Step 5 - Add startup log snapshot
+### Step 6 - Add startup log snapshot
 
 When voice agent starts, log safe model metadata:
 
@@ -497,7 +732,7 @@ Agent model profile active | profile=baseline | text_model=... | realtime_model=
 
 Do not log API keys.
 
-### Step 6 - Production smoke test script
+### Step 7 - Production smoke test script
 
 Create or extend manual command docs:
 
@@ -546,10 +781,19 @@ Example:
 
 ```powershell
 $env:VOICE_AGENT_TEXT_LLM_MODEL="<candidate-model>"
+$env:AGENT_MODEL_PROFILE="candidate_text_stronger"
+uv run uvicorn app.main:app --host 0.0.0.0 --port 8000
 uv run python -m app.services.agent_voice_gpt_realtime start
 ```
 
 Run eval again and compare.
+
+Important:
+
+```text
+The server and LiveKit worker must be restarted after env changes.
+Changing env only in the evaluation runner process does not change the already-running app.
+```
 
 ### 10.3 Production canary
 
@@ -588,6 +832,7 @@ Restart Space after env rollback.
 
 Candidate can go production only if:
 
+- baseline and candidate reports have compatible snapshot metadata;
 - metadata cases pass 100%;
 - web permission violation count is 0;
 - source accuracy is equal or better than baseline;
@@ -599,6 +844,7 @@ Candidate can go production only if:
 
 Reject candidate if:
 
+- baseline/candidate used different DB or RAG index snapshots;
 - it answers from memory when book context is required;
 - it searches web before permission;
 - it fails author/chapter metadata that baseline passes;
@@ -712,14 +958,17 @@ Phase 10.7 is complete when:
 
 1. Candidate matrix exists and is documented.
 2. Eval runner records active model config safely.
-3. Eval runner outputs JSON and Markdown reports.
-4. Comparator can compare baseline vs candidate and produce go/no-go.
-5. Unit tests cover metric/comparator logic offline.
-6. Local baseline report exists.
-7. At least one candidate report exists or the doc states why no candidate was approved.
-8. Production smoke test report exists for current model config.
-9. Rollback env values are documented.
-10. No FE contract changes are required.
+3. Eval runner records safe DB/RAG snapshot metadata.
+4. Eval runner documentation clearly states that external server mode requires restart with candidate env.
+5. Eval runner outputs JSON and Markdown reports.
+6. Comparator can compare baseline vs candidate and produce go/no-go.
+7. Comparator rejects or warns on snapshot mismatch.
+8. Unit tests cover metric/comparator logic offline.
+9. Local baseline report exists.
+10. At least one candidate report exists or the doc states why no candidate was approved.
+11. Production smoke test report exists for current model config.
+12. Rollback env values are documented.
+13. No FE contract changes are required.
 
 ---
 

@@ -94,16 +94,16 @@ Nếu transcript bị mất thông tin quan trọng như số chương hoặc lo
 
 ## 4. Thứ Tự Các Phase
 
-| Phase | Tên | Priority | Kết quả chính |
-| --- | --- | --- | --- |
-| 10.0 | Evaluation Baseline And Agent Trace | P0 | Đo được lỗi nằm ở STT, router, RAG hay model |
-| 10.1 | Deterministic Metadata And Section Router | P0 | Tác giả và câu hỏi theo chương đi đúng nguồn |
-| 10.2 | Canonical BookSection Knowledge Index | P0 | Mọi section hợp lệ đều có thể được tìm thấy, độc lập Full/Pareto |
-| 10.3 | Hybrid Retrieval And Confidence Guardrails | P1 | Giảm lấy sai chương và giảm web fallback sai |
-| 10.4 | Voice STT Robustness And Clarification | P1 | Voice không trả lời bừa khi transcript sai hoặc thiếu |
-| 10.5 | Shared Chat And Voice Agent Policy | P1 | Chat và voice có hành vi nhất quán |
-| 10.6 | FE Transcript Reconciliation | P1 | Không lặp bubble hoặc nối trùng câu trả lời |
-| 10.7 | Model Evaluation And Production Rollout | P2 | Chọn model bằng dữ liệu đo, triển khai an toàn |
+| Phase | Tên                                        | Priority | Kết quả chính                                                    |
+| ----- | ------------------------------------------ | -------- | ---------------------------------------------------------------- |
+| 10.0  | Evaluation Baseline And Agent Trace        | P0       | Đo được lỗi nằm ở STT, router, RAG hay model                     |
+| 10.1  | Deterministic Metadata And Section Router  | P0       | Tác giả và câu hỏi theo chương đi đúng nguồn                     |
+| 10.2  | Canonical BookSection Knowledge Index      | P0       | Mọi section hợp lệ đều có thể được tìm thấy, độc lập Full/Pareto |
+| 10.3  | Hybrid Retrieval And Confidence Guardrails | P1       | Giảm lấy sai chương và giảm web fallback sai                     |
+| 10.4  | Voice STT Robustness And Clarification     | P1       | Voice không trả lời bừa khi transcript sai hoặc thiếu            |
+| 10.5  | Shared Chat And Voice Agent Policy         | P1       | Chat và voice có hành vi nhất quán                               |
+| 10.6  | FE Transcript Reconciliation               | P1       | Không lặp bubble hoặc nối trùng câu trả lời                      |
+| 10.7  | Model Evaluation And Production Rollout    | P2       | Chọn model bằng dữ liệu đo, triển khai an toàn                   |
 
 ---
 

@@ -3,6 +3,7 @@ from pathlib import Path
 
 TEXT_CASES = Path("tests/fixtures/agent_eval/book_grounding_cases.json")
 VOICE_CASES = Path("tests/fixtures/agent_eval/voice_manifest.json")
+CANDIDATE_MATRIX = Path("tests/fixtures/agent_eval/model_candidate_matrix.json")
 
 
 def _load(path: Path) -> list[dict]:
@@ -33,3 +34,21 @@ def test_voice_eval_fixture_paths_are_declared_and_valid_when_present():
         assert fixture.suffix == ".wav"
         if fixture.exists():
             assert fixture.stat().st_size > 0
+
+
+def test_model_candidate_matrix_has_required_baseline_and_unique_names():
+    candidates = _load(CANDIDATE_MATRIX)
+    names = [candidate["name"] for candidate in candidates]
+
+    assert "baseline" in names
+    assert len(names) == len(set(names))
+    for candidate in candidates:
+        assert isinstance(candidate["description"], str)
+        assert isinstance(candidate["env"], dict)
+
+
+def test_chapter_five_fixture_checks_fact_not_single_translation():
+    cases = {case["id"]: case for case in _load(TEXT_CASES)}
+    chapter_five = cases["mice-chapter-five-summary-vi-text"]
+
+    assert chapter_five["must_include"] == ["Lennie", "Curley"]
