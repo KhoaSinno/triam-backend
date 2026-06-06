@@ -44,7 +44,7 @@ Reliability:
 
 Backend publish transcript đã “committed” cho **cả user và assistant**.
 
-Schema (đúng theo backend hiện tại):
+Schema (đúng theo backend hiện tại, backward-compatible):
 
 ```json
 {
@@ -52,21 +52,30 @@ Schema (đúng theo backend hiện tại):
   "type": "transcript",
   "role": "user" | "assistant",
   "text": "...",
-  "id": "<uuid>",
+  "id": "<chat_message_uuid_or_transient_uuid>",
+  "message_id": "<chat_message_uuid_or_null>",
+  "thread_id": "<thread_uuid_or_null>",
+  "source": "livekit",
+  "status": "committed",
   "ts": "2026-05-12T09:29:28.738+00:00"
 }
 ```
 
 Quy ước xử lý UI:
 
-- `id`: dùng để **dedupe** (tránh render trùng nếu reconnect)
+- `id`: dùng để **dedupe chính**. Nếu backend lưu DB thành công thì `id == message_id == chat_messages.id`; nếu DB không lưu được thì `id` là UUID tạm.
+- `message_id`: ID thật trong bảng `chat_messages`; dùng để merge với REST history khi reconnect/reload. Có thể `null` trong console/transient session hoặc khi DB save tạm lỗi.
+- `thread_id`: thread hiện tại nếu backend biết được.
+- `source`: hiện tại là `livekit`.
+- `status`: hiện tại là `committed`.
 - `ts`: dùng để **sort** nếu cần
 - `role=user|assistant`: quyết định bubble bên trái/bên phải
 
 Lưu ý:
 
 - `lk.chat` là text thuần; UI có thể dùng để hiển thị nhanh.
-- `lk.transcript` là JSON ổn định nhất để hiển thị “câu user nói” (voice transcript) và normalize cho UI.
+- `lk.transcript` là JSON ổn định nhất để hiển thị timeline chính thức cho cả voice và text.
+- FE nên ưu tiên merge/dedupe theo `message_id ?? id`, sau đó mới fallback bằng `role + normalized text + time window`.
 
 ### 2.3 Topic `lk.control` (JSON)
 

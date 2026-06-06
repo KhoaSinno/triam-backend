@@ -11,7 +11,7 @@ from app.core.logger import log
 from app.models.db_models import ChatMessage
 from app.services.voice_agent.contracts import LK_TRANSCRIPT_TOPIC, TranscriptRole
 
-MessageSaver = Callable[[str, bool], None]
+MessageSaver = Callable[[str, bool], uuid.UUID | None]
 HistoryLoader = Callable[[int], list[ChatMessage]]
 
 
@@ -51,17 +51,28 @@ class VoiceTranscriptStore:
             )
         return self._engine
 
-    async def publish_transcript(self, role: TranscriptRole, text: str) -> None:
+    async def publish_transcript(
+        self,
+        role: TranscriptRole,
+        text: str,
+        *,
+        message_id: uuid.UUID | None = None,
+    ) -> None:
         normalized = normalize_transcript_text(text)
         if not normalized or not self._room.isconnected():
             return
 
+        transcript_id = message_id or uuid.uuid4()
         payload = {
             "v": 1,
             "type": "transcript",
             "role": role,
             "text": normalized,
-            "id": str(uuid.uuid4()),
+            "id": str(transcript_id),
+            "message_id": str(message_id) if message_id else None,
+            "thread_id": str(self._thread_id) if self._thread_id else None,
+            "source": "livekit",
+            "status": "committed",
             "ts": datetime.now(timezone.utc).isoformat(),
         }
         try:
@@ -84,8 +95,8 @@ class VoiceTranscriptStore:
             return False
         self._seen_user_texts[normalized] = now
 
-        await asyncio.to_thread(self._save_message_sync, normalized, True)
-        await self.publish_transcript("user", normalized)
+        message_id = await self._save_message_for_transcript(normalized, True)
+        await self.publish_transcript("user", normalized, message_id=message_id)
         return True
 
     async def save_and_publish_assistant(self, text: str) -> bool:
@@ -93,16 +104,23 @@ class VoiceTranscriptStore:
         if not normalized:
             return False
 
-        await asyncio.to_thread(self._save_message_sync, normalized, False)
-        await self.publish_transcript("assistant", normalized)
+        message_id = await self._save_message_for_transcript(normalized, False)
+        await self.publish_transcript("assistant", normalized, message_id=message_id)
         return True
 
     async def load_recent_history(self, limit: int) -> list[ChatMessage]:
         return await asyncio.to_thread(self._load_history_sync, limit)
 
-    def _save_message_to_db(self, text: str, is_user: bool) -> None:
+    async def _save_message_for_transcript(self, text: str, is_user: bool) -> uuid.UUID | None:
+        try:
+            return await asyncio.to_thread(self._save_message_sync, text, is_user)
+        except Exception as exc:
+            self._log_transcript_save_failure(text=text, is_user=is_user, exc=exc)
+            return None
+
+    def _save_message_to_db(self, text: str, is_user: bool) -> uuid.UUID | None:
         if not self._thread_id:
-            return
+            return None
         try:
             with Session(self._get_engine()) as db:
                 new_msg = ChatMessage(
@@ -114,8 +132,19 @@ class VoiceTranscriptStore:
                 )
                 db.add(new_msg)
                 db.commit()
+                db.refresh(new_msg)
+                return new_msg.id
         except Exception as exc:
-            log.info(f"Lỗi khi lưu message: {exc}")
+            self._log_transcript_save_failure(text=text, is_user=is_user, exc=exc)
+            return None
+
+    def _log_transcript_save_failure(self, *, text: str, is_user: bool, exc: Exception) -> None:
+        role = "user" if is_user else "assistant"
+        log.info(
+            "Transcript DB save failed | "
+            f"thread_id={self._thread_id} | role={role} | "
+            f"text_len={len(text)} | error_type={type(exc).__name__}"
+        )
 
     def _load_history_from_db(self, limit: int) -> list[ChatMessage]:
         if not self._thread_id:

@@ -3,6 +3,7 @@ import uuid
 
 import pytest
 
+from app.services.voice_agent import transcript_store
 from app.services.voice_agent.contracts import LK_TRANSCRIPT_TOPIC
 from app.services.voice_agent.transcript_store import VoiceTranscriptStore
 
@@ -21,6 +22,11 @@ class FakeRoom:
 
     def isconnected(self) -> bool:
         return True
+
+
+def decode_first_payload(room: FakeRoom) -> dict:
+    payload, _, _ = room.local_participant.published[0]
+    return json.loads(payload.decode("utf-8"))
 
 
 @pytest.mark.asyncio
@@ -49,6 +55,9 @@ async def test_user_transcript_is_deduped_inside_window():
     assert data["type"] == "transcript"
     assert data["role"] == "user"
     assert data["text"] == "Xin chào"
+    assert data["message_id"] is None
+    assert data["source"] == "livekit"
+    assert data["status"] == "committed"
 
 
 @pytest.mark.asyncio
@@ -71,4 +80,108 @@ async def test_assistant_transcript_is_saved_and_published():
     assert topic == LK_TRANSCRIPT_TOPIC
     assert data["role"] == "assistant"
     assert data["text"] == "Chào bạn"
+
+
+@pytest.mark.asyncio
+async def test_user_transcript_uses_db_message_id_when_saver_returns_id():
+    room = FakeRoom()
+    thread_id = uuid.uuid4()
+    message_id = uuid.uuid4()
+    store = VoiceTranscriptStore(
+        room=room,
+        thread_id=thread_id,
+        dedupe_window_seconds=3,
+        save_message_sync=lambda _text, _is_user: message_id,
+    )
+
+    ok = await store.save_and_publish_user("Tác giả là ai?")
+
+    assert ok is True
+    data = decode_first_payload(room)
+    assert data["v"] == 1
+    assert data["type"] == "transcript"
+    assert data["role"] == "user"
+    assert data["text"] == "Tác giả là ai?"
+    assert data["id"] == str(message_id)
+    assert data["message_id"] == str(message_id)
+    assert data["thread_id"] == str(thread_id)
+    assert data["source"] == "livekit"
+    assert data["status"] == "committed"
+    assert data["ts"]
+
+
+@pytest.mark.asyncio
+async def test_assistant_transcript_uses_db_message_id_when_saver_returns_id():
+    room = FakeRoom()
+    thread_id = uuid.uuid4()
+    message_id = uuid.uuid4()
+    store = VoiceTranscriptStore(
+        room=room,
+        thread_id=thread_id,
+        dedupe_window_seconds=3,
+        save_message_sync=lambda _text, _is_user: message_id,
+    )
+
+    ok = await store.save_and_publish_assistant("John Steinbeck là tác giả.")
+
+    assert ok is True
+    data = decode_first_payload(room)
+    assert data["role"] == "assistant"
+    assert data["id"] == str(message_id)
+    assert data["message_id"] == str(message_id)
+    assert data["thread_id"] == str(thread_id)
+
+
+@pytest.mark.asyncio
+async def test_transcript_still_publishes_with_transient_id_when_saver_returns_none():
+    room = FakeRoom()
+    thread_id = uuid.uuid4()
+    store = VoiceTranscriptStore(
+        room=room,
+        thread_id=thread_id,
+        dedupe_window_seconds=3,
+        save_message_sync=lambda _text, _is_user: None,
+    )
+
+    ok = await store.save_and_publish_assistant("Không có dữ liệu.")
+
+    assert ok is True
+    data = decode_first_payload(room)
+    assert uuid.UUID(data["id"])
+    assert data["message_id"] is None
+    assert data["thread_id"] == str(thread_id)
+
+
+@pytest.mark.asyncio
+async def test_transcript_still_publishes_when_saver_raises_without_logging_raw_text(monkeypatch):
+    room = FakeRoom()
+    thread_id = uuid.uuid4()
+    raw_text = "Nội dung nhạy cảm không được log đầy đủ"
+    logs: list[str] = []
+
+    def broken_saver(_text: str, _is_user: bool) -> uuid.UUID | None:
+        raise RuntimeError("database timeout")
+
+    monkeypatch.setattr(transcript_store.log, "info", lambda message: logs.append(message))
+    store = VoiceTranscriptStore(
+        room=room,
+        thread_id=thread_id,
+        dedupe_window_seconds=3,
+        save_message_sync=broken_saver,
+    )
+
+    ok = await store.save_and_publish_user(raw_text)
+
+    assert ok is True
+    data = decode_first_payload(room)
+    assert uuid.UUID(data["id"])
+    assert data["message_id"] is None
+    assert data["text"] == raw_text
+    assert logs
+    assert "Transcript DB save failed" in logs[0]
+    assert f"thread_id={thread_id}" in logs[0]
+    assert "role=user" in logs[0]
+    assert f"text_len={len(raw_text)}" in logs[0]
+    assert "RuntimeError" in logs[0]
+    assert raw_text not in logs[0]
 
