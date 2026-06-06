@@ -34,6 +34,7 @@ from app.repositories.agent_grounding_repo import load_grounding_scope, load_sco
 from app.services.agent_grounding import GroundingResult, GroundingRoute, GroundingRouter
 from app.services.agent_grounding.response_renderer import format_grounding_tool_result
 from app.services.agent_observability import AgentAnswerSource, AgentInputMode, AgentTurnTracer
+from app.services.agent_policy import AgentPolicyAction, AgentPolicyRequest, SharedAgentPolicy, render_text_direct_message, render_voice_tool_result
 from app.services.voice_agent.contracts import LK_CHAT_TOPIC, LK_CONTROL_TOPIC, VoiceJobMetadata
 from app.services.voice_agent.query_guard import VoiceQueryGuardConfig, guard_voice_book_query
 from app.services.voice_agent.rag_context import format_rag_context, search_voice_book_context, trim_text
@@ -62,9 +63,11 @@ Tool rules:
 - Treat `BOOK_SECTION_FOUND` as the only source for the requested section.
 - If the tool returns `CLARIFICATION_REQUIRED`, read the clarification and stop.
 - If the tool returns `WEB_PERMISSION_REPLY_DETECTED`, continue the pending web-search permission flow; do not answer from book memory.
+- If the tool returns `BOOK_SECTION_UNAVAILABLE` or `BOOK_CONTEXT_ERROR`, read the message and stop.
 - Never request web search for `CLARIFICATION_REQUIRED` or a resolved book section.
 - If the tool returns `EXTERNAL_INFO_REQUIRED` or `BOOK_CONTEXT_NOT_FOUND`, call `ask_web_search_permission` exactly once.
 - Read the returned question, then stop and wait for the user.
+- Do not call `search_book_knowledge` again in the same turn after a clarification, unavailable-section, context-error, or web-permission marker.
 - Do not ask web-search permission in your own words. Always use `ask_web_search_permission` so the backend can track the pending request.
 - After the user clearly agrees, call `execute_web_search` once for the pending query and answer from the result.
 - NEVER call `execute_web_search` before the user grants permission.
@@ -85,12 +88,15 @@ Tool rules:
 - For book-content questions, call `search_book_knowledge_text` first.
 - Treat `BOOK_METADATA_FOUND` and `BOOK_SECTION_FOUND` as authoritative.
 - If a tool returns `CLARIFICATION_REQUIRED`, ask that clarification and stop.
+- If a tool returns `BOOK_SECTION_UNAVAILABLE` or `BOOK_CONTEXT_ERROR`, read the message and stop.
+- If a tool returns `WEB_PERMISSION_REPLY_DETECTED`, continue the pending web-search permission flow; do not treat it as a new book question.
 - If a tool returns `EXTERNAL_INFO_REQUIRED`, call `ask_web_search_permission_text`.
 - For prices, news, recent events, or out-of-book facts, call `ask_web_search_permission_text` before any web search.
 - If `search_book_knowledge_text` returns `BOOK_CONTEXT_NOT_FOUND`, call `ask_web_search_permission_text`.
 - Call `execute_web_search_text` only after the user granted permission in the previous turn.
 - If a tool returns `WEB_SEARCH_PERMISSION_REQUIRED` or `WEB_SEARCH_PERMISSION_UNCLEAR`, ask permission and stop.
 - If a tool returns `WEB_SEARCH_PERMISSION_DENIED`, do not search the web.
+- Do not call `search_book_knowledge_text` again in the same turn after a clarification, unavailable-section, context-error, or web-permission marker.
 - Answer in Vietnamese only, 2-3 short sentences, no Markdown, no emoji.
 """.strip()
 
@@ -237,6 +243,7 @@ class TriamAssistant(Agent):
         tracer: AgentTurnTracer,
         grounding_router: GroundingRouter | None = None,
         voice_turn_state: VoiceTurnState | None = None,
+        shared_policy: SharedAgentPolicy | None = None,
     ) -> None:
         super().__init__(instructions=VOICE_AGENT_INSTRUCTIONS)
         self.document_ids = document_ids
@@ -244,6 +251,7 @@ class TriamAssistant(Agent):
         self.tracer = tracer
         self.grounding_router = grounding_router
         self.voice_turn_state = voice_turn_state or VoiceTurnState()
+        self.shared_policy = shared_policy
         self._web_search_lock = asyncio.Lock()
         self._cached_web_query: str | None = None
         self._cached_web_result: str | None = None
@@ -316,6 +324,17 @@ class TriamAssistant(Agent):
                         "web-search permission flow for the pending query."
                     )
                 return f"CLARIFICATION_REQUIRED:\n{guard_result.clarification or 'Bạn vui lòng nói rõ câu hỏi.'}"
+
+        if settings.AGENT_SHARED_POLICY_ENABLED and self.shared_policy is not None:
+            policy_result = await self.shared_policy.resolve(
+                AgentPolicyRequest(
+                    query=query,
+                    input_mode=input_mode,
+                    document_ids=self.document_ids,
+                    allow_web_permission=self.web_search_policy.enabled,
+                )
+            )
+            return render_voice_tool_result(policy_result)
 
         if self.grounding_router is not None:
             grounding_result = await self.grounding_router.resolve(
@@ -474,12 +493,18 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             log.warning(f"Grounding router initialization failed; using legacy RAG flow | error_type={type(exc).__name__}")
 
     voice_turn_state = VoiceTurnState()
+    shared_policy = SharedAgentPolicy(
+        document_ids=document_ids,
+        grounding_router=grounding_router,
+        tracer=tracer,
+    )
     agent_instance = TriamAssistant(
         document_ids=document_ids,
         web_search_policy=web_search_policy,
         tracer=tracer,
         grounding_router=grounding_router,
         voice_turn_state=voice_turn_state,
+        shared_policy=shared_policy,
     )
     chat_llm = OpenAILLM(model=settings.VOICE_AGENT_TEXT_LLM_MODEL, temperature=0.7)
     transcript_store = VoiceTranscriptStore(
@@ -572,6 +597,36 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             return False, ""
         return True, await _chat_from_grounding_result(result, user_text)
 
+    async def _chat_with_shared_policy(user_text: str) -> str:
+        log.info("[Text Chat] Shared agent policy")
+        policy_result = await shared_policy.resolve(
+            AgentPolicyRequest(
+                query=user_text,
+                input_mode=AgentInputMode.TEXT,
+                document_ids=document_ids,
+                allow_web_permission=web_search_policy.enabled,
+            )
+        )
+
+        if policy_result.action in {
+            AgentPolicyAction.ANSWER_WITH_SECTION_CONTEXT,
+            AgentPolicyAction.ANSWER_WITH_RAG_CONTEXT,
+        }:
+            temp_ctx = session.history.copy()
+            temp_ctx.add_message(
+                role="system",
+                content=policy_result.llm_system_context or "",
+            )
+            response = await chat_llm.chat(chat_ctx=temp_ctx).collect()
+            return response.text
+
+        if policy_result.action == AgentPolicyAction.ASK_WEB_PERMISSION:
+            tracer.record_tool(AgentInputMode.TEXT, "ask_web_search_permission_text")
+            tracer.record_answer_source(AgentInputMode.TEXT, AgentAnswerSource.POLICY)
+            return web_search_policy.request_permission(user_text) if web_search_policy.enabled else render_text_direct_message(policy_result)
+
+        return render_text_direct_message(policy_result)
+
     async def _chat_with_agentic_loop(user_text: str) -> str:
         """
         Chế độ Agentic (toggle BẬT): gpt-4o-mini tự quyết định dùng tool nào.
@@ -586,6 +641,16 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         async def search_book_knowledge_text(query: Annotated[str, "Câu hỏi hoặc nội dung cần tìm trong sách"]) -> str:
             """Tìm kiếm kiến thức trong sách thuộc Study Context hiện tại."""
             tracer.record_tool(AgentInputMode.TEXT, "search_book_knowledge_text")
+            if settings.AGENT_SHARED_POLICY_ENABLED:
+                policy_result = await shared_policy.resolve(
+                    AgentPolicyRequest(
+                        query=query,
+                        input_mode=AgentInputMode.TEXT,
+                        document_ids=document_ids,
+                        allow_web_permission=web_search_policy.enabled,
+                    )
+                )
+                return render_voice_tool_result(policy_result)
             return await agent_instance.resolve_book_query(query, AgentInputMode.TEXT)
 
         async def ask_web_search_permission_text(query: Annotated[str, "Nội dung dự kiến sẽ tìm trên web nếu user đồng ý"]) -> str:
@@ -702,7 +767,6 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             _truncate_session_history()
 
             try:
-                handled_by_grounding = False
                 if permission_decision.granted_query:
                     full_reply = await _chat_with_granted_web_search(permission_decision.granted_query)
                 elif permission_decision.denied:
@@ -713,9 +777,12 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                     full_reply = "Tôi chưa rõ ý ông. Bạn muốn tôi tìm thêm trên internet cho câu vừa rồi không?"
                 else:
                     started = time.perf_counter()
-                    handled_by_grounding, full_reply = await _try_chat_grounding_route(normalized_text)
-                    if not handled_by_grounding:
-                        full_reply = await _chat_with_agentic_loop(normalized_text) if web_search_policy.enabled else await _chat_naive_rag(normalized_text)
+                    if settings.AGENT_SHARED_POLICY_ENABLED:
+                        full_reply = await _chat_with_shared_policy(normalized_text)
+                    else:
+                        handled_by_grounding, full_reply = await _try_chat_grounding_route(normalized_text)
+                        if not handled_by_grounding:
+                            full_reply = await _chat_with_agentic_loop(normalized_text) if web_search_policy.enabled else await _chat_naive_rag(normalized_text)
                     tracer.record_latency(AgentInputMode.TEXT, "answer_pipeline", int((time.perf_counter() - started) * 1000))
 
                 full_reply = full_reply.strip()

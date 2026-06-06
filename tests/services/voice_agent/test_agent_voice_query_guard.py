@@ -1,7 +1,8 @@
 import pytest
 
 from app.core.config import settings
-from app.services.agent_observability import AgentInputMode, AgentTurnTracer
+from app.services.agent_observability import AgentAnswerSource, AgentInputMode, AgentTurnTracer
+from app.services.agent_policy import AgentPolicyAction, AgentPolicyRequest, AgentPolicyResult
 from app.services.agent_voice_gpt_realtime import TriamAssistant
 from app.services.voice_agent.contracts import VoiceRagResult
 from app.services.voice_agent.turn_state import VoiceTurnState
@@ -15,6 +16,21 @@ def _assistant(state: VoiceTurnState) -> TriamAssistant:
         tracer=AgentTurnTracer(enabled=False, thread_id=None, room_name="test"),
         voice_turn_state=state,
     )
+
+
+class FakeSharedPolicy:
+    def __init__(self) -> None:
+        self.requests: list[AgentPolicyRequest] = []
+
+    async def resolve(self, request: AgentPolicyRequest) -> AgentPolicyResult:
+        self.requests.append(request)
+        return AgentPolicyResult(
+            action=AgentPolicyAction.DIRECT_ANSWER,
+            answer_source=AgentAnswerSource.BOOK_METADATA,
+            reason_code="test_policy",
+            user_message="Shared policy answer.",
+            tool_marker="BOOK_METADATA_FOUND:\nShared policy answer.",
+        )
 
 
 @pytest.mark.asyncio
@@ -49,3 +65,21 @@ async def test_text_query_is_not_blocked_by_voice_guard(monkeypatch) -> None:
     result = await assistant.resolve_book_query("đại ý chương 4", AgentInputMode.TEXT)
 
     assert result == "BOOK_CONTEXT_NOT_FOUND: not found"
+
+
+@pytest.mark.asyncio
+async def test_resolve_book_query_uses_shared_policy_when_enabled(monkeypatch) -> None:
+    monkeypatch.setattr(settings, "AGENT_SHARED_POLICY_ENABLED", True)
+    fake_policy = FakeSharedPolicy()
+    assistant = TriamAssistant(
+        document_ids=["book-1"],
+        web_search_policy=WebSearchPermissionPolicy(enabled=False),
+        tracer=AgentTurnTracer(enabled=False, thread_id=None, room_name="test"),
+        shared_policy=fake_policy,  # type: ignore[arg-type]
+    )
+
+    result = await assistant.resolve_book_query("Tác giả của sách là ai?", AgentInputMode.TEXT)
+
+    assert result == "BOOK_METADATA_FOUND:\nShared policy answer."
+    assert fake_policy.requests[0].input_mode == AgentInputMode.TEXT
+    assert fake_policy.requests[0].document_ids == ["book-1"]

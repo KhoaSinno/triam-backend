@@ -197,6 +197,33 @@ Lý do không đặt trong `voice_agent`:
 - `voice_agent` nên giữ các phần realtime-specific như transcript state, query guard, permission UI control;
 - `agent_grounding` hiện chỉ làm routing/grounding, chưa phải orchestration đầy đủ.
 
+### 6.1 Lifecycle rule - tuyệt đối không dùng global singleton
+
+`SharedAgentPolicy` được phép là object nhẹ, nhưng không được tạo global singleton.
+
+Lý do:
+
+- `WebSearchPermissionPolicy` có state theo phiên hội thoại;
+- `AgentTurnTracer` có state theo room/thread/turn;
+- `document_ids` khác nhau theo từng Study Context hoặc Thread;
+- nếu dùng singleton, user A có thể làm nhiễu trace/pending permission của user B.
+
+Rule implement:
+
+```text
+Voice LiveKit room
+-> tạo SharedAgentPolicy bên trong entrypoint/session
+
+Text DataChannel turn
+-> dùng policy instance thuộc session hiện tại, hoặc tạo per-turn bằng dependencies của session
+
+Never:
+-> tạo SharedAgentPolicy ở module global
+-> cache policy theo process nếu policy giữ tracer/web permission/session state
+```
+
+Nếu sau này muốn cache để tối ưu, chỉ cache dữ liệu immutable như `GroundingScope`, không cache object giữ state hội thoại.
+
 ---
 
 ## 7. Data Contracts
@@ -254,6 +281,8 @@ class AgentPolicyResult:
     action: AgentPolicyAction
     answer_source: str
     reason_code: str
+    message_key: str | None = None
+    message_params: dict[str, str] = field(default_factory=dict)
     user_message: str | None = None
     tool_marker: str | None = None
     llm_system_context: str | None = None
@@ -264,10 +293,20 @@ class AgentPolicyResult:
 
 Quy ước:
 
+- `message_key` và `message_params`: khóa thông điệp chuẩn để adapter render câu tiếng Việt phù hợp.
 - `user_message`: có thể trả thẳng cho text hoặc đọc thẳng bằng voice.
 - `tool_marker`: marker cho realtime tool, ví dụ `BOOK_METADATA_FOUND`, `BOOK_SECTION_FOUND`, `CLARIFICATION_REQUIRED`.
 - `llm_system_context`: context đưa vào LLM để synthesize answer.
 - Không lưu full chunks trong result nếu không cần; tránh trace/log phình.
+
+Recommendation:
+
+```text
+SharedAgentPolicy ưu tiên trả action/reason/message_key.
+Adapter/renderer chịu trách nhiệm biến nó thành câu tiếng Việt cuối cùng.
+```
+
+Không nên rải hard-code localized strings trong shared service, vì sau này text và voice có thể cần giọng văn hơi khác nhau dù cùng một policy decision.
 
 ---
 
@@ -315,6 +354,36 @@ Câu này cần xin phép web.
 
 Việc user đồng ý/từ chối và execute web vẫn thuộc `WebSearchPermissionPolicy` và web tools hiện tại.
 
+### 8.3 Implicit grant rule
+
+Voice hiện có implicit grant window:
+
+```text
+VOICE_AGENT_WEB_IMPLICIT_GRANT_WINDOW_SECONDS
+```
+
+Vì vậy khi shared policy trả `ASK_WEB_PERMISSION`, adapter realtime không được hiểu đơn giản là luôn hỏi lại user.
+
+Adapter cần xử lý:
+
+```python
+if policy_result.action == AgentPolicyAction.ASK_WEB_PERMISSION:
+    allowed, reason = await web_search_policy.resolve_before_web_search(query)
+    if allowed:
+        # execute web search tool/path cho pending query đã được user grant trong window gần nhất
+    else:
+        # render ask permission message
+```
+
+Rule:
+
+```text
+SharedAgentPolicy chỉ nói: "câu này cần nguồn web".
+WebSearchPermissionPolicy mới quyết định: đã có quyền chưa, quyền còn hạn không, query có khớp không.
+```
+
+Điều này tránh bug user vừa nói "Yup làm đi" nhưng BE lại hỏi xin phép thêm lần nữa.
+
 ---
 
 ## 9. Rendering Strategy
@@ -349,6 +418,22 @@ def render_voice_tool_result(result: AgentPolicyResult) -> str:
     ...
 ```
 
+Renderer phải giữ các prefix marker cũ:
+
+```text
+BOOK_METADATA_FOUND:
+BOOK_SECTION_FOUND:
+BOOK_CONTEXT_FOUND:
+BOOK_CONTEXT_NOT_FOUND:
+BOOK_SECTION_UNAVAILABLE:
+CLARIFICATION_REQUIRED:
+EXTERNAL_INFO_REQUIRED:
+WEB_PERMISSION_REPLY_DETECTED:
+BOOK_CONTEXT_ERROR:
+```
+
+Không đổi marker nếu chưa có migration prompt/test riêng, vì OpenAI Realtime tool behavior đang phụ thuộc các marker này.
+
 ### 9.2 Text chat response
 
 Text chat có hai loại:
@@ -380,9 +465,64 @@ def should_call_llm(result: AgentPolicyResult) -> bool:
 
 Sau đó text handler gọi `chat_llm` với system context đã chuẩn hóa.
 
+### 9.3 Tool-loop stop rules
+
+Prompt của text và voice phải có rule cứng:
+
+```text
+If a tool returns CLARIFICATION_REQUIRED, WEB_PERMISSION_REPLY_DETECTED,
+BOOK_SECTION_UNAVAILABLE, BOOK_CONTEXT_ERROR, or EXTERNAL_INFO_REQUIRED,
+you must not call another tool for the same user turn.
+Read or output the user-facing message, then stop.
+```
+
+Riêng `EXTERNAL_INFO_REQUIRED`:
+
+```text
+call ask_web_search_permission exactly once, then stop.
+```
+
+Riêng `WEB_PERMISSION_REPLY_DETECTED`:
+
+```text
+continue the existing web-search permission flow; do not treat it as a book question.
+```
+
+Mục đích:
+
+- tránh LLM tự sửa query rồi gọi tool lại vô hạn;
+- tránh loop `search_book_knowledge -> clarification -> search_book_knowledge`;
+- tránh voice nhắc lại nhiều câu làm trải nghiệm tệ.
+
 ---
 
 ## 10. Implementation Steps
+
+### Step 0 - Add safety fixtures before touching worker
+
+Tạo test fixtures cho policy trước khi refactor realtime worker.
+
+Folder:
+
+```text
+tests/services/agent_policy/
+```
+
+Test fixtures nên mock:
+
+- `GroundingRouter.resolve`;
+- `search_book_context`;
+- `WebSearchPermissionPolicy`;
+- `AgentTurnTracer`.
+
+Không cần LiveKit, không cần Supabase, không cần OpenAI.
+
+Lý do:
+
+```text
+Refactor worker realtime là vùng có nhiều concurrency và SDK callback.
+Policy tests offline giúp mình biết business behavior đúng trước khi đụng worker.
+```
 
 ### Step 1 - Add contracts
 
@@ -461,7 +601,42 @@ Lý do inject:
 - không gọi DB/network trong unit test;
 - rollback dễ.
 
-### Step 4 - Refactor `TriamAssistant.resolve_book_query`
+Lifecycle:
+
+```text
+SharedAgentPolicy phải được tạo trong scope session/request.
+Không tạo ở global module level.
+```
+
+Nếu cần tối ưu, cache `GroundingScope` hoặc immutable lookup data ở layer riêng, không cache `WebSearchPermissionPolicy` hoặc `AgentTurnTracer`.
+
+### Step 4 - Refactor text no-web path first
+
+Refactor `_chat_naive_rag` trước vì đây là nhánh đơn giản hơn LiveKit voice.
+
+Hiện tại:
+
+```text
+_chat_naive_rag
+-> search_voice_book_context trực tiếp
+```
+
+Sau refactor:
+
+```text
+_chat_with_shared_policy_no_web
+-> SharedAgentPolicy
+-> metadata/section/clarification/RAG
+-> no direct web execution
+```
+
+Lý do làm trước:
+
+- ít callback/concurrency hơn voice;
+- dễ test bằng DataChannel text;
+- chứng minh policy không phá câu trả lời text hiện tại.
+
+### Step 5 - Refactor `TriamAssistant.resolve_book_query`
 
 Hiện tại:
 
@@ -488,7 +663,7 @@ Quan trọng:
 - giữ marker cũ để prompt realtime không vỡ;
 - giữ `WEB_PERMISSION_REPLY_DETECTED` từ Phase 10.4.
 
-### Step 5 - Refactor text chat direct path
+### Step 6 - Refactor text chat direct path
 
 Thay `_try_chat_grounding_route(...)` và `_chat_from_grounding_result(...)` bằng shared policy:
 
@@ -518,7 +693,7 @@ response = await chat_llm.chat(chat_ctx=temp_ctx).collect()
 full_reply = response.text
 ```
 
-### Step 6 - Replace naive text RAG
+### Step 7 - Remove legacy naive naming
 
 `_chat_naive_rag` hiện là điểm lệch policy.
 
@@ -539,7 +714,7 @@ _chat_with_shared_policy_no_web
 
 Không nên còn chữ `naive`.
 
-### Step 7 - Keep agentic text loop but simplify tools
+### Step 8 - Keep agentic text loop but simplify tools
 
 Agentic loop vẫn có thể giữ vì nó giúp model tự gọi web permission tool.
 
@@ -551,7 +726,29 @@ Lý do:
 - cùng marker;
 - trace dễ đối chiếu text/voice.
 
-### Step 8 - Add feature flag
+### Step 9 - Update prompts for stop rules
+
+Update cả:
+
+```text
+VOICE_AGENT_INSTRUCTIONS
+TEXT_AGENTIC_SYSTEM_INSTRUCTIONS
+```
+
+Thêm rule:
+
+```text
+When a tool returns CLARIFICATION_REQUIRED or a permission marker,
+do not call another tool for the same turn. Return the required user-facing message and stop.
+```
+
+Acceptance:
+
+- test/tool prompt không còn cho phép model tự search lại khi bị clarification;
+- text agentic loop vẫn giữ `MAX_STEPS`;
+- nếu tool loop chạm `MAX_STEPS`, log warning không chứa raw query.
+
+### Step 10 - Add feature flag
 
 Config đề xuất:
 
@@ -575,7 +772,15 @@ Chỉ thêm AGENT_SHARED_POLICY_ENABLED.
 Default true.
 ```
 
-### Step 9 - Remove dead code after tests
+Deploy note:
+
+```text
+Production phải set AGENT_SHARED_POLICY_ENABLED rõ ràng trong env.
+Không dựa vào default khi rollout refactor lớn.
+Nếu muốn canary an toàn: deploy false trước, smoke test, rồi bật true.
+```
+
+### Step 11 - Remove dead code after tests
 
 Sau khi tests pass:
 
@@ -647,6 +852,21 @@ expected action: ASK_WEB_PERMISSION
 expected action: WEB_DISABLED or DIRECT_ANSWER with no-book-info message
 ```
 
+7. Policy lifecycle:
+
+```text
+create two SharedAgentPolicy instances with different web permission/tracer mocks
+ensure pending permission state does not leak between instances
+```
+
+8. Message key rendering:
+
+```text
+policy result uses message_key/message_params
+renderer produces localized text
+shared policy does not need LiveKit/OpenAI imports
+```
+
 ### 11.2 Consistency tests for text and voice
 
 Add test matrix:
@@ -677,8 +897,42 @@ Add:
 - voice `resolve_book_query` uses shared policy renderer;
 - text `search_book_knowledge_text` uses same policy;
 - web permission reply marker still preserved.
+- prompt/tool behavior does not call `search_book_knowledge` again after `CLARIFICATION_REQUIRED`.
+- `EXTERNAL_INFO_REQUIRED` leads to one `ask_web_search_permission`, not direct `execute_web_search`.
 
-### 11.4 Full tests
+### 11.4 Web permission tests
+
+Cases:
+
+1. Web enabled, no pending grant:
+
+```text
+RAG miss -> ASK_WEB_PERMISSION -> adapter asks user once
+```
+
+2. Web enabled, recent implicit grant exists:
+
+```text
+RAG miss -> ASK_WEB_PERMISSION -> adapter consumes WebSearchPermissionPolicy.resolve_before_web_search
+```
+
+3. Web disabled:
+
+```text
+RAG miss/external question -> WEB_DISABLED message
+no ask_web_search_permission
+no execute_web_search
+```
+
+4. Query mismatch:
+
+```text
+user granted query A
+model attempts query B
+-> permission policy blocks
+```
+
+### 11.5 Full tests
 
 Run:
 
@@ -848,6 +1102,9 @@ Phase 10.5 hoàn thành khi:
 7. Không đổi FE contract.
 8. Focused tests và full pytest pass.
 9. Có manual test report hoặc implementation status trong doc này.
+10. `SharedAgentPolicy` không được tạo global singleton và không leak state giữa session.
+11. Prompt text/voice có stop-rule cho `CLARIFICATION_REQUIRED`, `EXTERNAL_INFO_REQUIRED`, `WEB_PERMISSION_REPLY_DETECTED`.
+12. Adapter xử lý implicit web grant qua `WebSearchPermissionPolicy`, không hỏi xin phép lặp lại khi user vừa đồng ý.
 
 ---
 
@@ -907,3 +1164,185 @@ Nó làm hành vi ổn định, test được, và dễ tối ưu tiếp.
 ```
 
 Khi nền này ổn, Phase 10.6 mới xử lý trải nghiệm FE transcript/bubble, và Phase 10.7 mới đánh giá model/rollout production một cách có số liệu.
+
+---
+
+## 19. Implementation Status - 2026-06-06
+
+### 19.1 Code đã implement
+
+Đã thêm package:
+
+```text
+app/services/agent_policy/
+  __init__.py
+  contracts.py
+  renderers.py
+  shared_policy.py
+```
+
+Vai trò:
+
+- `contracts.py`: định nghĩa `AgentPolicyAction`, `AgentPolicyRequest`, `AgentPolicyResult`.
+- `renderers.py`: render text direct message, voice tool marker, section/RAG LLM context.
+- `shared_policy.py`: gom policy chung cho text và voice.
+
+Đã thêm config:
+
+```text
+AGENT_SHARED_POLICY_ENABLED=true
+```
+
+Đã wire vào:
+
+```text
+app/services/agent_voice_gpt_realtime.py
+```
+
+Thay đổi chính:
+
+- `TriamAssistant.resolve_book_query(...)` dùng `SharedAgentPolicy` khi flag bật.
+- Voice query guard Phase 10.4 vẫn chạy trước shared policy.
+- Text chat DataChannel dùng `_chat_with_shared_policy(...)` khi flag bật.
+- Text no-web path không còn bypass deterministic router.
+- Agentic text tool `search_book_knowledge_text` cũng dùng shared policy khi flag bật.
+- Prompt text/voice được bổ sung stop-rule để giảm tool-call loop.
+
+### 19.2 Behavior sau implement
+
+Text và voice rõ ràng cùng đi qua một policy:
+
+```text
+metadata question
+-> BOOK_METADATA / direct answer
+
+section question
+-> BOOK_SECTION / section context
+
+ambiguous section question
+-> CLARIFICATION_REQUIRED
+
+semantic question with RAG hit
+-> BOOK_RAG / RAG context
+
+semantic question with RAG miss and web enabled
+-> ASK_WEB_PERMISSION
+
+semantic question with RAG miss and web disabled
+-> WEB_DISABLED
+```
+
+Web implicit grant:
+
+```text
+SharedAgentPolicy không tự execute web.
+Text pending reply vẫn được xử lý trước policy bằng _observe_web_permission_reply(...).
+Voice/text execute web vẫn đi qua WebSearchPermissionPolicy.resolve_before_web_search(...).
+```
+
+Voice vẫn giữ marker cũ:
+
+```text
+BOOK_METADATA_FOUND:
+BOOK_SECTION_FOUND:
+BOOK_CONTEXT_FOUND:
+BOOK_CONTEXT_NOT_FOUND:
+CLARIFICATION_REQUIRED:
+EXTERNAL_INFO_REQUIRED:
+BOOK_CONTEXT_ERROR:
+```
+
+### 19.3 Tests đã thêm
+
+```text
+tests/services/agent_policy/test_shared_policy.py
+```
+
+Coverage:
+
+- metadata route không gọi RAG;
+- section route trả section context;
+- missing section target trả clarification;
+- semantic RAG hit trả RAG context;
+- semantic RAG miss với web enabled trả ask web permission;
+- semantic RAG miss với web disabled trả web disabled;
+- voice renderer giữ marker cũ.
+
+Đã cập nhật:
+
+```text
+tests/services/voice_agent/test_agent_voice_query_guard.py
+```
+
+Coverage mới:
+
+- `TriamAssistant.resolve_book_query(...)` thật sự gọi shared policy khi flag bật.
+
+### 19.4 Verification đã chạy
+
+```powershell
+uv run pytest tests\services\agent_policy tests\services\voice_agent\test_agent_voice_query_guard.py tests\services\voice_agent\test_query_guard.py tests\services\voice_agent\test_turn_state.py -q
+uv run pytest tests\services\agent_policy tests\services\voice_agent tests\services\agent_grounding tests\services\agent_observability -q
+uv run pytest tests -q
+uv run ruff check app\services\agent_policy app\services\agent_voice_gpt_realtime.py tests\services\agent_policy tests\services\voice_agent
+uv run ruff check app\services app\api app\core app\repositories tests\services
+uv run python -m py_compile app\services\agent_policy\contracts.py app\services\agent_policy\renderers.py app\services\agent_policy\shared_policy.py app\services\agent_voice_gpt_realtime.py
+```
+
+Kết quả:
+
+```text
+18 passed
+97 passed
+214 passed
+All checks passed
+py_compile passed
+```
+
+### 19.5 Chưa test thủ công production
+
+Lượt này chưa chạy LiveKit production/manual voice thật.
+
+Cần test sau deploy:
+
+1. Text hỏi tác giả.
+2. Text hỏi chương rõ.
+3. Text hỏi chương mơ hồ.
+4. Voice hỏi tác giả.
+5. Voice hỏi chương rõ.
+6. Voice nói mơ hồ.
+7. Voice/web permission: AI xin web, user nói `Yup làm đi`.
+
+### 19.6 Trade-off còn lại
+
+1. Legacy functions vẫn còn trong worker để rollback bằng flag.
+
+Lý do:
+
+- refactor này có blast radius lớn;
+- cần deploy smoke test trước khi xóa hẳn.
+
+Hướng xử lý:
+
+- Sau khi production ổn, Phase 10.5.1 có thể xóa legacy `_chat_naive_rag`, `_try_chat_grounding_route`, `_chat_from_grounding_result`.
+
+2. Text direct path hiện deterministic hơn agentic loop.
+
+Lý do:
+
+- giảm hallucination và giảm tool loop;
+- buộc text/voice dùng cùng policy.
+
+Trade-off:
+
+- một số câu hỏi rất mở có thể cần thêm tuning ở policy/retrieval thay vì để LLM tự quyết.
+
+3. Chưa thêm canary runtime flag ngoài env.
+
+Hiện rollback bằng:
+
+```env
+AGENT_SHARED_POLICY_ENABLED=false
+```
+
+Nếu cần canary theo user/thread, làm ở phase sau.
