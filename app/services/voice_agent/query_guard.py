@@ -7,7 +7,8 @@ from app.services.agent_grounding.contracts import GroundingIntent
 from app.services.agent_grounding.intent_router import detect_section_intent
 from app.services.agent_grounding.query_normalizer import normalize_query, normalized_key, tokenize
 from app.services.agent_grounding.section_reference_parser import parse_section_reference
-from app.services.voice_agent.turn_state import VoiceTranscriptSnapshot
+from app.services.voice_agent.turn_state import PendingVoiceClarification, VoiceTranscriptSnapshot
+from app.services.voice_agent.voice_intent_classifier import VoiceReplyIntentResult, classify_voice_reply_intent_fast_path
 from app.services.voice_agent.web_permission_intent_classifier import classify_web_permission_intent_fast_path
 
 _ACRONYM_RE = re.compile(r"\b[A-Z][A-Z0-9]{1,}(?:[-_/][A-Z0-9]{2,})*\b")
@@ -66,6 +67,8 @@ class VoiceQueryGuardConfig:
     min_tokens: int = 2
     min_overlap_ratio: float = 0.34
     min_important_overlap_ratio: float = 0.25
+    clarification_confirmation_max_tokens: int = 4
+    clarification_min_query_prompt_overlap: float = 0.45
 
 
 @dataclass(frozen=True)
@@ -78,6 +81,8 @@ class VoiceQueryGuardResult:
     overlap_ratio: float | None = None
     important_overlap_ratio: float | None = None
     transcript_source: str | None = None
+    guard_mode: str = "normal"
+    pending_reason_code: str | None = None
 
 
 def _content_tokens(text: str) -> set[str]:
@@ -111,6 +116,8 @@ def _invalid(
     overlap_ratio: float | None = None,
     important_overlap_ratio: float | None = None,
     transcript_source: str | None = None,
+    guard_mode: str = "normal",
+    pending_reason_code: str | None = None,
 ) -> VoiceQueryGuardResult:
     return VoiceQueryGuardResult(
         valid=False,
@@ -121,6 +128,132 @@ def _invalid(
         overlap_ratio=overlap_ratio,
         important_overlap_ratio=important_overlap_ratio,
         transcript_source=transcript_source,
+        guard_mode=guard_mode,
+        pending_reason_code=pending_reason_code,
+    )
+
+
+def _query_matches_pending_clarification(
+    query: str,
+    pending: PendingVoiceClarification,
+    *,
+    min_ratio: float,
+) -> bool:
+    query_tokens = _content_tokens(query)
+    if not query_tokens:
+        return False
+    query_targets = _section_reference_targets(query)
+
+    candidates = [pending.prompt_text]
+    if pending.candidate_query:
+        candidates.append(pending.candidate_query)
+
+    for candidate in candidates:
+        candidate_tokens = _content_tokens(candidate)
+        if not candidate_tokens:
+            continue
+        candidate_targets = _section_reference_targets(candidate)
+        if query_targets and candidate_targets and query_targets.isdisjoint(candidate_targets):
+            continue
+        overlap_ratio = _ratio(len(query_tokens & candidate_tokens), len(query_tokens))
+        if overlap_ratio >= min_ratio:
+            return True
+
+    return False
+
+
+def _section_reference_targets(text: str) -> set[str]:
+    reference = parse_section_reference(normalize_query(text))
+    targets: set[str] = set()
+    if reference.explicit_path:
+        targets.add(reference.explicit_path)
+    if reference.explicit_ordinal is not None:
+        targets.add(str(reference.explicit_ordinal))
+    return targets
+
+
+def _valid_clarification_confirmation(
+    base_result: VoiceQueryGuardResult,
+    transcript: VoiceTranscriptSnapshot,
+    pending: PendingVoiceClarification,
+) -> VoiceQueryGuardResult:
+    return VoiceQueryGuardResult(
+        valid=True,
+        reason_code="valid_clarification_confirmation",
+        token_count=base_result.token_count,
+        important_token_count=base_result.important_token_count,
+        overlap_ratio=1.0,
+        important_overlap_ratio=1.0,
+        transcript_source=transcript.source,
+        guard_mode="clarification_confirmed",
+        pending_reason_code=pending.reason_code,
+    )
+
+
+def _pending_clarification_reply_result(
+    query: str,
+    transcript: VoiceTranscriptSnapshot,
+    base_result: VoiceQueryGuardResult,
+    pending: PendingVoiceClarification,
+    *,
+    config: VoiceQueryGuardConfig,
+    reply_intent: VoiceReplyIntentResult | None = None,
+) -> VoiceQueryGuardResult | None:
+    resolved_reply = reply_intent or classify_voice_reply_intent_fast_path(
+        transcript.text,
+        max_grant_tokens=config.clarification_confirmation_max_tokens,
+    )
+    if resolved_reply is None:
+        return None
+
+    if resolved_reply.intent == "grant":
+        if _query_matches_pending_clarification(
+            query,
+            pending,
+            min_ratio=config.clarification_min_query_prompt_overlap,
+        ):
+            return _valid_clarification_confirmation(base_result, transcript, pending)
+        return _invalid(
+            "clarification_query_mismatch",
+            _MISMATCH_CLARIFICATION,
+            token_count=base_result.token_count,
+            important_token_count=base_result.important_token_count,
+            transcript_source=transcript.source,
+            guard_mode="clarification_pending",
+            pending_reason_code=pending.reason_code,
+        )
+
+    if resolved_reply.intent == "deny":
+        return _invalid(
+            "clarification_denied",
+            "Được, bạn muốn hỏi nội dung nào khác?",
+            token_count=base_result.token_count,
+            important_token_count=base_result.important_token_count,
+            transcript_source=transcript.source,
+            guard_mode="clarification_pending",
+            pending_reason_code=pending.reason_code,
+        )
+
+    if resolved_reply.intent == "new_question":
+        return VoiceQueryGuardResult(
+            valid=False,
+            reason_code="clarification_new_question",
+            clarification=None,
+            token_count=base_result.token_count,
+            important_token_count=base_result.important_token_count,
+            transcript_source=transcript.source,
+            guard_mode="clarification_new_question",
+            pending_reason_code=pending.reason_code,
+        )
+
+    return _invalid(
+        "clarification_reply_unclear",
+        "Bạn xác nhận hay muốn hỏi câu khác?",
+        token_count=base_result.token_count,
+        important_token_count=base_result.important_token_count,
+        transcript_source=transcript.source,
+        guard_mode="clarification_pending",
+        pending_reason_code=pending.reason_code,
     )
 
 
@@ -171,6 +304,8 @@ def compare_query_with_transcript(
     transcript: VoiceTranscriptSnapshot | None,
     *,
     config: VoiceQueryGuardConfig | None = None,
+    pending_clarification: PendingVoiceClarification | None = None,
+    reply_intent: VoiceReplyIntentResult | None = None,
 ) -> VoiceQueryGuardResult:
     resolved_config = config or VoiceQueryGuardConfig()
     base_result = assess_voice_query(query, config=resolved_config)
@@ -178,6 +313,18 @@ def compare_query_with_transcript(
         return base_result
     if transcript is None:
         return base_result
+
+    if pending_clarification is not None:
+        pending_result = _pending_clarification_reply_result(
+            query,
+            transcript,
+            base_result,
+            pending_clarification,
+            config=resolved_config,
+            reply_intent=reply_intent,
+        )
+        if pending_result is not None:
+            return pending_result
 
     query_tokens = _content_tokens(query)
     transcript_tokens = _content_tokens(transcript.text)
@@ -228,5 +375,13 @@ def guard_voice_book_query(
     transcript: VoiceTranscriptSnapshot | None,
     *,
     config: VoiceQueryGuardConfig | None = None,
+    pending_clarification: PendingVoiceClarification | None = None,
+    reply_intent: VoiceReplyIntentResult | None = None,
 ) -> VoiceQueryGuardResult:
-    return compare_query_with_transcript(query, transcript, config=config)
+    return compare_query_with_transcript(
+        query,
+        transcript,
+        config=config,
+        pending_clarification=pending_clarification,
+        reply_intent=reply_intent,
+    )

@@ -165,6 +165,29 @@ class AgentTurnTracer:
         if trace is not None:
             trace.stage_latency_ms[stage] = max(0, elapsed_ms)
 
+    def record_query_guard(
+        self,
+        input_mode: AgentInputMode,
+        *,
+        reason_code: str,
+        guard_mode: str,
+        overlap_ratio: float | None = None,
+        important_overlap_ratio: float | None = None,
+    ) -> None:
+        trace = self._get_or_begin(input_mode)
+        if trace is None:
+            return
+        trace.query_guard_reason_code = reason_code
+        trace.query_guard_mode = guard_mode
+        trace.query_guard_overlap_ratio = (
+            round(overlap_ratio, self.score_precision) if overlap_ratio is not None else None
+        )
+        trace.query_guard_important_overlap_ratio = (
+            round(important_overlap_ratio, self.score_precision)
+            if important_overlap_ratio is not None
+            else None
+        )
+
     def record_answer_source(self, input_mode: AgentInputMode, source: AgentAnswerSource) -> None:
         trace = self._get_or_begin(input_mode)
         if trace is not None:
@@ -236,6 +259,10 @@ class AgentTurnTracer:
             "retrieval_section_ids": trace.retrieval_section_ids,
             "retrieval_scores": trace.retrieval_scores,
             "tool_names": trace.tool_names,
+            "query_guard_reason_code": trace.query_guard_reason_code,
+            "query_guard_mode": trace.query_guard_mode,
+            "query_guard_overlap_ratio": trace.query_guard_overlap_ratio,
+            "query_guard_important_overlap_ratio": trace.query_guard_important_overlap_ratio,
             "answer_source": trace.answer_source.value,
             "assistant_char_count": trace.assistant_char_count,
             "stage_latency_ms": trace.stage_latency_ms,

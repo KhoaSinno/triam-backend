@@ -44,6 +44,10 @@ class AgentTurnTrace:
     retrieval_section_ids: list[str] = field(default_factory=list)
     retrieval_scores: list[float] = field(default_factory=list)
     tool_names: list[str] = field(default_factory=list)
+    query_guard_reason_code: str | None = None
+    query_guard_mode: str | None = None
+    query_guard_overlap_ratio: float | None = None
+    query_guard_important_overlap_ratio: float | None = None
     answer_source: AgentAnswerSource = AgentAnswerSource.UNKNOWN
     assistant_char_count: int = 0
     stage_latency_ms: dict[str, int] = field(default_factory=dict)

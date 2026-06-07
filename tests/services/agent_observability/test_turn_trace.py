@@ -26,6 +26,13 @@ def test_trace_summary_is_safe_and_records_retrieval_metadata():
         ],
         elapsed_ms=123,
     )
+    tracer.record_query_guard(
+        AgentInputMode.TEXT,
+        reason_code="valid_clarification_confirmation",
+        guard_mode="clarification_confirmed",
+        overlap_ratio=0.98765,
+        important_overlap_ratio=0.54321,
+    )
     tracer.record_answer_source(AgentInputMode.TEXT, AgentAnswerSource.BOOK_RAG)
     tracer.record_assistant(AgentInputMode.TEXT, char_count=90)
     summary = tracer.complete_turn(AgentInputMode.TEXT)
@@ -36,6 +43,10 @@ def test_trace_summary_is_safe_and_records_retrieval_metadata():
     assert summary["retrieval_section_ids"] == ["section-4"]
     assert summary["retrieval_scores"] == [0.8123]
     assert summary["answer_source"] == "book_rag"
+    assert summary["query_guard_reason_code"] == "valid_clarification_confirmation"
+    assert summary["query_guard_mode"] == "clarification_confirmed"
+    assert summary["query_guard_overlap_ratio"] == 0.9877
+    assert summary["query_guard_important_overlap_ratio"] == 0.5432
     assert summary["stage_latency_ms"]["retrieval"] == 123
     assert "SECRET BOOK CONTENT" not in str(summary)
     assert emitted[-1][0] == "turn_completed"

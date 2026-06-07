@@ -36,7 +36,7 @@ from app.services.agent_grounding.response_renderer import format_grounding_tool
 from app.services.agent_observability import AgentAnswerSource, AgentInputMode, AgentTurnTracer
 from app.services.agent_policy import AgentPolicyAction, AgentPolicyRequest, SharedAgentPolicy, render_text_direct_message, render_voice_tool_result
 from app.services.voice_agent.contracts import LK_CHAT_TOPIC, LK_CONTROL_TOPIC, VoiceJobMetadata
-from app.services.voice_agent.query_guard import VoiceQueryGuardConfig, guard_voice_book_query
+from app.services.voice_agent.query_guard import VoiceQueryGuardConfig, VoiceQueryGuardResult, guard_voice_book_query
 from app.services.voice_agent.rag_context import format_rag_context, search_voice_book_context, trim_text
 from app.services.voice_agent.transcript_store import VoiceTranscriptStore, normalize_transcript_text
 from app.services.voice_agent.turn_state import VoiceTurnState
@@ -46,6 +46,18 @@ from app.services.web_search_service import search_web as web_search
 
 # FIX 1: Ép API Key vào biến môi trường để LiveKit SDK tự động nhận diện ngầm
 os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
+
+CLARIFICATION_MARKER = "CLARIFICATION_REQUIRED:"
+ASSISTANT_CLARIFICATION_MARKERS = (
+    "ban muon",
+    "y ban la",
+    "dung khong",
+    "phai khong",
+    "ban dang hoi",
+    "do you mean",
+    "which chapter",
+    "which section",
+)
 
 
 VOICE_AGENT_INSTRUCTIONS = """
@@ -263,7 +275,60 @@ class TriamAssistant(Agent):
             min_tokens=settings.VOICE_AGENT_QUERY_GUARD_MIN_TOKENS,
             min_overlap_ratio=settings.VOICE_AGENT_QUERY_GUARD_MIN_OVERLAP_RATIO,
             min_important_overlap_ratio=settings.VOICE_AGENT_QUERY_GUARD_MIN_IMPORTANT_OVERLAP_RATIO,
+            clarification_confirmation_max_tokens=settings.VOICE_AGENT_CLARIFICATION_CONFIRMATION_MAX_TOKENS,
+            clarification_min_query_prompt_overlap=settings.VOICE_AGENT_CLARIFICATION_MIN_QUERY_PROMPT_OVERLAP,
         )
+
+    @staticmethod
+    def _extract_clarification_message(tool_result: str) -> str | None:
+        if not tool_result.startswith(CLARIFICATION_MARKER):
+            return None
+        return tool_result.removeprefix(CLARIFICATION_MARKER).strip() or "Bạn vui lòng nói rõ câu hỏi."
+
+    def _set_pending_clarification(
+        self,
+        *,
+        prompt_text: str,
+        reason_code: str,
+        candidate_query: str | None = None,
+        source: str = "query_guard",
+    ) -> None:
+        if not settings.VOICE_AGENT_CLARIFICATION_STATE_ENABLED:
+            return
+        self.voice_turn_state.set_pending_clarification(
+            prompt_text=prompt_text,
+            reason_code=reason_code,
+            candidate_query=candidate_query,
+            source=source,
+        )
+
+    def _remember_clarification_marker(
+        self,
+        tool_result: str,
+        *,
+        reason_code: str,
+        candidate_query: str | None = None,
+        source: str,
+    ) -> bool:
+        clarification = self._extract_clarification_message(tool_result)
+        if clarification is None:
+            return False
+        self._set_pending_clarification(
+            prompt_text=clarification,
+            reason_code=reason_code,
+            candidate_query=candidate_query,
+            source=source,
+        )
+        return True
+
+    @staticmethod
+    def _looks_like_assistant_clarification(text: str) -> bool:
+        normalized = normalize_intent_text(text)
+        if len(normalized.split()) > 24:
+            return False
+        if "?" not in text and not any(marker in normalized for marker in ASSISTANT_CLARIFICATION_MARKERS):
+            return False
+        return any(marker in normalized for marker in ASSISTANT_CLARIFICATION_MARKERS)
 
     def _get_cached_web_result(self, query: str) -> str | None:
         if not self._cached_web_query or not self._cached_web_result or not self._cached_web_at:
@@ -296,55 +361,161 @@ class TriamAssistant(Agent):
         self.tracer.record_tool(AgentInputMode.VOICE, "search_book_knowledge")
         return await self.resolve_book_query(query, AgentInputMode.VOICE)
 
-    async def resolve_book_query(self, query: str, input_mode: AgentInputMode) -> str:
-        if input_mode == AgentInputMode.VOICE and settings.VOICE_AGENT_QUERY_GUARD_ENABLED:
-            transcript = self.voice_turn_state.recent_transcript(settings.VOICE_AGENT_QUERY_GUARD_TRANSCRIPT_TTL_SECONDS)
-            guard_result = guard_voice_book_query(
-                query,
-                transcript,
-                config=self._voice_query_guard_config(),
-            )
-            if not guard_result.valid:
-                self.tracer.record_answer_source(input_mode, AgentAnswerSource.CLARIFICATION)
-                if settings.VOICE_AGENT_QUERY_GUARD_LOG_DETAILS:
-                    log.info(
-                        "Voice query guard blocked | "
-                        f"reason={guard_result.reason_code} | "
-                        f"query_chars={len(query)} | "
-                        f"tokens={guard_result.token_count} | "
-                        f"important_tokens={guard_result.important_token_count} | "
-                        f"overlap={guard_result.overlap_ratio} | "
-                        f"important_overlap={guard_result.important_overlap_ratio} | "
-                        f"transcript_source={guard_result.transcript_source}"
-                    )
-                if guard_result.reason_code == "permission_reply":
-                    return (
-                        "WEB_PERMISSION_REPLY_DETECTED: This user turn looks like a reply to a pending "
-                        "web-search permission request, not a new book question. Follow the existing "
-                        "web-search permission flow for the pending query."
-                    )
-                return f"CLARIFICATION_REQUIRED:\n{guard_result.clarification or 'Bạn vui lòng nói rõ câu hỏi.'}"
+    def _remember_or_clear_voice_clarification(
+        self,
+        tool_result: str,
+        *,
+        reason_code: str,
+        source: str,
+    ) -> None:
+        if not self._remember_clarification_marker(tool_result, reason_code=reason_code, source=source):
+            self.voice_turn_state.clear_pending_clarification()
 
-        if settings.AGENT_SHARED_POLICY_ENABLED and self.shared_policy is not None:
-            policy_result = await self.shared_policy.resolve(
-                AgentPolicyRequest(
-                    query=query,
-                    input_mode=input_mode,
-                    document_ids=self.document_ids,
-                    allow_web_permission=self.web_search_policy.enabled,
-                )
-            )
-            return render_voice_tool_result(policy_result)
+    def _current_pending_clarification(self):
+        if not settings.VOICE_AGENT_CLARIFICATION_STATE_ENABLED:
+            return None
+        return self.voice_turn_state.recent_pending_clarification(
+            settings.VOICE_AGENT_CLARIFICATION_STATE_TTL_SECONDS
+        )
 
-        if self.grounding_router is not None:
-            grounding_result = await self.grounding_router.resolve(
-                query,
+    def _record_query_guard_result(
+        self,
+        input_mode: AgentInputMode,
+        guard_started: float,
+        guard_result: VoiceQueryGuardResult,
+    ) -> None:
+        self.tracer.record_latency(
+            input_mode,
+            "query_guard",
+            int((time.perf_counter() - guard_started) * 1000),
+        )
+        self.tracer.record_query_guard(
+            input_mode,
+            reason_code=guard_result.reason_code,
+            guard_mode=guard_result.guard_mode,
+            overlap_ratio=guard_result.overlap_ratio,
+            important_overlap_ratio=guard_result.important_overlap_ratio,
+        )
+
+    def _run_voice_query_guard_once(
+        self,
+        query: str,
+        input_mode: AgentInputMode,
+        transcript,
+        *,
+        pending_clarification=None,
+    ) -> VoiceQueryGuardResult:
+        guard_started = time.perf_counter()
+        guard_result = guard_voice_book_query(
+            query,
+            transcript,
+            config=self._voice_query_guard_config(),
+            pending_clarification=pending_clarification,
+        )
+        self._record_query_guard_result(input_mode, guard_started, guard_result)
+        return guard_result
+
+    def _log_voice_query_guard_blocked(self, query: str, guard_result: VoiceQueryGuardResult) -> None:
+        if not settings.VOICE_AGENT_QUERY_GUARD_LOG_DETAILS:
+            return
+        log.info(
+            "Voice query guard blocked | "
+            f"reason={guard_result.reason_code} | "
+            f"mode={guard_result.guard_mode} | "
+            f"query_chars={len(query)} | "
+            f"tokens={guard_result.token_count} | "
+            f"important_tokens={guard_result.important_token_count} | "
+            f"overlap={guard_result.overlap_ratio} | "
+            f"important_overlap={guard_result.important_overlap_ratio} | "
+            f"transcript_source={guard_result.transcript_source}"
+        )
+
+    def _voice_query_guard_blocked_result(
+        self,
+        query: str,
+        input_mode: AgentInputMode,
+        guard_result: VoiceQueryGuardResult,
+    ) -> str:
+        self.tracer.record_answer_source(input_mode, AgentAnswerSource.CLARIFICATION)
+        self._log_voice_query_guard_blocked(query, guard_result)
+        if guard_result.reason_code == "permission_reply":
+            return (
+                "WEB_PERMISSION_REPLY_DETECTED: This user turn looks like a reply to a pending "
+                "web-search permission request, not a new book question. Follow the existing "
+                "web-search permission flow for the pending query."
+            )
+
+        clear_reasons = {"clarification_denied", "clarification_query_mismatch"}
+        if guard_result.reason_code in clear_reasons:
+            self.voice_turn_state.clear_pending_clarification()
+
+        marker = f"{CLARIFICATION_MARKER}\n{guard_result.clarification or 'Bạn vui lòng nói rõ câu hỏi.'}"
+        remember_block_reasons = {*clear_reasons, "permission_reply"}
+        if guard_result.reason_code not in remember_block_reasons:
+            self._remember_clarification_marker(marker, reason_code=guard_result.reason_code, source="query_guard")
+        return marker
+
+    def _voice_query_guard_block(self, query: str, input_mode: AgentInputMode) -> str | None:
+        if input_mode != AgentInputMode.VOICE or not settings.VOICE_AGENT_QUERY_GUARD_ENABLED:
+            return None
+
+        transcript = self.voice_turn_state.recent_transcript(settings.VOICE_AGENT_QUERY_GUARD_TRANSCRIPT_TTL_SECONDS)
+        guard_result = self._run_voice_query_guard_once(
+            query,
+            input_mode,
+            transcript,
+            pending_clarification=self._current_pending_clarification(),
+        )
+        if guard_result.reason_code == "valid_clarification_confirmation":
+            self.voice_turn_state.clear_pending_clarification()
+        if guard_result.valid:
+            return None
+
+        if guard_result.reason_code == "clarification_new_question":
+            self.voice_turn_state.clear_pending_clarification()
+            guard_result = self._run_voice_query_guard_once(query, input_mode, transcript)
+            if guard_result.valid:
+                return None
+
+        return self._voice_query_guard_blocked_result(query, input_mode, guard_result)
+
+    async def _resolve_shared_policy(self, query: str, input_mode: AgentInputMode) -> str | None:
+        if not settings.AGENT_SHARED_POLICY_ENABLED or self.shared_policy is None:
+            return None
+        policy_result = await self.shared_policy.resolve(
+            AgentPolicyRequest(
+                query=query,
                 input_mode=input_mode,
-                tracer=self.tracer,
+                document_ids=self.document_ids,
+                allow_web_permission=self.web_search_policy.enabled,
             )
-            if grounding_result.decision.route != GroundingRoute.BOOK_RAG:
-                return format_grounding_tool_result(grounding_result)
+        )
+        tool_result = render_voice_tool_result(policy_result)
+        if input_mode == AgentInputMode.VOICE:
+            self._remember_or_clear_voice_clarification(
+                tool_result,
+                reason_code=policy_result.reason_code,
+                source="shared_policy",
+            )
+        return tool_result
 
+    async def _resolve_grounding_route(self, query: str, input_mode: AgentInputMode) -> str | None:
+        if self.grounding_router is None:
+            return None
+        grounding_result = await self.grounding_router.resolve(query, input_mode=input_mode, tracer=self.tracer)
+        if grounding_result.decision.route == GroundingRoute.BOOK_RAG:
+            return None
+
+        tool_result = format_grounding_tool_result(grounding_result)
+        if input_mode == AgentInputMode.VOICE:
+            self._remember_or_clear_voice_clarification(
+                tool_result,
+                reason_code=grounding_result.decision.reason_code,
+                source="grounding_router",
+            )
+        return tool_result
+
+    async def _resolve_rag_context(self, query: str, input_mode: AgentInputMode) -> str:
         try:
             result = await search_voice_book_context(
                 query,
@@ -354,11 +525,42 @@ class TriamAssistant(Agent):
             )
             if result.found:
                 self.tracer.record_answer_source(input_mode, AgentAnswerSource.BOOK_RAG)
+            if input_mode == AgentInputMode.VOICE:
+                self.voice_turn_state.clear_pending_clarification()
             return format_rag_context(result)
-        except Exception as e:
+        except Exception as exc:
             self.tracer.record_error(input_mode, "book_rag_search_error")
-            log.warning(f"Book RAG search failed | input_mode={input_mode.value} | document_count={len(self.document_ids)} | error_type={type(e).__name__}")
+            log.warning(
+                "Book RAG search failed | "
+                f"input_mode={input_mode.value} | "
+                f"document_count={len(self.document_ids)} | "
+                f"error_type={type(exc).__name__}"
+            )
+            if input_mode == AgentInputMode.VOICE:
+                self.voice_turn_state.clear_pending_clarification()
             return "BOOK_CONTEXT_ERROR: Không thể tìm kiếm dữ liệu trong sách lúc này."
+
+    async def _resolve_book_query_inner(self, query: str, input_mode: AgentInputMode) -> str:
+        guard_block = self._voice_query_guard_block(query, input_mode)
+        if guard_block is not None:
+            return guard_block
+
+        policy_result = await self._resolve_shared_policy(query, input_mode)
+        if policy_result is not None:
+            return policy_result
+
+        grounding_result = await self._resolve_grounding_route(query, input_mode)
+        if grounding_result is not None:
+            return grounding_result
+
+        return await self._resolve_rag_context(query, input_mode)
+
+    async def resolve_book_query(self, query: str, input_mode: AgentInputMode) -> str:
+        tool_started = time.perf_counter()
+        try:
+            return await self._resolve_book_query_inner(query, input_mode)
+        finally:
+            self.tracer.record_latency(input_mode, "tool_total", int((time.perf_counter() - tool_started) * 1000))
 
     @function_tool
     async def execute_web_search(
@@ -937,6 +1139,15 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             tracer.complete_turn(AgentInputMode.VOICE)
             log.info(f"Assistant voice speech saved | text_len={len(text)} | thread_id={thread_uuid}")
             asyncio.create_task(transcript_store.save_and_publish_assistant(text))
+            if (
+                settings.VOICE_AGENT_ASSISTANT_CLARIFICATION_HEURISTIC_ENABLED
+                and agent_instance._looks_like_assistant_clarification(text)
+            ):
+                voice_turn_state.set_pending_clarification(
+                    prompt_text=text,
+                    reason_code="assistant_confirmation",
+                    source="assistant_message",
+                )
 
     def _handle_function_tools_executed(ev: FunctionToolsExecutedEvent) -> None:
         if not tracer.has_active_turn(AgentInputMode.VOICE):

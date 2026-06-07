@@ -1,5 +1,5 @@
 from app.services.voice_agent.query_guard import assess_voice_query, guard_voice_book_query
-from app.services.voice_agent.turn_state import VoiceTranscriptSnapshot
+from app.services.voice_agent.turn_state import PendingVoiceClarification, VoiceTranscriptSnapshot
 
 
 def _snapshot(text: str) -> VoiceTranscriptSnapshot:
@@ -55,3 +55,80 @@ def test_acronym_question_is_valid_when_it_has_question_context() -> None:
     result = assess_voice_query("SLR là gì?")
 
     assert result.valid is True
+
+
+def test_pending_clarification_confirmation_bypasses_overlap_when_query_matches_prompt() -> None:
+    pending = PendingVoiceClarification(
+        prompt_text="Bạn muốn tóm tắt chương 5 đúng không?",
+        candidate_query=None,
+        reason_code="assistant_confirmation",
+        created_monotonic=0.0,
+    )
+    transcript = _snapshot("đúng rồi")
+
+    result = guard_voice_book_query(
+        "tóm tắt chương 5",
+        transcript,
+        pending_clarification=pending,
+    )
+
+    assert result.valid is True
+    assert result.reason_code == "valid_clarification_confirmation"
+    assert result.guard_mode == "clarification_confirmed"
+
+
+def test_pending_clarification_confirmation_blocks_when_query_does_not_match_prompt() -> None:
+    pending = PendingVoiceClarification(
+        prompt_text="Bạn muốn tóm tắt chương 5 đúng không?",
+        candidate_query=None,
+        reason_code="assistant_confirmation",
+        created_monotonic=0.0,
+    )
+    transcript = _snapshot("yup làm đi")
+
+    result = guard_voice_book_query(
+        "tóm tắt chương 6",
+        transcript,
+        pending_clarification=pending,
+    )
+
+    assert result.valid is False
+    assert result.reason_code == "clarification_query_mismatch"
+
+
+def test_pending_clarification_deny_is_blocked_before_rag() -> None:
+    pending = PendingVoiceClarification(
+        prompt_text="Bạn muốn tóm tắt chương 5 đúng không?",
+        candidate_query=None,
+        reason_code="assistant_confirmation",
+        created_monotonic=0.0,
+    )
+    transcript = _snapshot("không phải")
+
+    result = guard_voice_book_query(
+        "tóm tắt chương 5",
+        transcript,
+        pending_clarification=pending,
+    )
+
+    assert result.valid is False
+    assert result.reason_code == "clarification_denied"
+
+
+def test_pending_clarification_new_question_is_reported_for_caller_rerun() -> None:
+    pending = PendingVoiceClarification(
+        prompt_text="Bạn muốn tóm tắt chương 5 đúng không?",
+        candidate_query=None,
+        reason_code="assistant_confirmation",
+        created_monotonic=0.0,
+    )
+    transcript = _snapshot("ai là tác giả")
+
+    result = guard_voice_book_query(
+        "tác giả của sách là ai",
+        transcript,
+        pending_clarification=pending,
+    )
+
+    assert result.valid is False
+    assert result.reason_code == "clarification_new_question"

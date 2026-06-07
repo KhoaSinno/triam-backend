@@ -41,3 +41,40 @@ def test_empty_transcript_is_ignored() -> None:
     state.record_committed_user_text("")
 
     assert state.recent_transcript(ttl_seconds=15) is None
+
+
+def test_pending_clarification_can_be_set_and_cleared() -> None:
+    clock = FakeClock()
+    state = VoiceTurnState(clock=clock)
+
+    state.set_pending_clarification(
+        prompt_text="Bạn muốn tóm tắt chương 5 đúng không?",
+        candidate_query="tóm tắt chương 5",
+        reason_code="assistant_confirmation",
+        source="test",
+    )
+
+    pending = state.recent_pending_clarification(ttl_seconds=30)
+
+    assert pending is not None
+    assert pending.prompt_text == "Bạn muốn tóm tắt chương 5 đúng không?"
+    assert pending.candidate_query == "tóm tắt chương 5"
+    assert pending.reason_code == "assistant_confirmation"
+    assert pending.source == "test"
+
+    state.clear_pending_clarification()
+
+    assert state.recent_pending_clarification(ttl_seconds=30) is None
+
+
+def test_pending_clarification_expires_by_ttl() -> None:
+    clock = FakeClock()
+    state = VoiceTurnState(clock=clock)
+
+    state.set_pending_clarification(
+        prompt_text="Bạn muốn tóm tắt chương 5 đúng không?",
+        reason_code="assistant_confirmation",
+    )
+    clock.value = 31.0
+
+    assert state.recent_pending_clarification(ttl_seconds=30) is None
