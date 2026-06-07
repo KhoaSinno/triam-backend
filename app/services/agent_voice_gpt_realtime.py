@@ -10,10 +10,13 @@ from livekit import agents, rtc
 from livekit.agents import (
     Agent,
     AgentSession,
+    AgentStateChangedEvent,
     ConversationItemAddedEvent,
     FunctionToolsExecutedEvent,
     JobContext,
     JobExecutorType,
+    SpeechCreatedEvent,
+    UserStateChangedEvent,
     WorkerOptions,
     function_tool,
     room_io,
@@ -38,6 +41,7 @@ from app.services.agent_policy import AgentPolicyAction, AgentPolicyRequest, Sha
 from app.services.voice_agent.contracts import LK_CHAT_TOPIC, LK_CONTROL_TOPIC, VoiceJobMetadata
 from app.services.voice_agent.query_guard import VoiceQueryGuardConfig, VoiceQueryGuardResult, guard_voice_book_query
 from app.services.voice_agent.rag_context import format_rag_context, search_voice_book_context, trim_text
+from app.services.voice_agent.tool_reply_watchdog import VoiceToolReplyWatchdog, VoiceToolReplyWatchdogConfig
 from app.services.voice_agent.transcript_store import VoiceTranscriptStore, normalize_transcript_text
 from app.services.voice_agent.turn_state import VoiceTurnState
 from app.services.voice_agent.web_permission_intent_classifier import normalize_intent_text
@@ -622,6 +626,21 @@ class TriamAssistant(Agent):
         return self.web_search_policy.request_permission(query)
 
 
+def _tool_reply_watchdog_config() -> VoiceToolReplyWatchdogConfig:
+    return VoiceToolReplyWatchdogConfig(
+        enabled=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_ENABLED,
+        grace_seconds=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_GRACE_SECONDS,
+        thinking_grace_seconds=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_THINKING_GRACE_SECONDS,
+        monitored_tools={
+            item.strip()
+            for item in settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_TOOLS.split(",")
+            if item.strip()
+        },
+        allow_error_outputs=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_ALLOW_ERROR_OUTPUTS,
+        force_tool_choice_none=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_FORCE_TOOL_CHOICE_NONE,
+    )
+
+
 async def entrypoint(ctx: JobContext):  # noqa: C901
     await ctx.connect()
 
@@ -1149,18 +1168,22 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                     source="assistant_message",
                 )
 
-    def _handle_function_tools_executed(ev: FunctionToolsExecutedEvent) -> None:
-        if not tracer.has_active_turn(AgentInputMode.VOICE):
-            return
-        for function_call in ev.function_calls:
-            tracer.record_tool(
-                AgentInputMode.VOICE,
-                str(getattr(function_call, "name", "unknown_tool")),
-            )
+    def _handle_function_tools_executed(
+        ev: FunctionToolsExecutedEvent,
+        watchdog: VoiceToolReplyWatchdog,
+    ) -> None:
+        if tracer.has_active_turn(AgentInputMode.VOICE):
+            for function_call in ev.function_calls:
+                tracer.record_tool(
+                    AgentInputMode.VOICE,
+                    str(getattr(function_call, "name", "unknown_tool")),
+                )
+        watchdog.schedule_after_tools_executed(ev)
 
-    def _attach_session_handlers(sess: AgentSession) -> None:
+    def _attach_session_handlers(sess: AgentSession, watchdog: VoiceToolReplyWatchdog) -> None:
         @sess.on("user_input_transcribed")  # type: ignore[arg-type]
         def on_user_input_transcribed(ev):
+            watchdog.record_user_transcribed()
             _handle_user_input_transcribed(ev)
 
         @sess.on("conversation_item_added")  # type: ignore[arg-type]
@@ -1169,7 +1192,23 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
 
         @sess.on("function_tools_executed")  # type: ignore[arg-type]
         def on_function_tools_executed(ev: FunctionToolsExecutedEvent):
-            _handle_function_tools_executed(ev)
+            _handle_function_tools_executed(ev, watchdog)
+
+        @sess.on("speech_created")  # type: ignore[arg-type]
+        def on_speech_created(ev: SpeechCreatedEvent):
+            watchdog.record_speech_created(source=str(getattr(ev, "source", "")))
+
+        @sess.on("agent_state_changed")  # type: ignore[arg-type]
+        def on_agent_state_changed(ev: AgentStateChangedEvent):
+            watchdog.record_agent_state_changed(new_state=str(getattr(ev, "new_state", "")))
+
+        @sess.on("user_state_changed")  # type: ignore[arg-type]
+        def on_user_state_changed(ev: UserStateChangedEvent):
+            watchdog.record_user_state_changed(new_state=str(getattr(ev, "new_state", "")))
+
+        @sess.on("close")  # type: ignore[arg-type]
+        def on_close(_ev):
+            watchdog.close()
 
     # Start session with fallback when a configured model is unavailable.
     last_start_exc: Exception | None = None
@@ -1203,7 +1242,12 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                     },
                 },
             )
-            _attach_session_handlers(session)
+            tool_reply_watchdog = VoiceToolReplyWatchdog(
+                session=session,
+                tracer=tracer,
+                config=_tool_reply_watchdog_config(),
+            )
+            _attach_session_handlers(session, tool_reply_watchdog)
 
             await session.start(
                 room=ctx.room,

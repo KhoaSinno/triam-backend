@@ -204,6 +204,80 @@ class AgentTurnTracer:
             trace.error_code = error_code
             trace.answer_source = AgentAnswerSource.ERROR
 
+    def record_tool_reply_watchdog_scheduled(
+        self,
+        input_mode: AgentInputMode,
+        *,
+        tool_name: str,
+        grace_ms: int,
+    ) -> None:
+        trace = self._get_or_begin(input_mode)
+        if trace is None:
+            return
+        trace.tool_reply_watchdog_scheduled = True
+        if tool_name not in trace.tool_reply_watchdog_tool_names:
+            trace.tool_reply_watchdog_tool_names.append(tool_name)
+        trace.stage_latency_ms["tool_reply_watchdog_grace"] = grace_ms
+        self._emit_safe("watchdog_scheduled", self._summary(trace))
+
+    def record_tool_reply_watchdog_fired(
+        self,
+        input_mode: AgentInputMode,
+        *,
+        tool_name: str,
+        elapsed_ms: int | None,
+        reason: str,
+    ) -> None:
+        trace = self._get_or_begin(input_mode)
+        if trace is None:
+            return
+        trace.tool_reply_watchdog_fired = True
+        trace.tool_reply_watchdog_reason = reason
+        trace.forced_reply_reason = reason
+        if elapsed_ms is not None:
+            trace.tool_result_to_speech_ms = elapsed_ms
+        self._emit_safe("watchdog_fired", self._summary(trace))
+
+    def record_tool_reply_watchdog_bypassed(
+        self,
+        input_mode: AgentInputMode,
+        *,
+        reason: str,
+        tool_name: str,
+    ) -> None:
+        trace = self._get_or_begin(input_mode)
+        if trace is None:
+            return
+        trace.tool_reply_watchdog_fired = False
+        trace.tool_reply_watchdog_reason = reason
+        self._emit_safe("watchdog_bypassed", self._summary(trace))
+
+    def record_tool_reply_watchdog_cancelled(
+        self,
+        input_mode: AgentInputMode,
+        *,
+        reason: str,
+    ) -> None:
+        trace = self._active.get(input_mode)
+        if trace is None:
+            return
+        trace.tool_reply_watchdog_reason = f"cancelled_{reason}"
+        self._emit_safe("watchdog_cancelled", self._summary(trace))
+
+    def record_tool_reply_speech_created(
+        self,
+        input_mode: AgentInputMode,
+        *,
+        source: str | None = None,
+        elapsed_ms: int | None = None,
+    ) -> None:
+        trace = self._active.get(input_mode)
+        if trace is None:
+            return
+        if elapsed_ms is not None:
+            trace.tool_result_to_speech_ms = elapsed_ms
+        self._emit_safe("speech_created", self._summary(trace))
+
     def complete_turn(self, input_mode: AgentInputMode, *, error_code: str | None = None) -> dict[str, Any] | None:
         if not self.enabled:
             return None
@@ -267,5 +341,11 @@ class AgentTurnTracer:
             "assistant_char_count": trace.assistant_char_count,
             "stage_latency_ms": trace.stage_latency_ms,
             "error_code": trace.error_code,
+            "tool_reply_watchdog_scheduled": trace.tool_reply_watchdog_scheduled,
+            "tool_reply_watchdog_fired": trace.tool_reply_watchdog_fired,
+            "tool_reply_watchdog_tool_names": trace.tool_reply_watchdog_tool_names,
+            "tool_reply_watchdog_reason": trace.tool_reply_watchdog_reason,
+            "tool_result_to_speech_ms": trace.tool_result_to_speech_ms,
+            "forced_reply_reason": trace.forced_reply_reason,
             "correlation_quality": trace.correlation_quality,
         }

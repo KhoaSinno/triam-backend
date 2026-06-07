@@ -92,7 +92,6 @@ QUESTION_HINTS = (
     " phuong phap",
     " tom tat",
     " giai thich",
-    " bitcoin",
     " what",
     " why",
     " how",

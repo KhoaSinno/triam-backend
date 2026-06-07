@@ -126,3 +126,58 @@ def test_duplicate_completion_does_not_emit_second_completed_event():
     assert tracer.complete_turn(AgentInputMode.TEXT) is not None
     assert tracer.complete_turn(AgentInputMode.TEXT) is None
     assert [event for event, _ in emitted].count("turn_completed") == 1
+
+
+def test_watchdog_observability_fields():
+    emitted: list[tuple[str, dict]] = []
+    tracer = AgentTurnTracer(
+        enabled=True,
+        thread_id="thread-1",
+        room_name="room-1",
+        emitter=lambda event, payload: emitted.append((event, payload)),
+    )
+
+    tracer.begin_turn(AgentInputMode.VOICE)
+    tracer.record_tool_reply_watchdog_scheduled(
+        AgentInputMode.VOICE,
+        tool_name="execute_web_search",
+        grace_ms=1000,
+    )
+    assert emitted[-1][0] == "watchdog_scheduled"
+    assert emitted[-1][1]["tool_reply_watchdog_scheduled"] is True
+    assert emitted[-1][1]["tool_reply_watchdog_tool_names"] == ["execute_web_search"]
+    assert emitted[-1][1]["stage_latency_ms"]["tool_reply_watchdog_grace"] == 1000
+
+    tracer.record_tool_reply_watchdog_fired(
+        AgentInputMode.VOICE,
+        tool_name="execute_web_search",
+        elapsed_ms=1023,
+        reason="no_speech_after_tool",
+    )
+    assert emitted[-1][0] == "watchdog_fired"
+    assert emitted[-1][1]["tool_reply_watchdog_fired"] is True
+    assert emitted[-1][1]["tool_reply_watchdog_reason"] == "no_speech_after_tool"
+    assert emitted[-1][1]["tool_result_to_speech_ms"] == 1023
+    assert emitted[-1][1]["forced_reply_reason"] == "no_speech_after_tool"
+
+    tracer.record_tool_reply_watchdog_cancelled(
+        AgentInputMode.VOICE,
+        reason="speech_created",
+    )
+    assert emitted[-1][0] == "watchdog_cancelled"
+    assert emitted[-1][1]["tool_reply_watchdog_reason"] == "cancelled_speech_created"
+
+    tracer.record_tool_reply_speech_created(
+        AgentInputMode.VOICE,
+        source="agent_speech",
+        elapsed_ms=450,
+    )
+    assert emitted[-1][0] == "speech_created"
+    assert emitted[-1][1]["tool_result_to_speech_ms"] == 450
+
+    summary = tracer.complete_turn(AgentInputMode.VOICE)
+    assert summary["tool_reply_watchdog_scheduled"] is True
+    assert summary["tool_reply_watchdog_fired"] is True
+    assert summary["tool_reply_watchdog_tool_names"] == ["execute_web_search"]
+    assert summary["tool_reply_watchdog_reason"] == "cancelled_speech_created"
+    assert summary["tool_result_to_speech_ms"] == 450

@@ -52,4 +52,10 @@ class AgentTurnTrace:
     assistant_char_count: int = 0
     stage_latency_ms: dict[str, int] = field(default_factory=dict)
     error_code: str | None = None
+    tool_reply_watchdog_scheduled: bool | None = None
+    tool_reply_watchdog_fired: bool | None = None
+    tool_reply_watchdog_tool_names: list[str] = field(default_factory=list)
+    tool_reply_watchdog_reason: str | None = None
+    tool_result_to_speech_ms: int | None = None
+    forced_reply_reason: str | None = None
     correlation_quality: str = "session_active_turn"
