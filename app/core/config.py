@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     DEEPGRAM_API_KEY: str
     CARTESIA_API_KEY_TTS: str
     ELEVENLABS_API_KEY_TTS: str
-    OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime"
+    OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-mini"
     OPENAI_REALTIME_VOICE: str = "cedar"
     OPENAI_REALTIME_TRANSCRIPTION_MODEL: str = "gpt-4o-transcribe"
     OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE: str = "vi"
