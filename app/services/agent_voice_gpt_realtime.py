@@ -250,7 +250,6 @@ class ChatTextOutput(voice_io.TextOutput):
         # Flush is sync; schedule async publish.
         self._flush_task = asyncio.create_task(_publish(self._topic, message))
 
-
 class TriamAssistant(Agent):
     def __init__(
         self,
@@ -261,7 +260,17 @@ class TriamAssistant(Agent):
         voice_turn_state: VoiceTurnState | None = None,
         shared_policy: SharedAgentPolicy | None = None,
     ) -> None:
-        super().__init__(instructions=VOICE_AGENT_INSTRUCTIONS)
+        books_str = ""
+        if grounding_router and grounding_router.scope.books:
+            books_list = []
+            for b in grounding_router.scope.books:
+                book_desc = f"- Sách: '{b.title}'"
+                if b.author:
+                    book_desc += f" của tác giả {b.author}"
+                books_list.append(book_desc)
+            books_str = "\n\nNgữ cảnh học tập hiện tại:\n" + "\n".join(books_list)
+
+        super().__init__(instructions=VOICE_AGENT_INSTRUCTIONS + books_str)
         self.document_ids = document_ids
         self.web_search_policy = web_search_policy
         self.tracer = tracer

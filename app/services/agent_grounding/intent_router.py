@@ -5,7 +5,22 @@ from app.services.agent_grounding.query_normalizer import contains_any_phrase
 
 AUTHOR_MARKERS = ("tác giả", "người viết", "ai viết", "author", "who wrote", "written by")
 AUTHOR_CONTENT_ACTIONS = ("giải thích", "trình bày", "cho rằng", "nói gì", "quan điểm", "explain", "argue", "describe")
-TITLE_MARKERS = ("tên sách", "tựa sách", "tên của quyển sách", "book title", "title of the book")
+TITLE_MARKERS = (
+    "tên sách",
+    "tựa sách",
+    "tên của quyển sách",
+    "book title",
+    "title of the book",
+    "sách gì",
+    "sách nào",
+    "quyển sách gì",
+    "quyển sách nào",
+    "đang học quyển nào",
+    "đang học sách nào",
+    "đang học sách gì",
+    "đang đọc sách nào",
+    "đang đọc quyển nào",
+)
 DOCUMENT_TYPE_MARKERS = ("loại tài liệu", "định dạng tài liệu", "file gì", "document type", "file format")
 ROOT_SECTION_COUNT_MARKERS = (
     "bao nhiêu phần chính",
