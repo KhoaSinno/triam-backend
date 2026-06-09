@@ -25,6 +25,10 @@ POSITIVE_ACTION_PHRASES = (
     "go ahead",
     "do it",
     "search it",
+    "cho phep",
+    "cho phep di",
+    "cho phep lam",
+    "duoc phep",
 )
 POSITIVE_SHORT_REPLIES = (
     "co",
@@ -44,6 +48,7 @@ POSITIVE_SHORT_REPLIES = (
     "dung roi",
     "phai",
     "phai roi",
+    "cho phep",
 )
 NEGATIVE_PHRASES = (
     "khong phai",

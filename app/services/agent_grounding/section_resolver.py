@@ -43,6 +43,13 @@ def resolve_metadata_book(scope: GroundingScope, query: NormalizedQuery) -> Book
         )
     if len(scope.books) == 1:
         return BookResolution(ResolutionQuality.UNIQUE, "single_book_scope", book=scope.books[0])
+
+    if scope.allowed_book_ids:
+        primary_id = scope.allowed_book_ids[0]
+        primary_book = next((b for b in scope.books if b.id == primary_id), None)
+        if primary_book is not None:
+            return BookResolution(ResolutionQuality.UNIQUE, "primary_book_fallback", book=primary_book)
+
     return BookResolution(
         ResolutionQuality.AMBIGUOUS,
         "multiple_books_require_selection",
@@ -116,7 +123,20 @@ def resolve_section(scope: GroundingScope, query: NormalizedQuery, reference: Se
         )
 
     named_books = _named_books(scope, query)
-    candidate_books = named_books or scope.books
+    candidate_books = named_books
+    if not candidate_books and scope.books:
+        if scope.allowed_book_ids:
+            primary_id = scope.allowed_book_ids[0]
+            primary_book = next((b for b in scope.books if b.id == primary_id), None)
+            if primary_book is not None:
+                primary_matches = []
+                for section in _reference_candidates(_sections_for_book(scope, primary_book.id), reference):
+                    primary_matches.append((primary_book, section))
+                if primary_matches:
+                    candidate_books = (primary_book,)
+        if not candidate_books:
+            candidate_books = scope.books
+
     if not candidate_books:
         return SectionResolution(
             ResolutionQuality.NOT_FOUND,

@@ -89,6 +89,7 @@ async def _classify_with_openai(
         intent=_coerce_intent(payload.get("intent")),
         confidence=_coerce_confidence(payload.get("confidence")),
         reason=str(payload.get("reason") or "")[:160],
+        source="openai",
     )
 
 

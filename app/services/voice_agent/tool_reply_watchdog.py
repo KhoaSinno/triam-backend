@@ -192,6 +192,7 @@ class VoiceToolReplyWatchdog:
 
         kwargs: dict[str, Any] = {
             "allow_interruptions": True,
+            # "instructions": POST_TOOL_REPLY_INSTRUCTIONS,
         }
         if self.config.force_tool_choice_none:
             kwargs["tool_choice"] = "none"

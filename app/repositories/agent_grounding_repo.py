@@ -26,17 +26,18 @@ def get_grounding_scope(session: Session, allowed_book_ids: list[uuid.UUID]) -> 
         return GroundingScope((), (), ())
 
     books = list(session.exec(select(Book).where(col(Book.id).in_(allowed_book_ids))).all())
-    actual_book_ids = [book.id for book in books]
+
+    books_by_id = {book.id: book for book in books}
+
+    ordered_books = [books_by_id[book_id] for book_id in allowed_book_ids if book_id in books_by_id]
+
+    actual_book_ids = [book.id for book in ordered_books]
+
     if not actual_book_ids:
         return GroundingScope(tuple(allowed_book_ids), (), ())
 
-    sections = list(
-        session.exec(
-            select(BookSection)
-            .where(col(BookSection.book_id).in_(actual_book_ids))
-            .order_by(col(BookSection.book_id), col(BookSection.section_index))
-        ).all()
-    )
+    sections = list(session.exec(select(BookSection).where(col(BookSection.book_id).in_(actual_book_ids)).order_by(col(BookSection.book_id), col(BookSection.section_index))).all())
+
     root_count_by_book: dict[uuid.UUID, int] = {}
     for section in sections:
         if section.parent_id is None:
@@ -52,8 +53,9 @@ def get_grounding_scope(session: Session, allowed_book_ids: list[uuid.UUID]) -> 
             status=book.status,
             root_section_count=root_count_by_book.get(book.id, 0),
         )
-        for book in books
+        for book in ordered_books
     )
+
     grounding_sections = tuple(
         GroundingSection(
             id=section.id,
@@ -67,6 +69,7 @@ def get_grounding_scope(session: Session, allowed_book_ids: list[uuid.UUID]) -> 
         )
         for section in sections
     )
+
     return GroundingScope(tuple(actual_book_ids), grounding_books, grounding_sections)
 
 
@@ -121,4 +124,3 @@ def load_scoped_section_texts(
             section_ids=section_ids,
             allowed_book_ids=allowed_book_ids,
         )
-

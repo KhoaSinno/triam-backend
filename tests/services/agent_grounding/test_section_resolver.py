@@ -132,7 +132,13 @@ def test_duplicate_title_requires_clarification():
 
 
 def test_multiple_books_require_selection_for_metadata():
-    result = resolve_metadata_book(_scope(two_books=True), normalize_query("Tác giả là ai?"))
+    original_scope = _scope(two_books=True)
+    scope = GroundingScope(
+        allowed_book_ids=(),
+        books=original_scope.books,
+        sections=original_scope.sections,
+    )
+    result = resolve_metadata_book(scope, normalize_query("Tác giả là ai?"))
 
     assert result.quality == ResolutionQuality.AMBIGUOUS
     assert result.book is None
@@ -147,4 +153,24 @@ def test_named_book_resolves_metadata_in_multi_book_scope():
     assert result.quality == ResolutionQuality.EXACT
     assert result.book is not None
     assert result.book.author == "John Steinbeck"
+
+
+def test_resolve_metadata_book_prefers_primary_book_on_ambiguity() -> None:
+    scope = _scope(two_books=True)
+    result = resolve_metadata_book(scope, normalize_query("Tác giả là ai?"))
+    assert result.quality == ResolutionQuality.UNIQUE
+    assert result.reason_code == "primary_book_fallback"
+    assert result.book is not None
+    assert result.book.title == "Of Mice and Men"
+
+
+def test_resolve_section_prefers_primary_book_on_ambiguity() -> None:
+    scope = _scope(two_books=True)
+    reference = SectionReference(marker_present=True, explicit_ordinal=4)
+    result = resolve_section(scope, normalize_query("Tóm tắt chương 4"), reference)
+    assert result.quality == ResolutionQuality.EXACT
+    assert result.book is not None
+    assert result.book.title == "Of Mice and Men"
+    assert result.section is not None
+    assert result.section.book_id == scope.allowed_book_ids[0]
 

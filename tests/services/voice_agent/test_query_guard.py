@@ -132,3 +132,33 @@ def test_pending_clarification_new_question_is_reported_for_caller_rerun() -> No
 
     assert result.valid is False
     assert result.reason_code == "clarification_new_question"
+
+
+def test_confirmation_bypass_without_pending_clarification() -> None:
+    transcript = _snapshot("đúng rồi")
+    result = guard_voice_book_query(
+        "tóm tắt chương 5",
+        transcript,
+        pending_clarification=None,
+    )
+    assert result.valid is True
+    assert result.reason_code == "valid_confirmation_bypass"
+    assert result.guard_mode == "confirmation_bypass"
+
+
+def test_confirmation_bypass_with_generic_pending_clarification() -> None:
+    pending = PendingVoiceClarification(
+        prompt_text="Mình nghe chưa chắc câu hỏi. Bạn nói lại ngắn gọn giúp mình nhé.",
+        candidate_query=None,
+        reason_code="tool_query_transcript_mismatch",
+        created_monotonic=0.0,
+    )
+    transcript = _snapshot("ok")
+    result = guard_voice_book_query(
+        "tóm tắt chương 5",
+        transcript,
+        pending_clarification=pending,
+    )
+    assert result.valid is True
+    assert result.reason_code == "valid_clarification_confirmation"
+    assert result.guard_mode == "clarification_confirmed"

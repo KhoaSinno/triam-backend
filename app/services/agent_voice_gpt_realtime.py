@@ -250,6 +250,7 @@ class ChatTextOutput(voice_io.TextOutput):
         # Flush is sync; schedule async publish.
         self._flush_task = asyncio.create_task(_publish(self._topic, message))
 
+
 class TriamAssistant(Agent):
     def __init__(
         self,
@@ -387,9 +388,7 @@ class TriamAssistant(Agent):
     def _current_pending_clarification(self):
         if not settings.VOICE_AGENT_CLARIFICATION_STATE_ENABLED:
             return None
-        return self.voice_turn_state.recent_pending_clarification(
-            settings.VOICE_AGENT_CLARIFICATION_STATE_TTL_SECONDS
-        )
+        return self.voice_turn_state.recent_pending_clarification(settings.VOICE_AGENT_CLARIFICATION_STATE_TTL_SECONDS)
 
     def _record_query_guard_result(
         self,
@@ -543,12 +542,7 @@ class TriamAssistant(Agent):
             return format_rag_context(result)
         except Exception as exc:
             self.tracer.record_error(input_mode, "book_rag_search_error")
-            log.warning(
-                "Book RAG search failed | "
-                f"input_mode={input_mode.value} | "
-                f"document_count={len(self.document_ids)} | "
-                f"error_type={type(exc).__name__}"
-            )
+            log.warning(f"Book RAG search failed | input_mode={input_mode.value} | document_count={len(self.document_ids)} | error_type={type(exc).__name__}")
             if input_mode == AgentInputMode.VOICE:
                 self.voice_turn_state.clear_pending_clarification()
             return "BOOK_CONTEXT_ERROR: Không thể tìm kiếm dữ liệu trong sách lúc này."
@@ -607,6 +601,7 @@ class TriamAssistant(Agent):
             try:
                 result = await web_search(query)
                 self._remember_web_result(query, result)
+                log.info(f"Voice web search completed | query_chars={len(query)} | result_chars={len(result or '')}")
                 self.tracer.record_latency(input_mode, "web_search", int((time.perf_counter() - started) * 1000))
                 self.tracer.record_answer_source(input_mode, AgentAnswerSource.WEB)
                 return result
@@ -640,11 +635,7 @@ def _tool_reply_watchdog_config() -> VoiceToolReplyWatchdogConfig:
         enabled=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_ENABLED,
         grace_seconds=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_GRACE_SECONDS,
         thinking_grace_seconds=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_THINKING_GRACE_SECONDS,
-        monitored_tools={
-            item.strip()
-            for item in settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_TOOLS.split(",")
-            if item.strip()
-        },
+        monitored_tools={item.strip() for item in settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_TOOLS.split(",") if item.strip()},
         allow_error_outputs=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_ALLOW_ERROR_OUTPUTS,
         force_tool_choice_none=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_FORCE_TOOL_CHOICE_NONE,
     )
@@ -722,11 +713,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 _load_section_texts,
                 section_context_max_chars=settings.AGENT_SECTION_CONTEXT_MAX_CHARS,
             )
-            log.info(
-                "Grounding router ready | "
-                f"books={len(grounding_scope.books)} | sections={len(grounding_scope.sections)} | "
-                f"load_ms={int((time.perf_counter() - grounding_started) * 1000)}"
-            )
+            log.info(f"Grounding router ready | books={len(grounding_scope.books)} | sections={len(grounding_scope.sections)} | load_ms={int((time.perf_counter() - grounding_started) * 1000)}")
         except Exception as exc:
             log.warning(f"Grounding router initialization failed; using legacy RAG flow | error_type={type(exc).__name__}")
 
@@ -1059,7 +1046,6 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 log.info("lk.control: payload không phải JSON hợp lệ")
             return
 
-
         # --- Kênh chat thông thường ---
         if packet.topic == LK_CHAT_TOPIC:
             participant_id = packet.participant.identity if packet.participant else None
@@ -1071,11 +1057,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
     empty_room_cleanup_task: asyncio.Task[None] | None = None
 
     def _remote_participant_identities(exclude_identity: str | None = None) -> list[str]:
-        return [
-            participant.identity
-            for participant in ctx.room.remote_participants.values()
-            if participant.identity != exclude_identity
-        ]
+        return [participant.identity for participant in ctx.room.remote_participants.values() if participant.identity != exclude_identity]
 
     async def _close_empty_room_after_grace() -> None:
         try:
@@ -1112,10 +1094,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             return
         if empty_room_cleanup_task and not empty_room_cleanup_task.done():
             return
-        log.info(
-            "No remote participants left. Scheduling agent cleanup "
-            f"after {settings.LIVEKIT_AGENT_EMPTY_ROOM_GRACE_SECONDS}s grace period."
-        )
+        log.info(f"No remote participants left. Scheduling agent cleanup after {settings.LIVEKIT_AGENT_EMPTY_ROOM_GRACE_SECONDS}s grace period.")
         empty_room_cleanup_task = asyncio.create_task(_close_empty_room_after_grace())
 
     async def _cancel_empty_room_cleanup() -> None:
@@ -1167,10 +1146,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             tracer.complete_turn(AgentInputMode.VOICE)
             log.info(f"Assistant voice speech saved | text_len={len(text)} | thread_id={thread_uuid}")
             asyncio.create_task(transcript_store.save_and_publish_assistant(text))
-            if (
-                settings.VOICE_AGENT_ASSISTANT_CLARIFICATION_HEURISTIC_ENABLED
-                and agent_instance._looks_like_assistant_clarification(text)
-            ):
+            if settings.VOICE_AGENT_ASSISTANT_CLARIFICATION_HEURISTIC_ENABLED and agent_instance._looks_like_assistant_clarification(text):
                 voice_turn_state.set_pending_clarification(
                     prompt_text=text,
                     reason_code="assistant_confirmation",
