@@ -117,6 +117,11 @@ class ReadingPlanScheduleConflictError(AppException):
     detail = "Lịch học này đang trùng với một sách khác. Hãy chọn ngày hoặc giờ khác."
 
 
+class ProcessingJobStatusConflictError(AppException):
+    status_code = 409
+    detail = "Job không ở trạng thái có thể retry."
+
+
 class ActiveLearningBookLimitExceededError(AppException):
     status_code = 409
     detail = "Bạn đã đạt giới hạn số sách đang học. Hãy hoàn thành hoặc tạm dừng một sách trước."

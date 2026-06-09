@@ -1,5 +1,4 @@
 import asyncio
-import re
 from pathlib import Path
 
 import edge_tts
@@ -9,11 +8,11 @@ from app.core.config import settings
 from app.core.exceptions import ExternalServiceError, TTSInputTooShortError
 from app.core.logger import log
 from app.services.async_limiter import get_loop_semaphore
+from app.services.tts_script_quality_service import sanitize_tts_script_text
 
 client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 SUPPORTED_TTS_PROVIDERS = {"edge", "google", "gg"}
-_STAGE_TAG_RE = re.compile(r"\[(?:[A-Za-zÀ-ỹ_ -]{2,40})\]")
 _google_tts_client = None
 
 
@@ -46,8 +45,7 @@ async def stream_text_to_speech_edge(text: str, voice: str = settings.EDGE_TTS_V
 
 
 def _clean_text_for_tts(text: str) -> str:
-    cleaned = _STAGE_TAG_RE.sub("", text or "")
-    return " ".join(cleaned.split()).strip()
+    return sanitize_tts_script_text(text)
 
 
 def _utf8_size(text: str) -> int:

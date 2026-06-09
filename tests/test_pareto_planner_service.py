@@ -82,6 +82,7 @@ async def test_llm_structured_output_becomes_pareto_learning_units(monkeypatch):
     monkeypatch.setattr(pareto_planner_service.settings, "PARETO_PLANNER_LLM_ENABLED", True)
     monkeypatch.setattr(pareto_planner_service.settings, "PARETO_PLANNER_MIN_UNITS", 1)
     monkeypatch.setattr(pareto_planner_service.settings, "PARETO_PLANNER_MAX_UNITS", 4)
+    monkeypatch.setattr(pareto_planner_service.settings, "PARETO_PLANNER_LLM_MIN_CARDS", 4)
 
     book_id = uuid.uuid4()
     root = _section(book_id=book_id, section_index=0, title="Chương 1 Logic", path="1", level=1)
@@ -115,9 +116,33 @@ async def test_llm_structured_output_becomes_pareto_learning_units(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_small_outline_uses_deterministic_planner_without_llm_call(monkeypatch):
+    monkeypatch.setattr(pareto_planner_service.settings, "PARETO_PLANNER_LLM_ENABLED", True)
+    monkeypatch.setattr(pareto_planner_service.settings, "PARETO_PLANNER_LLM_MIN_CARDS", 4)
+
+    book_id = uuid.uuid4()
+    sections = [
+        _section(book_id=book_id, section_index=1, title="Chương 1", path="1", level=1, text="nền tảng " * 500),
+        _section(book_id=book_id, section_index=2, title="Chương 2", path="2", level=1, text="phương pháp " * 500),
+        _section(book_id=book_id, section_index=3, title="Chương 3", path="3", level=1, text="ghi chú " * 100),
+    ]
+
+    async def fail_if_called(cards):
+        raise AssertionError("LLM planner should not be called for a small outline")
+
+    monkeypatch.setattr(pareto_planner_service, "_call_pareto_llm", fail_if_called)
+
+    units = await plan_pareto_learning_units(sections)
+
+    assert units
+    assert len(units) <= len(sections)
+
+
+@pytest.mark.asyncio
 async def test_invalid_llm_section_ids_fallback_to_deterministic_planner(monkeypatch):
     monkeypatch.setattr(pareto_planner_service.settings, "PARETO_PLANNER_LLM_ENABLED", True)
     monkeypatch.setattr(pareto_planner_service.settings, "PARETO_PLANNER_MAX_UNITS", 3)
+    monkeypatch.setattr(pareto_planner_service.settings, "PARETO_PLANNER_LLM_MIN_CARDS", 1)
 
     book_id = uuid.uuid4()
     concept = _section(book_id=book_id, section_index=1, title="Khái niệm quan trọng", path="1.1", level=1, text="khái niệm " * 200)

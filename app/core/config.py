@@ -125,10 +125,11 @@ class Settings(BaseSettings):
 
     # Pareto learning unit planner
     PARETO_PLANNER_LLM_ENABLED: bool = True
-    PARETO_PLANNER_MODEL: str = "gemini-2.5-flash"
-    PARETO_PLANNER_TIMEOUT_SECONDS: float = 8.0
+    PARETO_PLANNER_MODEL: str = "gemini-3.5-flash"
+    PARETO_PLANNER_TIMEOUT_SECONDS: float = 25.0
     PARETO_PLANNER_MAX_UNITS: int = 8
     PARETO_PLANNER_MIN_UNITS: int = 3
+    PARETO_PLANNER_LLM_MIN_CARDS: int = 1
     PARETO_TARGET_COVERAGE_RATIO: float = 0.25
     PARETO_SECTION_EXCERPT_CHARS: int = 700
     PARETO_PLANNER_MAX_SECTION_CARDS: int = 120

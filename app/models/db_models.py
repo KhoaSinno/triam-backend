@@ -26,6 +26,31 @@ class StudyContextDocumentLink(SQLModel, table=True):
     book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, primary_key=True))
 
 
+class AdminUser(SQLModel, table=True):
+    __tablename__ = "admin_users"
+
+    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), primary_key=True))
+    role: str = Field(default="admin", sa_column=Column(Text, nullable=False, server_default="admin"))
+    is_active: bool = Field(default=True, sa_column=Column(Boolean, index=True, nullable=False, server_default="true"))
+    note: Optional[str] = Field(default=None, sa_column=Column(Text))
+    created_by: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True)))
+    revoked_by: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True)))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    revoked_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+
+
+class AdminAuditLog(SQLModel, table=True):
+    __tablename__ = "admin_audit_logs"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    admin_user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
+    action: str = Field(sa_column=Column(Text, index=True, nullable=False))
+    target_type: Optional[str] = Field(default=None, sa_column=Column(Text, index=True))
+    target_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), index=True))
+    metadata_json: Optional[Any] = Field(default=None, sa_column=Column("metadata", JSONB))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), index=True, server_default=func.now(), nullable=False))
+
+
 class Book(SQLModel, table=True):
     __tablename__ = "books"
 

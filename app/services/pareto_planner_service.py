@@ -248,6 +248,13 @@ def _validate_planner_payload(payload: ParetoPlannerPayload, sections: list[Book
     return _trim_to_target(units, total_source_tokens=total_source_tokens)
 
 
+def _should_use_llm_planner(cards: list[SectionCard]) -> tuple[bool, str | None]:
+    min_cards = max(1, settings.PARETO_PLANNER_LLM_MIN_CARDS)
+    if len(cards) < min_cards:
+        return False, "small_outline"
+    return True, None
+
+
 async def plan_pareto_learning_units(sections: list[BookSection]) -> list[PlannedLearningUnit]:
     if not sections:
         return []
@@ -258,6 +265,14 @@ async def plan_pareto_learning_units(sections: list[BookSection]) -> list[Planne
         return fallback_units
 
     cards = build_section_cards(sections)
+    should_use_llm, deterministic_reason = _should_use_llm_planner(cards)
+    if not should_use_llm:
+        log.info(
+            "Pareto planner deterministic used | "
+            f"reason={deterministic_reason} | sections={len(sections)} | cards={len(cards)} | units={len(fallback_units)}"
+        )
+        return fallback_units
+
     try:
         log.info(f"Pareto planner start | sections={len(sections)} | cards={len(cards)} | model={settings.PARETO_PLANNER_MODEL}")
         payload = await asyncio.wait_for(_call_pareto_llm(cards), timeout=settings.PARETO_PLANNER_TIMEOUT_SECONDS)

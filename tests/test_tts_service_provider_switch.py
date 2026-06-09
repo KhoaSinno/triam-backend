@@ -28,6 +28,29 @@ async def test_generate_audio_uses_edge_provider(monkeypatch, tmp_path):
 
 
 @pytest.mark.asyncio
+async def test_generate_audio_removes_visual_markdown_before_provider(monkeypatch, tmp_path):
+    calls: list[str] = []
+
+    async def fake_edge(text: str, filename: str, voice_name: str) -> None:
+        calls.append(text)
+        Path(filename).write_bytes(b"fake edge mp3")
+
+    monkeypatch.setattr(tts_service.settings, "TTS_PROVIDER", "edge")
+    monkeypatch.setattr(tts_service.settings, "EDGE_TTS_VOICE", "vi-VN-HoaiMyNeural")
+    monkeypatch.setattr(tts_service.settings, "TTS_GENERATION_CONCURRENCY", 1)
+    monkeypatch.setattr(tts_service, "_generate_audio_file_edge", fake_edge)
+    monkeypatch.setattr(tts_service, "_measure_mp3_duration_ms", lambda filename: 1234)
+
+    duration = await tts_service.generate_audio_and_get_duration(
+        "Trục đầu tiên là **kiến trúc mô hình** và `huấn luyện`.",
+        str(tmp_path / "clean.mp3"),
+    )
+
+    assert duration == 1234
+    assert calls == ["Trục đầu tiên là kiến trúc mô hình và huấn luyện."]
+
+
+@pytest.mark.asyncio
 async def test_generate_audio_uses_google_provider(monkeypatch, tmp_path):
     calls: list[tuple[str, str, str]] = []
     logged: list[tuple[tuple, dict]] = []
