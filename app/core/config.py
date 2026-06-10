@@ -14,6 +14,7 @@ class Settings(BaseSettings):
     GEMINI_BASE_URL: str
     GEMINI_API_KEY: str
     DATABASE_URL: str
+    # hardening DB pool/config
     DATABASE_ECHO: bool = False
     DATABASE_POOL_MODE: str = "auto"
     DATABASE_POOL_SIZE: int = 3
@@ -23,9 +24,13 @@ class Settings(BaseSettings):
     DATABASE_POOL_PRE_PING: bool = True
     DATABASE_POOL_USE_LIFO: bool = True
     DATABASE_APPLICATION_NAME: str = "triam-backend"
+
+    # Supabase
     SUPABASE_URL: str
     SUPABASE_KEY: str
     SUPABASE_SERVICE_ROLE_KEY: str
+
+    # TTS
     EDGE_TTS_VOICE: str = "vi-VN-HoaiMyNeural"
     TTS_PROVIDER: str = "edge"
     TTS_RECEIVE_TIMEOUT_SECONDS: int = 300
@@ -47,8 +52,15 @@ class Settings(BaseSettings):
     DEEPGRAM_API_KEY: str
     CARTESIA_API_KEY_TTS: str
     ELEVENLABS_API_KEY_TTS: str
+
+    # Realtime voice agent behavior
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-mini"
     OPENAI_REALTIME_VOICE: str = "cedar"
+    # Text
+    VOICE_AGENT_HISTORY_LIMIT: int = 24
+    VOICE_AGENT_RAG_MAX_CHARS: int = 6000
+    VOICE_AGENT_CONSOLE_BOOK_ID: str = "dae3b3ae-8740-4485-9c16-12e685c6c970"
+    VOICE_AGENT_CONSOLE_THREAD_ID: str = "4843070c-c08b-45a4-aa7a-48028ae61318"
 
     # Dynamic Prompt cho OpenAI Realtime Transcription
     OPENAI_REALTIME_TRANSCRIPTION_MODEL: str = "gpt-4o-transcribe"
@@ -65,6 +77,7 @@ class Settings(BaseSettings):
     VOICE_AGENT_LOG_TRANSCRIPT_TEXT: bool = False
     VOICE_AGENT_DEDUPE_WINDOW_SECONDS: int = 3
     VOICE_AGENT_WEB_PERMISSION_TTL_SECONDS: int = 180
+    # Policy websearch
     VOICE_AGENT_WEB_IMPLICIT_GRANT_WINDOW_SECONDS: int = 20
     VOICE_AGENT_WEB_RESULT_CACHE_TTL_SECONDS: int = 120
     VOICE_AGENT_PERMISSION_CLASSIFIER_ENABLED: bool = True
@@ -89,10 +102,6 @@ class Settings(BaseSettings):
     VOICE_AGENT_INTERRUPTION_MIN_WORDS: int = 2
     VOICE_AGENT_FALSE_INTERRUPTION_TIMEOUT_SECONDS: float = 1.5
     VOICE_AGENT_PREEMPTIVE_GENERATION_ENABLED: bool = False
-    VOICE_AGENT_HISTORY_LIMIT: int = 24
-    VOICE_AGENT_RAG_MAX_CHARS: int = 6000
-    VOICE_AGENT_CONSOLE_BOOK_ID: str = "dae3b3ae-8740-4485-9c16-12e685c6c970"
-    VOICE_AGENT_CONSOLE_THREAD_ID: str = "4843070c-c08b-45a4-aa7a-48028ae61318"
 
     # Phase 10.11 Voice Tool Reply Watchdog config
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_ENABLED: bool = True
@@ -107,11 +116,13 @@ class Settings(BaseSettings):
     AGENT_TRACE_ENABLED: bool = True
     AGENT_TRACE_SCORE_PRECISION: int = 4
     AGENT_TRACE_LATE_TRANSCRIPT_WINDOW_SECONDS: float = 15.0
-    AGENT_GROUNDING_ROUTER_ENABLED: bool = True
+    AGENT_GROUNDING_ROUTER_ENABLED: bool = False
     AGENT_SHARED_POLICY_ENABLED: bool = True
     AGENT_SECTION_CONTEXT_MAX_CHARS: int = 24000
     AGENT_CANONICAL_SECTION_RAG_ENABLED: bool = True
-    AGENT_CANONICAL_SECTION_RAG_FALLBACK_LEGACY: bool = True
+    AGENT_CANONICAL_SECTION_RAG_FALLBACK_LEGACY: bool = False
+
+    # Hybrid RAG
     AGENT_HYBRID_RAG_ENABLED: bool = True
     AGENT_HYBRID_VECTOR_WEIGHT: float = 0.60
     AGENT_HYBRID_LEXICAL_WEIGHT: float = 0.30

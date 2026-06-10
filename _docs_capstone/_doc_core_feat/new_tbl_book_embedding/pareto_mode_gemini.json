@@ -1,0 +1,250 @@
+{
+  "book_id": "c3f13d07-4494-4995-ba75-30a12589b8fc",
+  "book_status": "ready",
+  "mode": "pareto",
+  "total_sections": 6,
+  "total_units": 3,
+  "units": [
+    {
+      "id": "f50e11ee-6476-4a18-8ab3-f4cfb6905eb8",
+      "title": "The Dream and the Safe Haven",
+      "status": "ready",
+      "unit_index": 0,
+      "unit_type": "Foundational Exposition",
+      "source_text_char_count": 23830,
+      "estimated_audio_seconds": 2077,
+      "main_segment_count": 6,
+      "review_text": "George và Lennie là hai người bạn đồng hành, George nhỏ bé và thông minh, còn Lennie to lớn nhưng trí tuệ chậm phát triển. Họ đang trên đường đến một trang trại mới sau khi phải bỏ trốn khỏi Weed vì Lennie vô tình gây rắc rối. Lennie có thói quen vuốt ve những vật mềm mại nhưng thường làm chúng chết vì không kiểm soát được sức mạnh. Ước mơ của họ là sở hữu một trang trại nhỏ, nơi Lennie có thể chăm sóc thỏ. George dặn Lennie phải im lặng khi gặp ông chủ mới và nếu có chuyện, hãy trốn ở bụi cây ven sông.",
+      "review_audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_1/pareto/review.mp3",
+      "planner_reason": "This opening section is crucial as it establishes the central characters, their symbiotic but difficult relationship, the recurring motif of the 'dream farm', and sets up the geographic safe haven that foreshadows the novella's tragic ending. Mục tiêu học: Understand the core relationship between George and Lennie, their shared dream of owning land, and the establishment of the Salinas River pool as a safe haven. Điểm quan trọng: 5/5.",
+      "segments": [
+        {
+          "id": 2888,
+          "segment_index": 0,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_1/pareto/part_1.mp3",
+          "text_content": "Cách Soledad vài dặm về phía nam, sông Salinas chảy sát bờ đồi, nước sâu và xanh biếc. Nơi đây có một con đường mòn dẫn xuống hồ nước sâu, được tạo ra bởi những cậu bé từ trang trại xuống bơi và những người vô gia cư dừng chân nghỉ ngơi. Một buổi tối nóng nực, hai người đàn ông xuất hiện từ con đường mòn. Người thứ nhất là George, nhỏ bé, nhanh nhẹn, với đôi mắt không ngừng chuyển động. Người thứ hai là Lennie, to lớn, vóc dáng thô kệch, với đôi mắt to màu nhạt và bước đi nặng nề.",
+          "duration_ms": 31224
+        },
+        {
+          "id": 2889,
+          "segment_index": 1,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_1/pareto/part_2.mp3",
+          "text_content": "Lennie ngay lập tức cúi xuống uống nước từ hồ, hớp từng ngụm lớn như ngựa. George lo lắng nhắc nhở Lennie đừng uống quá nhiều, sợ anh ta sẽ bị ốm như đêm qua. Sau đó, George hỏi Lennie đang giấu gì trong tay. Lennie miễn cưỡng thừa nhận đó là một con chuột chết và giải thích rằng mình chỉ muốn vuốt ve nó khi đi đường.",
+          "duration_ms": 20640
+        },
+        {
+          "id": 2890,
+          "segment_index": 2,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_1/pareto/part_3.mp3",
+          "text_content": "George giật lấy con chuột và ném nó đi, mắng Lennie là đồ ngốc. Anh ta giải thích rằng Lennie luôn giết chết những con vật nhỏ vì vuốt ve quá mạnh, giống như đã làm với những con chuột mà dì Clara từng cho. Lennie buồn bã nói rằng anh ta chỉ muốn vuốt ve chúng vì chúng rất nhỏ, và anh ta hy vọng sớm có thỏ vì chúng sẽ không nhỏ như vậy.",
+          "duration_ms": 20856
+        },
+        {
+          "id": 2891,
+          "segment_index": 3,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_1/pareto/part_4.mp3",
+          "text_content": "George hỏi Lennie có nhớ họ đang đi đâu không, và Lennie lại quên mất. George bực bội nhắc lại rằng họ đang đến làm việc tại một trang trại, giống như trang trại ở Weed mà họ đã phải bỏ chạy. George giải thích rằng họ phải rời Weed vì Lennie đã chạm vào váy một cô gái và không chịu buông ra, khiến mọi người truy đuổi họ. George dặn dò Lennie rất kỹ: khi đến trang trại mới, Lennie tuyệt đối không được nói một lời nào với ông chủ, nếu không họ sẽ không có việc làm.",
+          "duration_ms": 28272
+        },
+        {
+          "id": 2892,
+          "segment_index": 4,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_1/pareto/part_5.mp3",
+          "text_content": "Trong khi ăn tối, George lại bộc lộ sự bực bội về việc Lennie luôn gây rắc rối, khiến anh ta không thể sống một cuộc đời tự do và dễ dàng như những người khác. Tuy nhiên, Lennie nhắc George kể về ước mơ của họ. George kể lại về một ngày nào đó họ sẽ có đủ tiền để mua một mảnh đất nhỏ, một ngôi nhà, nuôi bò, lợn và đặc biệt là rất nhiều thỏ để Lennie chăm sóc.",
+          "duration_ms": 22800
+        },
+        {
+          "id": 2893,
+          "segment_index": 5,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_1/pareto/part_6.mp3",
+          "text_content": "Lennie rất vui mừng và hào hứng với ý tưởng được chăm sóc thỏ. Cuối cùng, George dặn dò Lennie ghi nhớ nơi này. Nếu Lennie lại gây rắc rối như mọi khi, anh ta phải quay lại đây, trốn vào bụi cây ven sông và đợi George đến.",
+          "duration_ms": 15648
+        }
+      ]
+    },
+    {
+      "id": "2fb182de-1236-4e14-8e02-29a0a1ace6a5",
+      "title": "The Climax: Shattered Dreams in the Barn",
+      "status": "ready",
+      "unit_index": 1,
+      "unit_type": "Narrative Climax",
+      "source_text_char_count": 23127,
+      "estimated_audio_seconds": 2042,
+      "main_segment_count": 6,
+      "review_text": "Lennie vô tình làm chết chó con, rồi lại gây ra cái chết của vợ Curley khi cô mời cậu vuốt tóc. Trong cơn hoảng loạn, Lennie đã bóp cổ cô. Cậu bé trốn đi, nhớ lời George dặn. Candy và George phát hiện thi thể, ước mơ về trang trại tan vỡ. Curley thề sẽ giết Lennie. George quyết định tham gia truy lùng để tìm Lennie trước, nhằm bảo vệ cậu khỏi sự trả thù tàn bạo của Curley, dù điều đó có nghĩa là George phải tự tay kết thúc cuộc đời người bạn của mình.",
+      "review_audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_2/pareto/review.mp3",
+      "planner_reason": "This section contains the dramatic climax of the novella. The interaction between Lennie and Curley's wife, and her subsequent accidental death, is the catalyst that drives the story to its inevitable tragic conclusion. Mục tiêu học: Analyze the tragic turning point of the story where Lennie's accidental violence leads to the death of Curley's wife, irreversibly shattering their dream. Điểm quan trọng: 5/5.",
+      "segments": [
+        {
+          "id": 2894,
+          "segment_index": 0,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_2/pareto/part_1.mp3",
+          "text_content": "Lennie đang ở trong chuồng ngựa, buồn bã nhìn con chó con đã chết. Cậu bé giải thích rằng mình đã vô tình làm chết nó khi chơi đùa, và giờ thì George có thể sẽ không cho cậu nuôi thỏ nữa. Nỗi sợ hãi này ám ảnh Lennie, vì việc nuôi thỏ là ước mơ lớn nhất của cậu.",
+          "duration_ms": 17208
+        },
+        {
+          "id": 2895,
+          "segment_index": 1,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_2/pareto/part_2.mp3",
+          "text_content": "Vợ của Curley xuất hiện, cô ấy rất cô đơn và muốn trò chuyện. Lennie ban đầu từ chối vì George đã cấm cậu nói chuyện với cô. Tuy nhiên, vợ Curley vẫn tiếp tục tâm sự về những giấc mơ dang dở của mình, về việc cô từng muốn trở thành diễn viên và cuộc sống hiện tại đầy thất vọng.",
+          "duration_ms": 17880
+        },
+        {
+          "id": 2896,
+          "segment_index": 2,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_2/pareto/part_3.mp3",
+          "text_content": "Cô ấy nhận thấy Lennie thích vuốt ve những thứ mềm mại và mời cậu chạm vào mái tóc mềm của mình. Lennie vui vẻ vuốt ve, nhưng do sức mạnh của mình, cậu bắt đầu vuốt quá mạnh. Vợ Curley hoảng sợ, la lên và giằng co, khiến Lennie càng hoảng loạn hơn.",
+          "duration_ms": 16776
+        },
+        {
+          "id": 2897,
+          "segment_index": 3,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_2/pareto/part_4.mp3",
+          "text_content": "Trong cơn hoảng loạn, Lennie bịt miệng và mũi cô ấy để ngăn tiếng la, vô tình bẻ gãy cổ cô. Nhận ra mình đã làm một \"chuyện xấu\" khác, Lennie nhớ lời George dặn phải trốn vào bụi rậm nếu gặp rắc rối. Cậu bé giấu con chó con đã chết dưới áo và lén lút rời khỏi chuồng.",
+          "duration_ms": 17712
+        },
+        {
+          "id": 2898,
+          "segment_index": 4,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_2/pareto/part_5.mp3",
+          "text_content": "Candy, người đàn ông lớn tuổi, phát hiện ra thi thể của vợ Curley. Ông kinh hoàng và lập tức đi tìm George. George đến, nhìn thấy cảnh tượng và hiểu ngay rằng Lennie đã gây ra chuyện này. Ước mơ về một trang trại nhỏ của họ tan vỡ hoàn toàn.",
+          "duration_ms": 17424
+        },
+        {
+          "id": 2899,
+          "segment_index": 5,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_2/pareto/part_6.mp3",
+          "text_content": "Curley, chồng của nạn nhân, tràn đầy giận dữ và thề sẽ tự tay giết Lennie bằng súng. George biết rằng Curley sẽ không tha cho Lennie. Để bảo vệ Lennie khỏi một cái chết tàn bạo, George quyết định tham gia cuộc truy lùng, với ý định tìm Lennie trước và tự mình kết thúc mọi chuyện một cách nhân từ hơn.",
+          "duration_ms": 18768
+        }
+      ]
+    },
+    {
+      "id": "e44c286d-d90e-4087-a06a-b8a35dff3e89",
+      "title": "The Tragic Resolution by the Salinas River",
+      "status": "ready",
+      "unit_index": 2,
+      "unit_type": "Resolution & Theme Analysis",
+      "source_text_char_count": 11943,
+      "estimated_audio_seconds": 1042,
+      "main_segment_count": 16,
+      "review_text": "Trong những khoảnh khắc cuối cùng, Lennie vật lộn với nỗi sợ hãi và cảm giác tội lỗi, bị ám ảnh bởi hình ảnh dì Clara và một con thỏ khổng lồ chỉ trích những sai lầm của mình. George xuất hiện, trấn an Lennie và kể lại giấc mơ về trang trại của họ. Trong khi Lennie say sưa với viễn cảnh được chăm sóc thỏ, George đã đưa ra một quyết định đau lòng. Anh dùng khẩu súng Luger của Carlson để kết thúc cuộc đời Lennie, nhằm bảo vệ bạn mình khỏi sự truy đuổi và những rắc rối không thể tránh khỏi. Slim là người duy nhất hiểu được gánh nặng và sự hy sinh của George, an ủi anh trong khoảnh khắc bi kịch này.",
+      "review_audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/review.mp3",
+      "planner_reason": "The final section completes the circular narrative by returning to the Salinas River. George's heartbreaking decision to shoot Lennie himself to save him from a brutal lynch mob is the emotional and thematic peak of the entire work. Mục tiêu học: Examine the circular structure of the narrative, the mercy killing of Lennie by George, and the ultimate loss of the American Dream. Điểm quan trọng: 5/5.",
+      "segments": [
+        {
+          "id": 2900,
+          "segment_index": 0,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/part_1.mp3",
+          "text_content": "Lennie xuất hiện từ bụi cây, lặng lẽ như một con gấu đang rón rén. Con diệc vỗ cánh bay đi, còn con rắn nhỏ trườn vào đám sậy. Lennie quỳ xuống uống nước, rồi ngồi xuống bờ, ôm đầu gối và nhìn về lối vào đường mòn. Anh thì thầm rằng mình không quên, phải trốn trong bụi cây chờ George.",
+          "duration_ms": 19800
+        },
+        {
+          "id": 2901,
+          "segment_index": 1,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/part_2.mp3",
+          "text_content": "Lennie lo lắng George sẽ mắng mình và ước gì George được ở một mình. Anh nghĩ đến việc bỏ đi tìm một cái hang trên núi, dù sẽ không có tương cà. Rồi một hình ảnh dì Clara hiện ra trong đầu Lennie, mắng anh không bao giờ biết giữ lời và luôn làm những điều tồi tệ, khiến George phải chịu khổ.",
+          "duration_ms": 18576
+        },
+        {
+          "id": 2902,
+          "segment_index": 2,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/part_3.mp3",
+          "text_content": "Lennie cố gắng giải thích rằng mình đã cố gắng nhưng không thể kiềm chế được. Dì Clara tiếp tục nói rằng George luôn tốt với anh, chia sẻ đồ ăn và tương cà, nhưng Lennie không bao giờ nghĩ cho George. Dì bảo George có thể đã có một cuộc sống vui vẻ hơn nếu không có Lennie.",
+          "duration_ms": 17472
+        },
+        {
+          "id": 2903,
+          "segment_index": 3,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/part_4.mp3",
+          "text_content": "Lennie đau khổ nói sẽ bỏ đi tìm hang để không làm phiền George nữa, nhưng dì Clara gay gắt bảo anh chỉ nói vậy thôi. Dì biến mất, và một con thỏ khổng lồ hiện ra, chế giễu Lennie không xứng đáng chăm sóc thỏ, rằng anh sẽ quên và để chúng chết đói.",
+          "duration_ms": 15600
+        },
+        {
+          "id": 2904,
+          "segment_index": 4,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/part_5.mp3",
+          "text_content": "Con thỏ nói George đã làm mọi thứ để giúp Lennie thoát khỏi rắc rối, nhưng vô ích. Nó khẳng định George sẽ không bao giờ để Lennie nuôi thỏ và sẽ đánh anh bằng gậy. Lennie phản bác rằng George sẽ không làm vậy, vì George luôn tốt với anh.",
+          "duration_ms": 15888
+        },
+        {
+          "id": 2905,
+          "segment_index": 5,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/part_6.mp3",
+          "text_content": "Con thỏ tiếp tục nói George đã chán Lennie và sẽ bỏ rơi anh. Lennie tuyệt vọng bịt tai lại, gọi tên George. Đúng lúc đó, George lặng lẽ bước ra từ bụi cây, và con thỏ biến mất khỏi tâm trí Lennie.",
+          "duration_ms": 14832
+        },
+        {
+          "id": 2906,
+          "segment_index": 6,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/part_7.mp3",
+          "text_content": "George hỏi Lennie đang la hét gì. Lennie quỳ xuống hỏi George có bỏ mình không. George ngồi xuống bên cạnh và nói \"Không\". Lennie vui mừng nói mình biết George không phải người như vậy, rồi thú nhận đã làm \"một chuyện xấu nữa\". George đáp rằng điều đó không quan trọng.",
+          "duration_ms": 19440
+        },
+        {
+          "id": 2907,
+          "segment_index": 7,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/part_8.mp3",
+          "text_content": "Lennie hỏi George có mắng mình không, như mọi khi vẫn nói rằng nếu không có Lennie thì George đã có thể sống dễ dàng hơn. George nói anh nhớ mọi lời George nói. George miễn cưỡng lặp lại rằng nếu ở một mình, anh có thể có một công việc và không gặp rắc rối.",
+          "duration_ms": 16944
+        },
+        {
+          "id": 2908,
+          "segment_index": 8,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/part_9.mp3",
+          "text_content": "Lennie thúc giục George kể tiếp về việc cuối tháng George sẽ lấy năm mươi đô la đi đâu. George nói anh muốn Lennie ở lại với mình. Lennie khôn ngoan yêu cầu George kể lại câu chuyện về những người khác và về họ. George bắt đầu kể về những người đàn ông không có gia đình.",
+          "duration_ms": 17976
+        },
+        {
+          "id": 2909,
+          "segment_index": 9,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/part_10.mp3",
+          "text_content": "Lennie vui vẻ ngắt lời, nói \"Nhưng không phải chúng ta\", và George đồng ý. Lennie reo lên chiến thắng rằng họ có nhau. George lấy khẩu súng Luger của Carlson ra, tắt chốt an toàn và đặt nó xuống đất phía sau lưng Lennie, nhìn vào gáy anh.",
+          "duration_ms": 15240
+        },
+        {
+          "id": 2910,
+          "segment_index": 10,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/part_11.mp3",
+          "text_content": "Lennie thúc giục George kể tiếp về trang trại nhỏ của họ, về bò, lợn, gà và cỏ linh lăng. Lennie sung sướng hét lên \"Cho thỏ!\" và George lặp lại. Lennie cười khúc khích hạnh phúc khi George nói anh sẽ được chăm sóc thỏ. George bảo Lennie nhìn qua sông, như thể có thể thấy trang trại.",
+          "duration_ms": 20592
+        },
+        {
+          "id": 2911,
+          "segment_index": 11,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/part_12.mp3",
+          "text_content": "Tiếng chân chạy rầm rập trong bụi cây đến gần. Lennie hỏi khi nào họ sẽ thực hiện giấc mơ. George nói \"Sắp rồi\" và trấn an Lennie rằng mọi người sẽ tốt với anh, không còn rắc rối nữa. George nói anh không giận Lennie.",
+          "duration_ms": 15840
+        },
+        {
+          "id": 2912,
+          "segment_index": 12,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/part_13.mp3",
+          "text_content": "Lennie nài nỉ \"Hãy làm ngay bây giờ\". George nâng súng lên, ghì chặt và đưa nòng súng sát vào gáy Lennie. Bàn tay anh run rẩy dữ dội, nhưng khuôn mặt anh kiên quyết. Anh bóp cò. Tiếng súng vang vọng khắp các ngọn đồi. Lennie giật nảy rồi từ từ gục xuống cát, nằm bất động.",
+          "duration_ms": 21048
+        },
+        {
+          "id": 2913,
+          "segment_index": 13,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/part_14.mp3",
+          "text_content": "George run rẩy nhìn khẩu súng rồi ném nó đi. Bụi cây tràn ngập tiếng la hét và tiếng chân chạy. Giọng Slim gọi George. Nhóm người xông vào, Curley đi đầu, thấy Lennie nằm trên cát. Curley nói nhỏ, \"Ngay sau gáy.\"",
+          "duration_ms": 17328
+        },
+        {
+          "id": 2914,
+          "segment_index": 14,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/part_15.mp3",
+          "text_content": "Slim đến ngồi sát bên George, nói, \"Đừng bận tâm. Đôi khi người ta phải làm vậy.\" Carlson hỏi George đã làm thế nào. George mệt mỏi đáp, \"Tôi chỉ làm thôi.\" Carlson hỏi đó có phải súng của anh ta không, và George xác nhận.",
+          "duration_ms": 18600
+        },
+        {
+          "id": 2915,
+          "segment_index": 15,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/c3f13d07-4494-4995-ba75-30a12589b8fc/unit_3/pareto/part_16.mp3",
+          "text_content": "Carlson hỏi George đã lấy súng từ Lennie và giết anh ta. George thì thầm \"Đúng vậy.\" Slim chạm vào khuỷu tay George, bảo anh đi uống nước. George để Slim giúp đứng dậy. Slim nói, \"Anh phải làm vậy, George. Tôi thề là anh phải làm vậy. Đi với tôi.\" Slim dẫn George đi về phía đường mòn, bỏ lại Curley và Carlson.",
+          "duration_ms": 27048
+        }
+      ]
+    }
+  ]
+}
