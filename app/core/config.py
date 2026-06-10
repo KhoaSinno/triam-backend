@@ -49,9 +49,17 @@ class Settings(BaseSettings):
     ELEVENLABS_API_KEY_TTS: str
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-mini"
     OPENAI_REALTIME_VOICE: str = "cedar"
+
+    # Dynamic Prompt cho OpenAI Realtime Transcription
     OPENAI_REALTIME_TRANSCRIPTION_MODEL: str = "gpt-4o-transcribe"
     OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE: str = "vi"
     OPENAI_REALTIME_TRANSCRIPTION_PROMPT: str = "Vietnamese audio in the TRIAM audiobook study app. Expect terms: Tri Âm, chương, sách, định lý, phương pháp, GPT, Gemini."
+    OPENAI_REALTIME_DYNAMIC_TRANSCRIPTION_PROMPT_ENABLED: bool = True
+    OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_CHARS: int = 1800
+    OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_TERMS: int = 80
+    OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_SECTION_TERMS: int = 40
+    OPENAI_REALTIME_INPUT_AUDIO_NOISE_REDUCTION: str = "near_field"
+
     VOICE_AGENT_TEXT_LLM_MODEL: str = "gpt-4o-mini"
     VOICE_AGENT_ENABLE_WEB_SEARCH_BY_DEFAULT: bool = False
     VOICE_AGENT_LOG_TRANSCRIPT_TEXT: bool = False

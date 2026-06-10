@@ -43,6 +43,7 @@ from app.services.voice_agent.query_guard import VoiceQueryGuardConfig, VoiceQue
 from app.services.voice_agent.rag_context import format_rag_context, search_voice_book_context, trim_text
 from app.services.voice_agent.tool_reply_watchdog import VoiceToolReplyWatchdog, VoiceToolReplyWatchdogConfig
 from app.services.voice_agent.transcript_store import VoiceTranscriptStore, normalize_transcript_text
+from app.services.voice_agent.transcription_prompt import build_realtime_transcription_prompt
 from app.services.voice_agent.turn_state import VoiceTurnState
 from app.services.voice_agent.web_permission_intent_classifier import normalize_intent_text
 from app.services.voice_agent.web_permission_policy import WebSearchPermissionPolicy
@@ -694,6 +695,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         late_transcript_window_seconds=settings.AGENT_TRACE_LATE_TRANSCRIPT_WINDOW_SECONDS,
     )
 
+    grounding_scope = None
     grounding_router: GroundingRouter | None = None
     if settings.AGENT_GROUNDING_ROUTER_ENABLED:
         try:
@@ -714,8 +716,10 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 section_context_max_chars=settings.AGENT_SECTION_CONTEXT_MAX_CHARS,
             )
             log.info(f"Grounding router ready | books={len(grounding_scope.books)} | sections={len(grounding_scope.sections)} | load_ms={int((time.perf_counter() - grounding_started) * 1000)}")
-        except Exception as exc:
-            log.warning(f"Grounding router initialization failed; using legacy RAG flow | error_type={type(exc).__name__}")
+        except Exception:
+            log.exception("Failed to initialize grounding router")
+            grounding_scope = None
+            grounding_router = None
 
     voice_turn_state = VoiceTurnState()
     shared_policy = SharedAgentPolicy(
@@ -1195,6 +1199,22 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         def on_close(_ev):
             watchdog.close()
 
+    transcription_prompt_result = build_realtime_transcription_prompt(
+        base_prompt=settings.OPENAI_REALTIME_TRANSCRIPTION_PROMPT,
+        grounding_scope=grounding_scope,
+        enabled=settings.OPENAI_REALTIME_DYNAMIC_TRANSCRIPTION_PROMPT_ENABLED,
+        max_chars=settings.OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_CHARS,
+        max_terms=settings.OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_TERMS,
+        max_section_terms=settings.OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_SECTION_TERMS,
+    )
+
+    log.info(
+        "Realtime transcription prompt ready | "
+        f"dynamic={transcription_prompt_result.dynamic_enabled} | "
+        f"terms={transcription_prompt_result.term_count} | "
+        f"chars={transcription_prompt_result.prompt_chars}"
+    )
+
     # Start session with fallback when a configured model is unavailable.
     last_start_exc: Exception | None = None
     for model_name in model_candidates:
@@ -1207,9 +1227,9 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 input_audio_transcription=AudioTranscription(
                     model=settings.OPENAI_REALTIME_TRANSCRIPTION_MODEL,
                     language=settings.OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE,
-                    prompt=settings.OPENAI_REALTIME_TRANSCRIPTION_PROMPT,
+                    prompt=transcription_prompt_result.prompt,
                 ),
-                input_audio_noise_reduction="near_field",
+                input_audio_noise_reduction=settings.OPENAI_REALTIME_INPUT_AUDIO_NOISE_REDUCTION,
             )
             session = AgentSession(
                 llm=model,
