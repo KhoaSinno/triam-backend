@@ -1,0 +1,72 @@
+[
+  {
+    "id": "mice-author-vi-voice",
+    "input_mode": "voice",
+    "audio_fixture": "tests/fixtures/voice_author.wav",
+    "expected_transcript_meaning": "Tác giả của quyển sách là ai?",
+    "transcript_must_include_any": ["tác giả", "các giả"],
+    "expected_intent": "book_metadata.author",
+    "expected_answer_source": "book_metadata",
+    "expected_section_paths": [],
+    "must_include": ["John Steinbeck"],
+    "must_not_include": ["Curley nổi giận"],
+    "web_search_enabled": false,
+    "web_search_allowed": false
+  },
+  {
+    "id": "mice-chapter-four-summary-vi-voice",
+    "input_mode": "voice",
+    "audio_fixture": "tests/fixtures/voice_chapter_4_summary.wav",
+    "expected_transcript_meaning": "Tóm tắt chương 4.",
+    "transcript_must_include_any": ["chương 4", "chương bốn"],
+    "expected_intent": "book_section.summary",
+    "expected_answer_source": "book_section",
+    "expected_section_paths": ["4"],
+    "must_include": ["Crooks"],
+    "must_not_include": ["Curley làm gãy tay"],
+    "web_search_enabled": true,
+    "web_search_allowed": false
+  },
+  {
+    "id": "mice-chapter-four-idea-vi-voice",
+    "input_mode": "voice",
+    "audio_fixture": "tests/fixtures/voice_chapter_4_idea.wav",
+    "expected_transcript_meaning": "Đại ý chương 4 là gì?",
+    "transcript_must_include_any": ["chương 4", "chương bốn"],
+    "expected_intent": "book_section.summary",
+    "expected_answer_source": "book_section",
+    "expected_section_paths": ["4"],
+    "must_include": ["Crooks"],
+    "must_not_include": [],
+    "web_search_enabled": true,
+    "web_search_allowed": false
+  },
+  {
+    "id": "mice-ambiguous-chapter-vi-voice",
+    "input_mode": "voice",
+    "audio_fixture": "tests/fixtures/voice_ambiguous_chapter.wav",
+    "expected_transcript_meaning": "Tóm tắt chương.",
+    "transcript_must_include_any": ["chương"],
+    "expected_intent": "clarification_required",
+    "expected_answer_source": "clarification",
+    "expected_section_paths": [],
+    "must_include": [],
+    "must_not_include": [],
+    "web_search_enabled": false,
+    "web_search_allowed": false
+  },
+  {
+    "id": "mice-current-bitcoin-vi-voice",
+    "input_mode": "voice",
+    "audio_fixture": "tests/fixtures/voice_not_in_book.wav",
+    "expected_transcript_meaning": "Giá Bitcoin hôm nay là bao nhiêu?",
+    "transcript_must_include_any": ["bitcoin"],
+    "expected_intent": "external_current_info",
+    "expected_answer_source": "policy",
+    "expected_section_paths": [],
+    "must_include": [],
+    "must_not_include": [],
+    "web_search_enabled": true,
+    "web_search_allowed": false
+  }
+]

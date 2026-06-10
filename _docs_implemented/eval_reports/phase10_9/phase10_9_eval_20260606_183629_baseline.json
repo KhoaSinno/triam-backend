@@ -1,0 +1,524 @@
+{
+  "candidate": "baseline",
+  "candidate_description": "Current production defaults for Triam grounded chat and realtime voice.",
+  "environment": "http://127.0.0.1:8000/api/v1",
+  "generated_at": "2026-06-06T18:36:29.595786+07:00",
+  "model_config": {
+    "AGENT_MODEL_PROFILE": "baseline",
+    "VOICE_AGENT_TEXT_LLM_MODEL": "gpt-4o-mini",
+    "OPENAI_STREAM_MODEL_NAME": "gpt-realtime",
+    "OPENAI_REALTIME_TRANSCRIPTION_MODEL": "gpt-4o-transcribe",
+    "VOICE_AGENT_PERMISSION_CLASSIFIER_MODEL": "gpt-4o-mini",
+    "AGENT_CANONICAL_SECTION_RAG_ENABLED": "True",
+    "AGENT_HYBRID_RAG_ENABLED": "True"
+  },
+  "runtime_config_applied_by_runner": false,
+  "runtime_config_note": "External server/worker mode: set candidate env before starting server and LiveKit worker.",
+  "snapshot": {
+    "book_id": "dae3b3ae-8740-4485-9c16-12e685c6c970",
+    "thread_id": "b17f9e4a-32d0-4310-95ae-deb9a512096a",
+    "book_sections_count": 6,
+    "book_section_knowledge_count": 53,
+    "embedding_model": "text-embedding-3-small",
+    "embedding_version": "section-v1",
+    "outline_hash": "d8752dc8c2d6334edba1436537622e0cfd5f0b64b07107b5a2513e7d7b48acd3",
+    "app_git_sha": "2d18f0902fa0ef7c7aa24351f8cdfd5cec32edfe",
+    "database_label": "dev",
+    "eval_thread_ids": [
+      "4843070c-c08b-45a4-aa7a-48028ae61318",
+      "61aa119b-de68-4f2b-b2ee-bf30bf4f7a40",
+      "a99d7dc6-c342-43f2-adb6-abff00c362bc",
+      "b37fb52a-b73b-4a06-b6e6-22a5b23f4fcf",
+      "ff300f2e-b75d-421b-9bc9-65877d4c5717"
+    ]
+  },
+  "voice_isolation": {
+    "enabled": true,
+    "strategy": "case_thread_new_room",
+    "quality": "thread_and_room",
+    "thread_count": 5,
+    "voice_case_count": 5
+  },
+  "ground_truth": {
+    "book_id": "dae3b3ae-8740-4485-9c16-12e685c6c970",
+    "title": "Of Mice and Men",
+    "author": "John Steinbeck",
+    "document_type": "epub",
+    "total_sections": 6,
+    "section_paths": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6"
+    ]
+  },
+  "summary": {
+    "total": 5,
+    "passed": 5,
+    "failed": 0
+  },
+  "metrics": {
+    "strict_case_pass_rate": 1.0,
+    "accuracy": {
+      "content_accuracy": {
+        "passed": 5,
+        "evaluated": 5,
+        "rate": 1.0
+      },
+      "intent_accuracy": {
+        "passed": 5,
+        "evaluated": 5,
+        "rate": 1.0
+      },
+      "answer_source_accuracy": {
+        "passed": 5,
+        "evaluated": 5,
+        "rate": 1.0
+      },
+      "section_resolution_accuracy": {
+        "passed": 2,
+        "evaluated": 2,
+        "rate": 1.0
+      },
+      "web_policy_safety_rate": {
+        "passed": 5,
+        "evaluated": 5,
+        "rate": 1.0
+      },
+      "voice_meaning_preservation_rate": {
+        "passed": 4,
+        "evaluated": 5,
+        "rate": 0.8
+      }
+    },
+    "latency": {
+      "voice": {
+        "turn_total": {
+          "samples": 5,
+          "p50_ms": 8639,
+          "p95_ms": 23034,
+          "max_ms": 23203
+        },
+        "retrieval": {
+          "samples": 0,
+          "p50_ms": null,
+          "p95_ms": null,
+          "max_ms": null
+        }
+      }
+    },
+    "failure_counts": {},
+    "warning_counts": {
+      "INPUT_STT_MINOR": 1
+    },
+    "web_permission_violations": 0
+  },
+  "db_message_delta": 15,
+  "results": [
+    {
+      "id": "mice-author-vi-voice",
+      "input_mode": "voice",
+      "status": "passed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": false,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": null,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 80,
+      "user_transcript_char_count": 25,
+      "trace": {
+        "answer_source": "book_metadata",
+        "assistant_char_count": 80,
+        "completed_at": "2026-06-06T11:33:55.324037+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": "book_metadata.author",
+        "detected_language": null,
+        "error_code": null,
+        "grounding_reason_code": "single_book_scope",
+        "grounding_route": "book_metadata",
+        "input_mode": "voice",
+        "resolved_book_ids": [
+          "dae3b3ae-8740-4485-9c16-12e685c6c970"
+        ],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_a99d7dc6_3f176e",
+        "stage_latency_ms": {
+          "grounding_total": 0,
+          "turn_total": 5483
+        },
+        "started_at": "2026-06-06T11:33:49.839828+00:00",
+        "thread_id": "a99d7dc6-c342-43f2-adb6-abff00c362bc",
+        "tool_names": [
+          "search_book_knowledge"
+        ],
+        "trace_id": "e308f188-857f-4f2f-999e-1f7febe9e65a",
+        "transcript_char_count": 25,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "warnings": [
+        "INPUT_STT_MINOR"
+      ],
+      "response_preview": "Tác giả của cuốn sách là John Steinbeck. Bạn có cần thêm thông tin gì nữa không?",
+      "user_transcript_preview": "Giả của quyển sách là ai?",
+      "eval_thread_id": "a99d7dc6-c342-43f2-adb6-abff00c362bc",
+      "eval_room_name": "triam_a99d7dc6_3f176e",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "thread_and_room",
+      "audio": {
+        "path": "tests\\fixtures\\voice_author.wav",
+        "sample_rate": 48000,
+        "channels": 1,
+        "sample_width_bytes": 2,
+        "duration_ms": 2560
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-chapter-four-summary-vi-voice",
+      "input_mode": "voice",
+      "status": "passed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": true,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 374,
+      "user_transcript_char_count": 25,
+      "trace": {
+        "answer_source": "book_section",
+        "assistant_char_count": 374,
+        "completed_at": "2026-06-06T11:34:39.260856+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": "book_section.summary",
+        "detected_language": null,
+        "error_code": null,
+        "grounding_reason_code": "exact_section_path",
+        "grounding_route": "book_section",
+        "input_mode": "voice",
+        "resolved_book_ids": [
+          "dae3b3ae-8740-4485-9c16-12e685c6c970"
+        ],
+        "resolved_section_ids": [
+          "7b6a637f-5331-4ef3-a356-7dba305669fa"
+        ],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_61aa119b_4042a9",
+        "stage_latency_ms": {
+          "grounding_total": 364,
+          "turn_total": 23203
+        },
+        "started_at": "2026-06-06T11:34:16.058745+00:00",
+        "thread_id": "61aa119b-de68-4f2b-b2ee-bf30bf4f7a40",
+        "tool_names": [
+          "search_book_knowledge"
+        ],
+        "trace_id": "9a98fad0-d8cc-4ea5-9ec2-d6d05ada319d",
+        "transcript_char_count": 25,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "response_preview": "Chương 4 chủ yếu xoay quanh Crooks, anh chàng làm chuồng ngựa, sống tách biệt trong căn phòng nhỏ ở kho thóc. Một đêm, Lennie ghé qua trò chuyện, rồi Candy cũng vào, họ bàn về giấc mơ có mảnh đất riêng. Cuối cùng, vợ Curley xuất hiện, căng ",
+      "user_transcript_preview": "Hôm tắt chương 4 cho tôi.",
+      "eval_thread_id": "61aa119b-de68-4f2b-b2ee-bf30bf4f7a40",
+      "eval_room_name": "triam_61aa119b_4042a9",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "thread_and_room",
+      "audio": {
+        "path": "tests\\fixtures\\voice_chapter_4_summary.wav",
+        "sample_rate": 48000,
+        "channels": 1,
+        "sample_width_bytes": 2,
+        "duration_ms": 2496
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-chapter-four-idea-vi-voice",
+      "input_mode": "voice",
+      "status": "passed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": true,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 360,
+      "user_transcript_char_count": 21,
+      "trace": {
+        "answer_source": "book_section",
+        "assistant_char_count": 360,
+        "completed_at": "2026-06-06T11:35:25.190830+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": "book_section.summary",
+        "detected_language": null,
+        "error_code": null,
+        "grounding_reason_code": "exact_section_path",
+        "grounding_route": "book_section",
+        "input_mode": "voice",
+        "resolved_book_ids": [
+          "dae3b3ae-8740-4485-9c16-12e685c6c970"
+        ],
+        "resolved_section_ids": [
+          "7b6a637f-5331-4ef3-a356-7dba305669fa"
+        ],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_b37fb52a_375c2d",
+        "stage_latency_ms": {
+          "grounding_total": 385,
+          "turn_total": 22359
+        },
+        "started_at": "2026-06-06T11:35:02.829311+00:00",
+        "thread_id": "b37fb52a-b73b-4a06-b6e6-22a5b23f4fcf",
+        "tool_names": [
+          "search_book_knowledge"
+        ],
+        "trace_id": "3166880c-e57e-4904-b09d-cd0b0561ebc0",
+        "transcript_char_count": 21,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "response_preview": "Trong chương 4, nội dung chủ yếu xoay quanh Crooks – anh chàng người da đen cô độc trong chuồng ngựa – và cuộc trò chuyện của anh với Lennie, rồi Candy và cả vợ Curley. Crooks nói lên nỗi cô đơn, sự kỳ thị mà anh phải chịu, và cả những giấc",
+      "user_transcript_preview": "Tại ý chương 4 là gì?",
+      "eval_thread_id": "b37fb52a-b73b-4a06-b6e6-22a5b23f4fcf",
+      "eval_room_name": "triam_b37fb52a_375c2d",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "thread_and_room",
+      "audio": {
+        "path": "tests\\fixtures\\voice_chapter_4_idea.wav",
+        "sample_rate": 48000,
+        "channels": 1,
+        "sample_width_bytes": 2,
+        "duration_ms": 2432
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-ambiguous-chapter-vi-voice",
+      "input_mode": "voice",
+      "status": "passed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": null,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 147,
+      "user_transcript_char_count": 14,
+      "trace": {
+        "answer_source": "clarification",
+        "assistant_char_count": 147,
+        "completed_at": "2026-06-06T11:35:53.933732+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": null,
+        "detected_language": null,
+        "error_code": null,
+        "grounding_reason_code": null,
+        "grounding_route": null,
+        "input_mode": "voice",
+        "resolved_book_ids": [],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_ff300f2e_47682b",
+        "stage_latency_ms": {
+          "turn_total": 8639
+        },
+        "started_at": "2026-06-06T11:35:45.292339+00:00",
+        "thread_id": "ff300f2e-b75d-421b-9bc9-65877d4c5717",
+        "tool_names": [
+          "search_book_knowledge"
+        ],
+        "trace_id": "9bd95201-d9c4-4e40-9c05-9027b5311f34",
+        "transcript_char_count": 14,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "response_preview": "Mình đang chờ câu trả lời của bạn về việc có đồng ý cho phép tìm kiếm trên web để tóm tắt nội dung chương không. Bạn có thể xác nhận giúp mình nhé.",
+      "user_transcript_preview": "Húm tắt chương",
+      "eval_thread_id": "ff300f2e-b75d-421b-9bc9-65877d4c5717",
+      "eval_room_name": "triam_ff300f2e_47682b",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "thread_and_room",
+      "audio": {
+        "path": "tests\\fixtures\\voice_ambiguous_chapter.wav",
+        "sample_rate": 48000,
+        "channels": 1,
+        "sample_width_bytes": 2,
+        "duration_ms": 1792
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-current-bitcoin-vi-voice",
+      "input_mode": "voice",
+      "status": "passed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "trace_available": true,
+        "expected_intent": true,
+        "expected_answer_source": true,
+        "expected_section": null,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 106,
+      "user_transcript_char_count": 33,
+      "trace": {
+        "answer_source": "policy",
+        "assistant_char_count": 106,
+        "completed_at": "2026-06-06T11:36:21.363846+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": "external_current_info",
+        "detected_language": null,
+        "error_code": null,
+        "grounding_reason_code": "clear_external_current_info",
+        "grounding_route": "web_policy",
+        "input_mode": "voice",
+        "resolved_book_ids": [],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_4843070c_c62151",
+        "stage_latency_ms": {
+          "grounding_total": 0,
+          "turn_total": 7375
+        },
+        "started_at": "2026-06-06T11:36:13.986612+00:00",
+        "thread_id": "4843070c-c08b-45a4-aa7a-48028ae61318",
+        "tool_names": [
+          "search_book_knowledge",
+          "ask_web_search_permission"
+        ],
+        "trace_id": "5d4a747a-582d-4a7d-baff-a30141f4aa90",
+        "transcript_char_count": 33,
+        "transcript_final_seen": true,
+        "trace_selection_quality": "strong"
+      },
+      "response_preview": "Thông tin về 'Giá Bitcoin hôm nay' không có trong sách. Bạn có muốn tôi tìm kiếm thêm trên internet không?",
+      "user_transcript_preview": "Giá Bitcoin hôm nay là bao nhiêu?",
+      "eval_thread_id": "4843070c-c08b-45a4-aa7a-48028ae61318",
+      "eval_room_name": "triam_4843070c_c62151",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "thread_and_room",
+      "audio": {
+        "path": "tests\\fixtures\\voice_not_in_book.wav",
+        "sample_rate": 48000,
+        "channels": 1,
+        "sample_width_bytes": 2,
+        "duration_ms": 2795
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    }
+  ]
+}

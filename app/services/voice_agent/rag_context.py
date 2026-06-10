@@ -1,6 +1,8 @@
+import time
 from typing import Any, Awaitable, Callable
 
 from app.core.config import settings
+from app.services.agent_observability import AgentInputMode, AgentTurnTracer
 from app.services.rag_service import search_book_knowledge
 from app.services.voice_agent.contracts import VoiceRagResult
 
@@ -32,13 +34,38 @@ def normalize_rag_payload(payload: Any) -> VoiceRagResult:
     return VoiceRagResult(found=True, chunks=chunks, message="")
 
 
+def infer_retrieval_method(payload: Any) -> str:
+    if isinstance(payload, list):
+        for item in payload:
+            if isinstance(item, dict) and item.get("retrieval_method"):
+                return str(item["retrieval_method"])
+    return "vector"
+
+
 async def search_voice_book_context(
     query: str,
     document_ids: list[str],
     *,
     search_fn: RawRagSearch = search_book_knowledge,
+    tracer: AgentTurnTracer | None = None,
+    input_mode: AgentInputMode = AgentInputMode.VOICE,
 ) -> VoiceRagResult:
-    payload = await search_fn(query, document_ids)
+    started = time.perf_counter()
+    try:
+        payload = await search_fn(query, document_ids)
+    except Exception:
+        if tracer is not None:
+            tracer.record_latency(input_mode, "retrieval", int((time.perf_counter() - started) * 1000))
+            tracer.record_error(input_mode, "retrieval_error")
+        raise
+
+    if tracer is not None:
+        tracer.record_retrieval(
+            input_mode,
+            payload,
+            elapsed_ms=int((time.perf_counter() - started) * 1000),
+            method=infer_retrieval_method(payload),
+        )
     return normalize_rag_payload(payload)
 
 
@@ -53,14 +80,20 @@ def format_rag_context(result: VoiceRagResult, *, max_chars: int | None = None) 
             break
 
         unit_id = str(item.get("learning_unit_id") or "")
+        section_id = str(item.get("section_id") or "")
+        section_path = str(item.get("section_path") or item.get("section_title") or "")
         chunk_index = item.get("chunk_index", "N/A")
         content = trim_text(str(item.get("content", "")), remaining_chars)
         if not content:
             continue
 
-        formatted_chunks.append(
-            f"--- Segment {index + 1} (Unit ID: ...{unit_id[-6:]}, Index: {chunk_index}) ---\n{content}"
-        )
+        if section_id:
+            source_label = f"Section: {section_path or 'unknown'}"
+            source_id = f", Section ID: ...{section_id[-6:]}"
+        else:
+            source_label = f"Unit ID: ...{unit_id[-6:]}"
+            source_id = ""
+        formatted_chunks.append(f"--- Source {index + 1} ({source_label}{source_id}, Chunk: {chunk_index}) ---\n{content}")
         remaining_chars -= len(content)
 
     if not formatted_chunks:

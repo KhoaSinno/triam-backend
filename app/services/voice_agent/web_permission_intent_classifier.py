@@ -2,88 +2,15 @@ from __future__ import annotations
 
 import asyncio
 import json
-import re
-import unicodedata
 from typing import Any
 
 from openai import AsyncOpenAI
 
 from app.core.logger import log
 from app.services.voice_agent.contracts import WebPermissionIntent, WebPermissionIntentResult
-
-POSITIVE_ACTION_PHRASES = (
-    "dong y",
-    "tim di",
-    "tim kiem di",
-    "search di",
-    "lam di",
-    "cu lam",
-    "cu tim",
-    "thu xem",
-    "go ahead",
-    "do it",
-    "search it",
-)
-POSITIVE_SHORT_REPLIES = (
-    "co",
-    "ok",
-    "oke",
-    "okay",
-    "yes",
-    "yep",
-    "yup",
-    "yub",
-    "sure",
-    "duoc",
-    "duoc roi",
-)
-NEGATIVE_PHRASES = (
-    "khong can",
-    "khong dau",
-    "khong",
-    "khoi",
-    "dung",
-    "thoi",
-    "bo qua",
-    "skip",
-    "cancel",
-    "stop",
-    "nope",
-    "nah",
-    "no",
-    "dont",
-    "do not",
-)
-AMBIGUOUS_PHRASES = (
-    "tuy",
-    "tuy anh",
-    "sao cung duoc",
-    "sao cung",
-    "cung duoc",
-    "maybe",
-    "up to you",
-)
-QUESTION_HINTS = (
-    " la gi",
-    " gi ",
-    " nao",
-    " tai sao",
-    " vi sao",
-    " nhu the nao",
-    " the nao",
-    " co nhung",
-    " chuong",
-    " noi dung",
-    " phuong phap",
-    " tom tat",
-    " giai thich",
-    " what",
-    " why",
-    " how",
-    " when",
-    " where",
-    " which",
-    " tell me",
+from app.services.voice_agent.voice_intent_classifier import (
+    classify_voice_reply_intent_fast_path,
+    normalize_voice_intent_text,
 )
 
 CLASSIFIER_SYSTEM_PROMPT = """
@@ -100,47 +27,14 @@ Rules:
 """.strip()
 
 
-def normalize_intent_text(text: str) -> str:
-    normalized = unicodedata.normalize("NFKD", (text or "").casefold())
-    without_marks = "".join(ch for ch in normalized if not unicodedata.combining(ch))
-    without_marks = without_marks.replace("đ", "d")
-    without_marks = re.sub(r"[^a-z0-9]+", " ", without_marks)
-    return " ".join(without_marks.split())
-
-
-def _phrase_in_text(phrase: str, text: str) -> bool:
-    return f" {phrase} " in f" {text} "
-
-
-def _looks_like_new_question(original_text: str, normalized_text: str) -> bool:
-    if "?" in original_text:
-        return True
-    padded = f" {normalized_text} "
-    return any(hint in padded for hint in QUESTION_HINTS)
+normalize_intent_text = normalize_voice_intent_text
 
 
 def classify_web_permission_intent_fast_path(user_reply: str) -> WebPermissionIntentResult | None:
-    normalized = normalize_intent_text(user_reply)
-    if not normalized:
-        return WebPermissionIntentResult("unclear", 1.0, "Empty reply", "fast_path")
-
-    if any(_phrase_in_text(phrase, normalized) for phrase in NEGATIVE_PHRASES):
-        return WebPermissionIntentResult("deny", 0.96, "Matched negative fast path", "fast_path")
-
-    if any(_phrase_in_text(phrase, normalized) for phrase in POSITIVE_ACTION_PHRASES):
-        return WebPermissionIntentResult("grant", 0.96, "Matched positive action fast path", "fast_path")
-
-    if any(_phrase_in_text(phrase, normalized) for phrase in AMBIGUOUS_PHRASES):
-        return WebPermissionIntentResult("unclear", 0.88, "Matched ambiguous fast path", "fast_path")
-
-    if _looks_like_new_question(user_reply, normalized):
-        return WebPermissionIntentResult("new_question", 0.88, "Looks like a new question", "fast_path")
-
-    token_count = len(normalized.split())
-    if token_count <= 3 and any(_phrase_in_text(phrase, normalized) for phrase in POSITIVE_SHORT_REPLIES):
-        return WebPermissionIntentResult("grant", 0.94, "Matched short positive fast path", "fast_path")
-
-    return None
+    result = classify_voice_reply_intent_fast_path(user_reply)
+    if result is None:
+        return None
+    return WebPermissionIntentResult(result.intent, result.confidence, result.reason, result.source)
 
 
 def _coerce_intent(value: Any) -> WebPermissionIntent:
@@ -195,6 +89,7 @@ async def _classify_with_openai(
         intent=_coerce_intent(payload.get("intent")),
         confidence=_coerce_confidence(payload.get("confidence")),
         reason=str(payload.get("reason") or "")[:160],
+        source="openai",
     )
 
 

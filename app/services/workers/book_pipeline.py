@@ -336,7 +336,7 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
 
 async def run_background_processing(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | None = None) -> None:
     try:
-        await _run_unit_pipeline(book_id, mode, job_id, include_rag=True)
+        await _run_unit_pipeline(book_id, mode, job_id, include_rag=settings.LEARNING_UNIT_LEGACY_RAG_INDEX_ENABLED)
     except Exception as exc:
         _set_book_status(book_id, BookStatus.ERROR, str(exc))
         _fail_job(job_id, "Xử lý sách thất bại.", str(exc))
@@ -346,7 +346,7 @@ async def run_background_processing(book_id: uuid.UUID, mode: str, job_id: uuid.
 async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str, job_id: uuid.UUID | None = None) -> None:
     try:
         _set_book_status(book_id, BookStatus.PROCESSING)
-        await _run_unit_pipeline(book_id, new_mode, job_id, include_rag=False)
+        await _run_unit_pipeline(book_id, new_mode, job_id, include_rag=settings.LEARNING_UNIT_LEGACY_RAG_INDEX_ENABLED)
     except Exception as exc:
         _set_book_status(book_id, BookStatus.ERROR, str(exc))
         _fail_job(job_id, f"Sinh audio mode {new_mode} thất bại.", str(exc))

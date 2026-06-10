@@ -1,0 +1,4 @@
+interface:
+  display_name: "Triam Grounded Agent Evaluation"
+  short_description: "Evaluate and harden Triam chat, voice, RAG, and grounding"
+  default_prompt: "Measure the current Triam agent behavior, classify failures by layer, and implement grounded improvements with regression tests."

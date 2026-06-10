@@ -1,0 +1,30 @@
+[
+  {
+    "name": "baseline",
+    "description": "Current production defaults for Triam grounded chat and realtime voice.",
+    "env": {
+      "VOICE_AGENT_TEXT_LLM_MODEL": "gpt-4o-mini"
+    }
+  },
+  {
+    "name": "candidate_text_stronger",
+    "description": "Evaluate a stronger typed-chat answer model only. Replace the placeholder before running.",
+    "env": {
+      "VOICE_AGENT_TEXT_LLM_MODEL": "<candidate-model>"
+    }
+  },
+  {
+    "name": "candidate_voice_realtime",
+    "description": "Evaluate a realtime voice model candidate only. Replace the placeholder before running.",
+    "env": {
+      "OPENAI_STREAM_MODEL_NAME": "<candidate-realtime-model>"
+    }
+  },
+  {
+    "name": "candidate_permission_classifier",
+    "description": "Evaluate a permission intent classifier candidate only. Replace the placeholder before running.",
+    "env": {
+      "VOICE_AGENT_PERMISSION_CLASSIFIER_MODEL": "<candidate-model>"
+    }
+  }
+]

@@ -44,7 +44,7 @@ Reliability:
 
 Backend publish transcript đã “committed” cho **cả user và assistant**.
 
-Schema (đúng theo backend hiện tại):
+Schema (đúng theo backend hiện tại, backward-compatible):
 
 ```json
 {
@@ -52,21 +52,30 @@ Schema (đúng theo backend hiện tại):
   "type": "transcript",
   "role": "user" | "assistant",
   "text": "...",
-  "id": "<uuid>",
+  "id": "<chat_message_uuid_or_transient_uuid>",
+  "message_id": "<chat_message_uuid_or_null>",
+  "thread_id": "<thread_uuid_or_null>",
+  "source": "livekit",
+  "status": "committed",
   "ts": "2026-05-12T09:29:28.738+00:00"
 }
 ```
 
 Quy ước xử lý UI:
 
-- `id`: dùng để **dedupe** (tránh render trùng nếu reconnect)
+- `id`: dùng để **dedupe chính**. Nếu backend lưu DB thành công thì `id == message_id == chat_messages.id`; nếu DB không lưu được thì `id` là UUID tạm.
+- `message_id`: ID thật trong bảng `chat_messages`; dùng để merge với REST history khi reconnect/reload. Có thể `null` trong console/transient session hoặc khi DB save tạm lỗi.
+- `thread_id`: thread hiện tại nếu backend biết được.
+- `source`: hiện tại là `livekit`.
+- `status`: hiện tại là `committed`.
 - `ts`: dùng để **sort** nếu cần
 - `role=user|assistant`: quyết định bubble bên trái/bên phải
 
 Lưu ý:
 
 - `lk.chat` là text thuần; UI có thể dùng để hiển thị nhanh.
-- `lk.transcript` là JSON ổn định nhất để hiển thị “câu user nói” (voice transcript) và normalize cho UI.
+- `lk.transcript` là JSON ổn định nhất để hiển thị timeline chính thức cho cả voice và text.
+- FE nên ưu tiên merge/dedupe theo `message_id ?? id`, sau đó mới fallback bằng `role + normalized text + time window`.
 
 ### 2.3 Topic `lk.control` (JSON)
 
@@ -328,16 +337,24 @@ Tình huống:
 
 - Mạng rớt → room disconnect.
 
-Khuyến nghị:
+Rule mới sau hardening LiveKit lifecycle:
 
-1. UI chuyển trạng thái “Reconnecting…”
-2. Disconnect room cũ (nếu cần)
-3. Call lại `GET /live-token/thread/{thread_id}` để lấy token mới
-4. Connect lại room
+1. Mỗi màn voice/chat chỉ được có **một connect attempt** đang chạy.
+2. Không append lỗi kết nối thành nhiều chat bubble. Chỉ hiển thị một trạng thái lỗi/retry ở UI.
+3. Khi LiveKit SDK đang reconnect nội bộ, FE không gọi lại `/live-token/thread/{thread_id}`.
+4. Chỉ lấy token mới khi:
+   - user chủ động bắt đầu phiên mới;
+   - token hết hạn;
+   - SDK báo reconnect thất bại hoàn toàn;
+   - user bấm retry sau khi state machine đã về trạng thái failed.
+5. Retry phải dùng exponential backoff và phải hủy timer retry cũ trước khi tạo timer mới.
+6. Khi rời màn hình, FE phải gọi `room.disconnect()` và dispose toàn bộ listener/timer.
 
 Lưu ý:
 
-- Token identity hiện random; reconnect sẽ tạo identity mới → đừng phụ thuộc identity cho persistence UI.
+- Backend hiện tạo `room_name` mới khi cấp token mới. Vì vậy nếu FE gọi token mới trong vòng retry liên tục, hệ thống sẽ tạo nhiều room LiveKit và dispatch nhiều agent không cần thiết.
+- Token identity hiện random; đừng phụ thuộc identity cho persistence UI.
+- Persistence UI phải dựa vào `thread_id`, transcript `id`, và message history từ backend.
 
 ---
 
