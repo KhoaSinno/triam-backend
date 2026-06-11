@@ -1,7 +1,7 @@
 # Phase 12 Implementation Guide - Calendar Reading Plan Sessions
 
 Date: 2026-06-11  
-Status: **Implementation plan only, not source code yet**  
+Status: **Implemented and locally tested**  
 Depends on:
 
 - `_docs_implemented/phase_7_2_deferred_reading_plan_activation_implementation_guide.md`
@@ -270,8 +270,7 @@ class ReadingPlanSession(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
     __table_args__ = (
-        UniqueConstraint("plan_id", "session_index", name="uq_reading_plan_sessions_plan_index"),
-        UniqueConstraint("user_id", "scheduled_at", name="uq_reading_plan_sessions_user_scheduled_at"),
+        Index("ix_reading_plan_sessions_plan_index", "plan_id", "session_index"),
         Index("ix_reading_plan_sessions_user_status", "user_id", "status"),
         Index("ix_reading_plan_sessions_book_mode", "book_id", "mode"),
         Index("ix_reading_plan_sessions_plan_status", "plan_id", "status"),
@@ -298,7 +297,7 @@ class ReadingPlanSessionUnit(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
     __table_args__ = (
-        UniqueConstraint("plan_id", "learning_unit_id", name="uq_reading_plan_session_units_plan_unit"),
+        Index("ix_reading_plan_session_units_plan_unit", "plan_id", "learning_unit_id"),
         UniqueConstraint("session_id", "unit_order", name="uq_reading_plan_session_units_session_order"),
         Index("ix_reading_plan_session_units_session_status", "session_id", "status"),
         Index("ix_reading_plan_session_units_book_unit", "book_id", "learning_unit_id"),
@@ -1003,18 +1002,20 @@ This prevents recurring schedule conflicts.
 
 ### 12.2 Add Concrete Session Conflict
 
-Add unique:
+Implemented conflict rule:
 
 ```text
-user_id + scheduled_at
+user_id + scheduled_at where status != cancelled
 ```
 
-This prevents two sessions at the exact same datetime.
+This prevents two active sessions at the exact same datetime while still allowing cancelled historical sessions to remain.
 
 Trade-off:
 
 - User cannot study two books at the same exact time.
 - This is correct for focus and reminder UX.
+- Cancelled sessions are kept for audit/history, so `plan_id + session_index` and `plan_id + learning_unit_id` must be normal indexes, not unique constraints.
+- This was confirmed during implementation: unique constraints on regenerated session history blocked active plan updates.
 
 ### 12.3 Future Improvement
 
@@ -1050,7 +1051,11 @@ Add helper command/script later:
 scripts/backfill_reading_plan_sessions.py
 ```
 
-For Phase 12 tests/manual use, sessions are generated when plan resumes or updates.
+For Phase 12 tests/manual use, sessions are generated when:
+
+- `POST /generate-plan` is called with `activate=true`;
+- inactive plan is resumed;
+- active plan schedule/pace is updated.
 
 ---
 
@@ -1315,6 +1320,25 @@ Run:
 uv run pytest tests/test_phase12_calendar_plan_sessions.py -q
 uv run pytest tests/test_phase4_2_learning_loop.py tests/test_notification_outbox_repo.py -q
 uv run ruff check app tests
+```
+
+Implemented local result:
+
+```text
+uv run pytest tests/test_phase12_calendar_plan_sessions.py -q
+3 passed
+
+uv run pytest tests/test_phase4_2_learning_loop.py -q
+19 passed
+
+uv run pytest tests/test_notification_outbox_repo.py tests/test_notifications_api.py -q
+9 passed
+
+uv run ruff check <changed Phase 12 files>
+All checks passed
+
+uv run python -m py_compile <changed runtime files>
+passed
 ```
 
 ---

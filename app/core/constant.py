@@ -88,3 +88,20 @@ class BookLearningStatus(str, Enum):
 class ReviewAction(str, Enum):
     COMPLETE = "complete"
     SKIP = "skip"
+
+
+class ReadingPlanSessionStatus(str, Enum):
+    SCHEDULED = "scheduled"
+    DUE = "due"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    MISSED = "missed"
+    SKIPPED = "skipped"
+    CANCELLED = "cancelled"
+
+
+class ReadingPlanSessionUnitStatus(str, Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    SKIPPED = "skipped"

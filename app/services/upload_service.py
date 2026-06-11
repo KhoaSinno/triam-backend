@@ -32,6 +32,7 @@ from app.services.document_structure_service import build_outline_preview, detec
 from app.services.document_structure_types import flatten_sections
 from app.services.learning_unit_planner_service import plan_learning_units_async
 from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
+from app.services.reading_plan_session_service import build_plan_session_summary, ensure_future_sessions_for_plan
 from app.services.storage_service import upload_file_to_supabase
 from app.tasks.book_tasks import index_book_sections_task, process_book_task
 
@@ -123,6 +124,9 @@ async def _create_plan_and_job_async(
             planned_units=planned_units,
         )
         book.total_units = len(created_units)
+
+    if plan.status == PlanStatus.ACTIVE.value:
+        ensure_future_sessions_for_plan(session, plan=plan, user_id=user_id, replace_unfinished=True)
 
     job = ProcessingJob(
         user_id=user_id,
@@ -338,6 +342,7 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
         "status": job.status,
         "progress_percent": job.progress_percent,
         "active_slots": [_slot_response(slot) for slot in list_slots_for_plan(session, plan_id=plan.id, active_only=True)] if plan.status == PlanStatus.ACTIVE.value else [],
+        "session_summary": build_plan_session_summary(session, plan_id=plan.id),
         "planned_units": [
             {
                 "unit_index": index,

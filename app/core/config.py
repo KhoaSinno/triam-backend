@@ -59,8 +59,8 @@ class Settings(BaseSettings):
     # Text
     VOICE_AGENT_HISTORY_LIMIT: int = 24
     VOICE_AGENT_RAG_MAX_CHARS: int = 6000
-    VOICE_AGENT_CONSOLE_BOOK_ID: str = "dae3b3ae-8740-4485-9c16-12e685c6c970"
-    VOICE_AGENT_CONSOLE_THREAD_ID: str = "4843070c-c08b-45a4-aa7a-48028ae61318"
+    VOICE_AGENT_CONSOLE_BOOK_ID: str = "c3f13d07-4494-4995-ba75-30a12589b8fc"
+    VOICE_AGENT_CONSOLE_THREAD_ID: str = "07be00b9-c6da-4801-8ba2-7558205b92b2"
 
     # Dynamic Prompt cho OpenAI Realtime Transcription
     OPENAI_REALTIME_TRANSCRIPTION_MODEL: str = "gpt-4o-transcribe"

@@ -112,6 +112,59 @@ class ReadingPlanScheduleSlot(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
 
+class ReadingPlanSession(SQLModel, table=True):
+    __tablename__ = "reading_plan_sessions"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
+    plan_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("reading_plans.id", ondelete="CASCADE"), index=True, nullable=False))
+    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
+    mode: PlanMode = Field(sa_column=Column(SAEnum(PlanMode), index=True, nullable=False))
+    session_index: int = Field(sa_column=Column(Integer, nullable=False))
+    scheduled_at: datetime = Field(sa_column=Column(DateTime(timezone=True), index=True, nullable=False))
+    local_date: str = Field(sa_column=Column(Text, index=True, nullable=False))
+    reminder_time: str = Field(sa_column=Column(Text, nullable=False))
+    timezone: str = Field(default="Asia/Ho_Chi_Minh", sa_column=Column(Text, nullable=False, server_default="Asia/Ho_Chi_Minh"))
+    status: str = Field(default="scheduled", sa_column=Column(Text, index=True, nullable=False, server_default="scheduled"))
+    completed_units: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    total_units: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
+    skipped_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    missed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+
+    __table_args__ = (
+        Index("ix_reading_plan_sessions_plan_index", "plan_id", "session_index"),
+        Index("ix_reading_plan_sessions_user_status", "user_id", "status"),
+        Index("ix_reading_plan_sessions_book_mode", "book_id", "mode"),
+        Index("ix_reading_plan_sessions_plan_status", "plan_id", "status"),
+    )
+
+
+class ReadingPlanSessionUnit(SQLModel, table=True):
+    __tablename__ = "reading_plan_session_units"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    session_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("reading_plan_sessions.id", ondelete="CASCADE"), index=True, nullable=False))
+    plan_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("reading_plans.id", ondelete="CASCADE"), index=True, nullable=False))
+    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
+    learning_unit_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("learning_units.id", ondelete="CASCADE"), index=True, nullable=False))
+    unit_order: int = Field(sa_column=Column(Integer, nullable=False))
+    status: str = Field(default="pending", sa_column=Column(Text, index=True, nullable=False, server_default="pending"))
+    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+
+    __table_args__ = (
+        Index("ix_reading_plan_session_units_plan_unit", "plan_id", "learning_unit_id"),
+        UniqueConstraint("session_id", "unit_order", name="uq_reading_plan_session_units_session_order"),
+        Index("ix_reading_plan_session_units_session_status", "session_id", "status"),
+        Index("ix_reading_plan_session_units_book_unit", "book_id", "learning_unit_id"),
+    )
+
+
 class ProcessingJob(SQLModel, table=True):
     __tablename__ = "processing_jobs"
 

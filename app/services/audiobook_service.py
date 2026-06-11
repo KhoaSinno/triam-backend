@@ -21,6 +21,13 @@ from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
 from app.services.learning_progress_service import build_book_learning_summary
 from app.services.learning_unit_planner_service import plan_learning_units_async
 from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
+from app.services.reading_plan_session_service import (
+    build_plan_session_summary,
+    cancel_future_sessions_for_plan,
+    ensure_future_sessions_for_plan,
+    mark_due_sessions_missed,
+    sync_existing_session_units_from_progress,
+)
 from app.tasks.book_tasks import switch_mode_task
 
 
@@ -113,6 +120,7 @@ def _reading_plan_to_dict(session: Session, plan: ReadingPlan) -> dict:
         "started_at": plan.started_at,
         "paused_at": plan.paused_at,
         "completed_at": plan.completed_at,
+        "session_summary": build_plan_session_summary(session, plan_id=plan.id),
     }
 
 
@@ -123,6 +131,8 @@ def get_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -
     plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
     if not plan:
         raise ReadingPlanNotFoundError()
+    mark_due_sessions_missed(session, user_id=user_id)
+    session.commit()
     return _reading_plan_to_dict(session, plan)
 
 
@@ -322,6 +332,7 @@ def pause_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID)
     plan.paused_at = datetime.now(timezone.utc)
     session.add(plan)
     delete_slots_for_plan(session, plan_id=plan.id)
+    cancel_future_sessions_for_plan(session, plan_id=plan.id)
     session.commit()
     return {"message": "Đã tạm dừng kế hoạch học tập.", **_reading_plan_to_dict(session, plan)}
 
@@ -362,6 +373,8 @@ def resume_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID
         session.add(slot)
 
     try:
+        ensure_future_sessions_for_plan(session, plan=plan, user_id=user_id, replace_unfinished=True)
+        sync_existing_session_units_from_progress(session, plan=plan, user_id=user_id)
         session.commit()
     except IntegrityError as exc:
         session.rollback()
@@ -418,6 +431,9 @@ def update_reading_plan(
     plan.reminder_time = new_reminder_time
     session.add(plan)
     try:
+        if plan.status == PlanStatus.ACTIVE.value:
+            ensure_future_sessions_for_plan(session, plan=plan, user_id=user_id, replace_unfinished=True)
+            sync_existing_session_units_from_progress(session, plan=plan, user_id=user_id)
         session.commit()
     except IntegrityError as exc:
         session.rollback()

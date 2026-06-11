@@ -17,6 +17,7 @@ from app.schemas.learning_progress import (
     LearningUnitProgressResponse,
     LearningUnitProgressUpdateRequest,
 )
+from app.services.reading_plan_session_service import cancel_future_sessions_for_plan, sync_reading_plan_session_unit_completion
 from app.services.spaced_review_service import create_spaced_reviews_after_unit_completion
 
 
@@ -170,6 +171,7 @@ def _complete_reading_plan_if_needed(
     plan.updated_at = datetime.now(timezone.utc)
     session.add(plan)
     delete_slots_for_plan(session, plan_id=plan.id)
+    cancel_future_sessions_for_plan(session, plan_id=plan.id, now=completed_at)
     session.commit()
 
 
@@ -352,6 +354,16 @@ def update_learning_unit_progress(
     if first_completion:
         _create_reviews_after_completion_once(session, user_id=user_id, book=book, unit=unit, progress=saved)
     sync_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode)
+    sync_reading_plan_session_unit_completion(
+        session,
+        user_id=user_id,
+        book_id=book_id,
+        learning_unit_id=learning_unit_id,
+        mode=mode,
+        progress_status=saved.status,
+        completed_at=saved.completed_at,
+        now=saved.last_activity_at,
+    )
     return _to_unit_response(saved)
 
 
@@ -401,6 +413,16 @@ def complete_learning_unit_manually(
     if first_completion:
         _create_reviews_after_completion_once(session, user_id=user_id, book=book, unit=unit, progress=saved)
     sync_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode_value)
+    sync_reading_plan_session_unit_completion(
+        session,
+        user_id=user_id,
+        book_id=book_id,
+        learning_unit_id=learning_unit_id,
+        mode=mode_value,
+        progress_status=saved.status,
+        completed_at=saved.completed_at,
+        now=saved.last_activity_at,
+    )
     return _to_unit_response(saved)
 
 

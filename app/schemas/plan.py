@@ -39,6 +39,51 @@ class ReadingPlanUserSlotResponse(ReadingPlanSlotResponse):
     book_id: uuid.UUID
 
 
+class ReadingPlanSessionUnitResponse(BaseModel):
+    id: uuid.UUID
+    learning_unit_id: uuid.UUID
+    unit_title: str = ""
+    unit_order: int
+    status: str
+    completed_at: datetime | None = None
+
+
+class ReadingPlanSessionResponse(BaseModel):
+    id: uuid.UUID
+    plan_id: uuid.UUID
+    book_id: uuid.UUID
+    mode: PlanMode
+    session_index: int
+    scheduled_at: datetime
+    local_date: str
+    reminder_time: str
+    timezone: str
+    status: str
+    completed_units: int
+    total_units: int
+    is_overdue: bool
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    missed_at: datetime | None = None
+    skipped_at: datetime | None = None
+    units: list[ReadingPlanSessionUnitResponse] = Field(default_factory=list)
+
+
+class ReadingPlanSessionListResponse(BaseModel):
+    book_id: uuid.UUID | None = None
+    local_date: str | None = None
+    timezone: str | None = None
+    total: int
+    items: list[ReadingPlanSessionResponse] = Field(default_factory=list)
+
+
+class ReadingPlanSessionSummaryResponse(BaseModel):
+    total_sessions: int = 0
+    completed_sessions: int = 0
+    missed_sessions: int = 0
+    next_session: ReadingPlanSessionResponse | None = None
+
+
 class ReadingPlanResponse(BaseModel):
     plan_id: uuid.UUID
     book_id: uuid.UUID
@@ -54,6 +99,7 @@ class ReadingPlanResponse(BaseModel):
     started_at: datetime | None = None
     paused_at: datetime | None = None
     completed_at: datetime | None = None
+    session_summary: ReadingPlanSessionSummaryResponse | None = None
 
 
 class ReadingPlanUpdateResponse(ReadingPlanResponse):
