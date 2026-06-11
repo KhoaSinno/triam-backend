@@ -12,6 +12,7 @@ from app.db.database import engine
 from app.main import app
 from app.models.db_models import (
     Book,
+    BookLearningState,
     BookSection,
     LearningUnit,
     LearningUnitProgress,
@@ -929,7 +930,7 @@ def test_update_inactive_plan_does_not_validate_active_conflict(auth_as):
         _delete_notification_settings(user_id)
 
 
-def test_plan_auto_deactivate_on_100_percent():
+def test_plan_marks_completed_on_100_percent():
     client = TestClient(app)
     user_id = MOCK_USER_ID
     book_id = None
@@ -962,13 +963,75 @@ def test_plan_auto_deactivate_on_100_percent():
 
         with Session(engine) as session:
             db_plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
-            assert db_plan.status == PlanStatus.INACTIVE.value
+            assert db_plan.status == PlanStatus.COMPLETED.value
+            assert db_plan.completed_at is not None
+            state = session.exec(select(BookLearningState).where(BookLearningState.book_id == book_id)).first()
+            assert state is not None
+            assert state.status == "completed"
+            assert state.book_progress_percent == 100
+            assert state.completed_at is not None
             all_slots = session.exec(
                 select(ReadingPlanScheduleSlot).where(
                     ReadingPlanScheduleSlot.plan_id == db_plan.id,
                 )
             ).all()
             assert len(all_slots) == 0
+    finally:
+        if book_id:
+            _delete_book(book_id)
+
+
+def test_completed_book_progress_detail_and_review_access():
+    client = TestClient(app)
+    user_id = MOCK_USER_ID
+    book_id = None
+    try:
+        with Session(engine) as session:
+            book, unit, _ = _create_playable_book(session, user_id=user_id, title="Completed UX Book")
+            book_id = book.id
+            unit_id = unit.id
+            plan = ReadingPlan(
+                book_id=book.id,
+                mode=PlanMode.FULL,
+                pace=1,
+                schedule_config=["Sat"],
+                status=PlanStatus.ACTIVE.value,
+                reminder_time="20:00",
+            )
+            session.add(plan)
+            session.commit()
+
+        complete_response = client.post(
+            f"/api/v1/books/{book_id}/learning-units/{unit_id}/complete",
+            json={"mode": "full"},
+        )
+        assert complete_response.status_code == 200
+
+        progress_response = client.get(f"/api/v1/books/{book_id}/learning-progress?mode=full")
+        assert progress_response.status_code == 200
+        progress_body = progress_response.json()
+        assert progress_body["learning_status"] == "completed"
+        assert progress_body["is_completed"] is True
+        assert progress_body["can_resume"] is False
+        assert progress_body["can_review"] is True
+        assert progress_body["completed_at"] is not None
+
+        detail_response = client.get(f"/api/v1/books/{book_id}/details?mode=full")
+        assert detail_response.status_code == 200
+        detail_summary = detail_response.json()["learning_summary"]
+        assert detail_summary["learning_status"] == "completed"
+        assert detail_summary["book_progress_percent"] == 100
+
+        resume_response = client.post(f"/api/v1/books/{book_id}/resume")
+        assert resume_response.status_code == 409
+        assert "Sách đã hoàn thành" in resume_response.json()["detail"]
+
+        reviews_response = client.get(f"/api/v1/books/{book_id}/reviews?status=upcoming&mode=full")
+        assert reviews_response.status_code == 200
+        reviews_body = reviews_response.json()
+        assert reviews_body["total"] == 5
+        assert reviews_body["items"][0]["book_id"] == str(book_id)
+        assert reviews_body["items"][0]["learning_unit_id"] == str(unit_id)
     finally:
         if book_id:
             _delete_book(book_id)

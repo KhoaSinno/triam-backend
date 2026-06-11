@@ -4,6 +4,7 @@ from enum import Enum
 class PlanStatus(str, Enum):
     ACTIVE = "active"
     INACTIVE = "inactive"
+    COMPLETED = "completed"
     ERROR = "error"
 
 
@@ -73,6 +74,12 @@ class ReviewItemStatus(str, Enum):
 
 
 class LearningProgressStatus(str, Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+
+
+class BookLearningStatus(str, Enum):
     NOT_STARTED = "not_started"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"

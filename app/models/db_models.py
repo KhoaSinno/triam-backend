@@ -89,6 +89,9 @@ class ReadingPlan(SQLModel, table=True):
     reminder_time: str = Field(default="20:00", sa_column=Column(Text, nullable=False, server_default="20:00"))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    paused_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
 
     # === RELATIONSHIPS ===
     book: Book = Relationship(back_populates="reading_plans")
@@ -229,6 +232,34 @@ class LearningUnitProgress(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
     __table_args__ = (UniqueConstraint("user_id", "learning_unit_id", name="uq_unit_progress_user_unit"),)
+
+
+class BookLearningState(SQLModel, table=True):
+    __tablename__ = "book_learning_states"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
+    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
+    mode: PlanMode = Field(sa_column=Column(SAEnum(PlanMode), index=True, nullable=False))
+    status: str = Field(default="not_started", sa_column=Column(Text, index=True, nullable=False, server_default="not_started"))
+    book_progress_percent: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    completed_units: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    playable_units: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    last_learning_unit_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("learning_units.id", ondelete="SET NULL")))
+    last_segment_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("learning_unit_segments.id", ondelete="SET NULL")))
+    last_segment_index: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    position_ms: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    last_activity_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
+    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "book_id", "mode", name="uq_book_learning_state_user_book_mode"),
+        Index("ix_book_learning_states_user_status", "user_id", "status"),
+        Index("ix_book_learning_states_book_mode", "book_id", "mode"),
+    )
 
 
 class NotificationSettings(SQLModel, table=True):

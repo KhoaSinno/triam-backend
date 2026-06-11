@@ -35,6 +35,14 @@ def _get_owned_thread(session: Session, thread_id: uuid.UUID, user_id: uuid.UUID
     return thread
 
 
+def get_documents_in_context(session: Session, user_id: uuid.UUID, context_id: uuid.UUID) -> list[dict]:
+    """Lấy danh sách các tài liệu trong context sau khi kiểm tra quyền sở hữu."""
+    context = _get_owned_context(session, context_id, user_id)
+    from app.services.audiobook_service import _book_to_response_dict
+
+    return [_book_to_response_dict(session, book) for book in context.books]
+
+
 def list_contexts(session: Session, user_id: uuid.UUID) -> list[StudyContext]:
     return get_study_contexts(session, user_id)
 

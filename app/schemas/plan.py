@@ -51,6 +51,9 @@ class ReadingPlanResponse(BaseModel):
     active_slots: list[ReadingPlanSlotResponse] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
+    started_at: datetime | None = None
+    paused_at: datetime | None = None
+    completed_at: datetime | None = None
 
 
 class ReadingPlanUpdateResponse(ReadingPlanResponse):

@@ -4,13 +4,16 @@ from datetime import datetime, timedelta, timezone
 from sqlmodel import Session, select
 
 from app.core.config import settings
-from app.core.constant import LearningProgressStatus, PlanMode, PlanStatus
+from app.core.constant import BookLearningStatus, LearningProgressStatus, PlanMode, PlanStatus
 from app.core.exceptions import BadRequestError, BookNotFoundError, NoPlayableAudioError
-from app.models.db_models import Book, LearningUnit, LearningUnitProgress, LearningUnitSegment, ReadingPlan
+from app.models.db_models import Book, BookLearningState, LearningUnit, LearningUnitProgress, LearningUnitSegment, ReadingPlan
+from app.repositories.book_learning_state_repo import get_book_learning_state, upsert_book_learning_state
 from app.repositories.learning_progress_repo import get_latest_activity, get_progress, list_book_progress, list_playable_unit_ids, save_progress
 from app.repositories.reading_plan_schedule_repo import delete_slots_for_plan
+from app.repositories.spaced_review_repo import count_review_items_for_user
 from app.schemas.learning_progress import (
     BookLearningProgressResponse,
+    BookLearningSummaryResponse,
     LearningUnitProgressResponse,
     LearningUnitProgressUpdateRequest,
 )
@@ -146,29 +149,142 @@ def _should_persist_progress(
     return bool(last_saved_at and now - last_saved_at >= timedelta(seconds=settings.LEARNING_PROGRESS_STALE_SECONDS))
 
 
-def _check_and_deactivate_plan_on_completion(
+def _complete_reading_plan_if_needed(
+    session: Session,
+    *,
+    book_id: uuid.UUID,
+    mode: PlanMode,
+    completed_at: datetime,
+) -> None:
+    plan = session.exec(
+        select(ReadingPlan).where(
+            ReadingPlan.book_id == book_id,
+            ReadingPlan.mode == mode,
+        )
+    ).first()
+    if not plan or plan.status == PlanStatus.COMPLETED.value:
+        return
+
+    plan.status = PlanStatus.COMPLETED.value
+    plan.completed_at = plan.completed_at or completed_at
+    plan.updated_at = datetime.now(timezone.utc)
+    session.add(plan)
+    delete_slots_for_plan(session, plan_id=plan.id)
+    session.commit()
+
+
+def sync_book_learning_state(
     session: Session,
     *,
     user_id: uuid.UUID,
     book_id: uuid.UUID,
     mode: PlanMode,
-) -> None:
+) -> BookLearningState:
     playable_ids = list_playable_unit_ids(session, book_id=book_id, mode=mode)
-    if not playable_ids:
-        return
     progress_rows = list_book_progress(session, user_id=user_id, book_id=book_id, mode=mode)
-    completed_count = sum(
-        1
-        for p in progress_rows
-        if p.status == LearningProgressStatus.COMPLETED and p.learning_unit_id in playable_ids
+    progress_by_unit = {progress.learning_unit_id: progress for progress in progress_rows}
+    existing_state = get_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode)
+
+    playable_count = len(playable_ids)
+    total_percent = 0
+    completed_count = 0
+    started_at_candidates: list[datetime] = []
+    latest_activity_candidates: list[datetime] = []
+    completed_at_candidates: list[datetime] = []
+
+    for learning_unit_id in playable_ids:
+        progress = progress_by_unit.get(learning_unit_id)
+        if not progress:
+            continue
+        total_percent += progress.max_progress_percent
+        completed_count += int(progress.status == LearningProgressStatus.COMPLETED)
+        if progress.started_at:
+            started_at_candidates.append(progress.started_at)
+        if progress.last_activity_at:
+            latest_activity_candidates.append(progress.last_activity_at)
+        if progress.completed_at:
+            completed_at_candidates.append(progress.completed_at)
+
+    latest = get_latest_activity(session, user_id=user_id, book_id=book_id, mode=mode)
+    if playable_count and completed_count >= playable_count:
+        learning_status = BookLearningStatus.COMPLETED
+    elif progress_rows:
+        learning_status = BookLearningStatus.IN_PROGRESS
+    else:
+        learning_status = BookLearningStatus.NOT_STARTED
+
+    completed_at = None
+    if learning_status == BookLearningStatus.COMPLETED:
+        completed_at = existing_state.completed_at if existing_state and existing_state.completed_at else max(completed_at_candidates, default=datetime.now(timezone.utc))
+
+    state = upsert_book_learning_state(
+        session,
+        user_id=user_id,
+        book_id=book_id,
+        mode=mode,
+        status=learning_status.value,
+        book_progress_percent=int(total_percent / playable_count) if playable_count else 0,
+        completed_units=completed_count,
+        playable_units=playable_count,
+        last_learning_unit_id=latest.learning_unit_id if latest else None,
+        last_segment_id=latest.current_segment_id if latest else None,
+        last_segment_index=latest.last_segment_index if latest else None,
+        position_ms=latest.position_ms if latest else 0,
+        started_at=min(started_at_candidates, default=None),
+        last_activity_at=max(latest_activity_candidates, default=None),
+        completed_at=completed_at,
     )
-    if completed_count >= len(playable_ids):
-        plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
-        if plan and plan.status == PlanStatus.ACTIVE.value:
-            plan.status = PlanStatus.INACTIVE.value
-            session.add(plan)
-            delete_slots_for_plan(session, plan_id=plan.id)
-            session.commit()
+    if learning_status == BookLearningStatus.COMPLETED and completed_at:
+        _complete_reading_plan_if_needed(session, book_id=book_id, mode=mode, completed_at=completed_at)
+    return state
+
+
+def build_book_learning_summary(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    book_id: uuid.UUID,
+    mode: PlanMode,
+) -> BookLearningSummaryResponse:
+    state = sync_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode)
+    learning_status = BookLearningStatus(state.status)
+    now = datetime.now(timezone.utc)
+    due_reviews_count = count_review_items_for_user(
+        session,
+        user_id=user_id,
+        now=now,
+        status_filter="due",
+        book_id=book_id,
+        mode=mode,
+    )
+    upcoming_reviews_count = count_review_items_for_user(
+        session,
+        user_id=user_id,
+        now=now,
+        status_filter="upcoming",
+        book_id=book_id,
+        mode=mode,
+    )
+    return BookLearningSummaryResponse(
+        book_id=book_id,
+        mode=mode,
+        learning_status=learning_status,
+        is_completed=learning_status == BookLearningStatus.COMPLETED,
+        can_resume=learning_status == BookLearningStatus.IN_PROGRESS,
+        can_review=state.completed_units > 0 or due_reviews_count > 0 or upcoming_reviews_count > 0,
+        book_progress_percent=state.book_progress_percent,
+        completed_units=state.completed_units,
+        playable_units=state.playable_units,
+        last_learning_unit_id=state.last_learning_unit_id,
+        last_segment_id=state.last_segment_id,
+        last_segment_index=state.last_segment_index,
+        position_ms=state.position_ms if state.last_learning_unit_id else None,
+        started_at=state.started_at,
+        last_activity_at=state.last_activity_at,
+        completed_at=state.completed_at,
+        due_reviews_count=due_reviews_count,
+        upcoming_reviews_count=upcoming_reviews_count,
+    )
 
 
 def update_learning_unit_progress(
@@ -235,7 +351,7 @@ def update_learning_unit_progress(
     saved = save_progress(session, progress)
     if first_completion:
         _create_reviews_after_completion_once(session, user_id=user_id, book=book, unit=unit, progress=saved)
-        _check_and_deactivate_plan_on_completion(session, user_id=user_id, book_id=book_id, mode=mode)
+    sync_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode)
     return _to_unit_response(saved)
 
 
@@ -284,7 +400,7 @@ def complete_learning_unit_manually(
     saved = save_progress(session, progress)
     if first_completion:
         _create_reviews_after_completion_once(session, user_id=user_id, book=book, unit=unit, progress=saved)
-        _check_and_deactivate_plan_on_completion(session, user_id=user_id, book_id=book_id, mode=mode_value)
+    sync_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode_value)
     return _to_unit_response(saved)
 
 
@@ -302,13 +418,9 @@ def get_book_learning_progress(
     progress_by_unit = {progress.learning_unit_id: progress for progress in progress_rows}
 
     units: list[LearningUnitProgressResponse] = []
-    total_percent = 0
-    completed = 0
     for learning_unit_id in playable_ids:
         progress = progress_by_unit.get(learning_unit_id)
         if progress:
-            total_percent += progress.max_progress_percent
-            completed += int(progress.status == LearningProgressStatus.COMPLETED)
             units.append(_to_unit_response(progress))
         else:
             units.append(
@@ -327,17 +439,8 @@ def get_book_learning_progress(
                 )
             )
 
-    playable_count = len(playable_ids)
-    latest = get_latest_activity(session, user_id=user_id, book_id=book_id, mode=mode_value)
+    summary = build_book_learning_summary(session, user_id=user_id, book_id=book_id, mode=mode_value)
     return BookLearningProgressResponse(
-        book_id=book_id,
-        mode=mode_value,
-        book_progress_percent=int(total_percent / playable_count) if playable_count else 0,
-        completed_units=completed,
-        playable_units=playable_count,
-        last_learning_unit_id=latest.learning_unit_id if latest else None,
-        last_segment_id=latest.current_segment_id if latest else None,
-        last_segment_index=latest.last_segment_index if latest else None,
-        position_ms=latest.position_ms if latest else None,
+        **summary.model_dump(),
         units=units,
     )

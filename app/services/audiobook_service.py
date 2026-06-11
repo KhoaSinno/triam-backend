@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
@@ -17,20 +18,39 @@ from app.repositories.learning_unit_repo import (
 from app.repositories.processing_job_repo import create_processing_job, update_processing_job
 from app.repositories.reading_plan_schedule_repo import delete_slots_for_plan, list_active_slots, list_slots_for_plan
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
+from app.services.learning_progress_service import build_book_learning_summary
 from app.services.learning_unit_planner_service import plan_learning_units_async
 from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
 from app.tasks.book_tasks import switch_mode_task
 
 
-def list_books(session: Session, user_id: uuid.UUID) -> list[Book]:
-    return audiobook_repo.get_audiobooks_by_user(session, user_id)
+def _book_to_response_dict(session: Session, book: Book) -> dict:
+    plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book.id)).first()
+    learning_status = None
+    book_progress_percent = None
+    completed_at = None
+    if plan:
+        summary = build_book_learning_summary(session, user_id=book.user_id, book_id=book.id, mode=PlanMode(plan.mode))
+        learning_status = summary.learning_status.value
+        book_progress_percent = summary.book_progress_percent
+        completed_at = summary.completed_at
+    return {
+        **book.model_dump(),
+        "learning_status": learning_status,
+        "book_progress_percent": book_progress_percent,
+        "completed_at": completed_at,
+    }
+
+
+def list_books(session: Session, user_id: uuid.UUID) -> list[dict]:
+    return [_book_to_response_dict(session, book) for book in audiobook_repo.get_audiobooks_by_user(session, user_id)]
 
 
 def get_book(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> Book:
     book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
-    return book
+    return _book_to_response_dict(session, book)
 
 
 def create_new_book(session: Session, user_id: uuid.UUID, payload: BookCreateRequest) -> Book:
@@ -90,6 +110,9 @@ def _reading_plan_to_dict(session: Session, plan: ReadingPlan) -> dict:
         "active_slots": [_slot_to_dict(slot) for slot in active_slots],
         "created_at": plan.created_at,
         "updated_at": plan.updated_at,
+        "started_at": plan.started_at,
+        "paused_at": plan.paused_at,
+        "completed_at": plan.completed_at,
     }
 
 
@@ -138,6 +161,7 @@ def get_book_details(session: Session, book_id: uuid.UUID, user_id: uuid.UUID, *
 
     plan = _active_plan(session, book_id)
     active_mode = PlanMode(mode) if mode else PlanMode(plan.mode)
+    learning_summary = build_book_learning_summary(session, user_id=user_id, book_id=book_id, mode=active_mode)
     units = list_learning_units(session, book_id, active_mode)
     segments_map = _segments_by_unit(list_unit_segments(session, [unit.id for unit in units]))
 
@@ -147,6 +171,7 @@ def get_book_details(session: Session, book_id: uuid.UUID, user_id: uuid.UUID, *
         "mode": active_mode.value,
         "total_sections": book.total_sections,
         "total_units": len(units),
+        "learning_summary": learning_summary,
         "units": [_unit_to_dict(unit, segments_map.get(unit.id, [])) for unit in units],
     }
 
@@ -294,6 +319,7 @@ def pause_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID)
         raise BookNotFoundError()
     plan = _active_plan(session, book_id)
     plan.status = PlanStatus.INACTIVE.value
+    plan.paused_at = datetime.now(timezone.utc)
     session.add(plan)
     delete_slots_for_plan(session, plan_id=plan.id)
     session.commit()
@@ -308,6 +334,8 @@ def resume_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID
 
     if plan.status == PlanStatus.ACTIVE.value:
         return {"message": "Kế hoạch học tập đang hoạt động.", **_reading_plan_to_dict(session, plan)}
+    if plan.status == PlanStatus.COMPLETED.value:
+        raise BookStatusConflictError("Sách đã hoàn thành. Hãy dùng chức năng ôn tập hoặc học lại nếu muốn bắt đầu vòng mới.")
 
     if book.status not in (BookStatus.PARTIAL_READY.value, BookStatus.READY.value):
         raise BookStatusConflictError("Tài liệu chưa sẵn sàng để bắt đầu học. Vui lòng chờ hệ thống xử lý thêm.")
@@ -320,6 +348,8 @@ def resume_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID
     )
 
     plan.status = PlanStatus.ACTIVE.value
+    plan.started_at = plan.started_at or datetime.now(timezone.utc)
+    plan.paused_at = None
     session.add(plan)
     delete_slots_for_plan(session, plan_id=plan.id)
 

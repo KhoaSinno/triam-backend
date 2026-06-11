@@ -6,7 +6,7 @@ from sqlmodel import Session
 
 from app.api.dependencies.auth import CurrentUser
 from app.db.database import get_session
-from app.schemas.responses import ChatThreadResponse, ContextDocumentResponse, StudyContextResponse
+from app.schemas.responses import BookResponse, ChatThreadResponse, ContextDocumentResponse, StudyContextResponse
 from app.schemas.study_context import (
     ChatThreadInput,
     StudyContextDocumentInput,
@@ -29,6 +29,11 @@ async def get_study_contexts_api(current_user: CurrentUser, session: Annotated[S
 @router.get("/study-contexts/{context_id}", response_model=StudyContextResponse)
 async def get_study_context_api(context_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
     return study_context_service.get_context(session, current_user.sub, context_id)
+
+
+@router.get("/study-contexts/{context_id}/documents", response_model=List[BookResponse])
+async def get_study_context_documents_api(context_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
+    return study_context_service.get_documents_in_context(session, current_user.sub, context_id)
 
 
 @router.post("/study-contexts", response_model=StudyContextResponse)
