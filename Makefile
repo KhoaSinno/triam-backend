@@ -7,6 +7,9 @@ get_supabase_user:
 clean: 
 	./clean.sh
 
+gat:
+	uv run python scripts/get_supabase_access_token.py
+
 t1:
 	uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
@@ -21,6 +24,3 @@ t4:
 
 t5:
 	uv run python -m app.services.agent_voice_gpt_realtime start
-
-gat:
-	uv run python scripts/get_supabase_access_token.py

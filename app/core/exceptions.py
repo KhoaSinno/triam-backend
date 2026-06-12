@@ -40,6 +40,11 @@ class ReadingPlanNotFoundError(AppException):
     detail = "Chưa có ReadingPlan cho sách này."
 
 
+class ReadingPlanSessionNotFoundError(AppException):
+    status_code = 404
+    detail = "Không tìm thấy buổi học."
+
+
 class NoReadingPlanError(AppException):
     """Book tồn tại nhưng user chưa có reading plan."""
 
@@ -115,6 +120,11 @@ class DirectBookContextConflictError(AppException):
 class ReadingPlanScheduleConflictError(AppException):
     status_code = 409
     detail = "Lịch học này đang trùng với một sách khác. Hãy chọn ngày hoặc giờ khác."
+
+
+class ReadingPlanSessionStatusConflictError(AppException):
+    status_code = 409
+    detail = "Buổi học đang ở trạng thái không thể thực hiện thao tác này."
 
 
 class ProcessingJobStatusConflictError(AppException):

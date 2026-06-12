@@ -132,6 +132,7 @@ class ReadingPlanSession(SQLModel, table=True):
     completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
     skipped_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     missed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    missed_notified_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 

@@ -1,11 +1,11 @@
 import uuid
 from datetime import date, datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from sqlmodel import Session, select
 
 from app.core.constant import LearningProgressStatus, PlanMode, PlanStatus, ReadingPlanSessionStatus, ReadingPlanSessionUnitStatus
-from app.core.exceptions import BookNotFoundError
+from app.core.exceptions import BadRequestError, BookNotFoundError, ReadingPlanScheduleConflictError, ReadingPlanSessionNotFoundError, ReadingPlanSessionStatusConflictError
 from app.models.db_models import (
     Book,
     LearningUnit,
@@ -21,14 +21,20 @@ from app.repositories.reading_plan_schedule_repo import list_slots_for_plan
 from app.repositories.reading_plan_session_repo import (
     FINAL_SESSION_STATUSES,
     cancel_unfinished_sessions_for_plan,
+    find_session_schedule_conflict,
+    get_owned_session,
     get_session_unit_for_learning_unit,
     list_session_units,
     list_sessions_for_book,
     list_sessions_for_plan,
     list_sessions_for_user_local_date,
+    list_sessions_for_user_range,
     mark_overdue_sessions_missed,
+    mark_overdue_sessions_missed_rows,
 )
 from app.services.reminder_schedule_service import ensure_aware_utc, parse_hhmm, to_local
+
+MAX_SESSION_RANGE_DAYS = 120
 
 
 def _now_utc() -> datetime:
@@ -170,6 +176,15 @@ def mark_due_sessions_missed(
     return mark_overdue_sessions_missed(session, user_id=user_id, now=ensure_aware_utc(now or _now_utc()))
 
 
+def mark_due_sessions_missed_rows(
+    session: Session,
+    *,
+    user_id: uuid.UUID | None = None,
+    now: datetime | None = None,
+) -> list[ReadingPlanSession]:
+    return mark_overdue_sessions_missed_rows(session, user_id=user_id, now=ensure_aware_utc(now or _now_utc()))
+
+
 def _recalculate_parent_session(session: Session, plan_session: ReadingPlanSession, *, now: datetime) -> ReadingPlanSession:
     units = list_session_units(session, session_ids=[plan_session.id])
     completed_count = sum(1 for unit in units if unit.status == ReadingPlanSessionUnitStatus.COMPLETED.value)
@@ -276,7 +291,7 @@ def sessions_to_response(session: Session, sessions: list[ReadingPlanSession]) -
                 "status": item.status,
                 "completed_units": item.completed_units,
                 "total_units": item.total_units,
-                "is_overdue": item.status != ReadingPlanSessionStatus.COMPLETED.value and item.scheduled_at < now,
+                "is_overdue": item.status not in FINAL_SESSION_STATUSES and item.scheduled_at < now,
                 "started_at": item.started_at,
                 "completed_at": item.completed_at,
                 "missed_at": item.missed_at,
@@ -359,6 +374,196 @@ def list_today_reading_plan_sessions(
         "timezone": user_settings.timezone,
         "total": len(sessions),
         "items": sessions_to_response(session, sessions),
+    }
+
+
+def _resolve_status_filter(status: str | None) -> str | None:
+    if status is None:
+        return None
+    try:
+        return ReadingPlanSessionStatus(status).value
+    except ValueError as exc:
+        raise BadRequestError("Trạng thái buổi học không hợp lệ.") from exc
+
+
+def _resolve_mode_filter(mode: PlanMode | str | None) -> PlanMode | None:
+    if mode is None:
+        return None
+    try:
+        return PlanMode(mode)
+    except ValueError as exc:
+        raise BadRequestError("Mode kế hoạch học không hợp lệ.") from exc
+
+
+def _resolve_timezone_name(timezone_name: str | None, fallback: str) -> str:
+    resolved = timezone_name or fallback or "Asia/Ho_Chi_Minh"
+    try:
+        ZoneInfo(resolved)
+    except ZoneInfoNotFoundError as exc:
+        raise BadRequestError("Timezone không hợp lệ.") from exc
+    return resolved
+
+
+def _scheduled_at_from_local(*, local_date: date, reminder_time: str, timezone_name: str) -> datetime:
+    try:
+        local_time = parse_hhmm(reminder_time)
+    except ValueError as exc:
+        raise BadRequestError("Giờ nhắc học phải đúng định dạng HH:MM.") from exc
+    tz = ZoneInfo(timezone_name)
+    return datetime.combine(local_date, local_time, tzinfo=tz).astimezone(timezone.utc)
+
+
+def _session_summary_counts(sessions: list[ReadingPlanSession]) -> dict[str, int]:
+    return {status.value: sum(1 for item in sessions if item.status == status.value) for status in ReadingPlanSessionStatus}
+
+
+def list_reading_plan_sessions_range(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    from_date: date | None = None,
+    to_date: date | None = None,
+    book_id: uuid.UUID | None = None,
+    mode: PlanMode | str | None = None,
+    status: str | None = None,
+) -> dict:
+    now = _now_utc()
+    user_settings = get_or_create_notification_settings(session, user_id)
+    local_today = to_local(now, user_settings.timezone).date()
+    resolved_from = from_date or local_today - timedelta(days=7)
+    resolved_to = to_date or local_today + timedelta(days=30)
+    if resolved_from > resolved_to:
+        raise BadRequestError("from_date không được lớn hơn to_date.")
+    if (resolved_to - resolved_from).days > MAX_SESSION_RANGE_DAYS:
+        raise BadRequestError(f"Khoảng thời gian không được vượt quá {MAX_SESSION_RANGE_DAYS} ngày.")
+
+    if book_id:
+        book = session.exec(select(Book).where(Book.id == book_id, Book.user_id == user_id)).first()
+        if not book:
+            raise BookNotFoundError()
+
+    mode_value = _resolve_mode_filter(mode)
+    status_value = _resolve_status_filter(status)
+    mark_due_sessions_missed(session, user_id=user_id, now=now)
+    session.commit()
+
+    sessions = list_sessions_for_user_range(
+        session,
+        user_id=user_id,
+        from_local_date=resolved_from.isoformat(),
+        to_local_date=resolved_to.isoformat(),
+        book_id=book_id,
+        mode=mode_value,
+        status=status_value,
+    )
+    return {
+        "book_id": book_id,
+        "timezone": user_settings.timezone,
+        "from_date": resolved_from,
+        "to_date": resolved_to,
+        "total": len(sessions),
+        "summary": _session_summary_counts(sessions),
+        "items": sessions_to_response(session, sessions),
+    }
+
+
+def _ensure_session_can_change(plan_session: ReadingPlanSession, *, action: str) -> None:
+    if plan_session.status in FINAL_SESSION_STATUSES:
+        raise ReadingPlanSessionStatusConflictError(f"Buổi học đã ở trạng thái cuối, không thể {action}.")
+
+
+def skip_reading_plan_session(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    session_id: uuid.UUID,
+    reason: str | None = None,
+) -> dict:
+    now = _now_utc()
+    plan_session = get_owned_session(session, user_id=user_id, session_id=session_id)
+    if not plan_session:
+        raise ReadingPlanSessionNotFoundError()
+    _ensure_session_can_change(plan_session, action="bỏ qua")
+
+    plan_session.status = ReadingPlanSessionStatus.SKIPPED.value
+    plan_session.skipped_at = plan_session.skipped_at or now
+    plan_session.updated_at = now
+    session.add(plan_session)
+
+    units = list_session_units(session, session_ids=[plan_session.id])
+    for unit in units:
+        if unit.status in (ReadingPlanSessionUnitStatus.PENDING.value, ReadingPlanSessionUnitStatus.IN_PROGRESS.value):
+            unit.status = ReadingPlanSessionUnitStatus.SKIPPED.value
+            unit.updated_at = now
+            session.add(unit)
+
+    session.commit()
+    session.refresh(plan_session)
+    return {
+        "message": "Đã bỏ qua buổi học.",
+        "session": sessions_to_response(session, [plan_session])[0],
+    }
+
+
+def reschedule_reading_plan_session(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    session_id: uuid.UUID,
+    local_date: date,
+    reminder_time: str,
+    timezone_name: str | None = None,
+) -> dict:
+    now = _now_utc()
+    plan_session = get_owned_session(session, user_id=user_id, session_id=session_id)
+    if not plan_session:
+        raise ReadingPlanSessionNotFoundError()
+    _ensure_session_can_change(plan_session, action="dời lịch")
+
+    resolved_timezone = _resolve_timezone_name(timezone_name, plan_session.timezone)
+    scheduled_at = _scheduled_at_from_local(
+        local_date=local_date,
+        reminder_time=reminder_time,
+        timezone_name=resolved_timezone,
+    )
+    conflict = find_session_schedule_conflict(
+        session,
+        user_id=user_id,
+        scheduled_at=scheduled_at,
+        exclude_session_id=plan_session.id,
+    )
+    if conflict:
+        conflict_book = session.get(Book, conflict.book_id)
+        conflict_title = conflict_book.title if conflict_book else "một sách khác"
+        raise ReadingPlanScheduleConflictError(
+            f'Lịch học bị trùng với sách "{conflict_title}" vào {reminder_time} ngày {local_date.isoformat()}.'
+        )
+
+    units = list_session_units(session, session_ids=[plan_session.id])
+    has_started_unit = any(unit.status in (ReadingPlanSessionUnitStatus.IN_PROGRESS.value, ReadingPlanSessionUnitStatus.COMPLETED.value) for unit in units)
+    plan_session.scheduled_at = scheduled_at
+    plan_session.local_date = local_date.isoformat()
+    plan_session.reminder_time = reminder_time
+    plan_session.timezone = resolved_timezone
+    plan_session.updated_at = now
+    if has_started_unit or plan_session.started_at:
+        plan_session.status = ReadingPlanSessionStatus.IN_PROGRESS.value
+        plan_session.started_at = plan_session.started_at or now
+        if scheduled_at > now:
+            plan_session.missed_at = None
+    elif scheduled_at > now:
+        plan_session.status = ReadingPlanSessionStatus.SCHEDULED.value
+        plan_session.missed_at = None
+    else:
+        plan_session.status = ReadingPlanSessionStatus.MISSED.value
+        plan_session.missed_at = plan_session.missed_at or now
+
+    session.add(plan_session)
+    session.commit()
+    session.refresh(plan_session)
+    return {
+        "message": "Đã dời lịch buổi học.",
+        "session": sessions_to_response(session, [plan_session])[0],
     }
 
 

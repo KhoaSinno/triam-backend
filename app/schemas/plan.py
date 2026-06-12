@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -75,6 +75,27 @@ class ReadingPlanSessionListResponse(BaseModel):
     timezone: str | None = None
     total: int
     items: list[ReadingPlanSessionResponse] = Field(default_factory=list)
+
+
+class ReadingPlanSessionRangeResponse(ReadingPlanSessionListResponse):
+    from_date: date
+    to_date: date
+    summary: dict[str, int] = Field(default_factory=dict)
+
+
+class ReadingPlanSessionSkipRequest(BaseModel):
+    reason: str | None = None
+
+
+class ReadingPlanSessionRescheduleRequest(BaseModel):
+    local_date: date
+    reminder_time: str
+    timezone: str | None = None
+
+
+class ReadingPlanSessionActionResponse(BaseModel):
+    message: str
+    session: ReadingPlanSessionResponse
 
 
 class ReadingPlanSessionSummaryResponse(BaseModel):

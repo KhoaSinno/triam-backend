@@ -11,6 +11,26 @@ FINAL_SESSION_STATUSES = {
     ReadingPlanSessionStatus.SKIPPED.value,
     ReadingPlanSessionStatus.CANCELLED.value,
 }
+ACTIVE_SESSION_STATUSES = {
+    ReadingPlanSessionStatus.SCHEDULED.value,
+    ReadingPlanSessionStatus.DUE.value,
+    ReadingPlanSessionStatus.IN_PROGRESS.value,
+    ReadingPlanSessionStatus.MISSED.value,
+}
+
+
+def get_owned_session(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    session_id: uuid.UUID,
+) -> ReadingPlanSession | None:
+    return session.exec(
+        select(ReadingPlanSession).where(
+            ReadingPlanSession.id == session_id,
+            ReadingPlanSession.user_id == user_id,
+        )
+    ).first()
 
 
 def list_sessions_for_plan(
@@ -61,6 +81,53 @@ def list_sessions_for_user_local_date(
         statement = statement.where(ReadingPlanSession.status != ReadingPlanSessionStatus.CANCELLED.value)
     statement = statement.order_by(col(ReadingPlanSession.scheduled_at), col(ReadingPlanSession.session_index))
     return list(session.exec(statement).all())
+
+
+def list_sessions_for_user_range(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    from_local_date: str,
+    to_local_date: str,
+    book_id: uuid.UUID | None = None,
+    mode: PlanMode | None = None,
+    status: str | None = None,
+    include_cancelled: bool = False,
+) -> list[ReadingPlanSession]:
+    statement = select(ReadingPlanSession).where(
+        ReadingPlanSession.user_id == user_id,
+        ReadingPlanSession.local_date >= from_local_date,
+        ReadingPlanSession.local_date <= to_local_date,
+    )
+    if book_id:
+        statement = statement.where(ReadingPlanSession.book_id == book_id)
+    if mode:
+        statement = statement.where(ReadingPlanSession.mode == mode)
+    if status:
+        statement = statement.where(ReadingPlanSession.status == status)
+    if not include_cancelled:
+        statement = statement.where(ReadingPlanSession.status != ReadingPlanSessionStatus.CANCELLED.value)
+    statement = statement.order_by(col(ReadingPlanSession.scheduled_at), col(ReadingPlanSession.session_index))
+    return list(session.exec(statement).all())
+
+
+def find_session_schedule_conflict(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    scheduled_at: datetime,
+    exclude_session_id: uuid.UUID,
+) -> ReadingPlanSession | None:
+    return session.exec(
+        select(ReadingPlanSession)
+        .where(
+            ReadingPlanSession.user_id == user_id,
+            ReadingPlanSession.scheduled_at == scheduled_at,
+            ReadingPlanSession.id != exclude_session_id,
+            ReadingPlanSession.status.in_(list(ACTIVE_SESSION_STATUSES)),
+        )
+        .order_by(col(ReadingPlanSession.scheduled_at))
+    ).first()
 
 
 def list_due_reminder_sessions(
@@ -152,6 +219,57 @@ def cancel_unfinished_sessions_for_plan(
         row.updated_at = now
         session.add(row)
     return len(rows)
+
+
+def mark_overdue_sessions_missed_rows(
+    session: Session,
+    *,
+    user_id: uuid.UUID | None,
+    now: datetime,
+) -> list[ReadingPlanSession]:
+    statement = (
+        select(ReadingPlanSession)
+        .where(ReadingPlanSession.scheduled_at < now)
+        .where(
+            ReadingPlanSession.status.in_(
+                [
+                    ReadingPlanSessionStatus.SCHEDULED.value,
+                    ReadingPlanSessionStatus.DUE.value,
+                    ReadingPlanSessionStatus.IN_PROGRESS.value,
+                ]
+            )
+        )
+        .where(ReadingPlanSession.completed_units < ReadingPlanSession.total_units)
+    )
+    if user_id:
+        statement = statement.where(ReadingPlanSession.user_id == user_id)
+
+    rows = list(session.exec(statement).all())
+    for row in rows:
+        row.status = ReadingPlanSessionStatus.MISSED.value
+        row.missed_at = row.missed_at or now
+        row.updated_at = now
+        session.add(row)
+    return rows
+
+
+def list_missed_sessions_pending_notification(
+    session: Session,
+    *,
+    now: datetime,
+    limit: int,
+) -> list[ReadingPlanSession]:
+    return list(
+        session.exec(
+            select(ReadingPlanSession)
+            .where(ReadingPlanSession.status == ReadingPlanSessionStatus.MISSED.value)
+            .where(ReadingPlanSession.missed_at.is_not(None))
+            .where(ReadingPlanSession.missed_at <= now)
+            .where(ReadingPlanSession.missed_notified_at.is_(None))
+            .order_by(col(ReadingPlanSession.missed_at))
+            .limit(limit)
+        ).all()
+    )
 
 
 def mark_overdue_sessions_missed(

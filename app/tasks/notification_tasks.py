@@ -16,7 +16,12 @@ from app.repositories.notification_outbox_repo import (
     mark_outbox_retry,
     recover_stale_outbox,
 )
-from app.services.notification_event_service import create_due_plan_reminder_outbox_rows, create_due_review_outbox_rows, deliver_outbox_notification
+from app.services.notification_event_service import (
+    create_due_plan_reminder_outbox_rows,
+    create_due_review_outbox_rows,
+    create_missed_plan_session_outbox_rows,
+    deliver_outbox_notification,
+)
 from app.services.reading_plan_session_service import mark_due_sessions_missed
 
 
@@ -37,6 +42,7 @@ def scan_due_notifications_task() -> None:
         created_count += create_due_review_outbox_rows(session, now=now)
         created_count += create_due_plan_reminder_outbox_rows(session, now=now)
         mark_due_sessions_missed(session, now=now)
+        created_count += create_missed_plan_session_outbox_rows(session, now=now)
         session.commit()
         should_deliver = created_count > 0 or recovered_count > 0 or has_due_outbox(session, now=now)
 

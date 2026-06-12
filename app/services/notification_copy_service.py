@@ -4,6 +4,11 @@ from app.core.constant import NotificationType
 def build_notification_copy(notification_type: NotificationType, payload: dict) -> tuple[str, str]:
     match notification_type:
         case NotificationType.PLAN_REMINDER:
+            if payload.get("subtype") == "missed_session":
+                return (
+                    "Bạn đã lỡ một buổi học",
+                    f"Có thể học bù {payload.get('book_title', 'sách của bạn')} khi bạn rảnh.",
+                )
             return (
                 "Đến giờ học rồi",
                 f"Tiếp tục nghe {payload.get('book_title', 'sách của bạn')} nhé.",
