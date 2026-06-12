@@ -8,8 +8,8 @@ load_dotenv(override=True)
 
 class Settings(BaseSettings):
     OPENAI_API_KEY: str
-    PINECONE_API_KEY: str
-    PINECONE_ENV: str
+    # PINECONE_API_KEY: str
+    # PINECONE_ENV: str
     TAVILY_API_KEY: str
     GEMINI_BASE_URL: str
     GEMINI_API_KEY: str
@@ -47,11 +47,8 @@ class Settings(BaseSettings):
     LIVEKIT_ROOM_EMPTY_TIMEOUT_SECONDS: int = 60
     LIVEKIT_ROOM_DEPARTURE_TIMEOUT_SECONDS: int = 20
     LIVEKIT_AGENT_EMPTY_ROOM_GRACE_SECONDS: float = 8.0
-    GEMINI_MODEL_NATIVE_AUDIO: str = "gemini-2.5-flash-native-audio-latest"
     GEMINI_MODEL_LLM: str = "gemini-2.5-flash"
     DEEPGRAM_API_KEY: str
-    CARTESIA_API_KEY_TTS: str
-    ELEVENLABS_API_KEY_TTS: str
 
     # Realtime voice agent behavior
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-mini"
