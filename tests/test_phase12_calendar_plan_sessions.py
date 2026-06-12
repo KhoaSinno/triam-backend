@@ -141,6 +141,62 @@ def test_resume_plan_creates_calendar_sessions_and_today_query(auth_as):
         _delete_notification_settings(user_id)
 
 
+def test_list_books_keeps_book_fields_after_learning_summary_commit(auth_as):
+    client = TestClient(app)
+    user_id = uuid.uuid4()
+    auth_as(user_id)
+    book_ids: list[uuid.UUID] = []
+    try:
+        with Session(engine) as session:
+            progress_targets: list[tuple[uuid.UUID, uuid.UUID, int]] = []
+            for index in range(2):
+                book, units = _create_playable_book_with_units(session, user_id=user_id, total_units=1, title=f"Phase 12 List Books Book {index + 1}")
+                book_ids.append(book.id)
+                unit_id = units[0].id
+                segment = session.exec(select(LearningUnitSegment).where(LearningUnitSegment.learning_unit_id == unit_id)).first()
+                progress_targets.append((book.id, unit_id, segment.id))
+                session.add(
+                    ReadingPlan(
+                        book_id=book.id,
+                        mode=PlanMode.FULL,
+                        pace=1,
+                        schedule_config=["Mon"],
+                        status=PlanStatus.ACTIVE.value,
+                        reminder_time="08:00",
+                    )
+                )
+            session.commit()
+
+        for book_id, unit_id, segment_id in progress_targets:
+            progress_response = client.put(
+                f"/api/v1/books/{book_id}/learning-units/{unit_id}/progress",
+                json={
+                    "mode": "full",
+                    "segment_id": segment_id,
+                    "segment_index": 0,
+                    "position_ms": 50000,
+                    "listened_ms": 50000,
+                    "progress_percent": 50,
+                },
+            )
+            assert progress_response.status_code == 200
+
+        response = client.get("/api/v1/books")
+        assert response.status_code == 200
+        response_books = {item["id"]: item for item in response.json()}
+        for index, book_id in enumerate(book_ids):
+            book = response_books[str(book_id)]
+            assert book["title"] == f"Phase 12 List Books Book {index + 1}"
+            assert book["created_at"] is not None
+            assert book["updated_at"] is not None
+            assert book["learning_status"] == "in_progress"
+            assert book["book_progress_percent"] == 50
+    finally:
+        for book_id in book_ids:
+            _delete_book(book_id)
+        _delete_notification_settings(user_id)
+
+
 def test_learning_completion_marks_missed_session_completed(auth_as):
     client = TestClient(app)
     user_id = uuid.uuid4()

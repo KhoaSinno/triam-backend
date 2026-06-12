@@ -32,17 +32,24 @@ from app.tasks.book_tasks import switch_mode_task
 
 
 def _book_to_response_dict(session: Session, book: Book) -> dict:
-    plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book.id)).first()
+    book_data = book.model_dump()
+    if not book_data.get("id"):
+        session.refresh(book)
+        book_data = book.model_dump()
+
+    book_id = book_data["id"]
+    book_user_id = book_data["user_id"]
+    plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
     learning_status = None
     book_progress_percent = None
     completed_at = None
     if plan:
-        summary = build_book_learning_summary(session, user_id=book.user_id, book_id=book.id, mode=PlanMode(plan.mode))
+        summary = build_book_learning_summary(session, user_id=book_user_id, book_id=book_id, mode=PlanMode(plan.mode))
         learning_status = summary.learning_status.value
         book_progress_percent = summary.book_progress_percent
         completed_at = summary.completed_at
     return {
-        **book.model_dump(),
+        **book_data,
         "learning_status": learning_status,
         "book_progress_percent": book_progress_percent,
         "completed_at": completed_at,
