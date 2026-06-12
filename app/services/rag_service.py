@@ -15,7 +15,6 @@ from app.services.agent_grounding.query_normalizer import normalized_key
 ai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 BOOK_CONTEXT_NOT_FOUND_MESSAGE = "Không tìm thấy thông tin cụ thể trong sách."
-LEGACY_BOOK_KNOWLEDGE_EMBEDDING_MODEL = "text-embedding-3-small"
 
 
 def _execute_supabase_rpc(name: str, payload: dict[str, Any]):
@@ -38,25 +37,6 @@ async def _embed_query(query: str, *, model: str) -> list[float]:
     res = await ai_client.embeddings.create(model=model, input=[query])
     query_vector = res.data[0].embedding
     return query_vector
-
-
-async def search_learning_unit_knowledge(query: str, document_ids: list[str]) -> list[dict[str, Any]] | str:
-    query_vector = await _embed_query(query, model=LEGACY_BOOK_KNOWLEDGE_EMBEDDING_MODEL)
-    result = await asyncio.to_thread(
-        _execute_supabase_rpc,
-        "match_book_knowledge",
-        {
-            "query_embedding": query_vector,
-            "match_threshold": 0.3,
-            "match_count": 10,
-            "filter_book_ids": document_ids,
-        },
-    )
-
-    if not result.data:
-        return BOOK_CONTEXT_NOT_FOUND_MESSAGE
-
-    return result.data
 
 
 async def search_book_section_knowledge(
@@ -173,15 +153,4 @@ async def search_book_knowledge(query: str, document_ids: list[str]) -> list[dic
     if settings.AGENT_HYBRID_RAG_ENABLED:
         return await search_book_hybrid_knowledge(query, document_ids)
 
-    if not settings.AGENT_CANONICAL_SECTION_RAG_ENABLED:
-        return await search_learning_unit_knowledge(query, document_ids)
-
-    canonical_result = await search_book_section_knowledge(query, document_ids)
-    if isinstance(canonical_result, list) and canonical_result:
-        return canonical_result
-
-    if settings.AGENT_CANONICAL_SECTION_RAG_FALLBACK_LEGACY:
-        log.info("Canonical section RAG returned no chunks; falling back to legacy learning-unit RAG.")
-        return await search_learning_unit_knowledge(query, document_ids)
-
-    return canonical_result
+    return await search_book_section_knowledge(query, document_ids)

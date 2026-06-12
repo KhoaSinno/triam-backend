@@ -409,20 +409,6 @@ class UserDeviceToken(SQLModel, table=True):
     )
 
 
-class BookKnowledge(SQLModel, table=True):
-    __tablename__ = "book_knowledge"
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
-    learning_unit_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("learning_units.id", ondelete="CASCADE"), index=True))
-    chunk_index: int = Field(sa_column=Column(Integer, nullable=False))
-    content: str = Field(sa_column=Column(Text, nullable=False))
-    # TODO: REPALCE 1536 (OpenAI text-embedding-3-small)
-    embedding: Optional[list[float]] = Field(default=None, sa_column=Column(Vector(1536)))
-
-    __table_args__ = (UniqueConstraint("learning_unit_id", "chunk_index", name="uq_book_knowledge_unit_chunk_index"),)
-
-
 class BookSectionKnowledge(SQLModel, table=True):
     __tablename__ = "book_section_knowledge"
 

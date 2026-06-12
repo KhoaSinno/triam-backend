@@ -234,7 +234,7 @@ async def _track_progress(
         raise
 
 
-async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | None, *, include_rag: bool) -> None:
+async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | None) -> None:
     if _job_is_ready(job_id):
         logger.info(f"Skip book processing because job is already READY | book_id={book_id} | job_id={job_id}")
         return
@@ -264,7 +264,7 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
         job_id,
         status=ProcessingJobStatus.PROCESSING,
         progress_percent=0,
-        current_step="Đã tạo các bài học, đang xử lý audio và tri thức.",
+        current_step="Đã tạo các bài học, đang xử lý audio.",
         total_units=total_units,
         done_units=0,
         estimated_input_tokens=estimated_input_tokens,
@@ -285,7 +285,6 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
             item.budget.char_count,
             item.budget.estimated_tokens,
             item.budget.estimated_audio_seconds,
-            include_rag=include_rag,
         )
         completed += 1
         progress = int(completed * 100 / total_units)
@@ -314,7 +313,6 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
                     item.budget.char_count,
                     item.budget.estimated_tokens,
                     item.budget.estimated_audio_seconds,
-                    include_rag=include_rag,
                 )
             )
             for item in remaining_items
@@ -336,7 +334,7 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
 
 async def run_background_processing(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | None = None) -> None:
     try:
-        await _run_unit_pipeline(book_id, mode, job_id, include_rag=settings.LEARNING_UNIT_LEGACY_RAG_INDEX_ENABLED)
+        await _run_unit_pipeline(book_id, mode, job_id)
     except Exception as exc:
         _set_book_status(book_id, BookStatus.ERROR, str(exc))
         _fail_job(job_id, "Xử lý sách thất bại.", str(exc))
@@ -346,7 +344,7 @@ async def run_background_processing(book_id: uuid.UUID, mode: str, job_id: uuid.
 async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str, job_id: uuid.UUID | None = None) -> None:
     try:
         _set_book_status(book_id, BookStatus.PROCESSING)
-        await _run_unit_pipeline(book_id, new_mode, job_id, include_rag=settings.LEARNING_UNIT_LEGACY_RAG_INDEX_ENABLED)
+        await _run_unit_pipeline(book_id, new_mode, job_id)
     except Exception as exc:
         _set_book_status(book_id, BookStatus.ERROR, str(exc))
         _fail_job(job_id, f"Sinh audio mode {new_mode} thất bại.", str(exc))
