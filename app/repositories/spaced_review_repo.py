@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
-from app.core.constant import ReviewItemStatus
+from app.core.constant import PlanMode, ReviewItemStatus
 from app.models.db_models import SpacedReviewItem
 
 
@@ -99,6 +99,68 @@ def get_review_item_for_user(
             SpacedReviewItem.user_id == user_id,
         )
     ).first()
+
+
+def list_review_items_for_user(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    now: datetime,
+    status_filter: str = "due",
+    book_id: uuid.UUID | None = None,
+    mode: PlanMode | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[SpacedReviewItem]:
+    statement = select(SpacedReviewItem).where(SpacedReviewItem.user_id == user_id)
+    if book_id:
+        statement = statement.where(SpacedReviewItem.book_id == book_id)
+    if mode:
+        statement = statement.where(SpacedReviewItem.mode == mode)
+
+    if status_filter == "due":
+        statement = statement.where(
+            SpacedReviewItem.status.in_([ReviewItemStatus.DUE, ReviewItemStatus.PENDING]),
+            SpacedReviewItem.due_at <= now,
+        )
+    elif status_filter == "upcoming":
+        statement = statement.where(
+            SpacedReviewItem.status == ReviewItemStatus.PENDING,
+            SpacedReviewItem.due_at > now,
+        )
+    elif status_filter == "completed":
+        statement = statement.where(SpacedReviewItem.status == ReviewItemStatus.COMPLETED)
+    elif status_filter == "skipped":
+        statement = statement.where(SpacedReviewItem.status == ReviewItemStatus.SKIPPED)
+    elif status_filter != "all":
+        statement = statement.where(SpacedReviewItem.status == ReviewItemStatus(status_filter))
+
+    if status_filter == "all":
+        statement = statement.where(SpacedReviewItem.status != ReviewItemStatus.CANCELLED)
+
+    return list(session.exec(statement.order_by(SpacedReviewItem.due_at).offset(offset).limit(limit)).all())
+
+
+def count_review_items_for_user(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    now: datetime,
+    status_filter: str,
+    book_id: uuid.UUID,
+    mode: PlanMode,
+) -> int:
+    return len(
+        list_review_items_for_user(
+            session,
+            user_id=user_id,
+            now=now,
+            status_filter=status_filter,
+            book_id=book_id,
+            mode=mode,
+            limit=1000,
+        )
+    )
 
 
 def mark_review_item_completed(session: Session, review_item: SpacedReviewItem, *, completed_at: datetime) -> SpacedReviewItem:

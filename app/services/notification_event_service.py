@@ -13,7 +13,7 @@ from app.core.constant import (
     NotificationStatus,
     NotificationType,
     PlanMode,
-    PlanStatus,
+    ReadingPlanSessionStatus,
     ReviewItemStatus,
 )
 from app.core.logger import log
@@ -22,7 +22,7 @@ from app.models.db_models import (
     LearningUnit,
     LearningUnitProgress,
     NotificationOutbox,
-    ReadingPlan,
+    ReadingPlanSession,
     SpacedReviewItem,
     UserNotification,
 )
@@ -34,16 +34,15 @@ from app.repositories.notification_outbox_repo import (
     mark_outbox_sent,
 )
 from app.repositories.notification_settings_repo import get_or_create_notification_settings
+from app.repositories.reading_plan_session_repo import list_due_reminder_sessions, list_missed_sessions_pending_notification
 from app.repositories.spaced_review_repo import defer_review_item, get_due_review_items, mark_review_item_due
 from app.repositories.user_notification_repo import create_user_notification_once
 from app.services.fcm_service import send_fcm_notification
 from app.services.notification_copy_service import build_notification_copy
 from app.services.reminder_schedule_service import (
     local_day_bounds_utc,
-    reminder_due_at_for_today,
     shift_out_of_quiet_hours,
     to_local,
-    weekday_is_enabled,
 )
 
 
@@ -284,98 +283,211 @@ def create_due_review_outbox_rows(session: Session, *, now: datetime) -> int:
     return created_count
 
 
-def _build_plan_reminder_outbox(session: Session, plan: ReadingPlan, book: Book, *, now: datetime) -> NotificationOutbox | None:
-    user_settings = get_or_create_notification_settings(session, book.user_id)
+def _build_plan_session_reminder_outbox(
+    session: Session,
+    plan_session: ReadingPlanSession,
+    book: Book,
+    *,
+    now: datetime,
+) -> NotificationOutbox | None:
+    user_settings = get_or_create_notification_settings(session, plan_session.user_id)
     if not user_settings.reminders_enabled:
         return None
-
-    local_now = to_local(now, user_settings.timezone)
-    if not weekday_is_enabled(plan.schedule_config, local_now):
+    if not has_playable_uncompleted_unit(session, user_id=plan_session.user_id, book_id=book.id, mode=plan_session.mode):
         return None
 
-    reminder_time = plan.reminder_time or user_settings.reminder_time
-    reminder_due_at = reminder_due_at_for_today(
-        now_utc=now,
-        timezone_name=user_settings.timezone,
-        reminder_time=reminder_time,
-    )
-    if now < reminder_due_at:
-        return None
-
-    due_at = shift_out_of_quiet_hours(
-        reminder_due_at,
-        user_settings.timezone,
-        user_settings.quiet_hours_start,
-        user_settings.quiet_hours_end,
-    )
-    if not _daily_cap_available(session, user_id=book.user_id, due_at=due_at, user_settings=user_settings):
-        return None
-
-    if not has_playable_uncompleted_unit(session, user_id=book.user_id, book_id=book.id, mode=plan.mode):
-        return None
-
-    start_utc, end_utc = local_day_bounds_utc(local_now.date(), user_settings.timezone)
+    local_scheduled = to_local(plan_session.scheduled_at, plan_session.timezone)
+    start_utc, end_utc = local_day_bounds_utc(local_scheduled.date(), plan_session.timezone)
     if has_studied_book_between(
         session,
-        user_id=book.user_id,
+        user_id=plan_session.user_id,
         book_id=book.id,
-        mode=plan.mode,
+        mode=plan_session.mode,
         start_utc=start_utc,
         end_utc=end_utc,
     ):
         return None
 
-    local_date = local_now.date().isoformat()
+    due_at = shift_out_of_quiet_hours(
+        plan_session.scheduled_at,
+        user_settings.timezone,
+        user_settings.quiet_hours_start,
+        user_settings.quiet_hours_end,
+    )
+    if due_at > now:
+        return None
+    if not _daily_cap_available(session, user_id=plan_session.user_id, due_at=due_at, user_settings=user_settings):
+        return None
+
     payload = {
         "book_id": str(book.id),
         "book_title": book.title,
-        "plan_id": str(plan.id),
-        "mode": plan.mode.value,
-        "local_date": local_date,
-        "action_type": "open_book",
+        "plan_id": str(plan_session.plan_id),
+        "session_id": str(plan_session.id),
+        "session_index": plan_session.session_index,
+        "mode": plan_session.mode.value,
+        "local_date": plan_session.local_date,
+        "action_type": "open_plan_session",
         "action_payload": {
             "book_id": str(book.id),
-            "mode": plan.mode.value,
+            "plan_id": str(plan_session.plan_id),
+            "session_id": str(plan_session.id),
+            "mode": plan_session.mode.value,
         },
     }
-    return create_outbox_once(
+    idempotency_key = f"plan-session:{plan_session.user_id}:{plan_session.id}:{plan_session.local_date}"
+    outbox = create_outbox_once(
         session,
         NotificationOutbox(
-            user_id=book.user_id,
+            user_id=plan_session.user_id,
             type=NotificationType.PLAN_REMINDER,
             channel=NotificationChannel.ALL,
             status=NotificationStatus.PENDING,
             payload=payload,
             due_at=due_at,
-            idempotency_key=f"plan:{book.user_id}:{book.id}:{plan.id}:{local_date}",
+            idempotency_key=idempotency_key,
         ),
     )
+    if outbox or get_outbox_by_idempotency_key(session, idempotency_key):
+        plan_session.status = ReadingPlanSessionStatus.DUE.value
+        plan_session.updated_at = now
+        session.add(plan_session)
+        session.commit()
+    return outbox
 
 
-def create_due_plan_reminder_outbox_rows(session: Session, *, now: datetime) -> int:
-    plan_ids = session.exec(
-        select(ReadingPlan.id)
-        .join(Book, ReadingPlan.book_id == Book.id)
-        .where(ReadingPlan.status == PlanStatus.ACTIVE)
-        .where(Book.status.in_([BookStatus.PARTIAL_READY.value, BookStatus.READY.value]))
-    ).all()
-
+def _create_due_plan_session_reminder_outbox_rows(session: Session, *, now: datetime) -> int:
     created_count = 0
-    for plan_id in plan_ids:
+    sessions = list_due_reminder_sessions(
+        session,
+        now=now,
+        limit=settings.NOTIFICATION_DELIVERY_BATCH_SIZE * 2,
+    )
+    for plan_session in sessions:
         try:
-            plan = session.get(ReadingPlan, plan_id)
-            if not plan:
-                continue
-            book = session.get(Book, plan.book_id)
+            book = session.get(Book, plan_session.book_id)
             if not book or book.status not in (BookStatus.PARTIAL_READY.value, BookStatus.READY.value):
                 continue
-            if _build_plan_reminder_outbox(session, plan, book, now=now):
+            if _build_plan_session_reminder_outbox(session, plan_session, book, now=now):
                 created_count += 1
         except ObjectDeletedError:
             session.rollback()
-            log.warning(f"Reading plan or book was deleted concurrently during scan | plan_id={plan_id}")
+            log.warning(f"Reading plan session was deleted concurrently during scan | session_id={plan_session.id}")
             continue
     return created_count
+
+
+def _build_missed_plan_session_outbox(
+    session: Session,
+    plan_session: ReadingPlanSession,
+    book: Book,
+    *,
+    now: datetime,
+) -> NotificationOutbox | None:
+    user_settings = get_or_create_notification_settings(session, plan_session.user_id)
+    if not user_settings.reminders_enabled:
+        plan_session.missed_notified_at = plan_session.missed_notified_at or now
+        plan_session.updated_at = now
+        session.add(plan_session)
+        session.commit()
+        return None
+
+    if has_studied_book_between(
+        session,
+        user_id=plan_session.user_id,
+        book_id=book.id,
+        mode=plan_session.mode,
+        start_utc=plan_session.scheduled_at,
+        end_utc=now,
+    ):
+        plan_session.missed_notified_at = plan_session.missed_notified_at or now
+        plan_session.updated_at = now
+        session.add(plan_session)
+        session.commit()
+        return None
+
+    reminder_key = f"plan-session:{plan_session.user_id}:{plan_session.id}:{plan_session.local_date}"
+    if get_outbox_by_idempotency_key(session, reminder_key):
+        plan_session.missed_notified_at = plan_session.missed_notified_at or now
+        plan_session.updated_at = now
+        session.add(plan_session)
+        session.commit()
+        return None
+
+    due_at = shift_out_of_quiet_hours(
+        now,
+        user_settings.timezone,
+        user_settings.quiet_hours_start,
+        user_settings.quiet_hours_end,
+    )
+    if not _daily_cap_available(session, user_id=plan_session.user_id, due_at=due_at, user_settings=user_settings):
+        return None
+
+    payload = {
+        "subtype": "missed_session",
+        "book_id": str(book.id),
+        "book_title": book.title,
+        "plan_id": str(plan_session.plan_id),
+        "session_id": str(plan_session.id),
+        "session_index": plan_session.session_index,
+        "mode": plan_session.mode.value,
+        "local_date": plan_session.local_date,
+        "action_type": "open_plan_session",
+        "action_payload": {
+            "book_id": str(book.id),
+            "plan_id": str(plan_session.plan_id),
+            "session_id": str(plan_session.id),
+            "mode": plan_session.mode.value,
+        },
+    }
+    idempotency_key = f"missed-session:{plan_session.user_id}:{plan_session.id}"
+    outbox = create_outbox_once(
+        session,
+        NotificationOutbox(
+            user_id=plan_session.user_id,
+            type=NotificationType.PLAN_REMINDER,
+            channel=NotificationChannel.ALL,
+            status=NotificationStatus.PENDING,
+            payload=payload,
+            due_at=due_at,
+            idempotency_key=idempotency_key,
+        ),
+    )
+    if outbox or get_outbox_by_idempotency_key(session, idempotency_key):
+        plan_session.missed_notified_at = plan_session.missed_notified_at or now
+        plan_session.updated_at = now
+        session.add(plan_session)
+        session.commit()
+    return outbox
+
+
+def create_missed_plan_session_outbox_rows(session: Session, *, now: datetime) -> int:
+    created_count = 0
+    sessions = list_missed_sessions_pending_notification(
+        session,
+        now=now,
+        limit=settings.NOTIFICATION_DELIVERY_BATCH_SIZE * 2,
+    )
+    for plan_session in sessions:
+        try:
+            book = session.get(Book, plan_session.book_id)
+            if not book or book.status not in (BookStatus.PARTIAL_READY.value, BookStatus.READY.value):
+                plan_session.missed_notified_at = plan_session.missed_notified_at or now
+                plan_session.updated_at = now
+                session.add(plan_session)
+                session.commit()
+                continue
+            if _build_missed_plan_session_outbox(session, plan_session, book, now=now):
+                created_count += 1
+        except ObjectDeletedError:
+            session.rollback()
+            log.warning(f"Reading plan session was deleted concurrently during missed scan | session_id={plan_session.id}")
+            continue
+    return created_count
+
+
+def create_due_plan_reminder_outbox_rows(session: Session, *, now: datetime) -> int:
+    return _create_due_plan_session_reminder_outbox_rows(session, now=now) + create_missed_plan_session_outbox_rows(session, now=now)
 
 
 def deliver_outbox_notification(session: Session, outbox: NotificationOutbox, *, now: datetime) -> None:

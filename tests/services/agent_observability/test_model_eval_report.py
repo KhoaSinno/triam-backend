@@ -93,14 +93,16 @@ def test_candidate_matrix_allows_baseline_to_document_multiple_surfaces():
     )
 
 
-def test_safe_model_config_includes_rag_runtime_flags():
+def test_safe_model_config_includes_section_rag_runtime_flags():
     from app.core.config import settings
     from app.services.agent_observability.model_eval_report import safe_model_config_from_settings
 
     config = safe_model_config_from_settings(settings)
 
-    assert "AGENT_CANONICAL_SECTION_RAG_ENABLED" in config
     assert "AGENT_HYBRID_RAG_ENABLED" in config
+    assert "BOOK_SECTION_EMBEDDING_VERSION" in config
+    assert "BOOK_SECTION_RAG_MATCH_THRESHOLD" in config
+    assert "BOOK_SECTION_RAG_MATCH_COUNT" in config
 
 
 def test_classify_failure_codes_marks_missing_section_trace_as_trace_coverage():

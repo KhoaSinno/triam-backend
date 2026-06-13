@@ -8,8 +8,8 @@ load_dotenv(override=True)
 
 class Settings(BaseSettings):
     OPENAI_API_KEY: str
-    PINECONE_API_KEY: str
-    PINECONE_ENV: str
+    # PINECONE_API_KEY: str
+    # PINECONE_ENV: str
     TAVILY_API_KEY: str
     GEMINI_BASE_URL: str
     GEMINI_API_KEY: str
@@ -47,11 +47,8 @@ class Settings(BaseSettings):
     LIVEKIT_ROOM_EMPTY_TIMEOUT_SECONDS: int = 60
     LIVEKIT_ROOM_DEPARTURE_TIMEOUT_SECONDS: int = 20
     LIVEKIT_AGENT_EMPTY_ROOM_GRACE_SECONDS: float = 8.0
-    GEMINI_MODEL_NATIVE_AUDIO: str = "gemini-2.5-flash-native-audio-latest"
     GEMINI_MODEL_LLM: str = "gemini-2.5-flash"
     DEEPGRAM_API_KEY: str
-    CARTESIA_API_KEY_TTS: str
-    ELEVENLABS_API_KEY_TTS: str
 
     # Realtime voice agent behavior
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-mini"
@@ -59,8 +56,8 @@ class Settings(BaseSettings):
     # Text
     VOICE_AGENT_HISTORY_LIMIT: int = 24
     VOICE_AGENT_RAG_MAX_CHARS: int = 6000
-    VOICE_AGENT_CONSOLE_BOOK_ID: str = "dae3b3ae-8740-4485-9c16-12e685c6c970"
-    VOICE_AGENT_CONSOLE_THREAD_ID: str = "4843070c-c08b-45a4-aa7a-48028ae61318"
+    VOICE_AGENT_CONSOLE_BOOK_ID: str = "c3f13d07-4494-4995-ba75-30a12589b8fc"
+    VOICE_AGENT_CONSOLE_THREAD_ID: str = "07be00b9-c6da-4801-8ba2-7558205b92b2"
 
     # Dynamic Prompt cho OpenAI Realtime Transcription
     OPENAI_REALTIME_TRANSCRIPTION_MODEL: str = "gpt-4o-transcribe"
@@ -119,9 +116,6 @@ class Settings(BaseSettings):
     AGENT_GROUNDING_ROUTER_ENABLED: bool = False
     AGENT_SHARED_POLICY_ENABLED: bool = True
     AGENT_SECTION_CONTEXT_MAX_CHARS: int = 24000
-    AGENT_CANONICAL_SECTION_RAG_ENABLED: bool = True
-    AGENT_CANONICAL_SECTION_RAG_FALLBACK_LEGACY: bool = False
-    LEARNING_UNIT_LEGACY_RAG_INDEX_ENABLED: bool = False
     # Hybrid RAG
     AGENT_HYBRID_RAG_ENABLED: bool = True
     AGENT_HYBRID_VECTOR_WEIGHT: float = 0.60

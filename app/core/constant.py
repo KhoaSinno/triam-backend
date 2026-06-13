@@ -4,6 +4,7 @@ from enum import Enum
 class PlanStatus(str, Enum):
     ACTIVE = "active"
     INACTIVE = "inactive"
+    COMPLETED = "completed"
     ERROR = "error"
 
 
@@ -78,6 +79,29 @@ class LearningProgressStatus(str, Enum):
     COMPLETED = "completed"
 
 
+class BookLearningStatus(str, Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+
+
 class ReviewAction(str, Enum):
     COMPLETE = "complete"
     SKIP = "skip"
+
+
+class ReadingPlanSessionStatus(str, Enum):
+    SCHEDULED = "scheduled"
+    DUE = "due"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    MISSED = "missed"
+    SKIPPED = "skipped"
+    CANCELLED = "cancelled"
+
+
+class ReadingPlanSessionUnitStatus(str, Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    SKIPPED = "skipped"

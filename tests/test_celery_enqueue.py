@@ -158,7 +158,7 @@ def test_switch_mode_enqueues_document_task(monkeypatch):
     from app.models.db_models import ReadingPlan
 
     with Session(engine) as session:
-        plan = ReadingPlan(book_id=book_id, mode=PlanMode.FULL, pace=1, schedule_config=["Mon"], status=PlanStatus.ACTIVE)
+        plan = ReadingPlan(book_id=book_id, mode=PlanMode.FULL, pace=1, status=PlanStatus.ACTIVE)
         session.add(plan)
         session.commit()
 

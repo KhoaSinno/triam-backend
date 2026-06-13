@@ -5,6 +5,7 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.constant import DocumentType
+from app.schemas.learning_progress import BookLearningSummaryResponse
 
 
 class BookResponse(BaseModel):
@@ -16,6 +17,9 @@ class BookResponse(BaseModel):
     total_sections: Optional[int] = None
     total_units: Optional[int] = None
     status: Optional[str] = None
+    learning_status: Optional[str] = None
+    book_progress_percent: Optional[int] = None
+    completed_at: Optional[datetime] = None
     document_type: Optional[DocumentType] = None
     file_url: Optional[str] = None
     created_at: datetime
@@ -53,6 +57,7 @@ class BookDetailResponse(BaseModel):
     mode: str
     total_sections: Optional[int] = None
     total_units: int = 0
+    learning_summary: Optional[BookLearningSummaryResponse] = None
     units: list[LearningUnitDetailResponse] = Field(default_factory=list)
 
 

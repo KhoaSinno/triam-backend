@@ -72,13 +72,6 @@ def local_day_bounds_utc(local_day: date, timezone_name: str) -> tuple[datetime,
     return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
 
 
-def weekday_is_enabled(schedule_config: object, local_dt: datetime) -> bool:
-    if not isinstance(schedule_config, list):
-        return False
-    enabled_days = {WEEKDAY_ALIASES.get(str(day).strip().lower()) for day in schedule_config}
-    return local_dt.weekday() in enabled_days
-
-
 def reminder_due_at_for_today(
     *,
     now_utc: datetime,

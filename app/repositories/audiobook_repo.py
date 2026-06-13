@@ -1,12 +1,13 @@
 import uuid
 from typing import Optional
 
-from sqlmodel import Session, select
+from sqlalchemy import or_
+from sqlmodel import Session, col, delete, select
 
 from app.core.exceptions import BookNotFoundError, StorageOperationError
 from app.core.logger import log
 from app.core.supabase import supabase
-from app.models.db_models import Book
+from app.models.db_models import Book, NotificationOutbox, UserNotification
 from app.schemas.audiobook import BookUpdateRequest
 
 
@@ -65,6 +66,36 @@ def delete_book(session: Session, book_id: uuid.UUID) -> None:
         session.commit()
 
 
+def cleanup_book_side_effects(session: Session, *, book_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    book_id_str = str(book_id)
+
+    outbox_filter = or_(
+        NotificationOutbox.payload.contains({"book_id": book_id_str}),
+        NotificationOutbox.payload.contains({"action_payload": {"book_id": book_id_str}}),
+    )
+
+    outbox_ids = list(session.exec(select(NotificationOutbox.id).where(NotificationOutbox.user_id == user_id, outbox_filter)).all())
+
+    user_notification_filter = UserNotification.action_payload.contains({"book_id": book_id_str})
+
+    if outbox_ids:
+        user_notification_filter = or_(
+            UserNotification.action_payload.contains({"book_id": book_id_str}),
+            col(UserNotification.outbox_id).in_(outbox_ids),
+        )
+
+    session.exec(delete(UserNotification).where(UserNotification.user_id == user_id, user_notification_filter))
+    if outbox_ids:
+        session.exec(
+            delete(NotificationOutbox).where(
+                NotificationOutbox.user_id == user_id,
+                col(NotificationOutbox.id).in_(outbox_ids),
+            )
+        )
+
+    session.flush()
+
+
 async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uuid.UUID):
     """
     Xóa sạch assets trong Storage và bản ghi trong Database.
@@ -72,6 +103,7 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uui
     book = get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
+
 
     str_book_id = str(book_id)
     target_buckets = ["audios", "raw_books"]
@@ -92,7 +124,8 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uui
                     supabase.storage.from_(bucket).remove(paths)
                     log.info(f"Đã xóa {len(paths)} files từ bucket: {bucket}")
 
-        # 3. Xóa record trong DB
+        # 3. Xóa record trong DB + notification
+        cleanup_book_side_effects(session, book_id=book_id, user_id=user_id)
         delete_book(session, book_id)
         log.info(f"Đã dọn dẹp sạch sẽ database cho book: {str_book_id}")
 

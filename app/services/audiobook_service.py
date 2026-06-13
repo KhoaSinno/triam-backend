@@ -1,7 +1,8 @@
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from app.core.constant import BookStatus, PlanMode, PlanStatus, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import BookNotFoundError, BookStatusConflictError, ExternalServiceError, NoReadingPlanError, ReadingPlanNotFoundError, ReadingPlanScheduleConflictError
@@ -15,22 +16,56 @@ from app.repositories.learning_unit_repo import (
     list_unit_segments,
 )
 from app.repositories.processing_job_repo import create_processing_job, update_processing_job
-from app.repositories.reading_plan_schedule_repo import delete_slots_for_plan, list_active_slots, list_slots_for_plan
+from app.repositories.reading_plan_repo import get_current_plan_for_owned_book
+from app.repositories.reading_plan_schedule_repo import list_active_slots, list_slots_for_plan, replace_slots_for_plan, set_slots_active
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
+from app.services.learning_progress_service import build_book_learning_summary
 from app.services.learning_unit_planner_service import plan_learning_units_async
-from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
+from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, WEEKDAY_SHORT_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
+from app.services.reading_plan_session_service import (
+    build_plan_session_summary,
+    cancel_future_sessions_for_plan,
+    ensure_future_sessions_for_plan,
+    mark_due_sessions_missed,
+    sync_existing_session_units_from_progress,
+)
 from app.tasks.book_tasks import switch_mode_task
 
 
-def list_books(session: Session, user_id: uuid.UUID) -> list[Book]:
-    return audiobook_repo.get_audiobooks_by_user(session, user_id)
+def _book_to_response_dict(session: Session, book: Book) -> dict:
+    book_data = book.model_dump()
+    if not book_data.get("id"):
+        session.refresh(book)
+        book_data = book.model_dump()
+
+    book_id = book_data["id"]
+    book_user_id = book_data["user_id"]
+    plan = get_current_plan_for_owned_book(session, user_id=book_user_id, book_id=book_id)
+    learning_status = None
+    book_progress_percent = None
+    completed_at = None
+    if plan:
+        summary = build_book_learning_summary(session, user_id=book_user_id, book_id=book_id, mode=PlanMode(plan.mode))
+        learning_status = summary.learning_status.value
+        book_progress_percent = summary.book_progress_percent
+        completed_at = summary.completed_at
+    return {
+        **book_data,
+        "learning_status": learning_status,
+        "book_progress_percent": book_progress_percent,
+        "completed_at": completed_at,
+    }
+
+
+def list_books(session: Session, user_id: uuid.UUID) -> list[dict]:
+    return [_book_to_response_dict(session, book) for book in audiobook_repo.get_audiobooks_by_user(session, user_id)]
 
 
 def get_book(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> Book:
     book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
-    return book
+    return _book_to_response_dict(session, book)
 
 
 def create_new_book(session: Session, user_id: uuid.UUID, payload: BookCreateRequest) -> Book:
@@ -50,8 +85,8 @@ async def delete_book_and_assets(session: Session, book_id: uuid.UUID, user_id: 
     await audiobook_repo.delete_book_storage(session, book_id, user_id)
 
 
-def _active_plan(session: Session, book_id: uuid.UUID) -> ReadingPlan:
-    plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
+def _active_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> ReadingPlan:
+    plan = get_current_plan_for_owned_book(session, user_id=user_id, book_id=book_id)
     if not plan:
         raise NoReadingPlanError()
     return plan
@@ -76,20 +111,29 @@ def _user_slot_to_dict(slot: ReadingPlanScheduleSlot) -> dict:
     }
 
 
+def _slots_to_schedule_config(slots: list[ReadingPlanScheduleSlot]) -> list[str]:
+    return [WEEKDAY_SHORT_LABELS.get(slot.weekday, str(slot.weekday)) for slot in slots]
+
+
 def _reading_plan_to_dict(session: Session, plan: ReadingPlan) -> dict:
+    all_slots = list_slots_for_plan(session, plan_id=plan.id, active_only=False)
     active_slots = list_slots_for_plan(session, plan_id=plan.id, active_only=True)
     return {
         "plan_id": plan.id,
         "book_id": plan.book_id,
         "mode": PlanMode(plan.mode),
         "pace": plan.pace,
-        "schedule_config": list(plan.schedule_config or []),
+        "schedule_config": _slots_to_schedule_config(all_slots),
         "reminder_time": plan.reminder_time,
         "status": plan.status,
         "plan_status": plan.status,
         "active_slots": [_slot_to_dict(slot) for slot in active_slots],
         "created_at": plan.created_at,
         "updated_at": plan.updated_at,
+        "started_at": plan.started_at,
+        "paused_at": plan.paused_at,
+        "completed_at": plan.completed_at,
+        "session_summary": build_plan_session_summary(session, plan_id=plan.id),
     }
 
 
@@ -97,9 +141,11 @@ def get_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -
     book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
-    plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
+    plan = get_current_plan_for_owned_book(session, user_id=user_id, book_id=book_id)
     if not plan:
         raise ReadingPlanNotFoundError()
+    mark_due_sessions_missed(session, user_id=user_id)
+    session.commit()
     return _reading_plan_to_dict(session, plan)
 
 
@@ -136,8 +182,9 @@ def get_book_details(session: Session, book_id: uuid.UUID, user_id: uuid.UUID, *
     if not book:
         raise BookNotFoundError()
 
-    plan = _active_plan(session, book_id)
+    plan = _active_plan(session, book_id, user_id)
     active_mode = PlanMode(mode) if mode else PlanMode(plan.mode)
+    learning_summary = build_book_learning_summary(session, user_id=user_id, book_id=book_id, mode=active_mode)
     units = list_learning_units(session, book_id, active_mode)
     segments_map = _segments_by_unit(list_unit_segments(session, [unit.id for unit in units]))
 
@@ -147,6 +194,7 @@ def get_book_details(session: Session, book_id: uuid.UUID, user_id: uuid.UUID, *
         "mode": active_mode.value,
         "total_sections": book.total_sections,
         "total_units": len(units),
+        "learning_summary": learning_summary,
         "units": [_unit_to_dict(unit, segments_map.get(unit.id, [])) for unit in units],
     }
 
@@ -224,7 +272,7 @@ async def switch_book_mode(
         raise BookNotFoundError()
     requested_mode = PlanMode(payload_mode)
 
-    plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
+    plan = get_current_plan_for_owned_book(session, user_id=user_id, book_id=book_id)
     if not plan:
         raise ReadingPlanNotFoundError()
 
@@ -292,10 +340,12 @@ def pause_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID)
     book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
-    plan = _active_plan(session, book_id)
+    plan = _active_plan(session, book_id, user_id)
     plan.status = PlanStatus.INACTIVE.value
+    plan.paused_at = datetime.now(timezone.utc)
     session.add(plan)
-    delete_slots_for_plan(session, plan_id=plan.id)
+    set_slots_active(session, plan_id=plan.id, is_active=False)
+    cancel_future_sessions_for_plan(session, plan_id=plan.id)
     session.commit()
     return {"message": "Đã tạm dừng kế hoạch học tập.", **_reading_plan_to_dict(session, plan)}
 
@@ -304,34 +354,47 @@ def resume_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID
     book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
-    plan = _active_plan(session, book_id)
+    plan = _active_plan(session, book_id, user_id)
 
     if plan.status == PlanStatus.ACTIVE.value:
         return {"message": "Kế hoạch học tập đang hoạt động.", **_reading_plan_to_dict(session, plan)}
+    if plan.status == PlanStatus.COMPLETED.value:
+        raise BookStatusConflictError("Sách đã hoàn thành. Hãy dùng chức năng ôn tập hoặc học lại nếu muốn bắt đầu vòng mới.")
 
     if book.status not in (BookStatus.PARTIAL_READY.value, BookStatus.READY.value):
         raise BookStatusConflictError("Tài liệu chưa sẵn sàng để bắt đầu học. Vui lòng chờ hệ thống xử lý thêm.")
 
+    existing_slots = list_slots_for_plan(session, plan_id=plan.id, active_only=False)
+    if not existing_slots:
+        raise ReadingPlanScheduleConflictError("Kế hoạch học tập chưa có lịch học. Vui lòng cập nhật lịch học trước khi tiếp tục.")
+
     slots = validate_plan_schedule_for_activation(
         session,
         user_id=user_id,
-        schedule_config=plan.schedule_config,
+        schedule_config=_slots_to_schedule_config(existing_slots),
         reminder_time=plan.reminder_time,
+        exclude_plan_id=plan.id,
     )
 
     plan.status = PlanStatus.ACTIVE.value
+    plan.started_at = plan.started_at or datetime.now(timezone.utc)
+    plan.paused_at = None
     session.add(plan)
-    delete_slots_for_plan(session, plan_id=plan.id)
-
-    for slot in build_slots_for_plan(
-        user_id=user_id,
-        book_id=book_id,
+    replace_slots_for_plan(
+        session,
         plan_id=plan.id,
-        slots=slots,
-    ):
-        session.add(slot)
+        slots=build_slots_for_plan(
+            user_id=user_id,
+            book_id=book_id,
+            plan_id=plan.id,
+            slots=slots,
+            is_active=True,
+        ),
+    )
 
     try:
+        ensure_future_sessions_for_plan(session, plan=plan, user_id=user_id, replace_unfinished=True)
+        sync_existing_session_units_from_progress(session, plan=plan, user_id=user_id)
         session.commit()
     except IntegrityError as exc:
         session.rollback()
@@ -350,10 +413,11 @@ def update_reading_plan(
     book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
-    plan = _active_plan(session, book_id)
+    plan = _active_plan(session, book_id, user_id)
 
     new_pace = pace if pace is not None else plan.pace
-    new_schedule_config = schedule_config if schedule_config is not None else plan.schedule_config
+    existing_slots = list_slots_for_plan(session, plan_id=plan.id, active_only=False)
+    new_schedule_config = schedule_config if schedule_config is not None else _slots_to_schedule_config(existing_slots)
     new_reminder_time = reminder_time if reminder_time is not None else plan.reminder_time
 
     if plan.status == PlanStatus.ACTIVE.value:
@@ -365,29 +429,43 @@ def update_reading_plan(
             exclude_plan_id=plan.id,
         )
 
-        delete_slots_for_plan(session, plan_id=plan.id)
-
-        for slot in build_slots_for_plan(
-            user_id=user_id,
-            book_id=book_id,
+        replace_slots_for_plan(
+            session,
             plan_id=plan.id,
-            slots=slots,
-        ):
-            session.add(slot)
+            slots=build_slots_for_plan(
+                user_id=user_id,
+                book_id=book_id,
+                plan_id=plan.id,
+                slots=slots,
+                is_active=True,
+            ),
+        )
     else:
-        validate_plan_schedule_shape(
+        slots = validate_plan_schedule_shape(
             session,
             user_id=user_id,
             schedule_config=new_schedule_config,
             reminder_time=new_reminder_time,
         )
-        delete_slots_for_plan(session, plan_id=plan.id)
+        replace_slots_for_plan(
+            session,
+            plan_id=plan.id,
+            slots=build_slots_for_plan(
+                user_id=user_id,
+                book_id=book_id,
+                plan_id=plan.id,
+                slots=slots,
+                is_active=False,
+            ),
+        )
 
     plan.pace = new_pace
-    plan.schedule_config = new_schedule_config
     plan.reminder_time = new_reminder_time
     session.add(plan)
     try:
+        if plan.status == PlanStatus.ACTIVE.value:
+            ensure_future_sessions_for_plan(session, plan=plan, user_id=user_id, replace_unfinished=True)
+            sync_existing_session_units_from_progress(session, plan=plan, user_id=user_id)
         session.commit()
     except IntegrityError as exc:
         session.rollback()

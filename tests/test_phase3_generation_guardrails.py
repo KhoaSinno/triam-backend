@@ -72,13 +72,9 @@ async def test_tts_pipeline_fails_when_llm_returns_no_playable_scripts(monkeypat
 
 @pytest.mark.asyncio
 async def test_learning_unit_failure_keeps_unit_and_marks_error(monkeypatch):
-    async def fake_rag(*args, **kwargs):
-        return None
-
     async def fake_tts(*args, **kwargs):
         raise NoPlayableAudioError("no audio")
 
-    monkeypatch.setattr("app.services.workers.learning_unit_worker._run_rag_pipeline", fake_rag)
     monkeypatch.setattr("app.services.workers.learning_unit_worker.run_learning_unit_tts_pipeline", fake_tts)
 
     from app.services.workers.learning_unit_worker import process_learning_unit

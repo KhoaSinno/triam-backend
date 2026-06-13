@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -10,6 +11,7 @@ from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
 from app.schemas.plan import (
     PlanUpdateRequest,
     ReadingPlanResponse,
+    ReadingPlanSessionListResponse,
     ReadingPlanUpdateResponse,
     ReadingPlanUserSlotResponse,
     SwitchModeRequest,
@@ -31,6 +33,7 @@ from app.services.audiobook_service import (
     update_book_by_id,
     update_reading_plan,
 )
+from app.services.reading_plan_session_service import list_book_reading_plan_sessions, list_today_reading_plan_sessions
 
 router = APIRouter()
 
@@ -126,6 +129,27 @@ def get_plan(
 ):
     """Lấy cấu hình lịch học hiện tại của sách để FE prefill màn hình chỉnh lịch."""
     return get_reading_plan(session, book_id, current_user.sub)
+
+
+@router.get("/books/{book_id}/reading-plan/sessions", response_model=ReadingPlanSessionListResponse)
+def get_book_plan_sessions(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
+    mode: str | None = None,
+):
+    """Lấy các buổi học cụ thể đã được sinh từ ReadingPlan của sách."""
+    return list_book_reading_plan_sessions(session, user_id=current_user.sub, book_id=book_id, mode=mode)
+
+
+@router.get("/reading-plan/sessions/today", response_model=ReadingPlanSessionListResponse)
+def get_today_plan_sessions(
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
+    local_date: date | None = None,
+):
+    """Lấy lịch học của user trong ngày cục bộ để FE hiển thị trang hôm nay."""
+    return list_today_reading_plan_sessions(session, user_id=current_user.sub, local_date=local_date)
 
 
 @router.put("/books/{book_id}/reading-plan", response_model=ReadingPlanUpdateResponse)

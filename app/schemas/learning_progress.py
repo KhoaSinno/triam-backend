@@ -3,7 +3,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.core.constant import LearningProgressStatus, PlanMode
+from app.core.constant import BookLearningStatus, LearningProgressStatus, PlanMode
 
 
 class LearningUnitProgressUpdateRequest(BaseModel):
@@ -35,9 +35,13 @@ class LearningUnitProgressResponse(BaseModel):
     completed_at: datetime | None = None
 
 
-class BookLearningProgressResponse(BaseModel):
+class BookLearningSummaryResponse(BaseModel):
     book_id: uuid.UUID
     mode: PlanMode
+    learning_status: BookLearningStatus
+    is_completed: bool
+    can_resume: bool
+    can_review: bool
     book_progress_percent: int
     completed_units: int
     playable_units: int
@@ -45,4 +49,12 @@ class BookLearningProgressResponse(BaseModel):
     last_segment_id: int | None = None
     last_segment_index: int | None = None
     position_ms: int | None = None
+    started_at: datetime | None = None
+    last_activity_at: datetime | None = None
+    completed_at: datetime | None = None
+    due_reviews_count: int = 0
+    upcoming_reviews_count: int = 0
+
+
+class BookLearningProgressResponse(BookLearningSummaryResponse):
     units: list[LearningUnitProgressResponse]
