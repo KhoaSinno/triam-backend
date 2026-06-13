@@ -21,6 +21,16 @@ WEEKDAY_LABELS = {
     6: "sunday",
 }
 
+WEEKDAY_SHORT_LABELS = {
+    0: "Mon",
+    1: "Tue",
+    2: "Wed",
+    3: "Thu",
+    4: "Fri",
+    5: "Sat",
+    6: "Sun",
+}
+
 WEEKDAY_VI_LABELS = {
     0: "Thứ hai",
     1: "Thứ ba",
@@ -96,6 +106,7 @@ def build_slots_for_plan(
     book_id: uuid.UUID,
     plan_id: uuid.UUID,
     slots: list[ScheduleSlotInput],
+    is_active: bool = True,
 ) -> list[ReadingPlanScheduleSlot]:
     return [
         ReadingPlanScheduleSlot(
@@ -105,7 +116,7 @@ def build_slots_for_plan(
             weekday=slot.weekday,
             reminder_time=slot.reminder_time,
             timezone=slot.timezone,
-            is_active=True,
+            is_active=is_active,
         )
         for slot in slots
     ]

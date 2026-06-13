@@ -9,8 +9,8 @@ from app.core.constant import PlanMode
 class PlanInput(BaseModel):
     book_id: uuid.UUID
     mode: PlanMode
-    pace: int  # số chương/ngày
-    schedule_config: list[str]  # VD: ["Mon", "Wed", "Fri"]
+    pace: int  # số learning unit mỗi buổi học
+    schedule_config: list[str]  # VD: ["Mon", "Wed", "Fri"]; request-only compatibility field
     reminder_time: str | None = None  # VD: "20:00", nếu None sẽ lấy từ user settings
     activate: bool = False  # False: chỉ cấu hình/generate, True: active lịch ngay
 

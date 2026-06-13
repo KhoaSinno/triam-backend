@@ -67,7 +67,6 @@ def _create_book_plan_and_session(
         book_id=book.id,
         mode=PlanMode.FULL,
         pace=1,
-        schedule_config=["Mon"],
         status=PlanStatus.ACTIVE.value,
         reminder_time="08:00",
     )

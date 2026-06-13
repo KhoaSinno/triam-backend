@@ -17,6 +17,7 @@ from app.models.db_models import (
 from app.repositories.learning_progress_repo import list_book_progress
 from app.repositories.learning_unit_repo import list_learning_units
 from app.repositories.notification_settings_repo import get_or_create_notification_settings
+from app.repositories.reading_plan_repo import list_plans_for_book_mode
 from app.repositories.reading_plan_schedule_repo import list_slots_for_plan
 from app.repositories.reading_plan_session_repo import (
     FINAL_SESSION_STATUSES,
@@ -225,15 +226,10 @@ def sync_reading_plan_session_unit_completion(
     progress_status: LearningProgressStatus,
     completed_at: datetime | None = None,
     now: datetime | None = None,
+    commit: bool = True,
 ) -> None:
     now = ensure_aware_utc(now or _now_utc())
-    plans = session.exec(
-        select(ReadingPlan).where(
-            ReadingPlan.book_id == book_id,
-            ReadingPlan.mode == mode,
-            ReadingPlan.status != PlanStatus.ERROR.value,
-        )
-    ).all()
+    plans = list_plans_for_book_mode(session, book_id=book_id, mode=mode)
     changed = False
     for plan in plans:
         session_unit = get_session_unit_for_learning_unit(session, plan_id=plan.id, learning_unit_id=learning_unit_id)
@@ -255,7 +251,7 @@ def sync_reading_plan_session_unit_completion(
             _recalculate_parent_session(session, parent, now=now)
         changed = True
 
-    if changed:
+    if changed and commit:
         session.commit()
 
 
@@ -579,4 +575,5 @@ def sync_existing_session_units_from_progress(session: Session, *, plan: Reading
             progress_status=progress.status,
             completed_at=progress.completed_at,
             now=progress.completed_at or progress.last_activity_at or _now_utc(),
+            commit=False,
         )

@@ -17,12 +17,19 @@ from app.models.db_models import (
     ReadingPlanSession,
     ReadingPlanSessionUnit,
 )
+from app.services.reading_plan_schedule_service import build_slots_for_plan, validate_plan_schedule_shape
 
 WEEKDAY_INPUTS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
 
 def _weekday_input_for(local_dt: datetime) -> str:
     return WEEKDAY_INPUTS[local_dt.weekday()]
+
+
+def _add_inactive_plan_slots(session: Session, *, user_id: uuid.UUID, book_id: uuid.UUID, plan: ReadingPlan, schedule_config: list[str]) -> None:
+    slots = validate_plan_schedule_shape(session, user_id=user_id, schedule_config=schedule_config, reminder_time=plan.reminder_time)
+    for slot in build_slots_for_plan(user_id=user_id, book_id=book_id, plan_id=plan.id, slots=slots, is_active=False):
+        session.add(slot)
 
 
 def _delete_book(book_id: uuid.UUID) -> None:
@@ -108,11 +115,12 @@ def test_resume_plan_creates_calendar_sessions_and_today_query(auth_as):
                 book_id=book.id,
                 mode=PlanMode.FULL,
                 pace=2,
-                schedule_config=[weekday],
                 status=PlanStatus.INACTIVE.value,
                 reminder_time="08:00",
             )
             session.add(plan)
+            session.flush()
+            _add_inactive_plan_slots(session, user_id=user_id, book_id=book.id, plan=plan, schedule_config=[weekday])
             session.commit()
 
         response = client.post(f"/api/v1/books/{book_id}/resume")
@@ -160,7 +168,6 @@ def test_list_books_keeps_book_fields_after_learning_summary_commit(auth_as):
                         book_id=book.id,
                         mode=PlanMode.FULL,
                         pace=1,
-                        schedule_config=["Mon"],
                         status=PlanStatus.ACTIVE.value,
                         reminder_time="08:00",
                     )
@@ -212,7 +219,6 @@ def test_learning_completion_marks_missed_session_completed(auth_as):
                 book_id=book.id,
                 mode=PlanMode.FULL,
                 pace=1,
-                schedule_config=["Mon"],
                 status=PlanStatus.ACTIVE.value,
                 reminder_time="08:00",
             )
@@ -282,11 +288,12 @@ def test_update_active_plan_regenerates_unfinished_sessions(auth_as):
                 book_id=book.id,
                 mode=PlanMode.FULL,
                 pace=2,
-                schedule_config=[weekday],
                 status=PlanStatus.INACTIVE.value,
                 reminder_time="08:00",
             )
             session.add(plan)
+            session.flush()
+            _add_inactive_plan_slots(session, user_id=user_id, book_id=book.id, plan=plan, schedule_config=[weekday])
             session.commit()
 
         resume_response = client.post(f"/api/v1/books/{book_id}/resume")

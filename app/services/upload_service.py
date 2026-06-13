@@ -31,7 +31,7 @@ from app.services.document_parser_service import parse_document_structure
 from app.services.document_structure_service import build_outline_preview, detect_structure_warnings, validate_document_structure
 from app.services.document_structure_types import flatten_sections
 from app.services.learning_unit_planner_service import plan_learning_units_async
-from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
+from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, WEEKDAY_SHORT_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
 from app.services.reading_plan_session_service import build_plan_session_summary, ensure_future_sessions_for_plan
 from app.services.storage_service import upload_file_to_supabase
 from app.tasks.book_tasks import index_book_sections_task, process_book_task
@@ -100,7 +100,6 @@ async def _create_plan_and_job_async(
         book_id=payload.book_id,
         mode=payload.mode,
         pace=payload.pace,
-        schedule_config=payload.schedule_config,
         status=plan_status.value,
         reminder_time=resolved_reminder_time,
     )
@@ -112,6 +111,7 @@ async def _create_plan_and_job_async(
         book_id=payload.book_id,
         plan_id=plan.id,
         slots=slots,
+        is_active=plan_status == PlanStatus.ACTIVE,
     ):
         session.add(slot)
 
@@ -283,7 +283,7 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
             reminder_time=payload.reminder_time,
         )
         plan_status = PlanStatus.INACTIVE
-        slots_to_create = []
+        slots_to_create = slots
     resolved_reminder_time = slots[0].reminder_time
 
     # 2. Lưu ReadingPlan + schedule slots + learning units + progress job
@@ -337,7 +337,10 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
         "mode": payload.mode.value,
         "plan_status": plan.status,
         "pace": plan.pace,
-        "schedule_config": list(plan.schedule_config or []),
+        "schedule_config": [
+            WEEKDAY_SHORT_LABELS.get(slot.weekday, str(slot.weekday))
+            for slot in list_slots_for_plan(session, plan_id=plan.id, active_only=False)
+        ],
         "reminder_time": plan.reminder_time,
         "status": job.status,
         "progress_percent": job.progress_percent,

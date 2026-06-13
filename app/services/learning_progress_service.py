@@ -6,10 +6,11 @@ from sqlmodel import Session, select
 from app.core.config import settings
 from app.core.constant import BookLearningStatus, LearningProgressStatus, PlanMode, PlanStatus
 from app.core.exceptions import BadRequestError, BookNotFoundError, NoPlayableAudioError
-from app.models.db_models import Book, BookLearningState, LearningUnit, LearningUnitProgress, LearningUnitSegment, ReadingPlan
+from app.models.db_models import Book, BookLearningState, LearningUnit, LearningUnitProgress, LearningUnitSegment
 from app.repositories.book_learning_state_repo import get_book_learning_state, upsert_book_learning_state
 from app.repositories.learning_progress_repo import get_latest_activity, get_progress, list_book_progress, list_playable_unit_ids, save_progress
-from app.repositories.reading_plan_schedule_repo import delete_slots_for_plan
+from app.repositories.reading_plan_repo import get_plan_for_book_mode
+from app.repositories.reading_plan_schedule_repo import set_slots_active
 from app.repositories.spaced_review_repo import count_review_items_for_user
 from app.schemas.learning_progress import (
     BookLearningProgressResponse,
@@ -157,12 +158,7 @@ def _complete_reading_plan_if_needed(
     mode: PlanMode,
     completed_at: datetime,
 ) -> None:
-    plan = session.exec(
-        select(ReadingPlan).where(
-            ReadingPlan.book_id == book_id,
-            ReadingPlan.mode == mode,
-        )
-    ).first()
+    plan = get_plan_for_book_mode(session, book_id=book_id, mode=mode)
     if not plan or plan.status == PlanStatus.COMPLETED.value:
         return
 
@@ -170,7 +166,7 @@ def _complete_reading_plan_if_needed(
     plan.completed_at = plan.completed_at or completed_at
     plan.updated_at = datetime.now(timezone.utc)
     session.add(plan)
-    delete_slots_for_plan(session, plan_id=plan.id)
+    set_slots_active(session, plan_id=plan.id, is_active=False)
     cancel_future_sessions_for_plan(session, plan_id=plan.id, now=completed_at)
     session.commit()
 

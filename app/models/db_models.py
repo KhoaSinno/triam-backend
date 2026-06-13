@@ -84,7 +84,6 @@ class ReadingPlan(SQLModel, table=True):
     book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
     mode: PlanMode = Field(sa_column=Column(SAEnum(PlanMode), nullable=False))
     pace: int = Field(sa_column=Column(Integer, nullable=False))
-    schedule_config: Optional[Any] = Field(default=None, sa_column=Column(JSONB))
     status: str = Field(sa_column=Column(Text, nullable=False))
     reminder_time: str = Field(default="20:00", sa_column=Column(Text, nullable=False, server_default="20:00"))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))

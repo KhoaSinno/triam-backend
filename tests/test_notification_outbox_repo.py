@@ -5,9 +5,9 @@ from sqlmodel import Session, select
 
 from app.core.constant import BookStatus, NotificationChannel, NotificationStatus, NotificationType, PlanMode, PlanStatus, ProcessingJobStatus
 from app.db.database import engine
-from app.models.db_models import Book, LearningUnit, LearningUnitSegment, NotificationOutbox, NotificationSettings, ReadingPlan, UserDeviceToken, UserNotification
+from app.models.db_models import Book, LearningUnit, LearningUnitSegment, NotificationOutbox, NotificationSettings, ReadingPlan, ReadingPlanSession, UserDeviceToken, UserNotification
 from app.repositories.notification_outbox_repo import claim_due_outbox, create_outbox_once, recover_stale_outbox
-from app.services.notification_event_service import _build_plan_reminder_outbox, create_due_plan_reminder_outbox_rows
+from app.services.notification_event_service import create_due_plan_reminder_outbox_rows
 from app.tasks.notification_tasks import deliver_one_notification
 
 
@@ -129,8 +129,8 @@ def test_plan_reminder_scan_creates_one_outbox_per_day():
                 book_id=book_id,
                 mode=PlanMode.FULL,
                 pace=1,
-                schedule_config=["Mon"],
                 status=PlanStatus.ACTIVE,
+                reminder_time="20:00",
             )
             session.add(book)
             session.flush()
@@ -159,12 +159,29 @@ def test_plan_reminder_scan_creates_one_outbox_per_day():
                 )
             )
             session.add(plan)
+            session.flush()
+            session.add(
+                ReadingPlanSession(
+                    user_id=user_id,
+                    plan_id=plan.id,
+                    book_id=book_id,
+                    mode=PlanMode.FULL,
+                    session_index=0,
+                    scheduled_at=datetime(2026, 5, 25, 13, 0, tzinfo=timezone.utc),
+                    local_date="2026-05-25",
+                    reminder_time="20:00",
+                    timezone="Asia/Ho_Chi_Minh",
+                    status="scheduled",
+                    total_units=1,
+                    completed_units=0,
+                )
+            )
             session.commit()
 
             # 2026-05-25 20:01 Asia/Ho_Chi_Minh, Monday.
             now = datetime(2026, 5, 25, 13, 1, tzinfo=timezone.utc)
-            assert _build_plan_reminder_outbox(session, plan, book, now=now) is not None
-            assert _build_plan_reminder_outbox(session, plan, book, now=now) is None
+            assert create_due_plan_reminder_outbox_rows(session, now=now) == 1
+            assert create_due_plan_reminder_outbox_rows(session, now=now) == 0
 
             outboxes = session.exec(select(NotificationOutbox).where(NotificationOutbox.user_id == user_id)).all()
             created_outbox_ids.extend(outbox.id for outbox in outboxes)
@@ -182,10 +199,9 @@ def test_plan_reminder_scan_creates_one_outbox_per_day():
             session.commit()
 
 
-def test_plan_reminder_scan_skips_plan_deleted_after_initial_query(monkeypatch):
+def test_plan_reminder_scan_skips_missing_book(monkeypatch):
     user_id = uuid.uuid4()
     book_id = uuid.uuid4()
-    plan_id: uuid.UUID | None = None
     created_outbox_ids: list[uuid.UUID] = []
 
     try:
@@ -193,7 +209,7 @@ def test_plan_reminder_scan_skips_plan_deleted_after_initial_query(monkeypatch):
             book = Book(
                 id=book_id,
                 user_id=user_id,
-                title="Deleted During Scan Book",
+                title="Missing During Scan Book",
                 status=BookStatus.READY,
                 total_units=1,
             )
@@ -203,35 +219,38 @@ def test_plan_reminder_scan_skips_plan_deleted_after_initial_query(monkeypatch):
                 book_id=book_id,
                 mode=PlanMode.FULL,
                 pace=1,
-                schedule_config=["Mon"],
                 status=PlanStatus.ACTIVE,
+                reminder_time="20:00",
             )
             session.add(plan)
+            session.flush()
+            session.add(
+                ReadingPlanSession(
+                    user_id=user_id,
+                    plan_id=plan.id,
+                    book_id=book_id,
+                    mode=PlanMode.FULL,
+                    session_index=0,
+                    scheduled_at=datetime(2026, 5, 25, 13, 0, tzinfo=timezone.utc),
+                    local_date="2026-05-25",
+                    reminder_time="20:00",
+                    timezone="Asia/Ho_Chi_Minh",
+                    status="scheduled",
+                    total_units=1,
+                    completed_units=0,
+                )
+            )
             session.commit()
-            plan_id = plan.id
 
         original_get = Session.get
 
-        def get_missing_plan_once(self, entity, ident, *args, **kwargs):
-            if entity is ReadingPlan and ident == plan_id and not getattr(get_missing_plan_once, "done", False):
-                get_missing_plan_once.done = True
+        def get_missing_book_once(self, entity, ident, *args, **kwargs):
+            if entity is Book and ident == book_id and not getattr(get_missing_book_once, "done", False):
+                get_missing_book_once.done = True
                 return None
             return original_get(self, entity, ident, *args, **kwargs)
 
-        original_exec = Session.exec
-
-        class _PlanIdRows:
-            def all(self):
-                return [plan_id]
-
-        def exec_only_test_plan_once(self, statement, *args, **kwargs):
-            if not getattr(exec_only_test_plan_once, "done", False):
-                exec_only_test_plan_once.done = True
-                return _PlanIdRows()
-            return original_exec(self, statement, *args, **kwargs)
-
-        monkeypatch.setattr(Session, "exec", exec_only_test_plan_once)
-        monkeypatch.setattr(Session, "get", get_missing_plan_once)
+        monkeypatch.setattr(Session, "get", get_missing_book_once)
 
         with Session(engine) as session:
             # 2026-05-25 20:01 Asia/Ho_Chi_Minh, Monday.

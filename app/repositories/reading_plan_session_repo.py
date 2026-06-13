@@ -154,18 +154,6 @@ def list_due_reminder_sessions(
     )
 
 
-def has_non_cancelled_sessions_for_plan(session: Session, *, plan_id: uuid.UUID) -> bool:
-    return (
-        session.exec(
-            select(ReadingPlanSession.id)
-            .where(ReadingPlanSession.plan_id == plan_id)
-            .where(ReadingPlanSession.status != ReadingPlanSessionStatus.CANCELLED.value)
-            .limit(1)
-        ).first()
-        is not None
-    )
-
-
 def get_session_unit_for_learning_unit(
     session: Session,
     *,

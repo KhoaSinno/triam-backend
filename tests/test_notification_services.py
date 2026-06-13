@@ -5,7 +5,8 @@ import pytest
 from app.core.constant import NotificationType
 from app.schemas.notification import NotificationSettingsRequest
 from app.services.notification_copy_service import build_notification_copy
-from app.services.reminder_schedule_service import is_quiet_time, shift_out_of_quiet_hours, to_local, weekday_is_enabled
+from app.services.reading_plan_schedule_service import normalize_schedule_config
+from app.services.reminder_schedule_service import is_quiet_time, shift_out_of_quiet_hours, to_local
 
 
 def test_notification_copy_is_deterministic():
@@ -34,10 +35,9 @@ def test_shift_out_of_quiet_hours_cross_midnight():
 
 
 def test_weekday_config_accepts_short_english_days():
-    local_dt = datetime(2026, 5, 25, 20, 0, tzinfo=timezone.utc)  # Monday
+    slots = normalize_schedule_config(["Mon", "Wed"], reminder_time="20:00", timezone_name="Asia/Ho_Chi_Minh")
 
-    assert weekday_is_enabled(["Mon", "Wed"], local_dt) is True
-    assert weekday_is_enabled(["Tue", "Thu"], local_dt) is False
+    assert [slot.weekday for slot in slots] == [0, 2]
 
 
 def test_notification_settings_validation_rejects_bad_time_and_timezone():

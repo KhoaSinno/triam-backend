@@ -21,10 +21,17 @@ from app.models.db_models import (
     NotificationSettings,
     ReadingPlan,
     ReadingPlanScheduleSlot,
+    ReadingPlanSession,
     SpacedReviewItem,
 )
-from app.services.notification_event_service import _build_plan_reminder_outbox
-from app.services.reading_plan_schedule_service import build_slots_for_plan, validate_active_learning_capacity, validate_plan_schedule_for_create, validate_schedule_slots_available
+from app.services.notification_event_service import create_due_plan_reminder_outbox_rows
+from app.services.reading_plan_schedule_service import (
+    build_slots_for_plan,
+    validate_active_learning_capacity,
+    validate_plan_schedule_for_create,
+    validate_plan_schedule_shape,
+    validate_schedule_slots_available,
+)
 
 MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
 
@@ -325,7 +332,7 @@ def test_schedule_guardrails_reject_conflict_and_active_book_limit(monkeypatch):
     try:
         with Session(engine) as session:
             book, _, _ = _create_playable_book(session, user_id=user_id, title="Schedule Book A")
-            plan = ReadingPlan(book_id=book.id, mode=PlanMode.FULL, pace=1, schedule_config=["Mon"], status=PlanStatus.ACTIVE)
+            plan = ReadingPlan(book_id=book.id, mode=PlanMode.FULL, pace=1, status=PlanStatus.ACTIVE)
             session.add(plan)
             session.commit()
             session.refresh(plan)
@@ -354,7 +361,7 @@ def test_plan_reminder_skips_when_user_already_studied_today():
         with Session(engine) as session:
             book, unit, segment = _create_playable_book(session, user_id=user_id, title="Studied Today Book")
             book_id = book.id
-            plan = ReadingPlan(book_id=book.id, mode=PlanMode.FULL, pace=1, schedule_config=["Mon"], status=PlanStatus.ACTIVE)
+            plan = ReadingPlan(book_id=book.id, mode=PlanMode.FULL, pace=1, status=PlanStatus.ACTIVE, reminder_time="20:00")
             session.add(plan)
             session.add(
                 NotificationSettings(
@@ -369,8 +376,26 @@ def test_plan_reminder_skips_when_user_already_studied_today():
                 )
             )
             session.commit()
+            session.refresh(plan)
 
             now = datetime(2026, 5, 25, 13, 1, tzinfo=timezone.utc)
+            session.add(
+                ReadingPlanSession(
+                    user_id=user_id,
+                    plan_id=plan.id,
+                    book_id=book.id,
+                    mode=PlanMode.FULL,
+                    session_index=0,
+                    scheduled_at=datetime(2026, 5, 25, 13, 0, tzinfo=timezone.utc),
+                    local_date="2026-05-25",
+                    reminder_time="20:00",
+                    timezone="Asia/Ho_Chi_Minh",
+                    status="scheduled",
+                    total_units=1,
+                    completed_units=0,
+                )
+            )
+            session.commit()
             progress = LearningUnitProgress(
                 user_id=user_id,
                 book_id=book.id,
@@ -390,12 +415,13 @@ def test_plan_reminder_skips_when_user_already_studied_today():
             session.add(progress)
             session.commit()
 
-            assert _build_plan_reminder_outbox(session, plan, book, now=now) is None
+            assert create_due_plan_reminder_outbox_rows(session, now=now) == 0
 
             progress.last_activity_at = datetime(2026, 5, 20, 13, 1, tzinfo=timezone.utc)
             session.add(progress)
             session.commit()
-            outbox = _build_plan_reminder_outbox(session, plan, book, now=now)
+            assert create_due_plan_reminder_outbox_rows(session, now=now) == 1
+            outbox = session.exec(select(NotificationOutbox).where(NotificationOutbox.user_id == user_id)).first()
             assert outbox is not None
             created_outbox_ids.append(outbox.id)
             assert outbox.type == NotificationType.PLAN_REMINDER
@@ -424,7 +450,6 @@ def test_pause_resume_reading_plan():
                 book_id=book.id,
                 mode=PlanMode.FULL,
                 pace=1,
-                schedule_config=["Sat"],
                 status=PlanStatus.ACTIVE.value,
                 reminder_time="20:00",
             )
@@ -448,7 +473,8 @@ def test_pause_resume_reading_plan():
                     ReadingPlanScheduleSlot.plan_id == db_plan.id,
                 )
             ).all()
-            assert len(all_slots) == 0
+            assert len(all_slots) == 1
+            assert all_slots[0].is_active is False
 
         # Resume
         resp_resume = client.post(f"/api/v1/books/{book_id}/resume")
@@ -483,7 +509,6 @@ def test_update_reading_plan():
                 book_id=book.id,
                 mode=PlanMode.FULL,
                 pace=1,
-                schedule_config=["Sat"],
                 status=PlanStatus.ACTIVE.value,
                 reminder_time="20:00",
             )
@@ -537,7 +562,6 @@ def test_get_reading_plan_returns_current_schedule_for_prefill(auth_as):
                 book_id=book.id,
                 mode=PlanMode.FULL,
                 pace=2,
-                schedule_config=["Tue", "Thu"],
                 status=PlanStatus.ACTIVE.value,
                 reminder_time="07:15",
             )
@@ -603,7 +627,6 @@ def test_generate_plan_inactive_does_not_conflict_with_active_schedule(auth_as, 
                 book_id=active_book.id,
                 mode=PlanMode.FULL,
                 pace=1,
-                schedule_config=["Mon"],
                 status=PlanStatus.ACTIVE.value,
                 reminder_time="20:00",
             )
@@ -693,7 +716,6 @@ def test_update_reading_plan_keeps_self_slot_and_rejects_other_book_conflict(aut
                 book_id=book_a.id,
                 mode=PlanMode.FULL,
                 pace=1,
-                schedule_config=["Mon"],
                 status=PlanStatus.ACTIVE.value,
                 reminder_time="20:00",
             )
@@ -701,7 +723,6 @@ def test_update_reading_plan_keeps_self_slot_and_rejects_other_book_conflict(aut
                 book_id=book_b.id,
                 mode=PlanMode.FULL,
                 pace=1,
-                schedule_config=["Wed"],
                 status=PlanStatus.ACTIVE.value,
                 reminder_time="21:00",
             )
@@ -762,7 +783,6 @@ def test_resume_inactive_plan_rejects_processing_book(auth_as):
                 book_id=book.id,
                 mode=PlanMode.FULL,
                 pace=1,
-                schedule_config=["Tue"],
                 status=PlanStatus.INACTIVE.value,
                 reminder_time="21:00",
             )
@@ -799,7 +819,6 @@ def test_resume_inactive_plan_detects_conflict_without_activating(auth_as):
                 book_id=active_book.id,
                 mode=PlanMode.FULL,
                 pace=1,
-                schedule_config=["Mon"],
                 status=PlanStatus.ACTIVE.value,
                 reminder_time="20:00",
             )
@@ -807,7 +826,6 @@ def test_resume_inactive_plan_detects_conflict_without_activating(auth_as):
                 book_id=inactive_book.id,
                 mode=PlanMode.FULL,
                 pace=1,
-                schedule_config=["Mon"],
                 status=PlanStatus.INACTIVE.value,
                 reminder_time="20:00",
             )
@@ -817,6 +835,16 @@ def test_resume_inactive_plan_detects_conflict_without_activating(auth_as):
 
             slots = validate_plan_schedule_for_create(session, user_id=user_id, schedule_config=["Mon"], reminder_time="20:00")
             session.add_all(build_slots_for_plan(user_id=user_id, book_id=active_book.id, plan_id=active_plan.id, slots=slots))
+            inactive_slots = validate_plan_schedule_shape(session, user_id=user_id, schedule_config=["Mon"], reminder_time="20:00")
+            session.add_all(
+                build_slots_for_plan(
+                    user_id=user_id,
+                    book_id=inactive_book.id,
+                    plan_id=inactive_plan.id,
+                    slots=inactive_slots,
+                    is_active=False,
+                )
+            )
             session.commit()
 
         response = client.post(f"/api/v1/books/{book_ids[1]}/resume")
@@ -827,7 +855,8 @@ def test_resume_inactive_plan_detects_conflict_without_activating(auth_as):
             db_plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_ids[1])).first()
             assert db_plan.status == PlanStatus.INACTIVE.value
             slots = session.exec(select(ReadingPlanScheduleSlot).where(ReadingPlanScheduleSlot.book_id == book_ids[1])).all()
-            assert slots == []
+            assert len(slots) == 1
+            assert slots[0].is_active is False
     finally:
         for book_id in book_ids:
             _delete_book(book_id)
@@ -847,11 +876,13 @@ def test_resume_inactive_plan_success_is_idempotent(auth_as):
                 book_id=book.id,
                 mode=PlanMode.FULL,
                 pace=1,
-                schedule_config=["Tue"],
                 status=PlanStatus.INACTIVE.value,
                 reminder_time="21:00",
             )
             session.add(plan)
+            session.flush()
+            slots = validate_plan_schedule_shape(session, user_id=user_id, schedule_config=["Tue"], reminder_time="21:00")
+            session.add_all(build_slots_for_plan(user_id=user_id, book_id=book.id, plan_id=plan.id, slots=slots, is_active=False))
             session.commit()
 
         first = client.post(f"/api/v1/books/{book_id}/resume")
@@ -893,7 +924,6 @@ def test_update_inactive_plan_does_not_validate_active_conflict(auth_as):
                 book_id=active_book.id,
                 mode=PlanMode.FULL,
                 pace=1,
-                schedule_config=["Mon"],
                 status=PlanStatus.ACTIVE.value,
                 reminder_time="20:00",
             )
@@ -901,7 +931,6 @@ def test_update_inactive_plan_does_not_validate_active_conflict(auth_as):
                 book_id=inactive_book.id,
                 mode=PlanMode.FULL,
                 pace=1,
-                schedule_config=["Tue"],
                 status=PlanStatus.INACTIVE.value,
                 reminder_time="21:00",
             )
@@ -943,7 +972,6 @@ def test_plan_marks_completed_on_100_percent():
                 book_id=book.id,
                 mode=PlanMode.FULL,
                 pace=1,
-                schedule_config=["Sat"],
                 status=PlanStatus.ACTIVE.value,
                 reminder_time="20:00",
             )
@@ -975,7 +1003,8 @@ def test_plan_marks_completed_on_100_percent():
                     ReadingPlanScheduleSlot.plan_id == db_plan.id,
                 )
             ).all()
-            assert len(all_slots) == 0
+            assert len(all_slots) == 1
+            assert all_slots[0].is_active is False
     finally:
         if book_id:
             _delete_book(book_id)
@@ -994,7 +1023,6 @@ def test_completed_book_progress_detail_and_review_access():
                 book_id=book.id,
                 mode=PlanMode.FULL,
                 pace=1,
-                schedule_config=["Sat"],
                 status=PlanStatus.ACTIVE.value,
                 reminder_time="20:00",
             )
@@ -1050,7 +1078,6 @@ def test_plan_update_accepts_partial_payload_without_breaking_contract(auth_as):
                 book_id=book.id,
                 mode=PlanMode.FULL,
                 pace=3,
-                schedule_config=["Sat"],
                 status=PlanStatus.ACTIVE.value,
                 reminder_time="20:00",
             )
