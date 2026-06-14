@@ -24,3 +24,6 @@ t4:
 
 t5:
 	uv run python -m app.services.agent_voice_gpt_realtime start
+
+t5c:
+	uv run python -m app.services.agent_voice_gpt_realtime console
