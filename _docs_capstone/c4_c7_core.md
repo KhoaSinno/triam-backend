@@ -1,39 +1,17 @@
-### ĐỀ XUẤT CƠ CẤU CHƯƠNG BÁO CÁO CAPSTONE (8 CHƯƠNG)
+### Outline
 
 - **Chương 1: Lời mở đầu** (Lý do chọn đề tài, mục tiêu, phạm vi nghiên cứu, bố cục luận văn).
 - **Chương 2: Tổng quan đề tài** (Đối tượng/Phương pháp nghiên cứu, trong ngoài nước).
 - **Chương 3: Cơ sở lý thuyết** (Giới thiệu các công nghệ sử dụng như RAG, WebRTC, TTS, LLM, OpenAI realtime).
 - **Chương 4: Phân tích thiết kế hệ thống** (Tổng quan kiến trúc, usecase, class).
 
-- **Chương 5: Quy trình Chuyển đổi tài liệu và Tiền xử lý âm thanh tự động** 
+- **Chương 5: Quy trình Chuyển đổi tài liệu và Tiền xử lý âm thanh tự động**
 - **Chương 6: Cơ chế Lập kế hoạch học tập và Thiết lập chế độ Full / Pareto**
 - **Chương 7: Hệ thống Theo dõi tiến độ và Ôn tập ngắt quãng Spaced Repetition**
 - **Chương 8: Trợ lý giọng nói thời gian thực và Tìm kiếm tăng cường**
 
 - **Chương 9: Xây dựng hệ thống** (Cách xây dựng, triển khai và UI/UX sản phẩm).
 - **Chương 10: Kết luận**.
-
----
-
-### MÔ TẢ CHI TIẾT NỘI DUNG CÁC CHƯƠNG TRỌNG TÂM DỰA TRÊN MÃ NGUỒN
-
-Dưới đây là phần mô tả chi tiết nội dung học thuật cho từng chương lớn được bổ sung, tương ứng trực tiếp với cấu trúc thiết kế của hệ thống:
-
-```mermaid
-flowchart TD
-    Doc[Tài liệu gốc] -->|Bộ phân tích| BS[Cây đề mục tài liệu]
-    BS -->|Nhúng vector| BK[Chỉ mục tri thức tài liệu]
-    BK -->|RAG| Agent[Trợ lý học tập]
-    BS -->|Bộ hoạch định| LU[Bài học]
-    LU -->|Tổng hợp giọng nói TTS| LUS[Phân đoạn âm thanh]
-    LU -->|Đồng bộ tiến độ| LUP[Tiến độ bài học]
-```
-
-Trục kiến trúc cốt lõi của hệ thống được phân định rõ ràng giữa cấu trúc vật lý của tài liệu thô và tiến trình học tập logic của người học thông qua hai thực thể dữ liệu chính:
-
-- **Cây đề mục tài liệu**: Đóng vai trò là nguồn sự thật duy nhất (source of truth) cho toàn bộ cấu trúc phân cấp và nội dung gốc của tài liệu sau khi qua bộ phân tích cấu trúc, đồng thời là cơ sở dữ liệu nền tảng để lập chỉ mục vector phục vụ tìm kiếm ngữ cảnh RAG.
-
-- **Đơn vị bài học**: Đóng vai trò là nguồn sự thật cho kế hoạch học tập, quản lý các phân đoạn âm thanh tổng hợp và theo dõi tiến độ nghe thực tế của người dùng. Mối quan hệ ánh xạ linh hoạt qua cấu trúc trung gian lưu trữ nguồn gốc bài học giữa hai thực thể này giúp hệ thống tách biệt luồng xử lý tài liệu vật lý với vòng đời học tập của từng cá nhân.
 
 ---
 
@@ -115,7 +93,7 @@ Việc tổng hợp các tệp âm thanh có thời lượng quá dài sẽ gây
 
 - **Lưu trữ pgvector**: Lưu trữ các đoạn văn bản thô cùng mảng vector tương ứng vào thực thể cơ sở dữ liệu tri thức tài liệu. Cột chứa vector được lưu trữ trong cơ sở dữ liệu bằng tiện ích mở rộng `pgvector` và được đánh chỉ mục tìm kiếm bằng thuật toán chuyên biệt để tối ưu hóa hiệu năng truy vấn tương đồng về sau.
 
-### 4.5. Kiểm thử và đánh giá Chương 4
+### 4.5. Kiểm thử và đánh giá
 
 Hệ thống tiến hành thực hiện kiểm tra kiểm thử chất lượng phân tách cấu trúc tài liệu và chuyển đổi âm thanh để đảm bảo độ tin cậy của dữ liệu:
 
@@ -201,7 +179,7 @@ Chế độ trọng tâm (Pareto Mode) hoạt động dựa trên nguyên lý 80
 
 > **Ví dụ thực tế**: Khi người học lập kế hoạch học cuốn sách _"Toán rời rạc"_ trong chế độ Pareto. Bộ tối ưu hóa tín hiệu đa ngôn ngữ phát hiện mục _"Định lý Bayes"_ và _"Thuật toán Dijkstra"_ chứa các tín hiệu quan trọng (`theorem`, `method`). Hệ thống sẽ gửi mục lục này đến LLM. LLM tạo ra cấu trúc JSON đề xuất 5 bài học cốt lõi bao phủ đúng 25% nội dung sách. Nếu API LLM bị quá tải và không phản hồi trong vòng 25 giây, hệ thống tự động kích hoạt chế độ dự phòng, gom 5 bài học dựa trên điểm Heuristic cao nhất của các chương để trả về cho người học mà không hề báo lỗi hệ thống.
 
-### 5.4. Kiểm thử và đánh giá Chương 5
+### 5.4. Kiểm thử và đánh giá
 
 Bảng dưới đây mô tả quá trình kiểm tra giải thuật lập kế hoạch bài học Full/Pareto:
 
@@ -268,9 +246,9 @@ Ngay khi một bài học được đánh dấu hoàn thành lần đầu tiên,
 
 > **Ví dụ thực tế**: Người học hoàn thành bài học _"Định lý Bayes"_ vào lúc `10:00 ngày 14/06/2026`. Hệ thống sẽ tự động lên lịch cho 5 bài ôn tập tương ứng vào lúc `10:00` các ngày: `15/06` (sau 1 ngày), `17/06` (sau 3 ngày), `21/06` (sau 7 ngày), `28/06` (sau 14 ngày) và `14/07` (sau 30 ngày) để tối ưu khả năng ghi nhớ dài hạn.
 
-### 6.4. Hạ tầng thông báo nhắc nhở bền vững (Transactional Outbox Pattern)
+### 6.4. Transactional Outbox Pattern
 
-Để vận hành luồng gửi thông báo nhắc học và ôn tập tự động theo thời gian thực mà không bị thất thoát thông tin do sự cố hệ thống, TRIAM áp dụng mô hình **Transactional Outbox**:
+Để vận hành luồng gửi thông báo nhắc học và ôn tập tự động theo thời gian thực mà không bị thất thoát thông tin do sự cố hệ thống:
 
 - **Trình lập lịch tác vụ định kỳ**: Được cấu hình chạy định kỳ mỗi 60 giây để đẩy tác vụ quét các sự kiện nhắc nhở ôn tập đến hạn vào hàng đợi.
 
@@ -285,7 +263,7 @@ Ngay khi một bài học được đánh dấu hoàn thành lần đầu tiên,
 
 - **Chiếm dụng và Giao vận**: Tác vụ gửi thông báo sẽ lấy các bản ghi đang chờ bằng cơ chế khóa hàng của cơ sở dữ liệu để tránh xung đột giữa nhiều máy chủ xử lý song song. Tiến trình chuyển trạng thái bản ghi sang đang xử lý, gọi dịch vụ giao vận tạo bản ghi hiển thị thực tế trong bảng thông báo người dùng, và cuối cùng cập nhật trạng thái đã gửi. Nếu gặp sự cố kết nối, bản ghi thông báo được lưu vết để tự động thử lại sau (Retry Policy).
 
-### 6.5. Kiểm thử và đánh giá Chương 6
+### 6.5. Kiểm thử và đánh giá
 
 Bảng dưới đây mô tả quá trình kiểm tra tiến độ học tập và cơ chế nhắc nhở ôn tập ngắt quãng:
 
@@ -346,7 +324,7 @@ Luồng đàm thoại thời gian thực bắt đầu khi người dùng kích h
 
 Để tối ưu hóa trải nghiệm tương tác, luồng đàm thoại của TRIAM không chỉ dựa trên âm thanh mà luôn có sự đồng bộ hóa dữ liệu hiển thị trên màn hình chat thông qua bộ quản lý đồng bộ và lưu trữ nội dung thoại:
 
-- **Đồng bộ thời gian thực**: Khi trợ lý phát ngôn hoặc người dùng nói, văn bản thoại được đẩy về ứng dụng di động qua kênh dữ liệu nhanh `lk.chat` nhằm hiển thị nội dung xem trước (preview) tức thời cho người dùng.
+- **Đồng bộ thời gian thực**: Khi trợ lý phát ngôn hoặc người dùng nói, văn bản thoại được đẩy về ứng dụng di động qua kênh dữ liệu nhanh Livekit(Chat) nhằm hiển thị nội dung xem trước tức thời cho người dùng.
 
 - **Cơ chế đối khớp dữ liệu thoại**: Kênh dữ liệu văn bản nhanh chỉ đóng vai trò hiển thị tạm thời hoặc xem trước phản hồi. Nguồn sự thật chính để đồng bộ hóa và lưu trữ hội thoại lâu dài là các thông điệp thoại có đính kèm mã định danh tin nhắn ổn định được lưu trữ bền vững trong cơ sở dữ liệu tin nhắn hội thoại. Máy khách sẽ tự động đối khớp các tin nhắn xem trước trên giao diện bằng mã định danh chính thức từ máy chủ trả về khi kết thúc câu thoại để đảm bảo tính nhất quán dữ liệu.
 
@@ -387,7 +365,7 @@ Hệ thống thiết kế một lớp chính sách dùng chung cho cả kênh ch
 
 ```mermaid
 flowchart TD
-    Tool[Tool: Internet search được kích hoạt] -->|Yêu cầu kiểm tra quyền| Policy[Chính sách cấp quyền]
+    Tool[Tool: Internet search được kích hoạt] -->|Yêu cầu kiểm tra quyền| Policy[Bộ kiểm soát quyền truy cập]
     Policy -->|Kiểm tra trạng thái| StateCheck{Đã được cấp quyền?}
     StateCheck -->|Chưa được cấp quyền| Ask[Yêu cầu xác nhận giọng nói]
     StateCheck -->|Đã được cấp quyền| Allowed[Gọi API Tavily Search]
@@ -399,8 +377,8 @@ flowchart TD
     Allowed -->|Thực hiện tìm kiếm| Clear[Xóa trạng thái cấp quyền]
 ```
 
-- **Tầng 1 - Máy trạng thái cấp quyền**:
-  Được quản lý bởi máy trạng thái chính sách cấp quyền truy cập web. Quyền tìm kiếm là quyền sử dụng một lần và hoạt động theo máy trạng thái:
+- **Tầng 1 - Bộ kiểm soát quyền truy cập**:
+  Được quản lý bởi bộ kiểm soát quyền truy cập web. Quyền tìm kiếm là quyền sử dụng một lần và hoạt động theo trạng thái:
   - Khi thông tin trong tài liệu không đủ, trợ lý sẽ gọi công cụ xin quyền để chuyển trạng thái sang chờ xác nhận, đồng thời phát âm thanh hỏi người học có muốn tìm kiếm internet không.
   - Quyền tìm kiếm chỉ chuyển sang đã cấp phép khi câu trả lời tiếp theo của người dùng được xác nhận đồng ý. Sau khi thực hiện tìm kiếm internet một lần duy nhất qua công cụ tìm kiếm ngoài, quyền sẽ lập tức bị xóa để đảm bảo an toàn cho các câu hỏi tiếp theo.
 
@@ -419,7 +397,7 @@ flowchart TD
 > - Trường hợp 1: Người học trả lời: _"Ừ tìm hộ đi"_ hoặc _"Ok sure"_. Bộ phân loại ý định nhận diện là `grant`, máy trạng thái chuyển sang cấp quyền, cho phép công cụ tìm kiếm thực thi để trả về kết quả.
 > - Trường hợp 2: Người học trả lời: _"Thôi khỏi đi"_. Bộ phân loại ý định nhận diện là `deny`, trợ lý giọng nói lập tức đáp lại: _"Được, tôi sẽ không tìm kiếm ngoài tài liệu"_ và dừng thực thi công cụ tìm kiếm.
 
-### 7.7. Kiểm thử và đánh giá Chương 7
+### 7.7. Kiểm thử và đánh giá
 
 Bảng dưới đây mô tả chi tiết quá trình thực hiện kiểm thử và đánh giá cho toàn bộ các chức năng cốt lõi của Trợ lý giọng nói tương tác thời gian thực và Tìm kiếm tăng cường:
 
@@ -427,7 +405,7 @@ Bảng dưới đây mô tả chi tiết quá trình thực hiện kiểm thử 
 | :------------------------------------------ | :------------------------------------------------------------------------------------------ | :-------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------ |
 | Định tuyến câu hỏi chính xác chương         | Người dùng hỏi: _"Nội dung chương 2 nói về gì?"_                                            | Bộ định tuyến Grounding định tuyến chính xác sang đề mục tài liệu, nạp nội dung chương trực tiếp mà không đi qua RAG ngữ nghĩa          | Đã xác thực qua kiểm thử tích hợp (Grounding Router)                |
 | Xác thực đồng ý tìm kiếm tự nhiên           | Người dùng phản hồi giọng nói: _"Ừ, tìm thử xem"_ khi được hỏi quyền web                    | Bộ phân loại ý định nhận diện đúng nhãn `grant` và thực thi search                                                                      | Đã xác thực theo kịch bản mô phỏng (LLM intent classifier)          |
-| Đồng bộ Timeline và đối khớp tin nhắn       | Nhận chuỗi audio từ LiveKit, đồng thời lưu trữ DB và nhận callback                          | Giao diện client hiển thị text preview từ `lk.chat` tức thời, sau đó đối khớp (reconcile) bằng `message_id` chính thức từ DB            | Đã kiểm thử ở mức integration test (reconciliation bằng message_id) |
+| Đồng bộ Timeline và đối khớp tin nhắn       | Nhận chuỗi audio từ LiveKit, đồng thời lưu trữ DB và nhận callback                          | Giao diện client hiển thị text preview từ `lk.chat` tức thời, sau đó đối khớp bằng `message_id` chính thức từ DB                        | Đã kiểm thử ở mức integration test (reconciliation bằng message_id) |
 | Truy xuất lai (Hybrid Retrieval) từ khóa mờ | Người dùng hỏi từ khóa không dấu: _"crooks o chuong may"_ hoặc viết tắt _"webrtc"_          | Lexical search tìm kiếm trên cột `search_text` đã chuẩn hóa kết hợp với vector search tìm ra chính xác phân đoạn                        | Đã xác thực qua kiểm thử đơn vị (Hybrid Retrieval)                  |
 | Kiểm chứng minh chứng (Evidence Validation) | Người dùng hỏi về thực thể ngoài sách: _"GPQA benchmark là gì?"_                            | Bộ kiểm chứng minh chứng phát hiện thiếu token thực thể quan trọng (`missing_named_entity`) trong top chunk, chặn không cho LLM trả lời | Đã kiểm thử ở mức unit test (chặn missing_named_entity)             |
 | Lọc độ tin cậy thấp (Low Confidence Reject) | Người dùng hỏi câu hỏi không liên quan đến sách, score top chunk < 0.25                     | Validator gắn nhãn `low_confidence`, từ chối cung cấp ngữ cảnh                                                                          | Đã xác thực qua kiểm thử đơn vị (chặn low_confidence)               |

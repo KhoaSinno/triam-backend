@@ -1,0 +1,4 @@
+interface:
+  display_name: "TRIAM Thesis Writing"
+  short_description: "Vietnamese thesis prose and citations"
+  default_prompt: "Use $triam-thesis-academic-writing to refine my TRIAM thesis section with academic Vietnamese prose and reliable citations."
