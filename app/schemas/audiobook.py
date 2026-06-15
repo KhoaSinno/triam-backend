@@ -13,7 +13,3 @@ class BookUpdateRequest(BaseModel):
 
     title: str | None = Field(default=None, min_length=1, max_length=255)
     author: str | None = Field(default=None, max_length=255)
-
-
-# Backward-compatible alias while old imports are cleaned up.
-BookInput = BookUpdateRequest

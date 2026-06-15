@@ -1,4 +1,5 @@
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
 
 from sqlmodel import Session, col, func, select
@@ -17,6 +18,13 @@ ACTIVE_SESSION_STATUSES = {
     ReadingPlanSessionStatus.IN_PROGRESS.value,
     ReadingPlanSessionStatus.MISSED.value,
 }
+
+
+@dataclass(frozen=True)
+class PlanSessionSummaryCounts:
+    total_sessions: int
+    completed_sessions: int
+    missed_sessions: int
 
 
 def get_owned_session(
@@ -109,6 +117,34 @@ def list_sessions_for_user_range(
         statement = statement.where(ReadingPlanSession.status != ReadingPlanSessionStatus.CANCELLED.value)
     statement = statement.order_by(col(ReadingPlanSession.scheduled_at), col(ReadingPlanSession.session_index))
     return list(session.exec(statement).all())
+
+
+def get_plan_session_summary_counts(session: Session, *, plan_id: uuid.UUID) -> PlanSessionSummaryCounts:
+    rows = session.exec(
+        select(ReadingPlanSession.status, func.count(ReadingPlanSession.id))
+        .where(
+            ReadingPlanSession.plan_id == plan_id,
+            ReadingPlanSession.status != ReadingPlanSessionStatus.CANCELLED.value,
+        )
+        .group_by(ReadingPlanSession.status)
+    ).all()
+    counts = {status: int(count or 0) for status, count in rows}
+    return PlanSessionSummaryCounts(
+        total_sessions=sum(counts.values()),
+        completed_sessions=counts.get(ReadingPlanSessionStatus.COMPLETED.value, 0),
+        missed_sessions=counts.get(ReadingPlanSessionStatus.MISSED.value, 0),
+    )
+
+
+def get_next_session_for_plan(session: Session, *, plan_id: uuid.UUID) -> ReadingPlanSession | None:
+    return session.exec(
+        select(ReadingPlanSession)
+        .where(
+            ReadingPlanSession.plan_id == plan_id,
+            ReadingPlanSession.status.notin_(list(FINAL_SESSION_STATUSES)),
+        )
+        .order_by(col(ReadingPlanSession.scheduled_at), col(ReadingPlanSession.session_index))
+    ).first()
 
 
 def find_session_schedule_conflict(

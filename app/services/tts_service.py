@@ -2,7 +2,6 @@ import asyncio
 from pathlib import Path
 
 import edge_tts
-from openai import AsyncOpenAI
 
 from app.core.config import settings
 from app.core.exceptions import ExternalServiceError, TTSInputTooShortError
@@ -10,38 +9,8 @@ from app.core.logger import log
 from app.services.async_limiter import get_loop_semaphore
 from app.services.tts_script_quality_service import sanitize_tts_script_text
 
-client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-
 SUPPORTED_TTS_PROVIDERS = {"edge", "google", "gg"}
 _google_tts_client = None
-
-
-async def stream_text_to_speech(text: str, voice: str = "alloy"):
-    """
-    Hàm này nhận text, gọi OpenAI TTS và trả về stream audio ngay lập tức.
-    """
-    try:
-        async with client.audio.speech.with_streaming_response.create(
-            model="tts-1",
-            voice=voice,
-            input=text,
-        ) as response:
-            async for chunk in response.iter_bytes(chunk_size=4096):
-                if chunk:
-                    yield chunk
-
-    except Exception as e:
-        log.error(f"Error in TTS Stream: {e}")
-
-
-async def stream_text_to_speech_edge(text: str, voice: str = settings.EDGE_TTS_VOICE):
-    """
-    Sử dụng Edge TTS: Hoàn toàn MIỄN PHÍ và chất lượng Neural rất tốt.
-    """
-    communicate = edge_tts.Communicate(text, voice)
-    async for chunk in communicate.stream():
-        if chunk["type"] == "audio":
-            yield chunk["data"]
 
 
 def _clean_text_for_tts(text: str) -> str:
@@ -152,9 +121,6 @@ def _generate_audio_file_google_sync(text: str, filename: str, voice_name: str) 
 
 
 async def generate_audio_file_edge(text: str, filename: str, voice: str = settings.EDGE_TTS_VOICE):
-    """
-    Tạo file audio từ text bằng Edge TTS và lưu vào file.
-    """
     cleaned = _clean_text_for_tts(text)
     _validate_tts_text(cleaned)
     await _generate_audio_file_edge(cleaned, filename, voice)
@@ -167,16 +133,6 @@ async def generate_audio_and_get_duration(
     voice: str | None = None,
     max_retries: int = 6,
 ) -> int:
-    """
-    Tạo file audio bằng provider đang cấu hình và đo thời lượng (milliseconds).
-
-    - Semaphore(settings.TTS_GENERATION_CONCURRENCY): giới hạn TTS calls đồng thời
-    - Provider: settings.TTS_PROVIDER = edge | google
-    - Không tự fallback provider: giữ giọng đọc nhất quán
-    - KHÔNG dùng voice fallback: giữ giọng đọc nhất quán
-
-    Trả về duration_ms.
-    """
     cleaned = _clean_text_for_tts(text)
     _validate_tts_text(cleaned)
     provider = _selected_tts_provider()

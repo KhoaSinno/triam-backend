@@ -8,8 +8,6 @@ load_dotenv(override=True)
 
 class Settings(BaseSettings):
     OPENAI_API_KEY: str
-    # PINECONE_API_KEY: str
-    # PINECONE_ENV: str
     TAVILY_API_KEY: str
     GEMINI_BASE_URL: str
     GEMINI_API_KEY: str
@@ -48,14 +46,15 @@ class Settings(BaseSettings):
     LIVEKIT_ROOM_DEPARTURE_TIMEOUT_SECONDS: int = 20
     LIVEKIT_AGENT_EMPTY_ROOM_GRACE_SECONDS: float = 8.0
     GEMINI_MODEL_LLM: str = "gemini-2.5-flash"
-    DEEPGRAM_API_KEY: str
 
     # Realtime voice agent behavior
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-mini"
     OPENAI_REALTIME_VOICE: str = "cedar"
-    # Text
+    # Text and local console test behavior
     VOICE_AGENT_HISTORY_LIMIT: int = 24
     VOICE_AGENT_RAG_MAX_CHARS: int = 6000
+    # Local console fallback only. Production LiveKit rooms must provide
+    # thread_id and document_ids through job metadata from the backend token flow.
     VOICE_AGENT_CONSOLE_BOOK_ID: str = "c3f13d07-4494-4995-ba75-30a12589b8fc"
     VOICE_AGENT_CONSOLE_THREAD_ID: str = "07be00b9-c6da-4801-8ba2-7558205b92b2"
 
@@ -85,15 +84,11 @@ class Settings(BaseSettings):
     VOICE_AGENT_QUERY_GUARD_MIN_CHARS: int = 6
     VOICE_AGENT_QUERY_GUARD_MIN_TOKENS: int = 2
     VOICE_AGENT_QUERY_GUARD_TRANSCRIPT_TTL_SECONDS: float = 15.0
-    VOICE_AGENT_QUERY_GUARD_MIN_OVERLAP_RATIO: float = 0.34
-    VOICE_AGENT_QUERY_GUARD_MIN_IMPORTANT_OVERLAP_RATIO: float = 0.25
     VOICE_AGENT_QUERY_GUARD_LOG_DETAILS: bool = True
     VOICE_AGENT_CLARIFICATION_STATE_ENABLED: bool = True
     VOICE_AGENT_CLARIFICATION_STATE_TTL_SECONDS: float = 30.0
     VOICE_AGENT_CLARIFICATION_CONFIRMATION_MAX_TOKENS: int = 4
     VOICE_AGENT_CLARIFICATION_MIN_QUERY_PROMPT_OVERLAP: float = 0.45
-    VOICE_AGENT_CLARIFICATION_LLM_FALLBACK_ENABLED: bool = False
-    VOICE_AGENT_CLARIFICATION_CLASSIFIER_TIMEOUT_SECONDS: float = 1.2
     VOICE_AGENT_ASSISTANT_CLARIFICATION_HEURISTIC_ENABLED: bool = False
     VOICE_AGENT_INTERRUPTION_MIN_DURATION_SECONDS: float = 0.8
     VOICE_AGENT_INTERRUPTION_MIN_WORDS: int = 2
@@ -107,7 +102,6 @@ class Settings(BaseSettings):
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_TOOLS: str = "search_book_knowledge,ask_web_search_permission,execute_web_search"
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_ALLOW_ERROR_OUTPUTS: bool = False
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_FORCE_TOOL_CHOICE_NONE: bool = True
-    VOICE_AGENT_QUERY_GUARD_ENFORCE_TRANSCRIPT_OVERLAP: bool = False
 
     AGENT_MODEL_PROFILE: str = "baseline"
     AGENT_TRACE_ENABLED: bool = True
@@ -180,10 +174,8 @@ class Settings(BaseSettings):
     LEARNING_UNIT_PROCESSING_CONCURRENCY: int = 2
     LLM_NORMALIZE_CONCURRENCY: int = 1
     TTS_GENERATION_CONCURRENCY: int = 4
-    EMBEDDING_BATCH_SIZE: int = 64
     BOOK_SECTION_INDEXING_ENABLED: bool = True
     BOOK_SECTION_EMBEDDING_MODEL: str = "text-embedding-3-small"
-    BOOK_SECTION_EMBEDDING_DIMENSION: int = 1536
     BOOK_SECTION_EMBEDDING_VERSION: str = "section-v1"
     BOOK_SECTION_CHUNK_SIZE_CHARS: int = 3600
     BOOK_SECTION_CHUNK_OVERLAP_CHARS: int = 500
@@ -222,7 +214,6 @@ class Settings(BaseSettings):
     LEARNING_COMPLETION_THRESHOLD_PERCENT: int = 80
     LEARNING_PROGRESS_MIN_DELTA_PERCENT: int = 5
     LEARNING_PROGRESS_STALE_SECONDS: int = 30
-    PLAN_REMINDER_STUDIED_TODAY_WINDOW_HOURS: int = 24
 
     class Config:
         env_file = ".env"

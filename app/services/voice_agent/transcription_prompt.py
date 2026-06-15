@@ -98,6 +98,86 @@ def _base_domain_terms() -> tuple[str, ...]:
     )
 
 
+def _add_scope_terms(
+    terms: list[str],
+    seen: set[str],
+    grounding_scope: GroundingScope,
+    *,
+    max_section_terms: int,
+) -> None:
+    for book in grounding_scope.books:
+        _add_unique(terms, seen, book.title)
+        _add_unique(terms, seen, book.author)
+        if book.document_type:
+            _add_unique(terms, seen, str(book.document_type))
+
+    section_added = 0
+    for section in grounding_scope.sections:
+        if section_added >= max_section_terms:
+            break
+        section_added += _add_section_terms(terms, seen, section.title, section.path, max_section_terms - section_added)
+
+
+def _add_section_terms(terms: list[str], seen: set[str], title: str, path: str, remaining: int) -> int:
+    added = 0
+    if remaining <= 0:
+        return added
+
+    if _normalize_term(title):
+        _add_unique(terms, seen, title)
+        added += 1
+
+    for path_term in _split_path_terms(path):
+        if added >= remaining:
+            break
+        _add_unique(terms, seen, path_term)
+        added += 1
+
+    return added
+
+
+def _collect_dynamic_terms(
+    grounding_scope: GroundingScope | None,
+    *,
+    max_terms: int,
+    max_section_terms: int,
+    extra_terms: Iterable[str] | None,
+) -> list[str]:
+    terms: list[str] = []
+    seen: set[str] = set()
+
+    for term in _base_domain_terms():
+        _add_unique(terms, seen, term)
+
+    if extra_terms:
+        for term in extra_terms:
+            _add_unique(terms, seen, term)
+
+    if grounding_scope is not None:
+        _add_scope_terms(terms, seen, grounding_scope, max_section_terms=max_section_terms)
+
+    return terms[: max(0, max_terms)]
+
+
+def _build_prompt(base: str, terms: list[str], *, max_chars: int) -> str:
+    dynamic_suffix = " Session-specific expected terms: " + ", ".join(terms) + "." if terms else ""
+    prompt = (
+        base
+        + " The user may mix Vietnamese with English book titles, author names, character names, AI terms, and short app commands."
+        + " Prefer the exact expected terms when acoustically plausible; do not force them when the audio clearly says something else."
+        + dynamic_suffix
+    ).strip()
+    return _trim_prompt(prompt, max_chars=max_chars)
+
+
+def _trim_prompt(prompt: str, *, max_chars: int) -> str:
+    if max_chars <= 0 or len(prompt) <= max_chars:
+        return prompt
+
+    trimmed = prompt[:max_chars].rstrip()
+    return trimmed if trimmed.endswith(".") else trimmed + "."
+
+
 def build_realtime_transcription_prompt(
     *,
     base_prompt: str,
@@ -118,58 +198,13 @@ def build_realtime_transcription_prompt(
             dynamic_enabled=False,
         )
 
-    terms: list[str] = []
-    seen: set[str] = set()
-
-    for term in _base_domain_terms():
-        _add_unique(terms, seen, term)
-
-    if extra_terms:
-        for term in extra_terms:
-            _add_unique(terms, seen, term)
-
-    if grounding_scope is not None:
-        for book in grounding_scope.books:
-            _add_unique(terms, seen, book.title)
-            _add_unique(terms, seen, book.author)
-            if book.document_type:
-                _add_unique(terms, seen, str(book.document_type))
-
-        section_added = 0
-        for section in grounding_scope.sections:
-            if section_added >= max_section_terms:
-                break
-
-            title = _normalize_term(section.title)
-            path = _normalize_term(section.path)
-
-            if title:
-                _add_unique(terms, seen, title)
-                section_added += 1
-
-            for path_term in _split_path_terms(path):
-                if section_added >= max_section_terms:
-                    break
-                _add_unique(terms, seen, path_term)
-                section_added += 1
-
-    terms = terms[: max(0, max_terms)]
-
-    dynamic_suffix = ""
-    if terms:
-        dynamic_suffix = " Session-specific expected terms: " + ", ".join(terms) + "."
-
-    prompt = (
-        base
-        + " The user may mix Vietnamese with English book titles, author names, character names, AI terms, and short app commands."
-        + " Prefer the exact expected terms when acoustically plausible; do not force them when the audio clearly says something else."
-        + dynamic_suffix
-    ).strip()
-
-    if max_chars > 0 and len(prompt) > max_chars:
-        prompt = prompt[:max_chars].rstrip()
-        if not prompt.endswith("."):
-            prompt += "."
+    terms = _collect_dynamic_terms(
+        grounding_scope,
+        max_terms=max_terms,
+        max_section_terms=max_section_terms,
+        extra_terms=extra_terms,
+    )
+    prompt = _build_prompt(base, terms, max_chars=max_chars)
 
     return TranscriptionPromptBuildResult(
         prompt=prompt,

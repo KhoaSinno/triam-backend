@@ -7,9 +7,8 @@ Create Date: 2026-05-06 22:08:41.499014
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '951590abaacf'
@@ -35,13 +34,13 @@ def upgrade() -> None:
                nullable=False)
     planmode_enum = sa.Enum('FULL', 'PARETO', name='planmode')
     planmode_enum.create(op.get_bind(), checkfirst=True)
-    
+
     op.execute("UPDATE chapter_segments SET mode = 'PARETO' WHERE UPPER(mode) = 'PARETO_MODE'")
     op.execute("UPDATE chapter_segments SET mode = 'FULL' WHERE UPPER(mode) = 'FULL_MODE'")
     op.execute("UPDATE chapter_segments SET mode = UPPER(mode)")
-    
+
     op.alter_column('chapter_segments', 'mode', server_default=None)
-    
+
     op.alter_column('chapter_segments', 'mode',
                existing_type=sa.TEXT(),
                type_=planmode_enum,
@@ -56,7 +55,7 @@ def upgrade() -> None:
     op.add_column('reading_plans', sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True))
     op.execute("UPDATE reading_plans SET updated_at = NOW()")
     op.alter_column('reading_plans', 'updated_at', nullable=False)
-    
+
     op.execute("UPDATE reading_plans SET mode = 'PARETO' WHERE UPPER(mode) = 'PARETO_MODE'")
     op.execute("UPDATE reading_plans SET mode = 'FULL' WHERE UPPER(mode) = 'FULL_MODE'")
     op.execute("UPDATE reading_plans SET mode = UPPER(mode)")

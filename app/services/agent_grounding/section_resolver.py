@@ -114,45 +114,60 @@ def _clarification_for_candidates(candidates: tuple[GroundingSection, ...]) -> s
     return "Tôi tìm thấy nhiều đề mục phù hợp. Bạn vui lòng nói rõ số mục hoặc đường dẫn mục lục."
 
 
-def resolve_section(scope: GroundingScope, query: NormalizedQuery, reference: SectionReference) -> SectionResolution:
-    if not reference.has_target:
-        return SectionResolution(
-            ResolutionQuality.NOT_FOUND,
-            "missing_section_reference",
-            clarification="Bạn muốn hỏi chương hoặc đề mục nào?",
-        )
+def _primary_book_with_reference(scope: GroundingScope, reference: SectionReference) -> GroundingBook | None:
+    if not scope.allowed_book_ids:
+        return None
 
+    primary_id = scope.allowed_book_ids[0]
+    primary_book = next((book for book in scope.books if book.id == primary_id), None)
+    if primary_book is None:
+        return None
+
+    candidates = _reference_candidates(_sections_for_book(scope, primary_book.id), reference)
+    return primary_book if candidates else None
+
+
+def _candidate_books_for_reference(
+    scope: GroundingScope,
+    query: NormalizedQuery,
+    reference: SectionReference,
+) -> tuple[GroundingBook, ...]:
     named_books = _named_books(scope, query)
-    candidate_books = named_books
-    if not candidate_books and scope.books:
-        if scope.allowed_book_ids:
-            primary_id = scope.allowed_book_ids[0]
-            primary_book = next((b for b in scope.books if b.id == primary_id), None)
-            if primary_book is not None:
-                primary_matches = []
-                for section in _reference_candidates(_sections_for_book(scope, primary_book.id), reference):
-                    primary_matches.append((primary_book, section))
-                if primary_matches:
-                    candidate_books = (primary_book,)
-        if not candidate_books:
-            candidate_books = scope.books
+    if named_books:
+        return named_books
 
-    if not candidate_books:
-        return SectionResolution(
-            ResolutionQuality.NOT_FOUND,
-            "no_allowed_books",
-            clarification="Tôi chưa tìm thấy sách nào trong ngữ cảnh học tập hiện tại.",
-        )
+    if not scope.books:
+        return ()
 
+    primary_book = _primary_book_with_reference(scope, reference)
+    if primary_book is not None:
+        return (primary_book,)
+
+    return scope.books
+
+
+def _section_matches(
+    scope: GroundingScope,
+    candidate_books: tuple[GroundingBook, ...],
+    reference: SectionReference,
+) -> list[tuple[GroundingBook, GroundingSection]]:
     matches: list[tuple[GroundingBook, GroundingSection]] = []
     for book in candidate_books:
-        for section in _reference_candidates(_sections_for_book(scope, book.id), reference):
+        sections = _sections_for_book(scope, book.id)
+        for section in _reference_candidates(sections, reference):
             matches.append((book, section))
+    return matches
 
+
+def _section_resolution_from_matches(
+    matches: list[tuple[GroundingBook, GroundingSection]],
+    reference: SectionReference,
+) -> SectionResolution | None:
     if len(matches) == 1:
         book, section = matches[0]
         reason = "exact_section_path" if reference.explicit_path or reference.explicit_ordinal is not None else "exact_section_title"
         return SectionResolution(ResolutionQuality.EXACT, reason, book=book, section=section)
+
     if len(matches) > 1:
         candidates = tuple(section for _, section in matches)
         return SectionResolution(
@@ -161,6 +176,32 @@ def resolve_section(scope: GroundingScope, query: NormalizedQuery, reference: Se
             candidates=candidates,
             clarification=_clarification_for_candidates(candidates),
         )
+
+    return None
+
+
+def resolve_section(scope: GroundingScope, query: NormalizedQuery, reference: SectionReference) -> SectionResolution:
+    if not reference.has_target:
+        return SectionResolution(
+            ResolutionQuality.NOT_FOUND,
+            "missing_section_reference",
+            clarification="Bạn muốn hỏi chương hoặc đề mục nào?",
+        )
+
+    candidate_books = _candidate_books_for_reference(scope, query, reference)
+    if not candidate_books:
+        return SectionResolution(
+            ResolutionQuality.NOT_FOUND,
+            "no_allowed_books",
+            clarification="Tôi chưa tìm thấy sách nào trong ngữ cảnh học tập hiện tại.",
+        )
+
+    resolution = _section_resolution_from_matches(
+        _section_matches(scope, candidate_books, reference),
+        reference,
+    )
+    if resolution is not None:
+        return resolution
 
     return SectionResolution(
         ResolutionQuality.NOT_FOUND,
