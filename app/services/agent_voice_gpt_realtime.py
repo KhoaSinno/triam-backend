@@ -648,11 +648,22 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
     document_ids = job_meta.document_ids
 
     if not document_ids:
-        log.info("❌ Không tìm thấy document_ids trong metadata! Thoát.")
-        return
+        if ctx.room.name == "console":
+            log.warning(
+                "Voice console started without VOICE_AGENT_CONSOLE_BOOK_ID; "
+                "limited STT-only run. Full local console testing requires a book ID."
+            )
+        else:
+            log.info("No document_ids found in LiveKit metadata; closing voice job.")
+            return
 
-    log.info(f"✅ Document IDs từ metadata: {document_ids}")
-    log.info(f"🏠 Room Name (session): {ctx.room.name}")
+    if ctx.room.name == "console" and not thread_id:
+        log.warning(
+            "Voice console started without VOICE_AGENT_CONSOLE_THREAD_ID; "
+            "chat persistence is disabled for this run."
+        )
+
+    log.info(f"Voice session scope ready | document_count={len(document_ids)} | room={ctx.room.name}")
     log.info(f"Bat dau phien doc sach cho Thread ID: {thread_id}")
 
     thread_uuid: uuid.UUID | None = None
