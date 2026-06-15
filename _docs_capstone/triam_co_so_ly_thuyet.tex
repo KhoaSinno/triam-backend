@@ -25,9 +25,9 @@
 
 Chương này trình bày các nền tảng lý thuyết và công nghệ làm cơ sở cho việc xây dựng hệ thống TRIAM. Do TRIAM là hệ thống học tập kết hợp xử lý tài liệu, trí tuệ nhân tạo tạo sinh, hỏi đáp theo ngữ cảnh, học bằng âm thanh, trợ lý giọng nói thời gian thực và nhắc ôn tập, chương cơ sở lý thuyết cần bao quát nhiều nhóm khái niệm khác nhau. Tuy nhiên, phạm vi của chương dừng ở mức nền tảng: giải thích khái niệm, nguyên lý chính, ưu điểm, hạn chế và vai trò của từng nhóm công nghệ đối với bài toán nghiên cứu. Các quyết định thiết kế chi tiết, mô hình dữ liệu, luồng xử lý, API và kết quả triển khai sẽ được trình bày ở các chương sau.
 
-\section{Trí tuệ nhân tạo tạo sinh -- Generative Artificial Intelligence}
+\section{Generative Artificial Intelligence - GenAI}
 
-\subsection{Trí tuệ nhân tạo tạo sinh là gì?}
+\subsection{GenAI là gì?}
 
 Trí tuệ nhân tạo tạo sinh (Generative Artificial Intelligence - GenAI) là nhóm kỹ thuật trí tuệ nhân tạo hướng đến việc tạo ra nội dung mới dựa trên dữ liệu đã học. Nội dung được sinh ra có thể là văn bản, hình ảnh, âm thanh, mã nguồn, bản tóm tắt, câu trả lời tự nhiên hoặc các dạng biểu diễn khác. Khác với các hệ thống phần mềm truyền thống chủ yếu thực thi các quy tắc được lập trình sẵn, GenAI học các mẫu, cấu trúc và quan hệ tiềm ẩn trong dữ liệu, từ đó tạo ra kết quả mới có đặc điểm tương đồng với dữ liệu huấn luyện.
 
@@ -65,9 +65,9 @@ Tuy nhiên, TRIAM không sử dụng GenAI theo hướng để mô hình tự tr
 
 GenAI là nền tảng quan trọng cho các hệ thống học tập thông minh hiện đại vì cho phép tự động hóa việc phân tích, trình bày và tương tác với tri thức. Tuy nhiên, công nghệ này cũng có hạn chế về độ tin cậy, chi phí, độ trễ và bảo mật. Đối với TRIAM, GenAI cần được đặt trong kiến trúc có truy xuất tài liệu, kiểm soát ngữ cảnh, xác thực người dùng và lưu trữ dữ liệu an toàn để tạo ra một hệ thống học tập có tính ứng dụng và đáng tin cậy.
 
-\section{Mô hình ngôn ngữ lớn -- Large Language Model}
+\section{Large Language Model - LLM}
 
-\subsection{Large Language Model là gì?}
+\subsection{LLM là gì?}
 
 Mô hình ngôn ngữ lớn (Large Language Model - LLM) là mô hình học máy được huấn luyện trên lượng dữ liệu văn bản rất lớn nhằm học cách biểu diễn, hiểu và sinh ngôn ngữ tự nhiên. Các mô hình này có thể thực hiện nhiều tác vụ xử lý ngôn ngữ như trả lời câu hỏi, tóm tắt văn bản, dịch thuật, phân loại nội dung, tạo văn bản mới và hỗ trợ lập luận theo ngữ cảnh \cite{zhao2023llmSurvey}.
 
@@ -171,9 +171,9 @@ RAG cũng đóng vai trò quan trọng trong tính năng trợ lý giọng nói.
 
 RAG là kỹ thuật quan trọng giúp kết hợp khả năng sinh ngôn ngữ của LLM với dữ liệu thực tế trong tài liệu học tập. Đối với TRIAM, RAG giúp tăng độ bám nguồn, giảm nguy cơ ảo giác và cho phép hệ thống trả lời theo tài liệu riêng của từng người học. Đây là một trong những cơ sở lý thuyết cốt lõi để xây dựng trợ lý học tập thông minh dựa trên tài liệu.
 
-\section{Tìm kiếm ngữ nghĩa, tìm kiếm từ khóa và tìm kiếm lai}
+\section{Semantic, Keyword và Hybrid Search}
 
-\subsection{Tìm kiếm ngữ nghĩa là gì?}
+\subsection{Semantic Search là gì?}
 
 Tìm kiếm ngữ nghĩa là phương pháp tìm kiếm dựa trên ý nghĩa của câu hỏi và nội dung tài liệu thay vì chỉ so khớp từ khóa bề mặt. Trong phương pháp này, văn bản được chuyển thành vector nhúng (embedding), tức một biểu diễn số trong không gian nhiều chiều. Các đoạn văn bản có nội dung gần nghĩa thường có vector nằm gần nhau hơn trong không gian biểu diễn. Tài liệu của OpenAI mô tả embedding như vector số dùng để đo mức độ liên quan giữa các chuỗi văn bản \cite{openaiEmbeddingsDocs}.
 
@@ -187,7 +187,7 @@ Cosine(u, v) = \frac{u \cdot v}{||u|| ||v||}
 
 Trong đó, \(u\) là vector của câu hỏi, \(v\) là vector của đoạn tài liệu. Giá trị càng cao thì mức độ tương đồng về ngữ nghĩa càng lớn. Trong các hệ thống RAG, độ tương đồng vector thường được sử dụng để chọn các đoạn tài liệu có khả năng cung cấp ngữ cảnh cho câu trả lời.
 
-\subsection{Tìm kiếm từ khóa là gì?}
+\subsection{Keyword Search là gì?}
 
 Tìm kiếm từ khóa là phương pháp tìm kiếm dựa trên sự xuất hiện trực tiếp của từ hoặc cụm từ trong tài liệu. Phương pháp này đặc biệt hiệu quả khi người dùng tìm kiếm tên riêng, thuật ngữ chuyên ngành, mã chương, số mục, công thức hoặc các cụm từ cần khớp chính xác. Trong PostgreSQL, full-text search cung cấp khả năng phân tích tài liệu, truy vấn và sắp xếp kết quả theo độ liên quan \cite{postgresTextSearchDocs}.
 
@@ -195,7 +195,7 @@ Ví dụ, nếu người học hỏi về một thuật ngữ viết tắt, tên
 
 Tuy nhiên, tìm kiếm từ khóa có hạn chế khi người dùng diễn đạt câu hỏi bằng từ ngữ khác với tài liệu. Nếu tài liệu viết ``self-attention'' nhưng người học hỏi ``mô hình tập trung vào phần quan trọng của câu như thế nào'', tìm kiếm từ khóa thuần túy có thể bỏ sót đoạn liên quan. Vì vậy, trong hệ thống học tập, tìm kiếm từ khóa thường cần được kết hợp với tìm kiếm ngữ nghĩa.
 
-\subsection{Tìm kiếm lai là gì?}
+\subsection{Hybrid Search là gì?}
 
 Tìm kiếm lai (hybrid search) là phương pháp kết hợp tìm kiếm ngữ nghĩa và tìm kiếm từ khóa. Mục tiêu của tìm kiếm lai là tận dụng ưu điểm của cả hai hướng tiếp cận: tìm kiếm ngữ nghĩa giúp hiểu ý định và nội dung tương đương, trong khi tìm kiếm từ khóa giúp bắt đúng các cụm từ cụ thể. Kết quả từ hai nguồn có thể được kết hợp bằng cách gộp danh sách, chuẩn hóa điểm số, xếp hạng lại hoặc áp dụng bộ lọc theo metadata.
 
@@ -215,9 +215,9 @@ Trong phạm vi chương cơ sở lý thuyết, tìm kiếm lai được trình 
 
 Tìm kiếm ngữ nghĩa và tìm kiếm từ khóa đều có vai trò riêng trong hệ thống truy xuất thông tin. Tìm kiếm ngữ nghĩa phù hợp với câu hỏi tự nhiên, còn tìm kiếm từ khóa phù hợp với dữ liệu cần khớp chính xác. Trong TRIAM, tìm kiếm lai giúp nâng cao chất lượng truy xuất cho RAG, hỗ trợ trợ lý học tập trả lời đúng nội dung tài liệu và giảm nguy cơ truy xuất sai ngữ cảnh.
 
-\section{Công nghệ xử lý tài liệu học tập}
+\section{Document Processing}
 
-\subsection{Xử lý tài liệu là gì?}
+\subsection{Document Processing là gì?}
 
 Xử lý tài liệu là quá trình chuyển đổi các tệp tài liệu thô thành dữ liệu văn bản sạch, có cấu trúc và có thể sử dụng cho các tác vụ phân tích, tìm kiếm, tóm tắt và sinh nội dung. Trong các hệ thống học tập thông minh, chất lượng xử lý tài liệu ảnh hưởng trực tiếp đến chất lượng câu trả lời, chất lượng nội dung âm thanh và độ tin cậy của các chức năng ôn tập.
 
@@ -233,7 +233,7 @@ Sau khi trích xuất, hệ thống cần chuẩn hóa văn bản. Quá trình c
 
 Trong các chức năng học bằng âm thanh, chuẩn hóa văn bản còn có vai trò riêng. Văn bản học thuật thường chứa ký hiệu, công thức, chữ viết tắt, danh sách, bảng biểu hoặc cách xuống dòng không phù hợp với giọng đọc. Khi chuyển sang kịch bản nghe, hệ thống cần bảo toàn ý nghĩa học thuật nhưng diễn đạt theo văn phong nói rõ ràng hơn. Đây là điểm khác biệt giữa xử lý tài liệu cho RAG và xử lý tài liệu cho TTS: RAG cần giữ nguồn văn bản trung thành, trong khi TTS cần đầu vào dễ phát âm và dễ nghe.
 
-\subsection{Chia nhỏ văn bản}
+\subsection{Chunking}
 
 Chia nhỏ văn bản (chunking) là quá trình tách tài liệu dài thành các đoạn ngắn hơn. Đây là bước quan trọng trong RAG vì mô hình embedding và LLM đều có giới hạn độ dài ngữ cảnh. Nếu đoạn văn bản quá dài, vector embedding có thể trở nên kém tập trung và khó đại diện cho một ý cụ thể. Nếu đoạn quá ngắn, thông tin có thể bị mất mạch, thiếu tiền đề hoặc không đủ ngữ cảnh để trả lời.
 
@@ -253,9 +253,9 @@ Do đó, xử lý tài liệu là cầu nối giữa tài liệu thô và các c
 
 Xử lý tài liệu là bước quyết định chất lượng của hệ thống học tập dựa trên AI. Nếu tài liệu được xử lý tốt, hệ thống có thể truy xuất chính xác, tóm tắt đúng trọng tâm và sinh nội dung học tập hiệu quả. Trong TRIAM, quy trình xử lý tài liệu đóng vai trò chuyển đổi tài liệu thô thành tri thức có cấu trúc, phục vụ cho RAG, trợ lý giọng nói, học bằng âm thanh và ôn tập sau khi học.
 
-\section{Công nghệ truyền thông thời gian thực và trợ lý giọng nói}
+\section{Real-time Communication và Voice Assistant}
 
-\subsection{Truyền thông thời gian thực là gì?}
+\subsection{Real-time Communication là gì?}
 
 Truyền thông thời gian thực là quá trình trao đổi dữ liệu với độ trễ thấp giữa các thiết bị hoặc dịch vụ. Trong hệ thống học tập bằng giọng nói, dữ liệu âm thanh cần được truyền đi, xử lý và phản hồi nhanh để người học có cảm giác hội thoại liên tục. Nếu độ trễ quá cao, người học phải chờ lâu sau mỗi câu hỏi, làm giảm tính tự nhiên của phiên học.
 
@@ -279,7 +279,7 @@ Một điểm đáng chú ý của LiveKit là việc quản lý hạ tầng k�
 
 Trong hệ thống TRIAM, LiveKit đóng vai trò quản lý phiên kết nối thời gian thực giữa người học và Voice Agent. Ứng dụng của người học tham gia vào phòng, đồng thời Voice Agent cũng tham gia như một thành viên ảo. Nhờ đó, hệ thống có thể thu âm câu hỏi, xử lý yêu cầu, gọi truy xuất tài liệu và phát lại câu trả lời trong cùng một phiên thời gian thực.
 
-\subsection{Trợ lý giọng nói thời gian thực}
+\subsection{Real-time Voice Assistant}
 
 Trợ lý giọng nói thời gian thực là thành phần cho phép người dùng giao tiếp với hệ thống bằng lời nói thay vì chỉ nhập văn bản. Một trợ lý giọng nói truyền thống thường gồm các bước: nhận âm thanh, chuyển âm thanh thành văn bản, phân tích ý định, tạo câu trả lời và chuyển câu trả lời thành âm thanh. Cách tổ chức này rõ ràng về mặt kiến trúc nhưng có thể tạo độ trễ vì phải đi qua nhiều dịch vụ liên tiếp.
 
@@ -299,9 +299,9 @@ Trong TRIAM, STT và TTS hỗ trợ cả hai tình huống: hội thoại trực
 
 Công nghệ truyền thông thời gian thực và trợ lý giọng nói giúp TRIAM tạo ra trải nghiệm học tập tương tác tự nhiên hơn. WebRTC và LiveKit hỗ trợ truyền âm thanh độ trễ thấp, trong khi STT, TTS, LLM và RAG giúp hệ thống hiểu câu hỏi, truy xuất tài liệu và phản hồi bằng giọng nói. Đây là nền tảng quan trọng để TRIAM trở thành một trợ lý học tập bằng âm thanh thay vì chỉ là hệ thống đọc tài liệu thông thường.
 
-\section{Cơ sở dữ liệu, xác thực và lưu trữ}
+\section{Database, Authentication và Storage}
 
-\subsection{Cơ sở dữ liệu PostgreSQL}
+\subsection{PostgreSQL Database}
 
 PostgreSQL là hệ quản trị cơ sở dữ liệu quan hệ mã nguồn mở, được sử dụng rộng rãi trong các hệ thống phần mềm cần lưu trữ dữ liệu có cấu trúc. PostgreSQL hỗ trợ truy vấn SQL, giao dịch, ràng buộc dữ liệu, chỉ mục, kiểu dữ liệu mở rộng và nhiều tiện ích phục vụ phát triển ứng dụng. Theo tài liệu PostgreSQL, giao dịch được tổ chức thông qua các lệnh như \texttt{BEGIN} và \texttt{COMMIT}, giúp nhóm nhiều thao tác thành một đơn vị xử lý nhất quán \cite{postgresTransactionsDocs}.
 
@@ -309,7 +309,7 @@ PostgreSQL là hệ quản trị cơ sở dữ liệu quan hệ mã nguồn mở
 
 Trong TRIAM, PostgreSQL phù hợp để lưu trữ dữ liệu nghiệp vụ cốt lõi. Các chức năng như tải tài liệu, xử lý nền, lập kế hoạch học, phát âm thanh, hỏi đáp theo tài liệu và nhắc ôn tập đều cần một nguồn dữ liệu bền vững để theo dõi trạng thái. PostgreSQL cũng tạo nền tảng để kết hợp dữ liệu quan hệ với dữ liệu vector thông qua tiện ích mở rộng pgvector.
 
-\subsection{pgvector và cơ sở dữ liệu vector}
+\subsection{pgvector và Vector Database}
 
 pgvector là tiện ích mở rộng của PostgreSQL cho phép lưu trữ và truy vấn vector trực tiếp trong cơ sở dữ liệu. Theo tài liệu pgvector, công cụ này hỗ trợ tìm kiếm vector tương đồng trong Postgres, bao gồm cả tìm kiếm chính xác và gần đúng, với nhiều phép đo như cosine distance, inner product hoặc L2 distance \cite{pgvectorDocs}.
 
@@ -325,7 +325,7 @@ Trong TRIAM, Supabase có thể đảm nhận vai trò quản lý dữ liệu ng
 
 Tuy nhiên, khi sử dụng nền tảng như Supabase, hệ thống vẫn cần thiết kế rõ ràng ranh giới giữa client, backend và cơ sở dữ liệu. Các tài liệu học tập, tệp âm thanh và tiến độ cá nhân đều là dữ liệu nhạy cảm ở mức người dùng. Vì vậy, kiến trúc cần kết hợp xác thực, phân quyền ở backend và chính sách bảo mật dữ liệu ở tầng cơ sở dữ liệu.
 
-\subsection{Xác thực và phân quyền}
+\subsection{Authentication và Authorization}
 
 Xác thực là quá trình kiểm tra danh tính người dùng trước khi cho phép truy cập hệ thống. Phân quyền là quá trình xác định người dùng được phép truy cập dữ liệu hoặc chức năng nào. Trong hệ thống học tập cá nhân hóa, hai yếu tố này rất quan trọng vì mỗi người dùng có tài liệu, tiến độ học, lịch ôn tập và lịch sử hội thoại riêng.
 
@@ -337,9 +337,9 @@ Bên cạnh xác thực ở tầng ứng dụng, cơ chế Row Level Security (R
 
 Cơ sở dữ liệu, xác thực và lưu trữ là nền tảng bảo đảm TRIAM hoạt động ổn định, an toàn và có khả năng mở rộng. PostgreSQL giúp lưu trữ dữ liệu có cấu trúc, pgvector hỗ trợ tìm kiếm ngữ nghĩa, Supabase hỗ trợ xác thực và lưu trữ, còn cơ chế phân quyền giúp bảo vệ dữ liệu cá nhân của người học. Đây là lớp nền để các chức năng AI phía trên vận hành một cách đáng tin cậy.
 
-\section{Xử lý tác vụ nền và hàng đợi}
+\section{Background Tasks và Message Queue}
 
-\subsection{Tác vụ nền là gì?}
+\subsection{Background Tasks là gì?}
 
 Tác vụ nền là các công việc được thực hiện ngoài luồng xử lý chính của ứng dụng. Những tác vụ này thường mất nhiều thời gian hoặc tiêu tốn nhiều tài nguyên, chẳng hạn như xử lý tài liệu, tạo embedding, tổng hợp âm thanh, gửi thông báo, lập lịch ôn tập hoặc đồng bộ trạng thái. Nếu các tác vụ nặng được xử lý trực tiếp trong request của người dùng, hệ thống có thể phản hồi chậm, dễ bị timeout và khó phục vụ nhiều người cùng lúc.
 
@@ -367,9 +367,9 @@ Xử lý nền cũng hỗ trợ các tác vụ định kỳ như quét lịch ô
 
 Xử lý tác vụ nền giúp TRIAM vận hành ổn định khi thực hiện các công việc nặng như xử lý tài liệu, tạo embedding, sinh kịch bản và tổng hợp âm thanh. Celery và Redis hỗ trợ tách biệt luồng xử lý chính với các tác vụ dài, từ đó cải thiện hiệu năng, khả năng mở rộng và trải nghiệm người dùng.
 
-\section{Thông báo đẩy và nhắc nhở học tập}
+\section{Push Notification và Reminders}
 
-\subsection{Thông báo đẩy là gì?}
+\subsection{Push Notification là gì?}
 
 Thông báo đẩy là cơ chế cho phép hệ thống gửi thông tin đến thiết bị của người dùng ngay cả khi ứng dụng không mở trực tiếp. Trên thiết bị di động, thông báo đẩy thường được dùng để nhắc lịch, cảnh báo sự kiện, cập nhật trạng thái xử lý hoặc khuyến khích người dùng quay lại ứng dụng.
 
@@ -389,9 +389,9 @@ Trong TRIAM, FCM có thể được sử dụng để gửi nhắc nhở ôn t�
 
 Thông báo đẩy là thành phần hỗ trợ quan trọng trong việc duy trì thói quen học tập. Đối với TRIAM, FCM giúp kết nối lịch học, lịch ôn tập và trạng thái xử lý với thiết bị của người học. Khi được thiết kế phù hợp, thông báo đẩy giúp người học quay lại ôn tập đúng thời điểm mà không cần tự ghi nhớ toàn bộ lịch học.
 
-\section{Thuật toán lặp lại ngắt quãng và SuperMemo-2}
+\section{Spaced Repetition và SuperMemo-2}
 
-\subsection{Lặp lại ngắt quãng là gì?}
+\subsection{Spaced Repetition là gì?}
 
 Lặp lại ngắt quãng (spaced repetition) là phương pháp học tập dựa trên việc ôn lại kiến thức theo các khoảng thời gian cách nhau thay vì dồn toàn bộ việc ôn tập vào một thời điểm ngắn. Phương pháp này gắn với quan sát về sự suy giảm trí nhớ theo thời gian trong nghiên cứu của Ebbinghaus \cite{ebbinghaus1913memory}. Nếu không được củng cố, khả năng ghi nhớ một thông tin có xu hướng giảm dần theo thời gian.
 
@@ -439,7 +439,7 @@ Khi kết hợp với thông báo đẩy, cơ chế ôn tập giúp TRIAM không
 
 Spaced Repetition và SM-2 là cơ sở lý thuyết quan trọng cho chức năng ôn tập thông minh trong hệ thống. Phương pháp này nhấn mạnh vai trò của thời điểm ôn tập đối với ghi nhớ dài hạn. Trong luận văn, SM-2 nên được xem là thuật toán tham khảo để giải thích hướng tiếp cận lập lịch thích nghi, còn TRIAM hiện vận dụng nguyên lý lặp lại ngắt quãng qua các mốc ôn tập gắn với tiến độ học tập thực tế.
 
-\section{Framework phát triển ứng dụng}
+\section{Application Development Framework}
 
 \subsection{FastAPI}
 
@@ -469,9 +469,9 @@ Trong TRIAM, Next.js có thể được sử dụng cho trang quản trị hoặ
 
 FastAPI, Flutter và Next.js là các công nghệ hỗ trợ TRIAM triển khai đầy đủ từ backend, ứng dụng di động đến giao diện quản trị. FastAPI đảm nhiệm xử lý nghiệp vụ và tích hợp AI, Flutter cung cấp trải nghiệm học tập trên di động, còn Next.js hỗ trợ quản trị hệ thống. Sự kết hợp này tạo ra kiến trúc có phân tách vai trò rõ ràng và phù hợp với yêu cầu của một hệ thống học tập thông minh.
 
-\section{Dịch vụ tìm kiếm Internet cho trợ lý học tập}
+\section{Web Search API}
 
-\subsection{Tìm kiếm Internet trong hệ thống AI}
+\subsection{Web Search trong hệ thống AI}
 
 Trong nhiều tình huống, người dùng có thể đặt câu hỏi nằm ngoài phạm vi tài liệu đã tải lên. Nếu trợ lý chỉ dựa vào tài liệu nội bộ, hệ thống cần thừa nhận rằng không đủ thông tin để trả lời. Nếu để mô hình tự trả lời không có nguồn, nguy cơ tạo ra thông tin không chính xác sẽ tăng lên. Vì vậy, một số hệ thống AI tích hợp thêm công cụ tìm kiếm Internet để truy xuất thông tin bên ngoài khi cần.
 
@@ -491,7 +491,7 @@ Một điểm cần nhấn mạnh là web search không loại bỏ yêu cầu k
 
 Tìm kiếm Internet giúp mở rộng khả năng trả lời của trợ lý học tập trong các trường hợp tài liệu nội bộ không đủ thông tin. Tuy nhiên, đối với hệ thống học tập như TRIAM, nguồn chính vẫn nên là tài liệu của người học. Tìm kiếm web chỉ nên đóng vai trò bổ sung, được kiểm soát rõ ràng và cần đi kèm cơ chế trích dẫn nguồn để giảm nguy cơ đưa thông tin thiếu kiểm chứng vào quá trình học.
 
-\section{Ngôn ngữ mô hình hóa hệ thống UML}
+\section{Unified Modeling Language - UML}
 
 \subsection{UML là gì?}
 
@@ -501,7 +501,7 @@ Unified Modeling Language (UML) là ngôn ngữ mô hình hóa trực quan đư�
 
 Trong phạm vi chương cơ sở lý thuyết, UML được trình bày như công cụ hỗ trợ phân tích thiết kế. Các biểu đồ cụ thể như use case, class diagram hoặc sequence diagram sẽ phù hợp hơn ở chương phân tích thiết kế hệ thống, nơi luận văn trình bày ranh giới hệ thống, chức năng và tương tác giữa các thành phần.
 
-\subsection{Một số biểu đồ UML thường dùng}
+\subsection{Các biểu đồ UML phổ biến}
 
 Use Case Diagram - mô tả các tác nhân tương tác với hệ thống và các chức năng mà hệ thống cung cấp. Trong TRIAM, các tác nhân có thể bao gồm người học và quản trị viên. Các chức năng có thể gồm tải tài liệu, nghe bài học, hỏi trợ lý, xem tiến độ, nhận thông báo và ôn tập.
 
