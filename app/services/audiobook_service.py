@@ -8,6 +8,7 @@ from app.core.constant import BookStatus, PlanMode, PlanStatus, ProcessingJobSta
 from app.core.exceptions import BookNotFoundError, BookStatusConflictError, ExternalServiceError, NoReadingPlanError, ReadingPlanNotFoundError, ReadingPlanScheduleConflictError
 from app.models.db_models import Book, LearningUnit, LearningUnitSegment, ProcessingJob, ReadingPlan, ReadingPlanScheduleSlot
 from app.repositories import audiobook_repo
+from app.repositories.book_read_repo import BookListProjection, get_book_library_projection, list_book_library_projections
 from app.repositories.book_section_repo import BookSectionOutlineRow, list_book_section_outline_rows, list_book_sections
 from app.repositories.learning_unit_repo import (
     count_unit_segments_by_book_and_mode,
@@ -19,7 +20,7 @@ from app.repositories.processing_job_repo import create_processing_job, update_p
 from app.repositories.reading_plan_repo import get_current_plan_for_owned_book
 from app.repositories.reading_plan_schedule_repo import list_active_slots, list_slots_for_plan, replace_slots_for_plan, set_slots_active
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
-from app.services.learning_progress_service import build_book_learning_summary
+from app.services.learning_progress_service import build_book_learning_summary_from_state
 from app.services.learning_unit_planner_service import plan_learning_units_async
 from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, WEEKDAY_SHORT_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
 from app.services.reading_plan_session_service import (
@@ -32,23 +33,16 @@ from app.services.reading_plan_session_service import (
 from app.tasks.book_tasks import switch_mode_task
 
 
-def _book_to_response_dict(session: Session, book: Book) -> dict:
+def _book_to_response_dict(projection: BookListProjection) -> dict:
+    book = projection.book
     book_data = book.model_dump()
-    if not book_data.get("id"):
-        session.refresh(book)
-        book_data = book.model_dump()
-
-    book_id = book_data["id"]
-    book_user_id = book_data["user_id"]
-    plan = get_current_plan_for_owned_book(session, user_id=book_user_id, book_id=book_id)
     learning_status = None
     book_progress_percent = None
     completed_at = None
-    if plan:
-        summary = build_book_learning_summary(session, user_id=book_user_id, book_id=book_id, mode=PlanMode(plan.mode))
-        learning_status = summary.learning_status.value
-        book_progress_percent = summary.book_progress_percent
-        completed_at = summary.completed_at
+    if projection.learning_state:
+        learning_status = projection.learning_state.status
+        book_progress_percent = projection.learning_state.book_progress_percent
+        completed_at = projection.learning_state.completed_at
     return {
         **book_data,
         "learning_status": learning_status,
@@ -58,14 +52,14 @@ def _book_to_response_dict(session: Session, book: Book) -> dict:
 
 
 def list_books(session: Session, user_id: uuid.UUID) -> list[dict]:
-    return [_book_to_response_dict(session, book) for book in audiobook_repo.get_audiobooks_by_user(session, user_id)]
+    return [_book_to_response_dict(projection) for projection in list_book_library_projections(session, user_id=user_id)]
 
 
-def get_book(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> Book:
-    book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
-    if not book:
+def get_book(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> dict:
+    projection = get_book_library_projection(session, user_id=user_id, book_id=book_id)
+    if not projection:
         raise BookNotFoundError()
-    return _book_to_response_dict(session, book)
+    return _book_to_response_dict(projection)
 
 
 def create_new_book(session: Session, user_id: uuid.UUID, payload: BookCreateRequest) -> Book:
@@ -184,7 +178,7 @@ def get_book_details(session: Session, book_id: uuid.UUID, user_id: uuid.UUID, *
 
     plan = _active_plan(session, book_id, user_id)
     active_mode = PlanMode(mode) if mode else PlanMode(plan.mode)
-    learning_summary = build_book_learning_summary(session, user_id=user_id, book_id=book_id, mode=active_mode)
+    learning_summary = build_book_learning_summary_from_state(session, user_id=user_id, book_id=book_id, mode=active_mode)
     units = list_learning_units(session, book_id, active_mode)
     segments_map = _segments_by_unit(list_unit_segments(session, [unit.id for unit in units]))
 

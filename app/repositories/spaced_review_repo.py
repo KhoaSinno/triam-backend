@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from app.core.constant import PlanMode, ReviewItemStatus
 from app.models.db_models import SpacedReviewItem
@@ -150,17 +150,33 @@ def count_review_items_for_user(
     book_id: uuid.UUID,
     mode: PlanMode,
 ) -> int:
-    return len(
-        list_review_items_for_user(
-            session,
-            user_id=user_id,
-            now=now,
-            status_filter=status_filter,
-            book_id=book_id,
-            mode=mode,
-            limit=1000,
-        )
+    statement = select(func.count(SpacedReviewItem.id)).where(
+        SpacedReviewItem.user_id == user_id,
+        SpacedReviewItem.book_id == book_id,
+        SpacedReviewItem.mode == mode,
     )
+
+    if status_filter == "due":
+        statement = statement.where(
+            SpacedReviewItem.status.in_([ReviewItemStatus.DUE, ReviewItemStatus.PENDING]),
+            SpacedReviewItem.due_at <= now,
+        )
+    elif status_filter == "upcoming":
+        statement = statement.where(
+            SpacedReviewItem.status == ReviewItemStatus.PENDING,
+            SpacedReviewItem.due_at > now,
+        )
+    elif status_filter == "completed":
+        statement = statement.where(SpacedReviewItem.status == ReviewItemStatus.COMPLETED)
+    elif status_filter == "skipped":
+        statement = statement.where(SpacedReviewItem.status == ReviewItemStatus.SKIPPED)
+    elif status_filter == "all":
+        statement = statement.where(SpacedReviewItem.status != ReviewItemStatus.CANCELLED)
+    else:
+        statement = statement.where(SpacedReviewItem.status == ReviewItemStatus(status_filter))
+
+    result = session.exec(statement).one()
+    return int(result or 0)
 
 
 def mark_review_item_completed(session: Session, review_item: SpacedReviewItem, *, completed_at: datetime) -> SpacedReviewItem:

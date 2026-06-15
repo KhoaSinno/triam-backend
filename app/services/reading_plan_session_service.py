@@ -23,7 +23,9 @@ from app.repositories.reading_plan_session_repo import (
     FINAL_SESSION_STATUSES,
     cancel_unfinished_sessions_for_plan,
     find_session_schedule_conflict,
+    get_next_session_for_plan,
     get_owned_session,
+    get_plan_session_summary_counts,
     get_session_unit_for_learning_unit,
     list_session_units,
     list_sessions_for_book,
@@ -309,24 +311,12 @@ def sessions_to_response(session: Session, sessions: list[ReadingPlanSession]) -
 
 
 def build_plan_session_summary(session: Session, *, plan_id: uuid.UUID) -> dict:
-    sessions = list_sessions_for_plan(session, plan_id=plan_id)
-    next_session = next(
-        (
-            item
-            for item in sessions
-            if item.status
-            not in (
-                ReadingPlanSessionStatus.COMPLETED.value,
-                ReadingPlanSessionStatus.SKIPPED.value,
-                ReadingPlanSessionStatus.CANCELLED.value,
-            )
-        ),
-        None,
-    )
+    counts = get_plan_session_summary_counts(session, plan_id=plan_id)
+    next_session = get_next_session_for_plan(session, plan_id=plan_id)
     return {
-        "total_sessions": len(sessions),
-        "completed_sessions": sum(1 for item in sessions if item.status == ReadingPlanSessionStatus.COMPLETED.value),
-        "missed_sessions": sum(1 for item in sessions if item.status == ReadingPlanSessionStatus.MISSED.value),
+        "total_sessions": counts.total_sessions,
+        "completed_sessions": counts.completed_sessions,
+        "missed_sessions": counts.missed_sessions,
         "next_session": sessions_to_response(session, [next_session])[0] if next_session else None,
     }
 

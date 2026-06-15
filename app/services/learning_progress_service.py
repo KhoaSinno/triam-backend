@@ -245,24 +245,69 @@ def build_book_learning_summary(
     mode: PlanMode,
 ) -> BookLearningSummaryResponse:
     state = sync_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode)
+    return build_book_learning_summary_from_state(
+        session,
+        user_id=user_id,
+        book_id=book_id,
+        mode=mode,
+        state=state,
+    )
+
+
+def build_book_learning_summary_from_state(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    book_id: uuid.UUID,
+    mode: PlanMode,
+    state: BookLearningState | None = None,
+    include_review_counts: bool = True,
+) -> BookLearningSummaryResponse:
+    state = state or get_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode)
+    due_reviews_count = 0
+    upcoming_reviews_count = 0
+    if include_review_counts:
+        now = datetime.now(timezone.utc)
+        due_reviews_count = count_review_items_for_user(
+            session,
+            user_id=user_id,
+            now=now,
+            status_filter="due",
+            book_id=book_id,
+            mode=mode,
+        )
+        upcoming_reviews_count = count_review_items_for_user(
+            session,
+            user_id=user_id,
+            now=now,
+            status_filter="upcoming",
+            book_id=book_id,
+            mode=mode,
+        )
+    if state is None:
+        learning_status = BookLearningStatus.NOT_STARTED
+        return BookLearningSummaryResponse(
+            book_id=book_id,
+            mode=mode,
+            learning_status=learning_status,
+            is_completed=False,
+            can_resume=False,
+            can_review=due_reviews_count > 0 or upcoming_reviews_count > 0,
+            book_progress_percent=0,
+            completed_units=0,
+            playable_units=0,
+            last_learning_unit_id=None,
+            last_segment_id=None,
+            last_segment_index=None,
+            position_ms=None,
+            started_at=None,
+            last_activity_at=None,
+            completed_at=None,
+            due_reviews_count=due_reviews_count,
+            upcoming_reviews_count=upcoming_reviews_count,
+        )
+
     learning_status = BookLearningStatus(state.status)
-    now = datetime.now(timezone.utc)
-    due_reviews_count = count_review_items_for_user(
-        session,
-        user_id=user_id,
-        now=now,
-        status_filter="due",
-        book_id=book_id,
-        mode=mode,
-    )
-    upcoming_reviews_count = count_review_items_for_user(
-        session,
-        user_id=user_id,
-        now=now,
-        status_filter="upcoming",
-        book_id=book_id,
-        mode=mode,
-    )
     return BookLearningSummaryResponse(
         book_id=book_id,
         mode=mode,
