@@ -8,8 +8,6 @@ load_dotenv(override=True)
 
 class Settings(BaseSettings):
     OPENAI_API_KEY: str
-    # PINECONE_API_KEY: str
-    # PINECONE_ENV: str
     TAVILY_API_KEY: str
     GEMINI_BASE_URL: str
     GEMINI_API_KEY: str
@@ -48,7 +46,6 @@ class Settings(BaseSettings):
     LIVEKIT_ROOM_DEPARTURE_TIMEOUT_SECONDS: int = 20
     LIVEKIT_AGENT_EMPTY_ROOM_GRACE_SECONDS: float = 8.0
     GEMINI_MODEL_LLM: str = "gemini-2.5-flash"
-    DEEPGRAM_API_KEY: str
 
     # Realtime voice agent behavior
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-mini"
@@ -85,8 +82,6 @@ class Settings(BaseSettings):
     VOICE_AGENT_QUERY_GUARD_MIN_CHARS: int = 6
     VOICE_AGENT_QUERY_GUARD_MIN_TOKENS: int = 2
     VOICE_AGENT_QUERY_GUARD_TRANSCRIPT_TTL_SECONDS: float = 15.0
-    VOICE_AGENT_QUERY_GUARD_MIN_OVERLAP_RATIO: float = 0.34
-    VOICE_AGENT_QUERY_GUARD_MIN_IMPORTANT_OVERLAP_RATIO: float = 0.25
     VOICE_AGENT_QUERY_GUARD_LOG_DETAILS: bool = True
     VOICE_AGENT_CLARIFICATION_STATE_ENABLED: bool = True
     VOICE_AGENT_CLARIFICATION_STATE_TTL_SECONDS: float = 30.0
@@ -107,7 +102,6 @@ class Settings(BaseSettings):
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_TOOLS: str = "search_book_knowledge,ask_web_search_permission,execute_web_search"
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_ALLOW_ERROR_OUTPUTS: bool = False
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_FORCE_TOOL_CHOICE_NONE: bool = True
-    VOICE_AGENT_QUERY_GUARD_ENFORCE_TRANSCRIPT_OVERLAP: bool = False
 
     AGENT_MODEL_PROFILE: str = "baseline"
     AGENT_TRACE_ENABLED: bool = True

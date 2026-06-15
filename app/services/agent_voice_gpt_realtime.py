@@ -288,8 +288,6 @@ class TriamAssistant(Agent):
         return VoiceQueryGuardConfig(
             min_chars=settings.VOICE_AGENT_QUERY_GUARD_MIN_CHARS,
             min_tokens=settings.VOICE_AGENT_QUERY_GUARD_MIN_TOKENS,
-            min_overlap_ratio=settings.VOICE_AGENT_QUERY_GUARD_MIN_OVERLAP_RATIO,
-            min_important_overlap_ratio=settings.VOICE_AGENT_QUERY_GUARD_MIN_IMPORTANT_OVERLAP_RATIO,
             clarification_confirmation_max_tokens=settings.VOICE_AGENT_CLARIFICATION_CONFIRMATION_MAX_TOKENS,
             clarification_min_query_prompt_overlap=settings.VOICE_AGENT_CLARIFICATION_MIN_QUERY_PROMPT_OVERLAP,
         )

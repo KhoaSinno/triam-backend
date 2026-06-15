@@ -1,17 +1,4 @@
-"""
-app/core/exceptions.py
-======================
-Domain-specific exception classes cho Triam Backend.
-
-Luồng hoạt động:
-    1. Service layer raise DomainError thay vì HTTPException
-    2. @app.exception_handler(AppException) trong main.py bắt tất cả và
-       tự động map sang HTTP response chuẩn
-
-Lợi ích:
-    - Service layer không phụ thuộc FastAPI → dễ unit test độc lập
-    - Tất cả error format tập trung một chỗ duy nhất
-"""
+"""Domain exceptions raised by service/repository layers and rendered by FastAPI handlers."""
 
 
 class AppException(Exception):
@@ -164,11 +151,6 @@ class DocumentTooLargeError(AppException):
 class LearningUnitTooLargeError(AppException):
     status_code = 422
     detail = "Một bài học trong tài liệu quá lớn để xử lý. Vui lòng tách nội dung hoặc chọn tài liệu nhỏ hơn."
-
-
-# Backward-compatible alias for older tests/imports while Phase 6 removes
-# chapter-based processing paths.
-ChapterTooLargeError = LearningUnitTooLargeError
 
 
 class TTSInputTooShortError(AppException):

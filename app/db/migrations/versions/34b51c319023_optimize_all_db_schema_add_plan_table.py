@@ -44,7 +44,7 @@ def upgrade() -> None:
     op.execute("""
         DELETE FROM book_knowledge bk
         WHERE NOT EXISTS (
-            SELECT 1 FROM chapters c 
+            SELECT 1 FROM chapters c
             WHERE c.book_id = bk.book_id AND c.chapter_index = bk.chapter_index
         )
     """)

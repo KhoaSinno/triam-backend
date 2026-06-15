@@ -32,17 +32,17 @@ def test_concise_tool_query_can_match_longer_voice_transcript() -> None:
     result = guard_voice_book_query("tóm tắt chương 4", transcript)
 
     assert result.valid is True
-    assert result.overlap_ratio == 1.0
+    assert result.reason_code == "valid_transcript_snapshot_available"
     assert result.transcript_source == "final_transcript"
 
 
-def test_tool_query_with_different_intent_is_blocked() -> None:
+def test_tool_query_with_different_intent_is_not_blocked_by_overlap() -> None:
     transcript = _snapshot("Tác giả của quyển sách là ai?")
 
     result = guard_voice_book_query("đại ý chương 4", transcript)
 
-    assert result.valid is False
-    assert result.reason_code == "tool_query_transcript_mismatch"
+    assert result.valid is True
+    assert result.reason_code == "valid_transcript_snapshot_available"
 
 
 def test_voice_query_can_use_vietnamese_number_words() -> None:
@@ -57,7 +57,7 @@ def test_acronym_question_is_valid_when_it_has_question_context() -> None:
     assert result.valid is True
 
 
-def test_pending_clarification_confirmation_bypasses_overlap_when_query_matches_prompt() -> None:
+def test_pending_clarification_confirmation_allows_query_when_it_matches_prompt() -> None:
     pending = PendingVoiceClarification(
         prompt_text="Bạn muốn tóm tắt chương 5 đúng không?",
         candidate_query=None,
@@ -134,7 +134,7 @@ def test_pending_clarification_new_question_is_reported_for_caller_rerun() -> No
     assert result.reason_code == "clarification_new_question"
 
 
-def test_confirmation_bypass_without_pending_clarification() -> None:
+def test_valid_book_query_with_confirmation_transcript_uses_snapshot_mode() -> None:
     transcript = _snapshot("đúng rồi")
     result = guard_voice_book_query(
         "tóm tắt chương 5",
@@ -142,15 +142,15 @@ def test_confirmation_bypass_without_pending_clarification() -> None:
         pending_clarification=None,
     )
     assert result.valid is True
-    assert result.reason_code == "valid_confirmation_bypass"
-    assert result.guard_mode == "confirmation_bypass"
+    assert result.reason_code == "valid_transcript_snapshot_available"
+    assert result.guard_mode == "transcript_snapshot"
 
 
-def test_confirmation_bypass_with_generic_pending_clarification() -> None:
+def test_confirmation_with_generic_pending_clarification_allows_query() -> None:
     pending = PendingVoiceClarification(
         prompt_text="Mình nghe chưa chắc câu hỏi. Bạn nói lại ngắn gọn giúp mình nhé.",
         candidate_query=None,
-        reason_code="tool_query_transcript_mismatch",
+        reason_code="too_short_or_ack_only",
         created_monotonic=0.0,
     )
     transcript = _snapshot("ok")

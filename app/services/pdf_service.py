@@ -6,18 +6,6 @@ from app.core.logger import log
 from app.services.document_structure_types import ParsedDocument, ParsedSection, flatten_sections, has_extractable_text
 
 
-def get_pdf_outline_structure(file_obj) -> list[dict]:
-    return [
-        {
-            "title": section.title,
-            "page_index": max(0, (section.page_start or 1) - 1),
-            "level": section.level,
-            "path": section.path,
-        }
-        for section in flatten_sections(_read_pdf_outline_tree(file_obj))
-    ]
-
-
 def _read_pdf_outline_tree(file_obj) -> list[ParsedSection]:
     file_obj.seek(0)
     try:
@@ -205,86 +193,3 @@ async def parse_pdf_structure(file_obj) -> ParsedDocument:
         )
 
     return ParsedDocument(document_type="pdf", sections=sections)
-
-
-async def extract_text_from_pdf(file_obj, max_pages=None):
-    """
-    Helper function: Extract raw text từ PDF (không chia chương).
-    Dùng cho demo endpoints như /process-book-intro.
-
-    Args:
-        file_obj: File object của PDF
-        max_pages: Số trang tối đa cần extract (None = all pages)
-
-    Returns:
-        str: Raw text từ PDF
-    """
-    file_obj.seek(0)
-    extracted_text = ""
-
-    with pdfplumber.open(file_obj) as pdf:
-        pages_to_read = len(pdf.pages) if max_pages is None else min(
-            max_pages, len(pdf.pages))
-
-        for i in range(pages_to_read):
-            text = pdf.pages[i].extract_text()
-            if text:
-                extracted_text += text + "\n"
-
-    return extracted_text.strip()
-
-
-def extract_text_by_page_range(pdf_obj, start_page: int, end_page: int):
-    """
-    Trích xuất text từ trang A đến trang B.
-    - pdf_obj: Đối tượng pdfplumber đã mở.
-    - start_page: Số trang thực tế (ví dụ: 5).
-    - end_page: Số trang thực tế (ví dụ: 10).
-    -> Trả về text của trang 5, 6, 7, 8, 9, 10.
-    """
-    extracted_text = ""
-
-    # Validate: Đảm bảo trang kết thúc không vượt quá tổng số trang
-    total_pages = len(pdf_obj.pages)
-    if end_page > total_pages:
-        end_page = total_pages
-
-    # Vòng lặp lấy text
-    # LƯU Ý: Python index bắt đầu từ 0.
-    # Nếu muốn lấy trang 5 (start_page), index phải là 4 (start_page - 1).
-    # Hàm range(a, b) chạy đến b-1, nên tham số thứ 2 là end_page (tương ứng index end_page-1)
-
-    # Ví dụ: Lấy trang 5 đến 7.
-    # start_page=5 -> index=4
-    # end_page=7
-    # range(4, 7) sẽ chạy qua index: 4 (trang 5), 5 (trang 6), 6 (trang 7). CHUẨN.
-
-    for i in range(start_page - 1, end_page):
-        try:
-            page = pdf_obj.pages[i]
-            text = page.extract_text()
-            if text:
-                extracted_text += text + "\n"
-        except Exception as e:
-            log.warning(f"Lỗi đọc trang {i + 1}: {e}")
-
-    return extracted_text
-
-
-def extract_clean_text(page):
-    """
-    Chỉ lấy phần thân trang, bỏ Header (trên cùng) và Footer (số trang dưới cùng)
-    """
-    width = page.width
-    height = page.height
-
-    # Giả sử Header chiếm 50px trên cùng, Footer chiếm 50px dưới cùng
-    # Tọa độ crop: (x0, top, x1, bottom)
-    bounding_box = (0, 50, width, height - 50)
-
-    try:
-        cropped_page = page.crop(bounding_box)
-        return cropped_page.extract_text()
-    except ValueError:
-        # Fallback nếu trang không crop được (ví dụ trang trắng)
-        return page.extract_text()

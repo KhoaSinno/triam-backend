@@ -63,8 +63,6 @@ _MISMATCH_CLARIFICATION = "Mình nghe chưa chắc câu hỏi. Bạn nói lại 
 
 GENERIC_CLARIFICATION_REASON_CODES = frozenset(
     {
-        "tool_query_transcript_mismatch",
-        "tool_query_important_token_mismatch",
         "too_short_or_ack_only",
     }
 )
@@ -74,11 +72,8 @@ GENERIC_CLARIFICATION_REASON_CODES = frozenset(
 class VoiceQueryGuardConfig:
     min_chars: int = 6
     min_tokens: int = 2
-    min_overlap_ratio: float = 0.34
-    min_important_overlap_ratio: float = 0.25
     clarification_confirmation_max_tokens: int = 4
     clarification_min_query_prompt_overlap: float = 0.45
-    enforce_transcript_overlap: bool = False
 
 
 @dataclass(frozen=True)
@@ -338,66 +333,13 @@ def compare_query_with_transcript(
         )
         if pending_result is not None:
             return pending_result
-    # else:
-    #     if resolved_reply is not None and resolved_reply.intent == "grant":
-    #         return VoiceQueryGuardResult(
-    #             valid=True,
-    #             reason_code="valid_confirmation_bypass",
-    #             token_count=base_result.token_count,
-    #             important_token_count=base_result.important_token_count,
-    #             overlap_ratio=1.0,
-    #             important_overlap_ratio=1.0,
-    #             transcript_source=transcript.source,
-    #             guard_mode="confirmation_bypass",
-    #         )
-
-    if not resolved_config.enforce_transcript_overlap:
-        return VoiceQueryGuardResult(
-            valid=True,
-            reason_code="valid_transcript_overlap_bypassed",
-            token_count=base_result.token_count,
-            important_token_count=base_result.important_token_count,
-            transcript_source=transcript.source,
-            guard_mode="transcript_overlap_bypassed",
-        )
-
-    query_tokens = _content_tokens(query)
-    transcript_tokens = _content_tokens(transcript.text)
-    important_query_tokens = _important_tokens(query)
-    important_transcript_tokens = _important_tokens(transcript.text)
-    overlap_ratio = _ratio(len(query_tokens & transcript_tokens), len(query_tokens))
-    important_overlap_ratio = _ratio(len(important_query_tokens & important_transcript_tokens), len(important_query_tokens)) if important_query_tokens else None
-
-    if overlap_ratio < resolved_config.min_overlap_ratio:
-        return _invalid(
-            "tool_query_transcript_mismatch",
-            _MISMATCH_CLARIFICATION,
-            token_count=base_result.token_count,
-            important_token_count=base_result.important_token_count,
-            overlap_ratio=overlap_ratio,
-            important_overlap_ratio=important_overlap_ratio,
-            transcript_source=transcript.source,
-        )
-
-    if important_overlap_ratio is not None and important_overlap_ratio < resolved_config.min_important_overlap_ratio:
-        return _invalid(
-            "tool_query_important_token_mismatch",
-            _MISMATCH_CLARIFICATION,
-            token_count=base_result.token_count,
-            important_token_count=base_result.important_token_count,
-            overlap_ratio=overlap_ratio,
-            important_overlap_ratio=important_overlap_ratio,
-            transcript_source=transcript.source,
-        )
-
     return VoiceQueryGuardResult(
         valid=True,
-        reason_code="valid",
+        reason_code="valid_transcript_snapshot_available",
         token_count=base_result.token_count,
         important_token_count=base_result.important_token_count,
-        overlap_ratio=overlap_ratio,
-        important_overlap_ratio=important_overlap_ratio,
         transcript_source=transcript.source,
+        guard_mode="transcript_snapshot",
     )
 
 

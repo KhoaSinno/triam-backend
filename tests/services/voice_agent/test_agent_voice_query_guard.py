@@ -34,20 +34,20 @@ class FakeSharedPolicy:
 
 
 @pytest.mark.asyncio
-async def test_voice_guard_blocks_mismatched_tool_query_before_rag(monkeypatch) -> None:
+async def test_voice_guard_does_not_block_by_transcript_overlap(monkeypatch) -> None:
     monkeypatch.setattr(settings, "VOICE_AGENT_QUERY_GUARD_ENABLED", True)
     state = VoiceTurnState()
     state.record_final_transcript("Tác giả của quyển sách là ai?")
     assistant = _assistant(state)
 
-    async def fail_if_called(*args, **kwargs):  # pragma: no cover - assertion helper
-        raise AssertionError("RAG should not run when the voice query guard blocks the turn")
+    async def fake_search(*args, **kwargs):
+        return VoiceRagResult(found=False, chunks=[], message="not found")
 
-    monkeypatch.setattr("app.services.agent_voice_gpt_realtime.search_voice_book_context", fail_if_called)
+    monkeypatch.setattr("app.services.agent_voice_gpt_realtime.search_voice_book_context", fake_search)
 
     result = await assistant.resolve_book_query("đại ý chương 4", AgentInputMode.VOICE)
 
-    assert result.startswith("CLARIFICATION_REQUIRED:")
+    assert result == "BOOK_CONTEXT_NOT_FOUND: not found"
 
 
 @pytest.mark.asyncio
