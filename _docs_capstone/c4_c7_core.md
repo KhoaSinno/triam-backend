@@ -1,13 +1,17 @@
 ### ĐỀ XUẤT CƠ CẤU CHƯƠNG BÁO CÁO CAPSTONE (8 CHƯƠNG)
 
-- **Chương 1: Lời mở đầu** (Đặt vấn đề, mục tiêu, đối tượng và phạm vi nghiên cứu).
-- **Chương 2: Tổng quan đề tài và Cơ sở lý thuyết** (Giới thiệu các công nghệ sử dụng như RAG, WebRTC, Spaced Repetition, TTS, LLM).
-- **Chương 3: Phân tích thiết kế hệ thống và Kiến trúc tổng quan** (Tổng quan kiến trúc, sơ đồ thực thể liên kết, thiết kế API và dữ liệu).
-- **Chương 4: Quy trình Chuyển đổi tài liệu và Tiền xử lý âm thanh tự động** _(Tách riêng - Trọng tâm 1)_.
-- **Chương 5: Cơ chế Lập kế hoạch học tập và Thiết lập chế độ Full / Pareto** _(Tách riêng - Trọng tâm 2)_.
-- **Chương 6: Hệ thống Theo dõi tiến độ và Ôn tập ngắt quãng Spaced Repetition** _(Tách riêng - Trọng tâm 3)_.
-- **Chương 7: Trợ lý giọng nói thời gian thực và Tìm kiếm tăng cường** _(Tách riêng - Trọng tâm 4)_.
-- **Chương 8: Kết luận và Hướng phát triển**.
+- **Chương 1: Lời mở đầu** (Lý do chọn đề tài, mục tiêu, phạm vi nghiên cứu, bố cục luận văn).
+- **Chương 2: Tổng quan đề tài** (Đối tượng/Phương pháp nghiên cứu, trong ngoài nước).
+- **Chương 3: Cơ sở lý thuyết** (Giới thiệu các công nghệ sử dụng như RAG, WebRTC, TTS, LLM, OpenAI realtime).
+- **Chương 4: Phân tích thiết kế hệ thống** (Tổng quan kiến trúc, usecase, class).
+
+- **Chương 5: Quy trình Chuyển đổi tài liệu và Tiền xử lý âm thanh tự động** 
+- **Chương 6: Cơ chế Lập kế hoạch học tập và Thiết lập chế độ Full / Pareto**
+- **Chương 7: Hệ thống Theo dõi tiến độ và Ôn tập ngắt quãng Spaced Repetition**
+- **Chương 8: Trợ lý giọng nói thời gian thực và Tìm kiếm tăng cường**
+
+- **Chương 9: Xây dựng hệ thống** (Cách xây dựng, triển khai và UI/UX sản phẩm).
+- **Chương 10: Kết luận**.
 
 ---
 
@@ -230,13 +234,13 @@ flowchart TD
     Outbox -->|Kiểm soát gửi thông báo| FCM[Gửi thông báo tới thiết bị]
 ```
 
-### 6.1. Thiết lập Lịch học và Phiên học tập theo lịch
+### 6.1. Thiết lập Lịch học và phiên học tập theo lịch
 
 Để giúp người dùng phân bổ thời gian học tập khoa học và tránh việc nhận nhắc nhở học dồn dập, hệ thống thiết kế cơ chế quản lý lịch trình học tập chặt chẽ:
 
 - **Thiết lập lịch biểu**: Khi người dùng tạo một kế hoạch học tập, họ cấu hình các ngày trong tuần và khung giờ nhắc nhở. Hệ thống chuyển đổi cấu hình này thành các bản ghi khe thời gian học đi kèm múi giờ địa phương cụ thể của người học.
 
-- **Quản lý phiên học tập theo lịch (Reading Plan Sessions)**: Hệ thống sinh lịch học chi tiết cho từng phiên học tập cụ thể thông qua thực thể phiên kế hoạch học tập và thực thể đơn vị phiên học tập dựa theo cấu hình ngày học, múi giờ và nhịp độ học. Hệ thống tự động theo dõi và chuyển đổi trạng thái của phiên học tập tương ứng (như _scheduled_, _due_, _missed_, _completed_, _skipped_), hỗ trợ người học dời lịch học, bỏ qua phiên học, và tự động kích hoạt thông báo đối với các phiên học tập bị quá hạn chưa hoàn thành.
+- **Quản lý phiên học tập theo lịch**: Hệ thống sinh lịch học chi tiết cho từng phiên học tập cụ thể thông qua thực thể phiên kế hoạch học tập và thực thể đơn vị phiên học tập dựa theo cấu hình ngày học, múi giờ và nhịp độ học. Hệ thống tự động theo dõi và chuyển đổi trạng thái của phiên học tập tương ứng (như _scheduled_, _due_, _missed_, _completed_, _skipped_), hỗ trợ người học dời lịch học, bỏ qua phiên học, và tự động kích hoạt thông báo đối với các phiên học tập bị quá hạn chưa hoàn thành.
 
 ### 6.2. Theo dõi tiến độ học tập và cơ chế chống tua ngược
 
@@ -246,7 +250,7 @@ Tiến độ học tập của người dùng được theo dõi chi tiết đ�
 
 - **Tính toán tiến độ học thật**: Hệ thống không tin tưởng hoàn toàn vào phần trăm tiến độ do thiết bị di động gửi lên để tránh việc người dùng cố tình tua nhanh tệp tin. Thay vào đó, máy chủ sử dụng dữ liệu thời lượng thực của từng phân đoạn âm thanh bài học đã phát để tính toán tỷ lệ phần trăm nghe thực tế.
 
-- **Cơ chế hoàn thành chống tua ngược (Ngưỡng 80%)**: Bài học được đánh dấu trạng thái hoàn thành khi và chỉ khi giá trị tiến độ cao nhất từng đạt được đạt tối thiểu **80%**. Việc sử dụng chỉ số tiến độ cao nhất từng đạt được giúp ghi nhận chính xác trạng thái hoàn thành ngay cả khi người dùng tua ngược âm thanh để nghe lại một đoạn kiến thức chưa rõ trước đó, tránh việc thay đổi trạng thái bài học về chưa hoàn thành một cách vô lý.
+- **Cơ chế hoàn thành chống tua ngược**: Bài học được đánh dấu trạng thái hoàn thành khi và chỉ khi giá trị tiến độ cao nhất từng đạt được đạt tối thiểu **80%**. Việc sử dụng chỉ số tiến độ cao nhất từng đạt được giúp ghi nhận chính xác trạng thái hoàn thành ngay cả khi người dùng tua ngược âm thanh để nghe lại một đoạn kiến thức chưa rõ trước đó, tránh việc thay đổi trạng thái bài học về chưa hoàn thành một cách vô lý.
 
 - **Nguyên lý Invariant học tập**: Hệ thống thực thi ràng buộc logic: lịch ôn tập ngắt quãng chỉ được khởi tạo sau khi người dùng hoàn thành thực tế bài học đó. Việc hệ thống hoàn tất quá trình chuẩn bị tài liệu (sách ở trạng thái _ready_) không đồng nghĩa với việc người dùng đã hoàn tất việc học và tiếp thu tri thức (bài học ở trạng thái _completed_).
 
