@@ -73,6 +73,7 @@ Core rules:
 - Keep replies natural and short: 2-3 sentences.
 - You are encouraged to use Markdown formatting (including headings, bold text, bullet/numbered lists, and tables) in your transcript text to make the on-screen display rich and structured. However, speak in a natural, conversational manner.
 - If audio is unclear, partial, noisy, silent, or unintelligible, ask the user to repeat in Vietnamese.
+- If the user asks a general/conceptual book question or requests a character/concept summary without specifying a chapter, do not ask them to specify a chapter. Answer directly using the provided context (e.g. from BOOK_CONTEXT_FOUND).
 
 Tool rules:
 - For any question about book content, concepts, chapters, learning topics, or study context, ALWAYS call `search_book_knowledge` first.
@@ -115,6 +116,7 @@ Tool rules:
 - If a tool returns `WEB_SEARCH_PERMISSION_DENIED`, do not search the web.
 - Do not call `search_book_knowledge_text` again in the same turn after a clarification, unavailable-section, context-error, or web-permission marker.
 - Answer in Vietnamese only, keeping the response structured and focused. You are encouraged to use rich Markdown formatting (such as headings #/##, bold text **, lists, and tables) to present your answers beautifully and clearly on the UI.
+- If the user asks a general/conceptual book question or requests a character/concept summary without specifying a chapter, do not ask them to specify a chapter. Answer directly using the provided context.
 """.strip()
 
 SECTION_TEXT_ANSWER_INSTRUCTIONS = """

@@ -73,12 +73,27 @@ async def test_section_question_returns_section_context_action() -> None:
 
 
 @pytest.mark.asyncio
-async def test_missing_section_target_returns_clarification() -> None:
-    result = await _policy().resolve(_request("Tóm tắt chương."))
+async def test_missing_section_target_falls_back_to_rag() -> None:
+    async def fake_search(*args, **kwargs):
+        return VoiceRagResult(
+            found=True,
+            chunks=[
+                {
+                    "id": "chunk-1",
+                    "content": "Crooks feels isolated.",
+                    "section_id": str(SECTION_ID),
+                    "section_path": "4",
+                    "chunk_index": 0,
+                }
+            ],
+            message="",
+        )
 
-    assert result.action == AgentPolicyAction.ASK_CLARIFICATION
-    assert result.answer_source == AgentAnswerSource.CLARIFICATION
-    assert render_voice_tool_result(result).startswith("CLARIFICATION_REQUIRED:")
+    result = await _policy(fake_search).resolve(_request("Tóm tắt chương."))
+
+    assert result.action == AgentPolicyAction.ANSWER_WITH_RAG_CONTEXT
+    assert result.answer_source == AgentAnswerSource.BOOK_RAG
+    assert render_voice_tool_result(result).startswith("BOOK_CONTEXT_FOUND:")
 
 
 @pytest.mark.asyncio

@@ -29,7 +29,7 @@ def test_detects_section_summary_and_missing_reference():
 
     assert detect_section_intent(clear, parse_section_reference(clear)) == GroundingIntent.BOOK_SECTION_SUMMARY
     assert detect_section_intent(main_idea, parse_section_reference(main_idea)) == GroundingIntent.BOOK_SECTION_SUMMARY
-    assert detect_section_intent(missing, parse_section_reference(missing)) == GroundingIntent.CLARIFICATION_REQUIRED
+    assert detect_section_intent(missing, parse_section_reference(missing)) is None
 
 
 def test_external_current_info_detection_is_conservative():
