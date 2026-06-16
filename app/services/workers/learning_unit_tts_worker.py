@@ -19,6 +19,7 @@ class LearningUnitTTSResult:
     main_segment_count: int
     review_audio_created: bool
     review_text: str
+    generated_audio_seconds: int = 0
 
 
 async def _generate_unit_main_segments(
@@ -141,8 +142,12 @@ async def run_learning_unit_tts_pipeline(
 
     _store_unit_tts_result(learning_unit_id, mode, review_text, review_url, segments)
 
+    total_ms = sum(seg.duration_ms or 0 for seg in segments)
+    generated_seconds = int(total_ms / 1000)
+
     return LearningUnitTTSResult(
         main_segment_count=len(segments),
         review_audio_created=bool(review_url),
         review_text=review_text,
+        generated_audio_seconds=generated_seconds,
     )

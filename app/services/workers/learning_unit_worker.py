@@ -97,6 +97,7 @@ async def process_learning_unit(
                         current_unit,
                         status=ProcessingJobStatus.READY,
                         main_segment_count=tts_result.main_segment_count,
+                        estimated_audio_seconds=tts_result.generated_audio_seconds,
                     )
             logger.info(f"Learning unit {unit.unit_index + 1} READY | segments={tts_result.main_segment_count}")
             return LearningUnitProcessingResult(unit.id, tts_result.main_segment_count)
