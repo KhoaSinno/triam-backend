@@ -1,0 +1,67 @@
+
+@startUML Safe_News_Class
+left to right direction
+
+' --------------- ACTOR ---------------
+class User {
+    + ID: string
+    + fullname: string 
+    + email: string
+    + password: string
+    + image: string
+    + isDel: bool
+    + readCount: int
+    + articlesRead: int
+    + currentStreak: int
+    + lastReadDate: datetime
+    + readCategories: string[]
+    + unlockAchievements: string[]
+    + updateAt: datetime
+
+    + Register(): void
+    + Login(): void
+    + Logout(): void
+    + ChangePassword(): void
+    + CustomizeNotifications(): void
+    + ViewAchievements(): void
+
+}
+
+class News {
+    ID: string
+    title: string
+    category: string
+    link: string
+    description: string
+    published: datetime
+    imageUrl: string
+    sentiment: bool
+    isToxic: bool
+
+    + ViewNews(): void
+    + FilterNews(): void
+    + ShareNews(): void
+    + GetSummary(): string
+}
+
+class BookmarkedNews { 
+    ID: string 
+    summary: string
+    htmlContent: string
+    plainTextContent: string
+    bookmarkedAt: datetime
+
+    + BookmarkNews(): void
+    + ViewSavedNews(): void
+    + DeleteSavedNews(): void
+
+}
+
+
+' --------------- RELATIONSHIPS ---------------
+
+User "1" -- "n" News: Read
+User "1" -- "n" BookmarkedNews: Read
+News "1" -- "n" BookmarkedNews: Saved
+
+@endUML

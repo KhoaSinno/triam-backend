@@ -57,7 +57,7 @@ async def test_explicit_section_route_loads_canonical_section_context():
 
 
 @pytest.mark.asyncio
-async def test_ambiguous_section_returns_clarification_without_section_load():
+async def test_ambiguous_section_falls_back_to_rag_without_section_load():
     calls = 0
 
     async def loader(book_id: uuid.UUID, section_ids: tuple[uuid.UUID, ...]):
@@ -67,8 +67,8 @@ async def test_ambiguous_section_returns_clarification_without_section_load():
 
     result = await GroundingRouter(_scope(), loader, section_context_max_chars=4000).resolve("Tóm tắt chương.")
 
-    assert result.decision.route == GroundingRoute.CLARIFICATION
-    assert result.decision.intent == GroundingIntent.CLARIFICATION_REQUIRED
+    assert result.decision.route == GroundingRoute.BOOK_RAG
+    assert result.decision.intent == GroundingIntent.BOOK_SEMANTIC_QUESTION
     assert calls == 0
 
 
@@ -104,3 +104,17 @@ async def test_router_records_safe_grounding_trace():
     assert summary["resolved_book_ids"] == [str(BOOK_ID)]
     assert summary["answer_source"] == AgentAnswerSource.BOOK_METADATA.value
     assert "John Steinbeck" not in str(emitted)
+
+
+@pytest.mark.asyncio
+async def test_non_explicit_section_not_found_falls_back_to_rag():
+    result = await GroundingRouter(_scope(), _section_loader, section_context_max_chars=4000).resolve("Mục tiêu của dự án là gì?")
+    assert result.decision.route == GroundingRoute.BOOK_RAG
+    assert result.decision.intent == GroundingIntent.BOOK_SEMANTIC_QUESTION
+
+
+@pytest.mark.asyncio
+async def test_explicit_section_not_found_returns_clarification():
+    result = await GroundingRouter(_scope(), _section_loader, section_context_max_chars=4000).resolve("Tóm tắt Chương 5.")
+    assert result.decision.route == GroundingRoute.CLARIFICATION
+    assert result.decision.intent == GroundingIntent.CLARIFICATION_REQUIRED

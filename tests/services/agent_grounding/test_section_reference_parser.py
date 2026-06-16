@@ -50,3 +50,8 @@ def test_parse_missing_section_reference_for_clarification():
     assert result.marker_present is True
     assert result.has_target is False
 
+
+def test_parse_section_reference_percent_ignored():
+    result = parse_section_reference(normalize_query("Phần trăm lợi nhuận là bao nhiêu?"))
+    assert result.marker_present is False
+

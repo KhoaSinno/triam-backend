@@ -11,7 +11,7 @@ from app.services.agent_grounding.contracts import (
     ResolutionQuality,
     SectionTextLoader,
 )
-from app.services.agent_grounding.intent_router import detect_external_current_info, detect_metadata_intent, detect_section_intent
+from app.services.agent_grounding.intent_router import detect_metadata_intent, detect_section_intent
 from app.services.agent_grounding.query_normalizer import normalize_query
 from app.services.agent_grounding.response_renderer import render_metadata_answer
 from app.services.agent_grounding.section_context_builder import build_section_context, descendant_section_ids
@@ -48,20 +48,18 @@ class GroundingRouter:
         else:
             reference = parse_section_reference(normalized)
             section_intent = detect_section_intent(normalized, reference)
+
+            result = None
             if section_intent == GroundingIntent.CLARIFICATION_REQUIRED:
                 result = self._clarification("missing_section_reference", "Bạn muốn hỏi chương hoặc đề mục nào?")
             elif section_intent is not None:
                 result = await self._resolve_section(normalized, reference, section_intent)
-            elif detect_external_current_info(normalized):
-                result = GroundingResult(
-                    GroundingDecision(
-                        GroundingIntent.EXTERNAL_CURRENT_INFO,
-                        GroundingRoute.WEB_POLICY,
-                        ResolutionQuality.EXACT,
-                        "clear_external_current_info",
-                    )
-                )
-            else:
+                if result.decision.route == GroundingRoute.CLARIFICATION:
+                    is_explicit = reference.explicit_path is not None or reference.explicit_ordinal is not None
+                    if not is_explicit:
+                        result = None
+
+            if result is None:
                 result = GroundingResult(
                     GroundingDecision(
                         GroundingIntent.BOOK_SEMANTIC_QUESTION,
@@ -147,4 +145,3 @@ class GroundingRouter:
         source = source_by_route.get(decision.route)
         if source is not None:
             tracer.record_answer_source(input_mode, source)
-

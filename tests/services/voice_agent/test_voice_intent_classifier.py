@@ -17,10 +17,8 @@ from app.services.voice_agent.web_permission_intent_classifier import classify_w
         ("không phải", "deny"),
         ("thôi bỏ qua", "deny"),
         ("Nope", "deny"),
-        ("chương 6 thì sao", "new_question"),
-        ("ai là tác giả", "new_question"),
-        ("tóm tắt chương 4", "new_question"),
-        ("tùy anh", "unclear"),
+        ("chương 6 thì sao?", "new_question"),
+        ("ai là tác giả?", "new_question"),
     ],
 )
 def test_voice_reply_intent_fast_path_classifies_common_replies(reply: str, expected_intent: str) -> None:
@@ -28,6 +26,22 @@ def test_voice_reply_intent_fast_path_classifies_common_replies(reply: str, expe
 
     assert result is not None
     assert result.intent == expected_intent
+
+
+@pytest.mark.parametrize(
+    "reply",
+    [
+        "chương 6 thì sao",
+        "ai là tác giả",
+        "tóm tắt chương 4",
+        "tùy anh",
+        "tin tức về AI",
+    ],
+)
+def test_voice_reply_intent_fast_path_delegates_complex_replies(reply: str) -> None:
+    # TRIAM_FIX_ROOT_CAUSE: Assert that ambiguous phrases and semantic queries without explicit '?' return None.
+    result = classify_voice_reply_intent_fast_path(reply, max_grant_tokens=4)
+    assert result is None
 
 
 def test_web_permission_fast_path_reuses_shared_voice_intent() -> None:

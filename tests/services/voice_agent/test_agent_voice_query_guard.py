@@ -172,12 +172,12 @@ async def test_voice_clarification_marker_sets_pending_state(monkeypatch) -> Non
     monkeypatch.setattr(settings, "VOICE_AGENT_QUERY_GUARD_ENABLED", True)
     monkeypatch.setattr(settings, "VOICE_AGENT_CLARIFICATION_STATE_ENABLED", True)
     state = VoiceTurnState()
-    state.record_final_transcript("tóm tắt chương")
+    state.record_final_transcript("abc")
     assistant = _assistant(state)
 
-    result = await assistant.resolve_book_query("tóm tắt chương", AgentInputMode.VOICE)
+    result = await assistant.resolve_book_query("abc", AgentInputMode.VOICE)
     pending = state.recent_pending_clarification(ttl_seconds=30)
 
     assert result.startswith("CLARIFICATION_REQUIRED:")
     assert pending is not None
-    assert pending.reason_code == "missing_section_reference"
+    assert pending.reason_code == "too_short_or_ack_only"

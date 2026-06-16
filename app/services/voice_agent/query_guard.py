@@ -206,7 +206,27 @@ def _pending_clarification_reply_result(
         max_grant_tokens=config.clarification_confirmation_max_tokens,
     )
     if resolved_reply is None:
-        return None
+        # TRIAM_FIX_ROOT_CAUSE: Since we removed semantic QUESTION_HINTS from the fast-path classifier,
+        # a new question might return resolved_reply = None if it doesn't contain an explicit '?'.
+        # In this case, we check if the new query matches the pending clarification.
+        # If it does, we treat it as a confirmation (grant).
+        if _query_matches_pending_clarification(
+            query,
+            pending,
+            min_ratio=config.clarification_min_query_prompt_overlap,
+        ):
+            return _valid_clarification_confirmation(base_result, transcript, pending)
+        # If it does not match, it is a new question.
+        return VoiceQueryGuardResult(
+            valid=False,
+            reason_code="clarification_new_question",
+            clarification=None,
+            token_count=base_result.token_count,
+            important_token_count=base_result.important_token_count,
+            transcript_source=transcript.source,
+            guard_mode="clarification_new_question",
+            pending_reason_code=pending.reason_code,
+        )
 
     if resolved_reply.intent == "grant":
         is_generic_mismatch = pending.reason_code in GENERIC_CLARIFICATION_REASON_CODES

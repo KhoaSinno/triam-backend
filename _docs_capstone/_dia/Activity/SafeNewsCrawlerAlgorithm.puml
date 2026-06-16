@@ -1,0 +1,43 @@
+@startuml SafeNewsCrawlerAlgorithm
+
+start
+
+:⏰ Chạy định kỳ mỗi 30 phút;
+
+:📡 Crawl RSS từ nguồn VNExpress;
+
+:🧹 Làm sạch HTML và tổng hợp dữ liệu;
+
+while (Còn bài báo cần phân tích?) is (Có)
+    
+    :🔍 Kiểm tra cache;
+    
+    if (Có kết quả cache?) then (Có)
+        :📋 Sử dụng cache;
+    else (Không)
+        :🤖 Phân tích với Gemini AI;
+        :💾 Lưu kết quả vào cache;
+    endif
+    
+    if (Tin tức tích cực?) then (Có)
+        :🔄 Chuyển đổi sang Firebase schema;
+        
+        if (Chưa tồn tại?) then (Có)
+            :✅ Lưu vào Firebase;
+        else (Đã có)
+            :Bỏ qua tin trùng;
+        endif
+        
+    else (Không)
+        :❌ Bỏ qua tin tiêu cực;
+    endif
+    
+endwhile (Hết)
+
+:💤 Chờ chu kỳ tiếp theo (30 phút);
+
+stop
+
+@enduml
+
+' Hệ thống hoạt động theo chu kỳ 30 phút, sử dụng modal AI Gemini để phân tích cảm xúc và tạo tóm tắt cho từng bài báo thông qua tiêu đề và URL, sau đó lọc và chỉ lưu những tin tức có độ tích cực đủ điều kiện vào Firebase với cấu trúc đã định nghĩa. Để tối ưu hiệu suất, hệ thống sử dụng cache để tránh gọi AI lại cho cùng một bài, áp dụng giới hạn tốc độ 1 giây giữa các lần gọi Gemini API, kiểm tra trùng lắp bằng MD5 hash của title và link, cùng với xử lý lỗi cho các tình huống ngoại lệ.

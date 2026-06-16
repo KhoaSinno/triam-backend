@@ -46,22 +46,6 @@ SUMMARY_MARKERS = (
     "overview",
 )
 SECTION_CONTENT_MARKERS = ("nội dung", "giải thích", "trình bày", "explain", "what is in", "content")
-CURRENT_MARKERS = ("hôm nay", "hiện tại", "mới nhất", "gần đây", "today", "current", "latest", "recent")
-EXTERNAL_MARKERS = (
-    "bitcoin",
-    "tiền điện tử",
-    "giá",
-    "thời tiết",
-    "tin tức",
-    "internet",
-    "web",
-    "stock",
-    "crypto",
-    "weather",
-    "news",
-    "price",
-)
-BOOK_MARKERS = ("sách", "quyển sách", "chương", "mục", "đề mục", "book", "chapter", "section")
 
 
 def detect_metadata_intent(query: NormalizedQuery) -> GroundingIntent | None:
@@ -83,17 +67,8 @@ def detect_metadata_intent(query: NormalizedQuery) -> GroundingIntent | None:
 
 def detect_section_intent(query: NormalizedQuery, reference: SectionReference) -> GroundingIntent | None:
     summary_requested = contains_any_phrase(query, SUMMARY_MARKERS)
-    content_requested = contains_any_phrase(query, SECTION_CONTENT_MARKERS)
     if reference.has_target:
         return GroundingIntent.BOOK_SECTION_SUMMARY if summary_requested else GroundingIntent.BOOK_SECTION_CONTENT
-    if reference.marker_present and (summary_requested or content_requested or len(query.tokens) <= 5):
-        return GroundingIntent.CLARIFICATION_REQUIRED
     return None
 
 
-def detect_external_current_info(query: NormalizedQuery) -> bool:
-    return (
-        contains_any_phrase(query, CURRENT_MARKERS)
-        and contains_any_phrase(query, EXTERNAL_MARKERS)
-        and not contains_any_phrase(query, BOOK_MARKERS)
-    )

@@ -1,6 +1,5 @@
 from app.services.agent_grounding.contracts import GroundingIntent
 from app.services.agent_grounding.intent_router import (
-    detect_external_current_info,
     detect_metadata_intent,
     detect_section_intent,
 )
@@ -29,9 +28,7 @@ def test_detects_section_summary_and_missing_reference():
 
     assert detect_section_intent(clear, parse_section_reference(clear)) == GroundingIntent.BOOK_SECTION_SUMMARY
     assert detect_section_intent(main_idea, parse_section_reference(main_idea)) == GroundingIntent.BOOK_SECTION_SUMMARY
-    assert detect_section_intent(missing, parse_section_reference(missing)) == GroundingIntent.CLARIFICATION_REQUIRED
+    assert detect_section_intent(missing, parse_section_reference(missing)) is None
 
 
-def test_external_current_info_detection_is_conservative():
-    assert detect_external_current_info(normalize_query("Giá Bitcoin hôm nay là bao nhiêu?")) is True
-    assert detect_external_current_info(normalize_query("Hôm nay tôi nên học chương nào?")) is False
+

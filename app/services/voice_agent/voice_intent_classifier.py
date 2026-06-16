@@ -70,43 +70,6 @@ NEGATIVE_PHRASES = (
     "dont",
     "do not",
 )
-AMBIGUOUS_PHRASES = (
-    "tuy",
-    "tuy anh",
-    "sao cung duoc",
-    "sao cung",
-    "cung duoc",
-    "khong biet",
-    "maybe",
-    "up to you",
-)
-QUESTION_HINTS = (
-    " la gi",
-    " gi ",
-    " nao",
-    " ai ",
-    " tai sao",
-    " vi sao",
-    " nhu the nao",
-    " the nao",
-    " co nhung",
-    " chuong",
-    " muc",
-    " de muc",
-    " noi dung",
-    " phuong phap",
-    " tom tat",
-    " giai thich",
-    " what",
-    " why",
-    " how",
-    " when",
-    " where",
-    " which",
-    " who",
-    " tell me",
-)
-
 
 @dataclass(frozen=True)
 class VoiceReplyIntentResult:
@@ -129,10 +92,7 @@ def phrase_in_text(phrase: str, text: str) -> bool:
 
 
 def looks_like_new_question(original_text: str, normalized_text: str) -> bool:
-    if "?" in original_text:
-        return True
-    padded = f" {normalized_text} "
-    return any(hint in padded for hint in QUESTION_HINTS)
+    return "?" in original_text
 
 
 def classify_voice_reply_intent_fast_path(text: str, *, max_grant_tokens: int = 3) -> VoiceReplyIntentResult | None:
@@ -146,11 +106,8 @@ def classify_voice_reply_intent_fast_path(text: str, *, max_grant_tokens: int = 
     if any(phrase_in_text(phrase, normalized) for phrase in POSITIVE_ACTION_PHRASES):
         return VoiceReplyIntentResult("grant", 0.96, "Matched positive action fast path", "fast_path")
 
-    if any(phrase_in_text(phrase, normalized) for phrase in AMBIGUOUS_PHRASES):
-        return VoiceReplyIntentResult("unclear", 0.88, "Matched ambiguous fast path", "fast_path")
-
     if looks_like_new_question(text, normalized):
-        return VoiceReplyIntentResult("new_question", 0.88, "Looks like a new question", "fast_path")
+        return VoiceReplyIntentResult("new_question", 0.88, "Explicit question mark detected", "fast_path")
 
     token_count = len(normalized.split())
     if token_count <= max(1, max_grant_tokens) and any(

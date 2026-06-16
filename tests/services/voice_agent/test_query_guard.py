@@ -12,11 +12,10 @@ def test_clear_book_metadata_question_is_valid_without_transcript() -> None:
     assert result.valid is True
 
 
-def test_section_question_without_target_asks_clarification() -> None:
+def test_section_question_without_target_is_valid() -> None:
     result = assess_voice_query("Tóm tắt chương.")
 
-    assert result.valid is False
-    assert result.reason_code == "missing_section_reference"
+    assert result.valid is True
 
 
 def test_short_web_permission_reply_is_not_treated_as_book_query() -> None:
