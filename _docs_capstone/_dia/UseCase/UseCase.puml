@@ -1,0 +1,89 @@
+@startuml Safe_News
+skinparam Shadowing true
+skinparam rectangle {
+  BackgroundColor #F0F8FF
+  BorderColor #000080
+}
+skinparam actor {
+  BackgroundColor #ADD8E6
+  BorderColor #000080
+}
+skinparam usecase {
+  BackgroundColor #E6E6FA
+  BorderColor #000080
+}
+
+left to right direction
+
+'------------- Actor -------------
+actor "Người dùng" as User
+actor "  Người dùng \n(Đã đăng nhập)" as LoggedInUser
+actor "Hệ thống tự động" as System
+LoggedInUser -|> User
+
+'------------- Boundary -------------
+rectangle "Ứng dụng đọc báo sạch Safe News" {
+
+'>>>>>>>>>>>>>>> Khai báo >>>>>>>>>>>>>>>
+
+'------- UceeCase Tổng quát -------
+(Xem tin tức) as ViewNews
+(Lọc/Tìm kiếm tin tức) as FilterNews
+(Chia sẻ tin tức) as ShareNews
+
+(Quản lý danh sách tin tức đã lưu) as G_Bookmarked
+(Lưu tin tức) as SaveNews
+(Xem tin đã lưu) as ViewSavedNews
+(Xóa tin đã lưu) as DeleteSavedNews
+G_Bookmarked <.. SaveNews
+G_Bookmarked <.. ViewSavedNews
+G_Bookmarked <.. DeleteSavedNews
+
+(Quản lý thông tin cá nhân) as G_ManageProfile
+' (Cập nhật thông tin cá nhân) as UpdateProfile
+(Tùy chỉnh thông báo) as CustomizeNotifications
+(Xem thành tựu và huy hiệu) as ViewAchievements
+' G_ManageProfile <.. UpdateProfile
+G_ManageProfile <.. CustomizeNotifications
+G_ManageProfile <.. ViewAchievements
+
+' For system
+(Tự động lấy lọc tin tức\nvà lưu vào database) as AutoFilterNews
+(Theo dõi người dùng\nđể thiết lập thành tựu) as TrackUserAchievements
+
+
+'------------- UseCase Chi tiết -------------
+
+
+'Account
+(Đăng xuất) as Logout
+(Đăng ký) as Register
+(Đăng nhập) as Login
+(Đổi mật khẩu) as ChangePassword
+
+
+'------------- Account -------------
+    Login <. Logout: include
+    ChangePassword .> Login : include
+
+'Tất cả các usecase đều include Login
+    ' QLTTCN <.. Login
+  
+
+'------------- User -------------
+
+User -- ViewNews
+User -- FilterNews
+User -- ShareNews
+User -- Register
+User -- Login
+
+LoggedInUser - G_Bookmarked
+LoggedInUser - G_ManageProfile
+
+System -- AutoFilterNews
+System -- TrackUserAchievements
+
+}
+@enduml
+

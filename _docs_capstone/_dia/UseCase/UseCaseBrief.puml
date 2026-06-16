@@ -1,0 +1,134 @@
+@startuml HOMEX_UC
+' skinparam Shadowing true
+left to right direction
+
+'------------- Actor -------------
+' actor "User" as User
+actor "Admin" as Admin
+actor "Bác sĩ" as Doctor
+actor "Bệnh nhân" as Patient
+
+'----------- Extend -----------
+' Admin --|> User
+' User <|-- Doctor
+' User <|-- Patient
+
+'------------- Boundary -------------
+rectangle "Hệ thống đặt lịch khám bệnh HOMEX" {
+
+'>>>>>>>>>>>>>>> Khai báo >>>>>>>>>>>>>>>
+
+'------- UceeCase Tổng quát -------
+    (QL thông tin cá nhân) as QLTTCN
+    
+    (QL lịch hẹn) as QLLH
+
+    (QL lịch khám bệnh) as QLLKB
+ 
+    ' (QL phòng khám) as QLPK
+   
+    (QL chuyên khoa) as QLCK
+  
+    (QL bệnh nhân) as QLBN
+  
+    (QL bác sĩ) as QLBS
+
+    (QL đánh giá) as QLĐG
+
+    (Thanh toán Momo) as Payment
+
+    note bottom of QLTTCN: Xem lịch sử đặt lịch; \nThêm/ Sửa/ Xóa thông tin;
+    
+    note bottom of QLLH: Thêm/Sửa/Xóa lịch hẹn; 
+
+    note bottom of QLLKB: Thêm/Sửa/Xóa lịch làm việc bác sĩ; 
+    ' note bottom of QLPK: Thêm/ Sửa/ Xóa phòng khám;
+
+    note bottom of QLCK: Thêm/ Sửa/ Xóa chuyên khoa;
+
+    note bottom of QLBN: Thêm/ Sửa/ Xóa thông tin;
+
+
+    note bottom of QLBS: Thêm/Sửa/Xóa bác sĩ; \nThêm/Sửa/Xóa lịch làm việc; \nXem lịch sử khám;
+
+    note bottom of QLĐG: Xóa đánh giá bệnh nhân;
+
+'------------- UceeCase Chi tiết -------------
+    'Business
+    (Cập nhật lịch hẹn; Trả kết quả;) as UpdateLKB
+    QLLH <.. UpdateLKB
+
+    ' (Cập nhât thông tin bệnh nhân) as crudBN
+    (Xem lịch sử khám bệnh bệnh nhân) as getLKBBN
+    ' QLBN <.. crudBN
+    QLBN <.. getLKBBN
+
+    (Đặt lịch hẹn mới) as createLHM
+    (Hủy lịch hẹn) as cancelHM
+    QLLH <.. createLHM
+    QLLH <.. cancelHM
+
+    (Xem lịch khám bác sĩ) as getLKBBS
+    QLLKB <.. getLKBBS
+
+    
+    (Đánh giá bác sĩ) as addĐGBS
+    QLĐG <. addĐGBS
+
+    'Account
+    (Đăng xuất) as Logout
+    (Đăng nhập) as Login
+    (Đăng kí) as SignUp
+    (Đổi mật khẩu) as ChangePass
+
+'------------- Account -------------
+    Login <. Logout: include
+    ChangePass .> Login : include
+
+'Tất cả các usecase đều include Login
+    QLTTCN <.. Login
+    QLLH <.. Login
+    QLLKB <.. Login
+    ' QLPK <.. Login
+    QLCK <.. Login
+    QLBN <.. Login
+    QLBS <.. Login
+    QLĐG <.. Login
+
+'------------- Admin -------------
+
+Admin -- QLTTCN
+    
+Admin -- QLLH
+
+Admin -- QLLKB
+
+' Admin -- QLPK
+  
+Admin -- QLCK
+ 
+Admin -- QLBN
+ 
+Admin -- QLBS
+
+Admin -- QLĐG
+
+'------------- Doctor -------------
+getLKBBN -- Doctor
+' crudBN -- Doctor
+UpdateLKB -- Doctor
+QLTTCN -- Doctor
+getLKBBS -- Doctor
+
+'------------- Patient -------------
+SignUp ---- Patient
+cancelHM - Patient
+createLHM - Patient
+getLKBBN - Patient
+Payment -- Patient
+getLKBBS -- Patient
+QLTTCN -- Patient
+addĐGBS --- Patient
+
+}
+@enduml
