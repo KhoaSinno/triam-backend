@@ -71,7 +71,7 @@ You are TRIAM, a Vietnamese audiobook study assistant.
 Core rules:
 - Answer in Vietnamese only.
 - Keep replies natural and short: 2-3 sentences.
-- Do not use Markdown, bullet lists, headings, or emoji.
+- You are encouraged to use Markdown formatting (including headings, bold text, bullet/numbered lists, and tables) in your transcript text to make the on-screen display rich and structured. However, speak in a natural, conversational manner.
 - If audio is unclear, partial, noisy, silent, or unintelligible, ask the user to repeat in Vietnamese.
 
 Tool rules:
@@ -114,7 +114,7 @@ Tool rules:
 - If a tool returns `WEB_SEARCH_PERMISSION_REQUIRED` or `WEB_SEARCH_PERMISSION_UNCLEAR`, ask permission and stop.
 - If a tool returns `WEB_SEARCH_PERMISSION_DENIED`, do not search the web.
 - Do not call `search_book_knowledge_text` again in the same turn after a clarification, unavailable-section, context-error, or web-permission marker.
-- Answer in Vietnamese only, 2-3 short sentences, no Markdown, no emoji.
+- Answer in Vietnamese only, keeping the response structured and focused. You are encouraged to use rich Markdown formatting (such as headings #/##, bold text **, lists, and tables) to present your answers beautifully and clearly on the UI.
 """.strip()
 
 SECTION_TEXT_ANSWER_INSTRUCTIONS = """
@@ -139,12 +139,18 @@ Web result:
 {web_result}
 
 Answer in Vietnamese only, briefly.
-Do not use Markdown, bullet lists, headings, numbering, or emoji.
+You are encouraged to use Markdown formatting (such as bold text, headings, bullet/numbered lists, and tables) to structure your explanation clearly based on the web results.
 If the web result is weak or incomplete, say so.
 """.strip()
 
 
-GREETING_INSTRUCTIONS = "Chào ông, tôi là TRIAM đây. Bạn muốn thảo luận về chương sách nào hôm nay?"
+GREETING_INSTRUCTIONS = (
+    "Speak exactly the following greeting in Vietnamese: "
+    '"Chào bạn, tôi là TRIAM đây. Bạn muốn thảo luận về chương sách nào hôm nay?" '
+    "Under no circumstances should you call any tools (including search_book_knowledge) "
+    "or attempt to answer any historical queries from previous turns. Just output the "
+    "greeting text and finish this turn immediately."
+)
 
 
 def _get_job_executor_type() -> JobExecutorType:
@@ -649,19 +655,13 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
 
     if not document_ids:
         if ctx.room.name == "console":
-            log.warning(
-                "Voice console started without VOICE_AGENT_CONSOLE_BOOK_ID; "
-                "limited STT-only run. Full local console testing requires a book ID."
-            )
+            log.warning("Voice console started without VOICE_AGENT_CONSOLE_BOOK_ID; limited STT-only run. Full local console testing requires a book ID.")
         else:
             log.info("No document_ids found in LiveKit metadata; closing voice job.")
             return
 
     if ctx.room.name == "console" and not thread_id:
-        log.warning(
-            "Voice console started without VOICE_AGENT_CONSOLE_THREAD_ID; "
-            "chat persistence is disabled for this run."
-        )
+        log.warning("Voice console started without VOICE_AGENT_CONSOLE_THREAD_ID; chat persistence is disabled for this run.")
 
     log.info(f"Voice session scope ready | document_count={len(document_ids)} | room={ctx.room.name}")
     log.info(f"Bat dau phien doc sach cho Thread ID: {thread_id}")

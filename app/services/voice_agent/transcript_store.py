@@ -16,7 +16,11 @@ HistoryLoader = Callable[[int], list[ChatMessage]]
 
 
 def normalize_transcript_text(text: str) -> str:
-    return " ".join((text or "").split())
+    if not text:
+        return ""
+    lines = text.splitlines()
+    normalized_lines = [" ".join(line.split()) for line in lines]
+    return "\n".join(normalized_lines)
 
 
 class VoiceTranscriptStore:
