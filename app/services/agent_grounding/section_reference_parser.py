@@ -186,6 +186,9 @@ def parse_section_reference(query: NormalizedQuery) -> SectionReference:
         if token not in SECTION_MARKERS:
             continue
 
+        if token == "phan" and index + 1 < len(query.tokens) and query.tokens[index + 1] == "tram":
+            continue
+
         remaining = query.tokens[index + 1 :]
         if not remaining:
             return SectionReference(marker_present=True, title_hint=quoted_title)
