@@ -40,32 +40,41 @@ Tài liệu này cung cấp các kịch bản kiểm thử khó (Stress Test Cas
 
 ---
 
-## 3. Case 3: Hỏi thông tin thời sự / ngoài lề (Yêu cầu Web Search)
-* **Câu hỏi bạn nói**: *"Giá Bitcoin hôm nay là bao nhiêu?"* hoặc *"Thời tiết Hà Nội hôm nay thế nào?"*
+## 3. Case 3: Hỏi thông tin thời sự / ngoài lề (Quy trình Hỏi xin quyền Web tiêu chuẩn)
+* **Câu hỏi bạn nói**: *"Giá Bitcoin hôm nay là bao nhiêu?"* hoặc *"Thời tiết Hà Nội hôm nay thế nào?"* hoặc *"Ai là tổng thống Mỹ hiện tại?"*
 * **Kỳ vọng hành vi của Agent**:
-  * Agent sẽ gọi Tool Web Search ngầm định, tự động cấp quyền vì ý định rõ ràng (`mode=implicit`, `intent=grant`).
-  * Agent thực hiện tìm kiếm internet và trả lời trực tiếp thông tin thời sự mới nhất.
+  * Agent phát hiện thông tin không có trong sách và cần tìm kiếm internet.
+  * Agent **không được tự ý tìm kiếm ngay**, mà phải gọi hàm `ask_web_search_permission` để lưu trạng thái chờ và phát âm câu hỏi xin quyền của bạn (ví dụ: *"Thông tin này không có trong sách. Bạn có muốn tôi tìm kiếm thêm trên internet không?"*).
 * **Quy trình hoạt động bên dưới**:
   ```mermaid
   sequenceDiagram
       User->>Agent: "Giá Bitcoin hôm nay là bao nhiêu?"
-      Agent->>query_guard: Phân loại ý định tìm web
-      Note over query_guard: classify_web_permission_intent_fast_path() -> implicit grant
-      Agent->>execute_web_search: Gọi tìm kiếm Google/Bing ngoài internet
-      execute_web_search-->>Agent: Trả về kết quả giá cả/thời tiết mới nhất
-      Agent-->>User: Trả lời thông tin trực tiếp từ web
+      Agent->>query_guard: Phân loại ý định & kiểm tra quyền
+      Note over query_guard: Không có quyền được cấp trước đó
+      Agent->>ask_web_search_permission: Gọi tool ghi nhận trạng thái pending_query
+      Agent-->>User: Phát âm câu xin quyền web & dừng chờ phản hồi
   ```
 
 ---
 
-## 4. Case 4: Hỏi câu hỏi ngoài sách mơ hồ (Quy trình Hỏi xin quyền Web)
-* **Câu hỏi bạn nói**: *"Ai là tổng thống Mỹ hiện tại?"* hoặc *"Cho tôi biết tin tức về AI hôm nay."*
+## 4. Case 4: Cơ chế tự động khôi phục / ngầm định cấp quyền (Implicit Grant Recovery)
+* **Ngữ cảnh**: Bạn hỏi câu hỏi ở Case 3, nhưng vì lý do nào đó Agent tự đặt câu hỏi xin quyền trực tiếp bằng giọng nói mà **không thông qua gọi tool** `ask_web_search_permission` (không có trạng thái `pending` trong DB).
+* **Câu nói tiếp theo của bạn**: *"Có, tìm đi"* hoặc *"Ừ, tìm cho tôi"*
 * **Kỳ vọng hành vi của Agent**:
-  * Agent sẽ hỏi xin quyền của bạn: *"Tôi cần tìm kiếm internet để trả lời câu hỏi này. Bạn có đồng ý cho tôi tìm web không?"* (Agent không được tự ý tìm nếu quyền chưa rõ ràng).
+  * Khi Agent nhận được lời đồng ý, mặc dù DB không có cờ `pending`, hệ thống sẽ đối chiếu câu nói vừa xong của bạn (`last_user_reply`) là lời đồng ý (`grant`) trong cửa sổ thời gian gần nhất (dưới 20 giây).
+  * Hệ thống tự động kích hoạt **implicit grant** (ngầm cấp quyền), cho phép chạy tìm kiếm và trả lời trực tiếp cho bạn.
 * **Quy trình hoạt động bên dưới**:
-  1. Router phát hiện thông tin không nằm trong sách $\rightarrow$ Trả về `EXTERNAL_INFO_REQUIRED`.
-  2. Agent gọi hàm `ask_web_search_permission` để ghi nhận trạng thái chờ duyệt (`waiting_for_web_permission`).
-  3. LLM phát âm câu hỏi xin quyền và dừng lại chờ bạn trả lời.
+  ```mermaid
+  sequenceDiagram
+      User->>Agent: "Có, tìm đi" (Phản hồi lại lời thoại xin phép của LLM)
+      Note over Agent: Không có pending_query trong trạng thái
+      Agent->>web_permission_policy: resolve_before_web_search()
+      Note over web_permission_policy: _can_try_implicit_grant() = True (reply gần đây & là đồng ý)
+      web_permission_policy->>web_permission_policy: Chuyển trạng thái sang Granted
+      Agent->>execute_web_search: Gọi tìm kiếm internet thành công
+      execute_web_search-->>Agent: Trả về kết quả
+      Agent-->>User: Trả lời thông tin từ web
+  ```
 
 ---
 
