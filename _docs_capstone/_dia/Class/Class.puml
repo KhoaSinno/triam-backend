@@ -1,67 +1,138 @@
 
-@startUML Safe_News_Class
+@startUML HOMEX_Class_Final
 left to right direction
-
 ' --------------- ACTOR ---------------
+' Not null: fullname, phoneNumber, password, isDel
+' priceAppointment, licenseNumber
+
 class User {
     + ID: string
     + fullname: string 
+    + dateOfBirth: date
+    + gender: string
     + email: string
-    + password: string
+    + phoneNumber: string
+    + address: string
     + image: string
+    + password: string
     + isDel: bool
-    + readCount: int
-    + articlesRead: int
-    + currentStreak: int
-    + lastReadDate: datetime
-    + readCategories: string[]
-    + unlockAchievements: string[]
-    + updateAt: datetime
 
-    + Register(): void
-    + Login(): void
-    + Logout(): void
+    + UpdateProfile(): void
     + ChangePassword(): void
-    + CustomizeNotifications(): void
-    + ViewAchievements(): void
-
+    ' + ForgotPassword(): void
 }
 
-class News {
-    ID: string
-    title: string
-    category: string
-    link: string
-    description: string
-    published: datetime
-    imageUrl: string
-    sentiment: bool
-    isToxic: bool
-
-    + ViewNews(): void
-    + FilterNews(): void
-    + ShareNews(): void
-    + GetSummary(): string
+class Admin {
+    + ManageUsers(): void
+    + ManageAppointments(): void
+    + ManageDoctors(): void
+    + ManageSpecialties(): void
+    + ManageSchedules(): void
+    ' + ManageClinics(): void
 }
 
-class BookmarkedNews { 
-    ID: string 
-    summary: string
-    htmlContent: string
-    plainTextContent: string
-    bookmarkedAt: datetime
+class Doctor {
+    + bio: string
+    + consultantFee: double
+    + qualification: string
+    ' + specialtyYearExp: int
 
-    + BookmarkNews(): void
-    + ViewSavedNews(): void
-    + DeleteSavedNews(): void
-
+    + ManagementAppointments(): List<Appointment>
+    + ManagementSchedule(): void
+    + ViewPatients(): List<Patient>
+    ' + CreateMedicalRecord(): void
 }
 
+class Patient {
+    ' + medicalHistory: string
+    ' + insuranceNumber: string
+    ' + bloodType: string
+
+    + BookAppointment(): void
+    + CancelAppointment(): void
+    ' + ViewMedicalRecords(): List<MedicalRecord>
+}
+
+class Appointment {
+    + ID: string
+    + appointmentDate: date
+    + appointmentTime: string
+    + forWho: string
+    + patientFullname: string
+    + patientDateOfBirth: date
+    + patientPhoneNumber: string
+    + patientAddress: string
+    + patientGender: string
+    + patientEmail: string
+    + invoiceNumber: string
+    + reason: string
+    + reasonCancel: string
+    + note: string
+    + price: double
+    + paymentStatus: string
+    + status: string
+    + result: string
+    ' MedicalRecord
+
+    + ManageAppointments(): void
+}
+
+class MomoPayment {
+    + ID: string
+    + status: string
+    + linkData: string
+    + createdAt: date
+
+    + Payment(): void
+}
+
+class ScheduleWork {
+    + ID: string
+    + date: date
+    + timeSlots: list<string>
+    + status: string
+    ' + time: string
+    ' + time_start: string
+    ' + time_end: string
+    ' + maxPatients: int
+
+    + ManageSchedules(): void
+}
+
+class Specialty {
+    + ID: string
+    + name: string
+    + image: string
+    ' + description: text
+    ' Clinic
+    + clinicNumber: string
+    ' + clinicAddress: string
+    ' + clinicPhoneNumber: string
+
+    + ManageSpecialties(): void
+}
+
+class Review {
+    + ID: string
+    + rating: int
+    + comment: string
+    + createdAt: date
+
+    + ManageReviews(): void
+}
 
 ' --------------- RELATIONSHIPS ---------------
+Admin --|> User
+Doctor --|> User
+Patient --|> User
 
-User "1" -- "n" News: Read
-User "1" -- "n" BookmarkedNews: Read
-News "1" -- "n" BookmarkedNews: Saved
+Doctor "1" -- "n" ScheduleWork: "has"
+Appointment "n" -- "1" Doctor: "booked with"
+Appointment "n" -- "1" Patient: "booked by"
+Specialty "1" -- "n" Doctor: "specializes in"
+MomoPayment "n" -- "1" Patient: "paid by"
+
+Doctor "1" -left- "n" Review: "has"
+Patient "1" -right- "n" Review: "writes"
 
 @endUML

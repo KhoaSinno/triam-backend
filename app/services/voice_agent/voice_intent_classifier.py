@@ -12,7 +12,6 @@ POSITIVE_ACTION_PHRASES = (
     "dung roi",
     "dung do",
     "chinh xac",
-    "phai",
     "phai roi",
     "tim di",
     "tim kiem di",
@@ -49,11 +48,16 @@ POSITIVE_SHORT_REPLIES = (
     "phai",
     "phai roi",
     "cho phep",
+    "vang",
+    "da vang",
 )
 NEGATIVE_PHRASES = (
     "khong phai",
     "khong can",
     "khong dau",
+    "khong duoc",
+    "khong muon",
+    "khong thich",
     "khong",
     "khoi",
     "dung lam",
@@ -70,6 +74,10 @@ NEGATIVE_PHRASES = (
     "dont",
     "do not",
 )
+
+CONTEXT_SENSITIVE_NEGATIONS = {"khong", "no"}
+CONTEXT_SENSITIVE_CONFIRMATIONS = {"co", "duoc", "dung", "phai", "uh", "um"}
+
 
 @dataclass(frozen=True)
 class VoiceReplyIntentResult:
@@ -95,24 +103,40 @@ def looks_like_new_question(original_text: str, normalized_text: str) -> bool:
     return "?" in original_text
 
 
-def classify_voice_reply_intent_fast_path(text: str, *, max_grant_tokens: int = 3) -> VoiceReplyIntentResult | None:
+def classify_voice_reply_intent_fast_path(text: str, *, max_grant_tokens: int = 4) -> VoiceReplyIntentResult | None:
     normalized = normalize_voice_intent_text(text)
     if not normalized:
-        return VoiceReplyIntentResult("unclear", 1.0, "Empty reply", "fast_path")
-
-    if any(phrase_in_text(phrase, normalized) for phrase in NEGATIVE_PHRASES):
-        return VoiceReplyIntentResult("deny", 0.96, "Matched negative fast path", "fast_path")
-
-    if any(phrase_in_text(phrase, normalized) for phrase in POSITIVE_ACTION_PHRASES):
-        return VoiceReplyIntentResult("grant", 0.96, "Matched positive action fast path", "fast_path")
+        return None
 
     if looks_like_new_question(text, normalized):
         return VoiceReplyIntentResult("new_question", 0.88, "Explicit question mark detected", "fast_path")
 
+    # Constrain fast path positive/negative matching to short replies only to avoid false positives on long queries
     token_count = len(normalized.split())
-    if token_count <= max(1, max_grant_tokens) and any(
-        phrase_in_text(phrase, normalized) for phrase in POSITIVE_SHORT_REPLIES
-    ):
-        return VoiceReplyIntentResult("grant", 0.94, "Matched short positive fast path", "fast_path")
+    if token_count > max(4, max_grant_tokens):
+        return None
+
+    # For negative check:
+    for phrase in NEGATIVE_PHRASES:
+        if phrase in CONTEXT_SENSITIVE_NEGATIONS:
+            if token_count <= 2 and phrase_in_text(phrase, normalized):
+                return VoiceReplyIntentResult("deny", 0.96, "Matched negative fast path", "fast_path")
+        else:
+            if phrase_in_text(phrase, normalized):
+                return VoiceReplyIntentResult("deny", 0.96, "Matched negative fast path", "fast_path")
+
+    if any(phrase_in_text(phrase, normalized) for phrase in POSITIVE_ACTION_PHRASES):
+        return VoiceReplyIntentResult("grant", 0.96, "Matched positive action fast path", "fast_path")
+
+    # For positive short replies:
+    for phrase in POSITIVE_SHORT_REPLIES:
+        if phrase in CONTEXT_SENSITIVE_CONFIRMATIONS:
+            # Only match context-sensitive confirmations if it's a very short response (<= 2 tokens)
+            # to avoid false positives on yes/no questions (e.g. "chương này có không")
+            if token_count <= 2 and phrase_in_text(phrase, normalized):
+                return VoiceReplyIntentResult("grant", 0.94, "Matched short positive fast path", "fast_path")
+        else:
+            if phrase_in_text(phrase, normalized):
+                return VoiceReplyIntentResult("grant", 0.94, "Matched short positive fast path", "fast_path")
 
     return None

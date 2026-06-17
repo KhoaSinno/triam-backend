@@ -1,0 +1,45 @@
+@startuml triam_usecase_overview
+skinparam Shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam roundcorner 18
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam nodesep 50
+skinparam ranksep 50
+
+skinparam actor {
+  BackgroundColor #DBEAFE
+  BorderColor #1D4ED8
+  FontColor #111827
+}
+skinparam usecase {
+  BackgroundColor #EEF2FF
+  BorderColor #4338CA
+  FontColor #111827
+}
+
+left to right direction
+
+actor "Độc giả\n(đã đăng nhập)" as Reader
+actor "Quản trị viên" as Admin
+Admin -|> Reader
+
+rectangle "Hệ thống TRIAM Assistant" {
+  (Quản lý Tài khoản) as UC_Account
+  (Quản lý Thư viện & Kế hoạch học) as UC_LibraryPlan
+  (Nghe sách nói & Quản lý tiến độ) as UC_ListenProgress
+  (Tương tác Trợ lý AI theo ngữ cảnh) as UC_AI
+  (Quản lý Workspace & Ôn tập) as UC_Workspace
+  (Quản trị hệ thống) as UC_AdminSystem
+}
+
+Reader -- UC_Account
+Reader -- UC_LibraryPlan
+Reader -- UC_ListenProgress
+Reader -- UC_AI
+Reader -- UC_Workspace
+
+Admin -- UC_AdminSystem
+@enduml

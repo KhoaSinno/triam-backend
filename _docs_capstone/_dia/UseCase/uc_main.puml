@@ -37,117 +37,113 @@ skinparam note {
 
 left to right direction
 
-actor "Đọc giả\n(đã đăng nhập)" as Reader
-actor "Admin\n(đã đăng nhập)" as Admin
+'------------- Actors -------------
+actor "Độc giả\n(đã đăng nhập)" as Reader
+actor "Quản trị viên" as Admin
 Admin -|> Reader
 
+'------------- Boundary -------------
 rectangle "TRIAM Assistant - Hệ thống sách nói AI" {
+
+  package "Tài khoản" #F1F5F9 {
+    (Đăng nhập) as UC_Login
+    (Đăng ký) as UC_Register
+    (Đăng xuất) as UC_Logout
+    (Đổi mật khẩu) as UC_ChangePass
+  }
 
   package "Tài liệu & kế hoạch học" #ECFDF5 {
     (Quản lý thư viện sách) as UC_Library
-    (Tải lên / chọn sách) as UC_SelectBook
-    (Kiểm tra cấu trúc tài liệu) as UC_Validate
-    (Tạo kế hoạch học) as UC_CreatePlan
-    (Chọn chế độ Full/Pareto) as UC_Mode
+    (Tải lên tài liệu PDF/EPUB/DOCX) as UC_UploadBook
+    (Chọn sách từ thư viện) as UC_SelectBook
+
+    (Quản lý kế hoạch học tập) as UC_Plan
+    (Tạo kế hoạch học mới) as UC_CreatePlan
+    (Chọn chế độ học Full/Pareto) as UC_SelectMode
     (Theo dõi tiến trình xử lý) as UC_TrackJob
+    (Nghe sớm bài học) as UC_ListenEarly
   }
 
   package "Nghe sách nói & tiến độ" #FEF3C7 {
-    (Xem playlist bài học) as UC_Playlist
+    (Nghe sách nói & quản lý tiến độ) as UC_ListenBook
     (Nghe audio bài học) as UC_Listen
-    (Nghe sớm khi partial_ready) as UC_ListenEarly
     (Chuyển đổi chế độ học) as UC_SwitchMode
     (Cập nhật tiến độ nghe) as UC_Progress
   }
 
   package "Trợ lý AI theo ngữ cảnh" #F3E8FF {
-    (Hỏi đáp Text/Voice) as UC_QA
-    (Kết nối phòng thoại LiveKit) as UC_LiveKit
-    (Truy xuất kiến thức sách bằng RAG) as UC_RAG
-    (Tìm kiếm Internet khi được bật) as UC_Web
-    (Lưu lịch sử hội thoại) as UC_SaveChat
+    (Tương tác với trợ lý AI) as UC_AIAssistant
+    (Hỏi đáp bằng Text/Voice thường) as UC_QA
+    (Đàm thoại LiveKit thời gian thực) as UC_LiveKit
+    (Tìm kiếm Internet qua Tavily) as UC_Web
   }
 
   package "Workspace, ôn tập & thông báo" #FFE4E6 {
-    (Quản lý workspace) as UC_Workspace
-    (Quản lý luồng chat) as UC_Thread
-    (Xem lịch ôn tập) as UC_Review
-    (Hoàn thành/Bỏ qua ôn tập) as UC_ReviewDone
+    (Quản lý Workspace & Ôn tập) as UC_WorkspaceReview
+    (Quản lý workspace & luồng chat) as UC_Workspace
+    (Xem lịch ôn tập ngắt quãng) as UC_Review
     (Cấu hình & nhận thông báo) as UC_Notification
   }
 
-  package "Quản trị hệ thống" #F1F5F9 {
+  package "Quản trị hệ thống" #F8FAFC {
+    (Quản trị hệ thống) as UC_AdminSystem
     (Xem dashboard) as UC_AdminDashboard
     (Quản lý người dùng) as UC_AdminUser
     (Quản lý catalog sách) as UC_AdminCatalog
-    (Upload/Publish sách hệ thống) as UC_AdminBook
-    (Giám sát & retry job xử lý) as UC_AdminJob
+    (Giám sát & retry job lỗi) as UC_AdminJob
     (Xem audit log) as UC_Audit
   }
 
-  package "Xử lý nền qua Worker" #F8FAFC {
-    (Thực thi pipeline xử lý sách) as UC_WorkerPipeline
-    (Sinh audio bài học) as UC_GenAudio
-    (Tạo knowledge base/RAG) as UC_GenRAG
-    (Cập nhật ProcessingJob) as UC_UpdateJob
-    (Mở khóa Listen Early) as UC_UnlockEarly
-    (Tạo nhắc nhở ôn tập) as UC_GenReminder
-  }
-
-  note bottom of UC_WorkerPipeline
-    Worker/Celery là thành phần nội bộ của hệ thống,
-    không phải actor ngoài hệ thống.
-    Nó chỉ xuất hiện như use case nội bộ được <<include>>
-    từ các nghiệp vụ cần xử lý nền.
-  end note
+  '------------- Notes for Grouped UCs -------------
+  note bottom of UC_Library: Tải lên tài liệu (PDF/EPUB/DOCX);\nChọn sách từ thư viện;\nKiểm tra cấu trúc mục lục;
+  note bottom of UC_Plan: Tạo kế hoạch học (Full/Pareto);\nChọn chế độ học;\nTheo dõi tiến trình xử lý nền;\nNghe sớm khi partial_ready;
+  note bottom of UC_ListenBook: Xem playlist bài học;\nNghe audio phân đoạn;\nChuyển đổi chế độ học (Full/Pareto);\nCập nhật tiến độ nghe (>=80% hoàn thành);
+  note bottom of UC_AIAssistant: Hỏi đáp Text/Voice;\nKết nối phòng thoại LiveKit;\nTruy xuất ngữ cảnh RAG;\nTìm kiếm Internet (Tavily);
+  note bottom of UC_WorkspaceReview: Quản lý workspace & luồng chat;\nXem lịch ôn tập ngắt quãng;\nHoàn thành/Bỏ qua ôn tập;\nCấu hình & nhận thông báo đẩy (FCM);
+  note bottom of UC_AdminSystem: Xem dashboard;\nQuản lý người dùng & catalog sách;\nUpload/Publish sách hệ thống;\nGiám sát & retry job xử lý;\nXem audit log;
 }
 
-Reader --> UC_Library
-Reader --> UC_CreatePlan
-Reader --> UC_Listen
-Reader --> UC_QA
-Reader --> UC_Workspace
-Reader --> UC_Review
-Reader --> UC_Notification
-Reader --> UC_SwitchMode
+'------------- Actor Connections (Straight Lines, No Arrowheads) -------------
+' Độc giả chưa đăng nhập vẫn tương tác được với 2 UC này
+Reader -- UC_Login
+Reader -- UC_Register
 
-Admin --> UC_AdminDashboard
-Admin --> UC_AdminUser
-Admin --> UC_AdminCatalog
-Admin --> UC_AdminJob
-Admin --> UC_Audit
+' Các chức năng yêu cầu trạng thái Logged In
+Reader -- UC_Logout
+Reader -- UC_ChangePass
+Reader -- UC_Library
+Reader -- UC_Plan
+Reader -- UC_ListenBook
+Reader -- UC_AIAssistant
+Reader -- UC_WorkspaceReview
 
+Admin -- UC_AdminSystem
+
+'------------- UC Details & Relationships (Hierarchical, No Sequences) -------------
+UC_Library ..> UC_UploadBook : <<include>>
 UC_Library ..> UC_SelectBook : <<include>>
-UC_SelectBook ..> UC_Validate : <<include>>
-UC_CreatePlan ..> UC_Mode : <<include>>
-UC_CreatePlan ..> UC_WorkerPipeline : <<include>>
-UC_CreatePlan ..> UC_TrackJob : <<include>>
-UC_TrackJob ..> UC_ListenEarly : <<extend>>
 
-UC_Listen ..> UC_Playlist : <<include>>
-UC_Listen ..> UC_Progress : <<include>>
-UC_ListenEarly ..> UC_Listen : <<extend>>
-UC_SwitchMode ..> UC_WorkerPipeline : <<include>>
+UC_Plan ..> UC_CreatePlan : <<include>>
+UC_Plan ..> UC_SelectMode : <<include>>
+UC_Plan ..> UC_TrackJob : <<include>>
+UC_ListenEarly ..> UC_Plan : <<extend>> 
 
-UC_QA ..> UC_LiveKit : <<extend>>
-UC_QA ..> UC_RAG : <<include>>
-UC_QA ..> UC_SaveChat : <<include>>
-UC_QA ..> UC_Web : <<extend>>
+UC_ListenBook ..> UC_Listen : <<include>>
+UC_ListenBook ..> UC_SwitchMode : <<include>>
+UC_ListenBook ..> UC_Progress : <<include>>
 
-UC_Workspace ..> UC_Thread : <<include>>
-UC_Thread ..> UC_SaveChat : <<include>>
-UC_Review ..> UC_ReviewDone : <<include>>
-UC_Notification ..> UC_GenReminder : <<include>>
+UC_AIAssistant ..> UC_QA : <<extend>>
+UC_AIAssistant ..> UC_LiveKit : <<extend>>
+UC_Web ..> UC_QA : <<extend>> 
 
-UC_AdminCatalog ..> UC_AdminBook : <<include>>
-UC_AdminBook ..> UC_Validate : <<include>>
-UC_AdminBook ..> UC_WorkerPipeline : <<include>>
-UC_AdminJob ..> UC_WorkerPipeline : <<extend>>
+UC_WorkspaceReview ..> UC_Workspace : <<include>>
+UC_WorkspaceReview ..> UC_Review : <<include>>
+UC_WorkspaceReview ..> UC_Notification : <<include>>
 
-UC_WorkerPipeline ..> UC_GenAudio : <<include>>
-UC_WorkerPipeline ..> UC_GenRAG : <<include>>
-UC_WorkerPipeline ..> UC_UpdateJob : <<include>>
-UC_WorkerPipeline ..> UC_UnlockEarly : <<extend>>
-UC_GenReminder ..> UC_Notification : <<extend>>
+UC_AdminSystem ..> UC_AdminDashboard : <<include>>
+UC_AdminSystem ..> UC_AdminUser : <<include>>
+UC_AdminSystem ..> UC_AdminCatalog : <<include>>
+UC_AdminSystem ..> UC_AdminJob : <<include>>
+UC_AdminSystem ..> UC_Audit : <<include>>
 
 @enduml
