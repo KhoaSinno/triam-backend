@@ -2,8 +2,8 @@
 skinparam Shadowing false
 skinparam backgroundColor #FFFFFF
 skinparam defaultFontName Arial
-skinparam roundcorner 14
-skinparam linetype ortho
+' skinparam roundcorner 14
+' skinparam linetype ortho
 
 skinparam actor {
   BackgroundColor #DBEAFE
@@ -18,16 +18,13 @@ left to right direction
 
 actor "Độc giả" as Reader
 
-rectangle "Phân hệ Nghe sách nói & Tiến độ" {
-  (Nghe sách nói & quản lý tiến độ) as UC_ListenBook
+rectangle "Phân hệ Nghe sách nói và Tiến độ" {
   (Nghe audio bài học) as UC_Listen
   (Chuyển đổi chế độ học) as UC_SwitchMode
   (Cập nhật tiến độ nghe) as UC_Progress
-
-  UC_ListenBook ..> UC_Listen : <<include>>
-  UC_ListenBook ..> UC_SwitchMode : <<include>>
-  UC_ListenBook ..> UC_Progress : <<include>>
 }
 
-Reader -- UC_ListenBook
+Reader -- UC_Listen
+Reader -- UC_SwitchMode
+Reader -- UC_Progress
 @enduml

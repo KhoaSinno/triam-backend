@@ -2,16 +2,16 @@
 skinparam Shadowing false
 skinparam backgroundColor #FFFFFF
 skinparam defaultFontName Arial
-skinparam roundcorner 14
-skinparam linetype ortho
+' skinparam roundcorner 14
+' skinparam linetype ortho
 
 skinparam actor {
   BackgroundColor #DBEAFE
   BorderColor #1D4ED8
 }
 skinparam usecase {
-  BackgroundColor #ECFDF5
-  BorderColor #047857
+  BackgroundColor #FEF3C7
+  BorderColor #B45309
 }
 
 left to right direction
@@ -19,27 +19,22 @@ left to right direction
 actor "Độc giả" as Reader
 
 rectangle "Phân hệ Tài liệu & Kế hoạch học" {
-  (Quản lý thư viện sách) as UC_Library
-  (Tải lên tài liệu PDF/EPUB/DOCX) as UC_UploadBook
+  (Upload sách) as UC_UploadBook
+  ' TODO: Hiện tại chưa có Chọn sách từ thư viện
   (Chọn sách từ thư viện) as UC_SelectBook
 
-  (Quản lý kế hoạch học tập) as UC_Plan
   (Tạo kế hoạch học mới) as UC_CreatePlan
-  (Chọn chế độ học Full/Pareto) as UC_SelectMode
+  (Chọn chế độ học) as UC_SelectMode
   (Theo dõi tiến trình xử lý) as UC_TrackJob
   (Nghe sớm bài học) as UC_ListenEarly
 
-  UC_Library ..> UC_UploadBook : <<include>>
-  UC_Library ..> UC_SelectBook : <<include>>
-
-  UC_Plan ..> UC_CreatePlan : <<include>>
-  UC_Plan ..> UC_SelectMode : <<include>>
-  UC_Plan ..> UC_TrackJob : <<include>>
-  
   ' Mũi tên hướng từ tính năng mở rộng về tính năng gốc
   UC_ListenEarly ..> UC_TrackJob : <<extend>>
 }
 
-Reader -- UC_Library
-Reader -- UC_Plan
+Reader -- UC_UploadBook
+Reader -- UC_SelectBook
+Reader -- UC_CreatePlan
+Reader -- UC_SelectMode
+Reader -- UC_TrackJob
 @enduml

@@ -2,8 +2,8 @@
 skinparam Shadowing false
 skinparam backgroundColor #FFFFFF
 skinparam defaultFontName Arial
-skinparam roundcorner 14
-skinparam linetype ortho
+' skinparam roundcorner 14
+' skinparam linetype ortho
 
 skinparam actor {
   BackgroundColor #DBEAFE
@@ -17,22 +17,27 @@ skinparam usecase {
 left to right direction
 
 actor "Độc giả" as Reader
-actor "Tavily API (Internet)" as Tavily
+' actor "Tavily API (Internet)" as Tavily
 
-rectangle "Phân hệ Trợ lý AI theo ngữ cảnh" {
-  (Tương tác với trợ lý AI) as UC_AIAssistant
+rectangle "Phân hệ Trợ lý AI theo ngữ cảnh sách" {
   (Hỏi đáp bằng Text/Voice thường) as UC_QA
   (Đàm thoại LiveKit thời gian thực) as UC_LiveKit
-  (Tìm kiếm Internet qua Tavily) as UC_Web
+  (Truy xuất ngữ nghĩa từ tài liệu - RAG) as UC_RAG
+  (Tìm kiếm Internet) as UC_Web
+  (Cấp quyền tìm kiếm ngoài tài liệu) as UC_Perm
 
-  ' Quan hệ kế thừa (đầu mũi tên tam giác rỗng liền nét)
-  UC_QA -|> UC_AIAssistant
-  UC_LiveKit -|> UC_AIAssistant
+  ' Hỏi đáp và Đàm thoại đều bắt buộc phải truy xuất ngữ nghĩa từ tài liệu (RAG)
+  UC_QA .> UC_RAG : <<include>>
+  UC_LiveKit .> UC_RAG : <<include>>
 
-  ' Quan hệ mở rộng khi cần tra cứu thông tin ngoài luồng
-  UC_Web ..> UC_QA : <<extend>>
+  ' Quan hệ mở rộng tìm kiếm ngoài
+  UC_QA <.. UC_Web : <<extend>>
+  UC_LiveKit <.. UC_Web : <<extend>>
+
+  ' Tìm kiếm ngoài bắt buộc phải hỏi xin quyền từ người học
+  UC_Web ..> UC_Perm : <<include>>
 }
 
-Reader -- UC_AIAssistant
-UC_Web -- Tavily
+Reader -- UC_QA
+Reader -- UC_LiveKit
 @enduml

@@ -1,138 +1,435 @@
+@startuml TRIAM_ClassDiagram_Final
+skinparam Shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam class {
+    BackgroundColor #F8FAFC
+    BorderColor #475569
+    ArrowColor #64748B
+}
 
-@startUML HOMEX_Class_Final
-left to right direction
-' --------------- ACTOR ---------------
-' Not null: fullname, phoneNumber, password, isDel
-' priceAppointment, licenseNumber
+' =====================================================================
+' CLASS DEFINITIONS (FLAT STRUCTURE)
+' =====================================================================
 
 class User {
-    + ID: string
-    + fullname: string 
-    + dateOfBirth: date
-    + gender: string
+    + id: uuid [PK]
     + email: string
-    + phoneNumber: string
-    + address: string
-    + image: string
-    + password: string
-    + isDel: bool
-
-    + UpdateProfile(): void
-    + ChangePassword(): void
-    ' + ForgotPassword(): void
+    + display_name: string
+    
+    + login(): void
+    + logout(): void
 }
 
-class Admin {
-    + ManageUsers(): void
-    + ManageAppointments(): void
-    + ManageDoctors(): void
-    + ManageSpecialties(): void
-    + ManageSchedules(): void
-    ' + ManageClinics(): void
-}
-
-class Doctor {
-    + bio: string
-    + consultantFee: double
-    + qualification: string
-    ' + specialtyYearExp: int
-
-    + ManagementAppointments(): List<Appointment>
-    + ManagementSchedule(): void
-    + ViewPatients(): List<Patient>
-    ' + CreateMedicalRecord(): void
-}
-
-class Patient {
-    ' + medicalHistory: string
-    ' + insuranceNumber: string
-    ' + bloodType: string
-
-    + BookAppointment(): void
-    + CancelAppointment(): void
-    ' + ViewMedicalRecords(): List<MedicalRecord>
-}
-
-class Appointment {
-    + ID: string
-    + appointmentDate: date
-    + appointmentTime: string
-    + forWho: string
-    + patientFullname: string
-    + patientDateOfBirth: date
-    + patientPhoneNumber: string
-    + patientAddress: string
-    + patientGender: string
-    + patientEmail: string
-    + invoiceNumber: string
-    + reason: string
-    + reasonCancel: string
+class AdminUser {
+    + user_id: uuid [PK/FK]
+    + role: string
+    + is_active: bool
     + note: string
-    + price: double
-    + paymentStatus: string
+    + created_by: uuid [FK]
+    + revoked_by: uuid [FK]
+    + created_at: datetime
+    + revoked_at: datetime
+    
+    + can_access_admin(): bool
+}
+
+class AdminAuditLog {
+    + id: uuid [PK]
+    + admin_user_id: uuid [FK]
+    + action: string
+    + target_type: string
+    + target_id: uuid
+    + metadata: jsonb
+    + created_at: datetime
+}
+
+class UserDeviceToken {
+    + id: uuid [PK]
+    + user_id: uuid [FK]
+    + device_token: string
+    + created_at: datetime
+    + updated_at: datetime
+}
+
+class NotificationSettings {
+    + user_id: uuid [PK/FK]
+    + timezone: string
+    + reminders_enabled: bool
+    + spaced_review_enabled: bool
+    + reminder_time: string
+    + quiet_hours_start: string
+    + quiet_hours_end: string
+    + daily_cap: int
+    + created_at: datetime
+    + updated_at: datetime
+}
+
+class Book {
+    + id: uuid [PK]
+    + user_id: uuid [FK]
+    + title: string
+    + author: string
+    + file_url: string
+    + document_type: string
+    + total_sections: int
+    + total_units: int
     + status: string
-    + result: string
-    ' MedicalRecord
-
-    + ManageAppointments(): void
+    + error_message: string
+    + created_at: datetime
+    + updated_at: datetime
 }
 
-class MomoPayment {
-    + ID: string
+class BookSection {
+    + id: uuid [PK]
+    + book_id: uuid [FK]
+    + parent_id: uuid [FK]
+    + section_index: int
+    + title: string
+    + level: int
+    + path: string
+    + text_content: text
+    + text_char_count: int
+    + page_start: int
+    + page_end: int
+    + source_href: string
+    + source_anchor: string
+    + created_at: datetime
+    + updated_at: datetime
+}
+
+class BookSectionKnowledge {
+    + id: int [PK]
+    + book_id: uuid [FK]
+    + section_id: uuid [FK]
+    + chunk_index: int
+    + content: text
+    + search_text: text
+    + content_hash: string
+    + embedding_model: string
+    + embedding_version: string
+    + char_count: int
+    + token_count: int
+    + embedding: vector
+    + created_at: datetime
+    + updated_at: datetime
+}
+
+class ProcessingJob {
+    + id: uuid [PK]
+    + user_id: uuid [FK]
+    + book_id: uuid [FK]
+    + job_type: string
     + status: string
-    + linkData: string
-    + createdAt: date
-
-    + Payment(): void
+    + mode: string
+    + progress_percent: int
+    + current_step: string
+    + total_units: int
+    + done_units: int
+    + failed_units: int
+    + estimated_input_tokens: int
+    + estimated_audio_seconds: int
+    + error_message: string
+    + created_at: datetime
+    + updated_at: datetime
 }
 
-class ScheduleWork {
-    + ID: string
-    + date: date
-    + timeSlots: list<string>
+class StudyContextDocumentLink {
+    ' Association Class attributes
+    + context_id: uuid [PK/FK]
+    + book_id: uuid [PK/FK]
+}
+
+class ReadingPlan {
+    + id: uuid [PK]
+    + book_id: uuid [FK]
+    + mode: PlanMode
+    + pace: int
     + status: string
-    ' + time: string
-    ' + time_start: string
-    ' + time_end: string
-    ' + maxPatients: int
-
-    + ManageSchedules(): void
+    + reminder_time: string
+    + created_at: datetime
+    + updated_at: datetime
+    + started_at: datetime
+    + paused_at: datetime
+    + completed_at: datetime
 }
 
-class Specialty {
-    + ID: string
-    + name: string
-    + image: string
-    ' + description: text
-    ' Clinic
-    + clinicNumber: string
-    ' + clinicAddress: string
-    ' + clinicPhoneNumber: string
-
-    + ManageSpecialties(): void
+class ReadingPlanScheduleSlot {
+    + id: uuid [PK]
+    + user_id: uuid [FK]
+    + plan_id: uuid [FK]
+    + book_id: uuid [FK]
+    + weekday: int
+    + reminder_time: string
+    + timezone: string
+    + is_active: bool
+    + created_at: datetime
+    + updated_at: datetime
 }
 
-class Review {
-    + ID: string
-    + rating: int
-    + comment: string
-    + createdAt: date
-
-    + ManageReviews(): void
+class ReadingPlanSession {
+    + id: uuid [PK]
+    + user_id: uuid [FK]
+    + plan_id: uuid [FK]
+    + book_id: uuid [FK]
+    + mode: PlanMode
+    + session_index: int
+    + scheduled_at: datetime
+    + local_date: string
+    + reminder_time: string
+    + timezone: string
+    + status: string
+    + completed_units: int
+    + total_units: int
+    + started_at: datetime
+    + completed_at: datetime
+    + skipped_at: datetime
+    + missed_at: datetime
+    + missed_notified_at: datetime
+    + created_at: datetime
+    + updated_at: datetime
 }
 
-' --------------- RELATIONSHIPS ---------------
-Admin --|> User
-Doctor --|> User
-Patient --|> User
+class ReadingPlanSessionUnit {
+    ' Association Class attributes
+    + id: uuid [PK]
+    + session_id: uuid [FK]
+    + plan_id: uuid [FK]
+    + book_id: uuid [FK]
+    + learning_unit_id: uuid [FK]
+    + unit_order: int
+    + status: string
+    + completed_at: datetime
+}
 
-Doctor "1" -- "n" ScheduleWork: "has"
-Appointment "n" -- "1" Doctor: "booked with"
-Appointment "n" -- "1" Patient: "booked by"
-Specialty "1" -- "n" Doctor: "specializes in"
-MomoPayment "n" -- "1" Patient: "paid by"
+class LearningUnit {
+    + id: uuid [PK]
+    + user_id: uuid [FK]
+    + book_id: uuid [FK]
+    + mode: PlanMode
+    + unit_index: int
+    + title: string
+    + unit_type: string
+    + status: string
+    + source_text_char_count: int
+    + estimated_tokens: int
+    + estimated_audio_seconds: int
+    + main_segment_count: int
+    + review_audio_url: string
+    + review_text: text
+    + error_message: string
+    + created_at: datetime
+    + updated_at: datetime
+    + started_at: datetime
+    + finished_at: datetime
+}
 
-Doctor "1" -left- "n" Review: "has"
-Patient "1" -right- "n" Review: "writes"
+class LearningUnitSource {
+    ' Association Class attributes
+    + learning_unit_id: uuid [PK/FK]
+    + section_id: uuid [PK/FK]
+    + source_order: int
+}
 
-@endUML
+class LearningUnitSegment {
+    + id: int [PK]
+    + learning_unit_id: uuid [FK]
+    + segment_index: int
+    + audio_url: string
+    + text_content: text
+    + duration_ms: int
+    + created_at: datetime
+}
+
+class LearningUnitProgress {
+    + id: uuid [PK]
+    + user_id: uuid [FK]
+    + book_id: uuid [FK]
+    + learning_unit_id: uuid [FK]
+    + mode: PlanMode
+    + current_segment_id: int [FK]
+    + last_segment_index: int
+    + position_ms: int
+    + listened_ms: int
+    + total_duration_ms: int
+    + progress_percent: int
+    + max_progress_percent: int
+    + status: string
+    + started_at: datetime
+    + last_activity_at: datetime
+    + completed_at: datetime
+    + created_at: datetime
+    + updated_at: datetime
+}
+
+class BookLearningState {
+    + id: uuid [PK]
+    + user_id: uuid [FK]
+    + book_id: uuid [FK]
+    + mode: PlanMode
+    + status: string
+    + book_progress_percent: int
+    + completed_units: int
+    + playable_units: int
+    + last_learning_unit_id: uuid [FK]
+    + last_segment_id: int [FK]
+    + last_segment_index: int
+    + position_ms: int
+    + started_at: datetime
+    + last_activity_at: datetime
+    + completed_at: datetime
+    + created_at: datetime
+    + updated_at: datetime
+}
+
+class StudyContext {
+    + id: uuid [PK]
+    + user_id: uuid [FK]
+    + title: string
+    + is_auto_generated: bool
+    + created_at: datetime
+    + updated_at: datetime
+}
+
+class ChatThread {
+    + id: uuid [PK]
+    + context_id: uuid [FK]
+    + title: string
+    + created_at: datetime
+    + updated_at: datetime
+}
+
+class ChatMessage {
+    + id: uuid [PK]
+    + thread_id: uuid [FK]
+    + is_user: bool
+    + text: text
+    + source: string
+    + timestamp: datetime
+}
+
+class DirectBookContext {
+    + user_id: uuid [PK/FK]
+    + book_id: uuid [PK/FK]
+    + context_id: uuid [FK]
+    + primary_thread_id: uuid [FK]
+}
+
+class NotificationOutbox {
+    + id: uuid [PK]
+    + user_id: uuid [FK]
+    + type: string
+    + channel: string
+    + status: string
+    + payload: jsonb
+    + due_at: datetime
+    + next_retry_at: datetime
+    + locked_at: datetime
+    + locked_by: string
+    + sent_at: datetime
+    + attempts: int
+    + error_message: string
+    + idempotency_key: string
+    + created_at: datetime
+    + updated_at: datetime
+}
+
+class UserNotification {
+    + id: uuid [PK]
+    + user_id: uuid [FK]
+    + outbox_id: uuid [FK]
+    + type: string
+    + title: string
+    + body: text
+    + action_type: string
+    + action_payload: jsonb
+    + read_at: datetime
+    + created_at: datetime
+}
+
+class SpacedReviewItem {
+    + id: uuid [PK]
+    + user_id: uuid [FK]
+    + book_id: uuid [FK]
+    + learning_unit_id: uuid [FK]
+    + mode: PlanMode
+    + interval_days: int
+    + sequence_index: int
+    + due_at: datetime
+    + status: string
+    + review_text_snapshot: text
+    + anchor_completed_at: datetime
+    + source_unit_progress_id: uuid [FK]
+    + notified_at: datetime
+    + last_reviewed_at: datetime
+    + completed_at: datetime
+    + created_at: datetime
+    + updated_at: datetime
+}
+
+' =====================================================================
+' STRUCTURAL RELATIONSHIPS & ASSOCIATION CLASSES
+' =====================================================================
+
+' Security, Audit & Config
+User "1" -- "0..1" AdminUser : "identifies"
+AdminUser "1" *-- "0..*" AdminAuditLog : "writes"
+User "1" *-- "0..1" NotificationSettings : "configures"
+User "1" *-- "0..*" UserDeviceToken : "registers"
+User "1" *-- "0..*" UserNotification : "receives"
+NotificationOutbox "1" -- "0..1" UserNotification : "generates"
+
+' Documents & RAG Architecture
+User "1" -- "0..*" Book : "uploads"
+Book "1" *-- "1..*" BookSection : "contains"
+BookSection "1" *-- "0..*" BookSection : "sub-sections"
+BookSection "1" *-- "0..*" BookSectionKnowledge : "chunks"
+
+' Many-to-Many: StudyContext <-> Book via Association Class StudyContextDocumentLink
+StudyContext "0..*" - "0..*" Book
+(StudyContext, Book) .. StudyContextDocumentLink
+
+' Many-to-Many: LearningUnit <-> BookSection via Association Class LearningUnitSource
+LearningUnit "0..*" - "0..*" BookSection
+(LearningUnit, BookSection) .. LearningUnitSource
+
+' Many-to-Many: ReadingPlanSession <-> LearningUnit via Association Class ReadingPlanSessionUnit
+ReadingPlanSession "0..*" - "0..*" LearningUnit
+(ReadingPlanSession, LearningUnit) .. ReadingPlanSessionUnit
+
+' Many-to-Many: User <-> LearningUnit via Association Class LearningUnitProgress
+User "0..*" - "0..*" LearningUnit
+(User, LearningUnit) .. LearningUnitProgress
+LearningUnitSegment "1" -- "0..1" LearningUnitProgress : "last_heard"
+
+' Many-to-Many: User <-> Book via Association Class BookLearningState
+User "0..*" - "0..*" Book
+(User, Book) .. BookLearningState
+
+' Many-to-Many: User <-> Book via Association Class DirectBookContext
+User "0..*" - "0..*" Book
+(User, Book) .. DirectBookContext
+StudyContext "1" -- "0..*" DirectBookContext : "opens"
+ChatThread "1" -- "0..*" DirectBookContext : "primary_thread"
+
+' Processing Jobs & Study Plans
+Book "1" *-- "0..*" ProcessingJob : "tracks"
+Book "1" *-- "0..*" ReadingPlan : "has"
+ReadingPlan "1" *-- "0..*" ReadingPlanScheduleSlot : "configured_with"
+ReadingPlan "1" *-- "0..*" ReadingPlanSession : "generates"
+
+' Learning & Segment Progress
+Book "1" *-- "1..*" LearningUnit : "splits_into"
+LearningUnit "1" *-- "1..*" LearningUnitSegment : "contains"
+
+' AI Workspace & Context Links
+User "1" -- "0..*" StudyContext : "creates"
+StudyContext "1" *-- "0..*" ChatThread : "owns"
+ChatThread "1" *-- "0..*" ChatMessage : "stores"
+
+' Shortcuts & Spaced Reviews
+LearningUnit "1" -- "0..*" SpacedReviewItem : "reviews"
+User "1" -- "0..*" SpacedReviewItem : "schedules"
+Book "1" -- "0..*" SpacedReviewItem : "targets"
+
+@enduml

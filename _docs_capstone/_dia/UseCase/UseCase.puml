@@ -1,89 +1,149 @@
-@startuml Safe_News
-skinparam Shadowing true
-skinparam rectangle {
-  BackgroundColor #F0F8FF
-  BorderColor #000080
-}
+@startuml TRIAM_UseCase_LoggedIn_Clean
+skinparam Shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam roundcorner 18
+skinparam linetype ortho
+skinparam packageStyle rectangle
+skinparam nodesep 35
+skinparam ranksep 40
+
 skinparam actor {
-  BackgroundColor #ADD8E6
-  BorderColor #000080
+  BackgroundColor #DBEAFE
+  BorderColor #1D4ED8
+  FontColor #111827
+}
+skinparam rectangle {
+  BackgroundColor #F8FAFC
+  BorderColor #1E3A8A
+  FontColor #111827
+}
+skinparam package {
+  BackgroundColor #FFFFFF
+  BorderColor #CBD5E1
+  FontColor #111827
 }
 skinparam usecase {
-  BackgroundColor #E6E6FA
-  BorderColor #000080
+  BackgroundColor #EEF2FF
+  BorderColor #4338CA
+  FontColor #111827
+}
+skinparam note {
+  BackgroundColor #FFF7ED
+  BorderColor #FB923C
+  FontColor #7C2D12
 }
 
 left to right direction
 
-'------------- Actor -------------
-actor "Người dùng" as User
-actor "  Người dùng \n(Đã đăng nhập)" as LoggedInUser
-actor "Hệ thống tự động" as System
-LoggedInUser -|> User
+'------------- Actors -------------
+actor "Độc giả\n(đã đăng nhập)" as Reader
+actor "Quản trị viên" as Admin
+Admin -|> Reader
 
 '------------- Boundary -------------
-rectangle "Ứng dụng đọc báo sạch Safe News" {
+rectangle "TRIAM Assistant - Hệ thống sách nói AI" {
 
-'>>>>>>>>>>>>>>> Khai báo >>>>>>>>>>>>>>>
+  package "Tài khoản" #F1F5F9 {
+    (Đăng nhập) as UC_Login
+    (Đăng ký) as UC_Register
+    (Đăng xuất) as UC_Logout
+    (Đổi mật khẩu) as UC_ChangePass
+  }
 
-'------- UceeCase Tổng quát -------
-(Xem tin tức) as ViewNews
-(Lọc/Tìm kiếm tin tức) as FilterNews
-(Chia sẻ tin tức) as ShareNews
+  package "Tài liệu & kế hoạch học" #ECFDF5 {
+    (Quản lý thư viện sách) as UC_Library
+    (Tải lên tài liệu PDF/EPUB/DOCX) as UC_UploadBook
+    (Chọn sách từ thư viện) as UC_SelectBook
 
-(Quản lý danh sách tin tức đã lưu) as G_Bookmarked
-(Lưu tin tức) as SaveNews
-(Xem tin đã lưu) as ViewSavedNews
-(Xóa tin đã lưu) as DeleteSavedNews
-G_Bookmarked <.. SaveNews
-G_Bookmarked <.. ViewSavedNews
-G_Bookmarked <.. DeleteSavedNews
+    (Quản lý kế hoạch học tập) as UC_Plan
+    (Tạo kế hoạch học mới) as UC_CreatePlan
+    (Chọn chế độ học Full/Pareto) as UC_SelectMode
+    (Theo dõi tiến trình xử lý) as UC_TrackJob
+    (Nghe sớm bài học) as UC_ListenEarly
+  }
 
-(Quản lý thông tin cá nhân) as G_ManageProfile
-' (Cập nhật thông tin cá nhân) as UpdateProfile
-(Tùy chỉnh thông báo) as CustomizeNotifications
-(Xem thành tựu và huy hiệu) as ViewAchievements
-' G_ManageProfile <.. UpdateProfile
-G_ManageProfile <.. CustomizeNotifications
-G_ManageProfile <.. ViewAchievements
+  package "Nghe sách nói & tiến độ" #FEF3C7 {
+    (Nghe sách nói & quản lý tiến độ) as UC_ListenBook
+    (Nghe audio bài học) as UC_Listen
+    (Chuyển đổi chế độ học) as UC_SwitchMode
+    (Cập nhật tiến độ nghe) as UC_Progress
+  }
 
-' For system
-(Tự động lấy lọc tin tức\nvà lưu vào database) as AutoFilterNews
-(Theo dõi người dùng\nđể thiết lập thành tựu) as TrackUserAchievements
+  package "Trợ lý AI theo ngữ cảnh" #F3E8FF {
+    (Tương tác với trợ lý AI) as UC_AIAssistant
+    (Hỏi đáp bằng Text/Voice thường) as UC_QA
+    (Đàm thoại LiveKit thời gian thực) as UC_LiveKit
+    (Tìm kiếm Internet qua Tavily) as UC_Web
+  }
 
+  package "Workspace, ôn tập & thông báo" #FFE4E6 {
+    (Quản lý Workspace & Ôn tập) as UC_WorkspaceReview
+    (Quản lý workspace & luồng chat) as UC_Workspace
+    (Xem lịch ôn tập ngắt quãng) as UC_Review
+    (Cấu hình & nhận thông báo) as UC_Notification
+  }
 
-'------------- UseCase Chi tiết -------------
+  package "Quản trị hệ thống" #F8FAFC {
+    (Quản trị hệ thống) as UC_AdminSystem
+    (Xem dashboard) as UC_AdminDashboard
+    (Quản lý người dùng) as UC_AdminUser
+    (Quản lý catalog sách) as UC_AdminCatalog
+    (Giám sát & retry job lỗi) as UC_AdminJob
+    (Xem audit log) as UC_Audit
+  }
 
-
-'Account
-(Đăng xuất) as Logout
-(Đăng ký) as Register
-(Đăng nhập) as Login
-(Đổi mật khẩu) as ChangePassword
-
-
-'------------- Account -------------
-    Login <. Logout: include
-    ChangePassword .> Login : include
-
-'Tất cả các usecase đều include Login
-    ' QLTTCN <.. Login
-  
-
-'------------- User -------------
-
-User -- ViewNews
-User -- FilterNews
-User -- ShareNews
-User -- Register
-User -- Login
-
-LoggedInUser - G_Bookmarked
-LoggedInUser - G_ManageProfile
-
-System -- AutoFilterNews
-System -- TrackUserAchievements
-
+  '------------- Notes for Grouped UCs -------------
+  note bottom of UC_Library: Tải lên tài liệu (PDF/EPUB/DOCX);\nChọn sách từ thư viện;\nKiểm tra cấu trúc mục lục;
+  note bottom of UC_Plan: Tạo kế hoạch học (Full/Pareto);\nChọn chế độ học;\nTheo dõi tiến trình xử lý nền;\nNghe sớm khi partial_ready;
+  note bottom of UC_ListenBook: Xem playlist bài học;\nNghe audio phân đoạn;\nChuyển đổi chế độ học (Full/Pareto);\nCập nhật tiến độ nghe (>=80% hoàn thành);
+  note bottom of UC_AIAssistant: Hỏi đáp Text/Voice;\nKết nối phòng thoại LiveKit;\nTruy xuất ngữ cảnh RAG;\nTìm kiếm Internet (Tavily);
+  note bottom of UC_WorkspaceReview: Quản lý workspace & luồng chat;\nXem lịch ôn tập ngắt quãng;\nHoàn thành/Bỏ qua ôn tập;\nCấu hình & nhận thông báo đẩy (FCM);
+  note bottom of UC_AdminSystem: Xem dashboard;\nQuản lý người dùng & catalog sách;\nUpload/Publish sách hệ thống;\nGiám sát & retry job xử lý;\nXem audit log;
 }
-@enduml
 
+'------------- Actor Connections (Straight Lines, No Arrowheads) -------------
+' Độc giả chưa đăng nhập vẫn tương tác được với 2 UC này
+Reader -- UC_Login
+Reader -- UC_Register
+
+' Các chức năng yêu cầu trạng thái Logged In
+Reader -- UC_Logout
+Reader -- UC_ChangePass
+Reader -- UC_Library
+Reader -- UC_Plan
+Reader -- UC_ListenBook
+Reader -- UC_AIAssistant
+Reader -- UC_WorkspaceReview
+
+Admin -- UC_AdminSystem
+
+'------------- UC Details & Relationships (Hierarchical, No Sequences) -------------
+UC_Library ..> UC_UploadBook : <<include>>
+UC_Library ..> UC_SelectBook : <<include>>
+
+UC_Plan ..> UC_CreatePlan : <<include>>
+UC_Plan ..> UC_SelectMode : <<include>>
+UC_Plan ..> UC_TrackJob : <<include>>
+UC_ListenEarly ..> UC_Plan : <<extend>> 
+
+UC_ListenBook ..> UC_Listen : <<include>>
+UC_ListenBook ..> UC_SwitchMode : <<include>>
+UC_ListenBook ..> UC_Progress : <<include>>
+
+UC_AIAssistant ..> UC_QA : <<extend>>
+UC_AIAssistant ..> UC_LiveKit : <<extend>>
+UC_Web ..> UC_QA : <<extend>> 
+
+UC_WorkspaceReview ..> UC_Workspace : <<include>>
+UC_WorkspaceReview ..> UC_Review : <<include>>
+UC_WorkspaceReview ..> UC_Notification : <<include>>
+
+UC_AdminSystem ..> UC_AdminDashboard : <<include>>
+UC_AdminSystem ..> UC_AdminUser : <<include>>
+UC_AdminSystem ..> UC_AdminCatalog : <<include>>
+UC_AdminSystem ..> UC_AdminJob : <<include>>
+UC_AdminSystem ..> UC_Audit : <<include>>
+
+@enduml

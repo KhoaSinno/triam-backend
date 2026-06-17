@@ -2,8 +2,8 @@
 skinparam Shadowing false
 skinparam backgroundColor #FFFFFF
 skinparam defaultFontName Arial
-skinparam roundcorner 14
-skinparam linetype ortho
+' skinparam roundcorner 14
+' skinparam linetype ortho
 
 skinparam actor {
   BackgroundColor #DBEAFE
@@ -19,19 +19,16 @@ left to right direction
 actor "Quản trị viên" as Admin
 
 rectangle "Phân hệ Quản trị hệ thống" {
-  (Quản trị hệ thống) as UC_AdminSystem
   (Xem dashboard) as UC_AdminDashboard
   (Quản lý người dùng) as UC_AdminUser
   (Quản lý catalog sách) as UC_AdminCatalog
-  (Giám sát & retry job lỗi) as UC_AdminJob
-  (Xem audit log) as UC_Audit
-
-  UC_AdminSystem ..> UC_AdminDashboard : <<include>>
-  UC_AdminSystem ..> UC_AdminUser : <<include>>
-  UC_AdminSystem ..> UC_AdminCatalog : <<include>>
-  UC_AdminSystem ..> UC_AdminJob : <<include>>
-  UC_AdminSystem ..> UC_Audit : <<include>>
+  (Giám sát và xử lý lỗi) as UC_AdminJob
+  (Xem nhật ký hệ thống) as UC_Audit
 }
 
-Admin -- UC_AdminSystem
+Admin -- UC_AdminDashboard
+Admin -- UC_AdminUser
+Admin -- UC_AdminCatalog
+Admin -- UC_AdminJob
+Admin -- UC_Audit
 @enduml
