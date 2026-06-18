@@ -110,18 +110,54 @@ def has_playable_uncompleted_unit(
     book_id: uuid.UUID,
     mode: PlanMode,
 ) -> bool:
-    playable_ids = set(list_playable_unit_ids(session, book_id=book_id, mode=mode))
-    if not playable_ids:
-        return False
-
-    completed_ids = set(
-        session.exec(
-            select(LearningUnitProgress.learning_unit_id).where(
-                LearningUnitProgress.user_id == user_id,
-                LearningUnitProgress.book_id == book_id,
-                LearningUnitProgress.mode == mode,
-                LearningUnitProgress.status == LearningProgressStatus.COMPLETED,
-            )
-        ).all()
+    """
+    Kiểm tra xem cuốn sách còn bài học nào có thể phát (playable) mà user chưa hoàn thành không.
+    Tối ưu hóa: Dùng LEFT OUTER JOIN trực tiếp ở tầng DB Engine, giới hạn LIMIT 1, RAM/CPU gần như bằng 0.
+    """
+    statement = (
+        select(LearningUnit.id)
+        # 1. Kết nối với Segment để đảm bảo bài học đó có dữ liệu âm thanh phát được (Playable)
+        .join(LearningUnitSegment, LearningUnitSegment.learning_unit_id == LearningUnit.id)
+        # 2. LEFT OUTER JOIN với bảng tiến độ của User cụ thể để tìm những bài chưa hoàn thành
+        .join(
+            LearningUnitProgress,
+            (LearningUnitProgress.learning_unit_id == LearningUnit.id) & (LearningUnitProgress.user_id == user_id) & (LearningUnitProgress.status == LearningProgressStatus.COMPLETED),
+            isouter=True,  # LEFT OUTER JOIN
+        )
+        # 3. Lọc theo thông tin sách và chế độ học
+        .where(LearningUnit.book_id == book_id, LearningUnit.mode == mode)
+        # 4. Điều kiện chí mạng: Bản ghi tiến độ COMPLETED phải KHÔNG tồn tại (IS NULL)
+        .where(LearningUnitProgress.id.is_(None))
+        # 5. Chỉ cần tìm thấy 1 bài thỏa mãn là đủ kết luận, không quét toàn bộ DB
+        .limit(1)
     )
-    return bool(playable_ids - completed_ids)
+
+    # Thực thi câu lệnh
+    result = session.exec(statement).first()
+
+    # Nếu kết quả khác None nghĩa là tồn tại ít nhất 1 bài playable chưa completed -> True
+    return result is not None
+
+
+# def has_playable_uncompleted_unit(
+#     session: Session,
+#     *,
+#     user_id: uuid.UUID,
+#     book_id: uuid.UUID,
+#     mode: PlanMode,
+# ) -> bool:
+#     playable_ids = set(list_playable_unit_ids(session, book_id=book_id, mode=mode))
+#     if not playable_ids:
+#         return False
+
+#     completed_ids = set(
+#         session.exec(
+#             select(LearningUnitProgress.learning_unit_id).where(
+#                 LearningUnitProgress.user_id == user_id,
+#                 LearningUnitProgress.book_id == book_id,
+#                 LearningUnitProgress.mode == mode,
+#                 LearningUnitProgress.status == LearningProgressStatus.COMPLETED,
+#             )
+#         ).all()
+#     )
+#     return bool(playable_ids - completed_ids)
