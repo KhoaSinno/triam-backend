@@ -28,6 +28,20 @@ POSITIVE_ACTION_PHRASES = (
     "cho phep di",
     "cho phep lam",
     "duoc phep",
+    "tim tren mang",
+    "tim tren web",
+    "tim google",
+    "tim internet",
+    "dong y tim",
+    "dong y luon",
+    "chap nhan",
+    "dong y nha",
+    "duoc chu",
+    "co chu",
+    "tim giup",
+    "tim ho",
+    "tim di ban",
+    "u tim",
 )
 POSITIVE_SHORT_REPLIES = (
     "co",
@@ -50,6 +64,9 @@ POSITIVE_SHORT_REPLIES = (
     "cho phep",
     "vang",
     "da vang",
+    "da",
+    "u",
+    "ua",
 )
 NEGATIVE_PHRASES = (
     "khong phai",
@@ -76,7 +93,7 @@ NEGATIVE_PHRASES = (
 )
 
 CONTEXT_SENSITIVE_NEGATIONS = {"khong", "no"}
-CONTEXT_SENSITIVE_CONFIRMATIONS = {"co", "duoc", "dung", "phai", "uh", "um"}
+CONTEXT_SENSITIVE_CONFIRMATIONS = {"co", "duoc", "dung", "phai", "uh", "um", "u", "da", "ua"}
 
 
 @dataclass(frozen=True)
