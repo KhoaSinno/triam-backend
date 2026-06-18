@@ -1,0 +1,41 @@
+@startuml triam_usecase_workspace_review
+skinparam Shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+' skinparam roundcorner 14
+' skinparam linetype ortho
+
+skinparam actor {
+  BackgroundColor #DBEAFE
+  BorderColor #1D4ED8
+}
+skinparam usecase {
+  BackgroundColor #FEF3C7
+  BorderColor #B45309
+}
+
+left to right direction
+
+actor "Độc giả" as Reader
+
+rectangle "Phân hệ Workspace, Ôn tập và Thông báo" {
+  (Quản lý Workspace) as UC_Workspace
+  (Xem lịch ôn tập) as UC_Review
+  (Cấu hình và nhận thông báo) as UC_Notification
+
+  (CRUD Workspace) as UC_CreateWS
+  (Liên kết sách vào Workspace) as UC_ManageWSBooks
+  (Hội thoại trong Workspace) as UC_WSChat
+  (Hội thoại trực tiếp với sách) as UC_DirectChat
+
+  ' Các chức năng con của Quản lý Workspace sử dụng quan hệ mở rộng (extend)
+  UC_Workspace <.. UC_CreateWS : <<extend>>
+  UC_Workspace <.. UC_ManageWSBooks : <<extend>>
+  UC_Workspace <.. UC_WSChat : <<extend>>
+  UC_Workspace <.. UC_DirectChat : <<extend>>
+}
+
+Reader -- UC_Workspace
+Reader -- UC_Review
+Reader -- UC_Notification
+@enduml

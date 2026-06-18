@@ -114,18 +114,30 @@ async def search_book_hybrid_knowledge(
     *,
     section_ids: list[str] | None = None,
 ) -> list[dict[str, Any]] | str:
-    vector_result = await search_book_section_knowledge(
+
+    vector_task = search_book_section_knowledge(
         query,
         document_ids,
         section_ids=section_ids,
         match_count=settings.AGENT_HYBRID_VECTOR_CANDIDATES,
     )
-    lexical_result = await search_book_section_knowledge_lexical(
+    lexical_task = search_book_section_knowledge_lexical(
         query,
         document_ids,
         section_ids=section_ids,
         match_count=settings.AGENT_HYBRID_LEXICAL_CANDIDATES,
     )
+
+    vector_result, lexical_result = await asyncio.gather(vector_task, lexical_task, return_exceptions=True)
+
+    if isinstance(vector_result, Exception):
+        log.error(f"RAG Tối ưu hóa: Nhánh Vector Search bị lỗi: {vector_result}")
+        vector_result = BOOK_CONTEXT_NOT_FOUND_MESSAGE
+
+    if isinstance(lexical_result, Exception):
+        log.error(f"RAG Tối ưu hóa: Nhánh Lexical Search bị lỗi: {lexical_result}")
+        lexical_result = BOOK_CONTEXT_NOT_FOUND_MESSAGE
+
     hybrid_result = build_hybrid_retrieval_result(
         query=query,
         vector_payload=_as_payload_list(vector_result),

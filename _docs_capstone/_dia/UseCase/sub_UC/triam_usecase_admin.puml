@@ -1,0 +1,34 @@
+@startuml triam_usecase_admin
+skinparam Shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+' skinparam roundcorner 14
+' skinparam linetype ortho
+
+skinparam actor {
+  BackgroundColor #DBEAFE
+  BorderColor #1D4ED8
+}
+skinparam usecase {
+  BackgroundColor #F8FAFC
+  BorderColor #334155
+}
+
+left to right direction
+
+actor "Quản trị viên" as Admin
+
+rectangle "Phân hệ Quản trị hệ thống" {
+  (Xem dashboard) as UC_AdminDashboard
+  (Quản lý người dùng) as UC_AdminUser
+  (Quản lý catalog sách) as UC_AdminCatalog
+  (Giám sát và xử lý lỗi) as UC_AdminJob
+  (Xem nhật ký hệ thống) as UC_Audit
+}
+
+Admin -- UC_AdminDashboard
+Admin -- UC_AdminUser
+Admin -- UC_AdminCatalog
+Admin -- UC_AdminJob
+Admin -- UC_Audit
+@enduml

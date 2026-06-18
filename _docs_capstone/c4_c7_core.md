@@ -5,10 +5,10 @@
 - **Chương 3: Cơ sở lý thuyết** (Giới thiệu các công nghệ sử dụng như RAG, WebRTC, TTS, LLM, OpenAI realtime).
 - **Chương 4: Phân tích thiết kế hệ thống** (Tổng quan kiến trúc, usecase, class).
 
-- **Chương 5: Quy trình Chuyển đổi tài liệu và Tiền xử lý âm thanh tự động**
-- **Chương 6: Cơ chế Lập kế hoạch học tập và Thiết lập chế độ Full / Pareto**
-- **Chương 7: Hệ thống Theo dõi tiến độ và Ôn tập ngắt quãng Spaced Repetition**
-- **Chương 8: Trợ lý giọng nói thời gian thực và Tìm kiếm tăng cường**
+- **Chương 5: Quy trình chuyển đổi tài liệu và tiền xử lý âm thanh tự động**
+- **Chương 6: Cơ chế lập kế hoạch và thiết lập chế độ học tập**
+- **Chương 7: Hệ thống theo dõi tiến độ và ôn tập ngắt quãng**
+- **Chương 8: Trợ lý giọng nói thời gian thực và cơ chế RAG**
 
 - **Chương 9: Xây dựng hệ thống** (Cách xây dựng, triển khai và UI/UX sản phẩm).
 - **Chương 10: Kết luận**.
@@ -105,7 +105,7 @@ Hệ thống tiến hành thực hiện kiểm tra kiểm thử chất lượng 
 
 ---
 
-## CHƯƠNG 6: CƠ CHẾ LẬP KẾ HOẠCH HỌC TẬP VÀ THIẾT LẬP CHẾ ĐỘ FULL / PARETO
+## CHƯƠNG 6: CƠ CHẾ LẬP KẾ HOẠCH VÀ THIẾT LẬP CHẾ ĐỘ HỌC TẬP
 
 Chương này đi sâu vào giải thuật thiết kế bài học và bộ hoạch định kế hoạch học tập thông minh, làm rõ cách thức phân tách và cấu trúc hóa nội dung phù hợp với các chế độ học tập khác nhau.
 
@@ -276,7 +276,7 @@ Bảng dưới đây mô tả quá trình kiểm tra tiến độ học tập v�
 
 ---
 
-## CHƯƠNG 8: TRỢ LÝ GIỌNG NÓI TƯƠNG TÁC THỜI GIAN THỰC VÀ TÌM KIẾM TĂNG CƯỜNG
+## CHƯƠNG 8: TRỢ LÝ GIỌNG NÓI TƯƠNG TÁC THỜI GIAN THỰC VÀ CƠ CHẾ RAG
 
 Chương này phân tích thiết kế hệ thống đàm thoại giọng nói hai chiều thời gian thực của TRIAM, làm rõ luồng truyền tải WebRTC, cơ chế tích hợp truy xuất ngữ cảnh tài liệu (RAG) và giải pháp kiểm soát an toàn truy cập internet ngoài sách.
 

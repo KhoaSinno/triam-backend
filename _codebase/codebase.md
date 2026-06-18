@@ -2,7 +2,7 @@
 
 ## Project Statistics
 
-- Total files: 156
+- Total files: 169
 
 ## Folder Structure
 
@@ -21,6 +21,7 @@ app
         learning_progress.py
         live.py
         notifications.py
+        reading_plan_sessions.py
         reviews.py
         study_context.py
         threads.py
@@ -48,17 +49,25 @@ app
         0899ce396ec2_add_fcm_device_tokens.py
         1a04ac7f0a85_add_mode_to_chapter_segments.py
         2b7c9d1e4f6a_admin_users_and_audit_logs.py
+        2f6b7c8d9e01_phase_11_learning_completion_state.py
         34b51c319023_optimize_all_db_schema_add_plan_table.py
         78b35db4eddb_add_server_default_to_created_at_and_.py
+        7a12b34c56d8_phase_12_calendar_reading_plan_sessions.py
         7c1f860609e9_added_error_message_to_book.py
+        8b34c56d7e90_phase_12_allow_session_regeneration_history.py
         8c31c9cd4c1f_add_reminder_time_to_reading_plans.py
         91b0326bdf19_added_directbookcontext_to_update_logic_.py
         951590abaacf_hotfix_book_ref.py
         960bf5ca365d_udpate_cascade_role.py
+        9c45d67e8f01_phase_12_allow_session_unit_regeneration.py
+        a13f1e2d3c4b_phase_13_calendar_session_actions.py
         a2c9e7f1b5d0_phase_5_document_structure_learning_units.py
+        b14c2d3e4f50_phase_14_drop_legacy_book_knowledge.py
         b8e4f2a7c9d1_add_document_type_and_unique_constraints.py
+        c15d3e4f5061_phase_14_1_clean_reading_plan_schedule_config.py
         c4f0a9d8e2b1_add_processing_jobs.py
         c5d6e7f8a901_phase_6_cleanup_legacy_chapter_schema.py
+        d16e5f607182_phase_14_4_read_path_indexes.py
         d7a2f4c9b8e1_phase_3_generation_guardrails.py
         e4f7a9c2d1b0_phase_4_1_in_app_notifications.py
         f0a1b2c3d4e5_phase_10_2_book_section_knowledge.py
@@ -71,7 +80,8 @@ app
     admin_repo.py
     agent_grounding_repo.py
     audiobook_repo.py
-    book_knowledge_repo.py
+    book_learning_state_repo.py
+    book_read_repo.py
     book_section_knowledge_repo.py
     book_section_repo.py
     learning_progress_repo.py
@@ -79,7 +89,9 @@ app
     notification_outbox_repo.py
     notification_settings_repo.py
     processing_job_repo.py
+    reading_plan_repo.py
     reading_plan_schedule_repo.py
+    reading_plan_session_repo.py
     spaced_review_repo.py
     study_context_document_link_repo.py
     study_context_repo.py
@@ -132,7 +144,6 @@ app
     document_structure_service.py
     document_structure_types.py
     docx_service.py
-    embed_service.py
     epub_service.py
     fcm_service.py
     health_service.py
@@ -149,6 +160,7 @@ app
     processing_job_service.py
     rag_service.py
     reading_plan_schedule_service.py
+    reading_plan_session_service.py
     reminder_schedule_service.py
     review_service.py
     spaced_review_service.py
@@ -163,6 +175,7 @@ app
       query_guard.py
       rag_context.py
       tool_reply_watchdog.py
+      transcription_prompt.py
       transcript_store.py
       turn_state.py
       voice_intent_classifier.py
@@ -181,8 +194,8 @@ app
     notification_tasks.py
     __init__.py
   __init__.py
-pyproject.toml
 start.sh
+pyproject.toml
 
 ```
 
@@ -411,6 +424,7 @@ def read_admin_audit_logs(
 
 ```py
 import uuid
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -422,6 +436,7 @@ from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
 from app.schemas.plan import (
     PlanUpdateRequest,
     ReadingPlanResponse,
+    ReadingPlanSessionListResponse,
     ReadingPlanUpdateResponse,
     ReadingPlanUserSlotResponse,
     SwitchModeRequest,
@@ -443,6 +458,7 @@ from app.services.audiobook_service import (
     update_book_by_id,
     update_reading_plan,
 )
+from app.services.reading_plan_session_service import list_book_reading_plan_sessions, list_today_reading_plan_sessions
 
 router = APIRouter()
 
@@ -538,6 +554,27 @@ def get_plan(
 ):
     """Lấy cấu hình lịch học hiện tại của sách để FE prefill màn hình chỉnh lịch."""
     return get_reading_plan(session, book_id, current_user.sub)
+
+
+@router.get("/books/{book_id}/reading-plan/sessions", response_model=ReadingPlanSessionListResponse)
+def get_book_plan_sessions(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
+    mode: str | None = None,
+):
+    """Lấy các buổi học cụ thể đã được sinh từ ReadingPlan của sách."""
+    return list_book_reading_plan_sessions(session, user_id=current_user.sub, book_id=book_id, mode=mode)
+
+
+@router.get("/reading-plan/sessions/today", response_model=ReadingPlanSessionListResponse)
+def get_today_plan_sessions(
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
+    local_date: date | None = None,
+):
+    """Lấy lịch học của user trong ngày cục bộ để FE hiển thị trang hôm nay."""
+    return list_today_reading_plan_sessions(session, user_id=current_user.sub, local_date=local_date)
 
 
 @router.put("/books/{book_id}/reading-plan", response_model=ReadingPlanUpdateResponse)
@@ -768,10 +805,11 @@ def unregister_device(
 
 ```
 
-### app\api\v1\routers\reviews.py
+### app\api\v1\routers\reading_plan_sessions.py
 
 ```py
 import uuid
+from datetime import date
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
@@ -779,10 +817,140 @@ from sqlmodel import Session
 
 from app.api.dependencies.auth import CurrentUser
 from app.db.database import get_session
-from app.schemas.review import ReviewActionResponse
-from app.services.review_service import complete_review_item, skip_review_item
+from app.schemas.plan import (
+    ReadingPlanSessionActionResponse,
+    ReadingPlanSessionRangeResponse,
+    ReadingPlanSessionRescheduleRequest,
+    ReadingPlanSessionSkipRequest,
+)
+from app.services.reading_plan_session_service import (
+    list_reading_plan_sessions_range,
+    reschedule_reading_plan_session,
+    skip_reading_plan_session,
+)
 
 router = APIRouter()
+
+
+@router.get("/reading-plan/sessions", response_model=ReadingPlanSessionRangeResponse)
+def get_reading_plan_sessions(
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
+    from_date: date | None = None,
+    to_date: date | None = None,
+    book_id: uuid.UUID | None = None,
+    mode: str | None = None,
+    status: str | None = None,
+):
+    """Lấy lịch học theo khoảng ngày để FE vẽ calendar tuần/tháng."""
+    return list_reading_plan_sessions_range(
+        session,
+        user_id=current_user.sub,
+        from_date=from_date,
+        to_date=to_date,
+        book_id=book_id,
+        mode=mode,
+        status=status,
+    )
+
+
+@router.post("/reading-plan/sessions/{session_id}/skip", response_model=ReadingPlanSessionActionResponse)
+def skip_plan_session(
+    session_id: uuid.UUID,
+    payload: ReadingPlanSessionSkipRequest,
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
+):
+    """Bỏ qua một buổi học mà không đánh dấu learning progress là completed."""
+    return skip_reading_plan_session(
+        session,
+        user_id=current_user.sub,
+        session_id=session_id,
+        reason=payload.reason,
+    )
+
+
+@router.put("/reading-plan/sessions/{session_id}/schedule", response_model=ReadingPlanSessionActionResponse)
+def reschedule_plan_session(
+    session_id: uuid.UUID,
+    payload: ReadingPlanSessionRescheduleRequest,
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
+):
+    """Dời lịch một buổi học cụ thể, giữ nguyên các learning units trong buổi đó."""
+    return reschedule_reading_plan_session(
+        session,
+        user_id=current_user.sub,
+        session_id=session_id,
+        local_date=payload.local_date,
+        reminder_time=payload.reminder_time,
+        timezone_name=payload.timezone,
+    )
+
+```
+
+### app\api\v1\routers\reviews.py
+
+```py
+import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query
+from sqlmodel import Session
+
+from app.api.dependencies.auth import CurrentUser
+from app.db.database import get_session
+from app.schemas.review import ReviewActionResponse, ReviewItemResponse, ReviewListResponse
+from app.services.review_service import complete_review_item, get_review_item_detail, list_review_items, skip_review_item
+
+router = APIRouter()
+
+
+@router.get("/reviews", response_model=ReviewListResponse)
+def list_reviews_endpoint(
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
+    status: str = Query(default="due"),
+    book_id: uuid.UUID | None = None,
+    mode: str | None = None,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+):
+    return list_review_items(
+        session,
+        user_id=current_user.sub,
+        status=status,
+        book_id=book_id,
+        mode=mode,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/books/{book_id}/reviews", response_model=ReviewListResponse)
+def list_book_reviews_endpoint(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
+    status: str = Query(default="due"),
+    mode: str | None = None,
+    limit: int = Query(default=50, ge=1, le=100),
+    offset: int = Query(default=0, ge=0),
+):
+    return list_review_items(
+        session,
+        user_id=current_user.sub,
+        status=status,
+        book_id=book_id,
+        mode=mode,
+        limit=limit,
+        offset=offset,
+    )
+
+
+@router.get("/reviews/{review_item_id}", response_model=ReviewItemResponse)
+def get_review_endpoint(review_item_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
+    return get_review_item_detail(session, user_id=current_user.sub, review_item_id=review_item_id)
 
 
 @router.post("/reviews/{review_item_id}/complete", response_model=ReviewActionResponse)
@@ -807,7 +975,7 @@ from sqlmodel import Session
 
 from app.api.dependencies.auth import CurrentUser
 from app.db.database import get_session
-from app.schemas.responses import ChatThreadResponse, ContextDocumentResponse, StudyContextResponse
+from app.schemas.responses import BookResponse, ChatThreadResponse, ContextDocumentResponse, StudyContextResponse
 from app.schemas.study_context import (
     ChatThreadInput,
     StudyContextDocumentInput,
@@ -830,6 +998,11 @@ async def get_study_contexts_api(current_user: CurrentUser, session: Annotated[S
 @router.get("/study-contexts/{context_id}", response_model=StudyContextResponse)
 async def get_study_context_api(context_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
     return study_context_service.get_context(session, current_user.sub, context_id)
+
+
+@router.get("/study-contexts/{context_id}/documents", response_model=List[BookResponse])
+async def get_study_context_documents_api(context_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
+    return study_context_service.get_documents_in_context(session, current_user.sub, context_id)
 
 
 @router.post("/study-contexts", response_model=StudyContextResponse)
@@ -1066,12 +1239,11 @@ load_dotenv(override=True)
 
 class Settings(BaseSettings):
     OPENAI_API_KEY: str
-    PINECONE_API_KEY: str
-    PINECONE_ENV: str
     TAVILY_API_KEY: str
     GEMINI_BASE_URL: str
     GEMINI_API_KEY: str
     DATABASE_URL: str
+    # hardening DB pool/config
     DATABASE_ECHO: bool = False
     DATABASE_POOL_MODE: str = "auto"
     DATABASE_POOL_SIZE: int = 3
@@ -1081,9 +1253,13 @@ class Settings(BaseSettings):
     DATABASE_POOL_PRE_PING: bool = True
     DATABASE_POOL_USE_LIFO: bool = True
     DATABASE_APPLICATION_NAME: str = "triam-backend"
+
+    # Supabase
     SUPABASE_URL: str
     SUPABASE_KEY: str
     SUPABASE_SERVICE_ROLE_KEY: str
+
+    # TTS
     EDGE_TTS_VOICE: str = "vi-VN-HoaiMyNeural"
     TTS_PROVIDER: str = "edge"
     TTS_RECEIVE_TIMEOUT_SECONDS: int = 300
@@ -1100,54 +1276,60 @@ class Settings(BaseSettings):
     LIVEKIT_ROOM_EMPTY_TIMEOUT_SECONDS: int = 60
     LIVEKIT_ROOM_DEPARTURE_TIMEOUT_SECONDS: int = 20
     LIVEKIT_AGENT_EMPTY_ROOM_GRACE_SECONDS: float = 8.0
-    GEMINI_MODEL_NATIVE_AUDIO: str = "gemini-2.5-flash-native-audio-latest"
     GEMINI_MODEL_LLM: str = "gemini-2.5-flash"
-    DEEPGRAM_API_KEY: str
-    CARTESIA_API_KEY_TTS: str
-    ELEVENLABS_API_KEY_TTS: str
+
+    # Realtime voice agent behavior
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-mini"
     OPENAI_REALTIME_VOICE: str = "cedar"
+    # Text and local console test behavior
+    VOICE_AGENT_HISTORY_LIMIT: int = 24
+    VOICE_AGENT_RAG_MAX_CHARS: int = 6000
+    # Local console fallback only. Production LiveKit rooms must provide
+    # thread_id and document_ids through job metadata from the backend token flow.
+    VOICE_AGENT_CONSOLE_BOOK_ID: str = "c3f13d07-4494-4995-ba75-30a12589b8fc"
+    VOICE_AGENT_CONSOLE_THREAD_ID: str = "07be00b9-c6da-4801-8ba2-7558205b92b2"
+
+    # Dynamic Prompt cho OpenAI Realtime Transcription
     OPENAI_REALTIME_TRANSCRIPTION_MODEL: str = "gpt-4o-transcribe"
     OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE: str = "vi"
     OPENAI_REALTIME_TRANSCRIPTION_PROMPT: str = "Vietnamese audio in the TRIAM audiobook study app. Expect terms: Tri Âm, chương, sách, định lý, phương pháp, GPT, Gemini."
+    OPENAI_REALTIME_DYNAMIC_TRANSCRIPTION_PROMPT_ENABLED: bool = True
+    OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_CHARS: int = 900
+    OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_TERMS: int = 45
+    OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_SECTION_TERMS: int = 20
+    OPENAI_REALTIME_INPUT_AUDIO_NOISE_REDUCTION: str = "near_field"
+
     VOICE_AGENT_TEXT_LLM_MODEL: str = "gpt-4o-mini"
     VOICE_AGENT_ENABLE_WEB_SEARCH_BY_DEFAULT: bool = False
     VOICE_AGENT_LOG_TRANSCRIPT_TEXT: bool = False
     VOICE_AGENT_DEDUPE_WINDOW_SECONDS: int = 3
     VOICE_AGENT_WEB_PERMISSION_TTL_SECONDS: int = 180
+    # Policy websearch
     VOICE_AGENT_WEB_IMPLICIT_GRANT_WINDOW_SECONDS: int = 20
     VOICE_AGENT_WEB_RESULT_CACHE_TTL_SECONDS: int = 120
     VOICE_AGENT_PERMISSION_CLASSIFIER_ENABLED: bool = True
     VOICE_AGENT_PERMISSION_CLASSIFIER_MODEL: str = "gpt-4o-mini"
-    VOICE_AGENT_PERMISSION_CLASSIFIER_TIMEOUT_SECONDS: float = 3.0
+    VOICE_AGENT_PERMISSION_CLASSIFIER_TIMEOUT_SECONDS: float = 2.5
     VOICE_AGENT_PERMISSION_CLASSIFIER_CONFIDENCE_THRESHOLD: float = 0.72
     VOICE_AGENT_QUERY_GUARD_ENABLED: bool = True
     VOICE_AGENT_QUERY_GUARD_MIN_CHARS: int = 6
     VOICE_AGENT_QUERY_GUARD_MIN_TOKENS: int = 2
     VOICE_AGENT_QUERY_GUARD_TRANSCRIPT_TTL_SECONDS: float = 15.0
-    VOICE_AGENT_QUERY_GUARD_MIN_OVERLAP_RATIO: float = 0.34
-    VOICE_AGENT_QUERY_GUARD_MIN_IMPORTANT_OVERLAP_RATIO: float = 0.25
     VOICE_AGENT_QUERY_GUARD_LOG_DETAILS: bool = True
     VOICE_AGENT_CLARIFICATION_STATE_ENABLED: bool = True
     VOICE_AGENT_CLARIFICATION_STATE_TTL_SECONDS: float = 30.0
     VOICE_AGENT_CLARIFICATION_CONFIRMATION_MAX_TOKENS: int = 4
     VOICE_AGENT_CLARIFICATION_MIN_QUERY_PROMPT_OVERLAP: float = 0.45
-    VOICE_AGENT_CLARIFICATION_LLM_FALLBACK_ENABLED: bool = False
-    VOICE_AGENT_CLARIFICATION_CLASSIFIER_TIMEOUT_SECONDS: float = 1.2
     VOICE_AGENT_ASSISTANT_CLARIFICATION_HEURISTIC_ENABLED: bool = False
     VOICE_AGENT_INTERRUPTION_MIN_DURATION_SECONDS: float = 0.8
     VOICE_AGENT_INTERRUPTION_MIN_WORDS: int = 2
     VOICE_AGENT_FALSE_INTERRUPTION_TIMEOUT_SECONDS: float = 1.5
     VOICE_AGENT_PREEMPTIVE_GENERATION_ENABLED: bool = False
-    VOICE_AGENT_HISTORY_LIMIT: int = 24
-    VOICE_AGENT_RAG_MAX_CHARS: int = 6000
-    VOICE_AGENT_CONSOLE_BOOK_ID: str = "dae3b3ae-8740-4485-9c16-12e685c6c970"
-    VOICE_AGENT_CONSOLE_THREAD_ID: str = "4843070c-c08b-45a4-aa7a-48028ae61318"
 
     # Phase 10.11 Voice Tool Reply Watchdog config
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_ENABLED: bool = True
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_GRACE_SECONDS: float = 2.0
-    VOICE_AGENT_TOOL_REPLY_WATCHDOG_THINKING_GRACE_SECONDS: float = 6.0
+    VOICE_AGENT_TOOL_REPLY_WATCHDOG_THINKING_GRACE_SECONDS: float = 4.0
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_TOOLS: str = "search_book_knowledge,ask_web_search_permission,execute_web_search"
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_ALLOW_ERROR_OUTPUTS: bool = False
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_FORCE_TOOL_CHOICE_NONE: bool = True
@@ -1156,11 +1338,10 @@ class Settings(BaseSettings):
     AGENT_TRACE_ENABLED: bool = True
     AGENT_TRACE_SCORE_PRECISION: int = 4
     AGENT_TRACE_LATE_TRANSCRIPT_WINDOW_SECONDS: float = 15.0
-    AGENT_GROUNDING_ROUTER_ENABLED: bool = True
+    AGENT_GROUNDING_ROUTER_ENABLED: bool = False
     AGENT_SHARED_POLICY_ENABLED: bool = True
-    AGENT_SECTION_CONTEXT_MAX_CHARS: int = 24000
-    AGENT_CANONICAL_SECTION_RAG_ENABLED: bool = True
-    AGENT_CANONICAL_SECTION_RAG_FALLBACK_LEGACY: bool = True
+    AGENT_SECTION_CONTEXT_MAX_CHARS: int = 16000
+    # Hybrid RAG
     AGENT_HYBRID_RAG_ENABLED: bool = True
     AGENT_HYBRID_VECTOR_WEIGHT: float = 0.60
     AGENT_HYBRID_LEXICAL_WEIGHT: float = 0.30
@@ -1224,10 +1405,8 @@ class Settings(BaseSettings):
     LEARNING_UNIT_PROCESSING_CONCURRENCY: int = 2
     LLM_NORMALIZE_CONCURRENCY: int = 1
     TTS_GENERATION_CONCURRENCY: int = 4
-    EMBEDDING_BATCH_SIZE: int = 64
     BOOK_SECTION_INDEXING_ENABLED: bool = True
     BOOK_SECTION_EMBEDDING_MODEL: str = "text-embedding-3-small"
-    BOOK_SECTION_EMBEDDING_DIMENSION: int = 1536
     BOOK_SECTION_EMBEDDING_VERSION: str = "section-v1"
     BOOK_SECTION_CHUNK_SIZE_CHARS: int = 3600
     BOOK_SECTION_CHUNK_OVERLAP_CHARS: int = 500
@@ -1266,7 +1445,6 @@ class Settings(BaseSettings):
     LEARNING_COMPLETION_THRESHOLD_PERCENT: int = 80
     LEARNING_PROGRESS_MIN_DELTA_PERCENT: int = 5
     LEARNING_PROGRESS_STALE_SECONDS: int = 30
-    PLAN_REMINDER_STUDIED_TODAY_WINDOW_HOURS: int = 24
 
     class Config:
         env_file = ".env"
@@ -1287,6 +1465,7 @@ from enum import Enum
 class PlanStatus(str, Enum):
     ACTIVE = "active"
     INACTIVE = "inactive"
+    COMPLETED = "completed"
     ERROR = "error"
 
 
@@ -1361,29 +1540,39 @@ class LearningProgressStatus(str, Enum):
     COMPLETED = "completed"
 
 
+class BookLearningStatus(str, Enum):
+    NOT_STARTED = "not_started"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+
+
 class ReviewAction(str, Enum):
     COMPLETE = "complete"
     SKIP = "skip"
+
+
+class ReadingPlanSessionStatus(str, Enum):
+    SCHEDULED = "scheduled"
+    DUE = "due"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    MISSED = "missed"
+    SKIPPED = "skipped"
+    CANCELLED = "cancelled"
+
+
+class ReadingPlanSessionUnitStatus(str, Enum):
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    SKIPPED = "skipped"
 
 ```
 
 ### app\core\exceptions.py
 
 ```py
-"""
-app/core/exceptions.py
-======================
-Domain-specific exception classes cho Triam Backend.
-
-Luồng hoạt động:
-    1. Service layer raise DomainError thay vì HTTPException
-    2. @app.exception_handler(AppException) trong main.py bắt tất cả và
-       tự động map sang HTTP response chuẩn
-
-Lợi ích:
-    - Service layer không phụ thuộc FastAPI → dễ unit test độc lập
-    - Tất cả error format tập trung một chỗ duy nhất
-"""
+"""Domain exceptions raised by service/repository layers and rendered by FastAPI handlers."""
 
 
 class AppException(Exception):
@@ -1410,6 +1599,11 @@ class BookNotFoundError(AppException):
 class ReadingPlanNotFoundError(AppException):
     status_code = 404
     detail = "Chưa có ReadingPlan cho sách này."
+
+
+class ReadingPlanSessionNotFoundError(AppException):
+    status_code = 404
+    detail = "Không tìm thấy buổi học."
 
 
 class NoReadingPlanError(AppException):
@@ -1489,6 +1683,11 @@ class ReadingPlanScheduleConflictError(AppException):
     detail = "Lịch học này đang trùng với một sách khác. Hãy chọn ngày hoặc giờ khác."
 
 
+class ReadingPlanSessionStatusConflictError(AppException):
+    status_code = 409
+    detail = "Buổi học đang ở trạng thái không thể thực hiện thao tác này."
+
+
 class ProcessingJobStatusConflictError(AppException):
     status_code = 409
     detail = "Job không ở trạng thái có thể retry."
@@ -1526,11 +1725,6 @@ class DocumentTooLargeError(AppException):
 class LearningUnitTooLargeError(AppException):
     status_code = 422
     detail = "Một bài học trong tài liệu quá lớn để xử lý. Vui lòng tách nội dung hoặc chọn tài liệu nhỏ hơn."
-
-
-# Backward-compatible alias for older tests/imports while Phase 6 removes
-# chapter-based processing paths.
-ChapterTooLargeError = LearningUnitTooLargeError
 
 
 class TTSInputTooShortError(AppException):
@@ -2048,9 +2242,8 @@ Create Date: 2026-05-30 07:44:12.139074
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '0899ce396ec2'
@@ -2144,7 +2337,6 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-
 # revision identifiers, used by Alembic.
 revision: str = "2b7c9d1e4f6a"
 down_revision: Union[str, Sequence[str], None] = "0899ce396ec2"
@@ -2199,6 +2391,215 @@ def downgrade() -> None:
 
 ```
 
+### app\db\migrations\versions\2f6b7c8d9e01_phase_11_learning_completion_state.py
+
+```py
+"""phase 11 learning completion state
+
+Revision ID: 2f6b7c8d9e01
+Revises: f1b2c3d4e5f6
+Create Date: 2026-06-11
+"""
+
+from typing import Sequence, Union
+
+import sqlalchemy as sa
+from alembic import op
+from sqlalchemy.dialects import postgresql
+
+revision: str = "2f6b7c8d9e01"
+down_revision: Union[str, None] = "f1b2c3d4e5f6"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+plan_mode = postgresql.ENUM("FULL", "PARETO", name="planmode", create_type=False)
+
+
+def upgrade() -> None:
+    op.execute("create extension if not exists pgcrypto")
+
+    op.add_column("reading_plans", sa.Column("started_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column("reading_plans", sa.Column("paused_at", sa.DateTime(timezone=True), nullable=True))
+    op.add_column("reading_plans", sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True))
+    op.create_index("ix_reading_plans_completed_at", "reading_plans", ["completed_at"])
+
+    op.create_table(
+        "book_learning_states",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("user_id", sa.UUID(), nullable=False),
+        sa.Column("book_id", sa.UUID(), nullable=False),
+        sa.Column("mode", plan_mode, nullable=False),
+        sa.Column("status", sa.Text(), server_default="not_started", nullable=False),
+        sa.Column("book_progress_percent", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("completed_units", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("playable_units", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("last_learning_unit_id", sa.UUID(), nullable=True),
+        sa.Column("last_segment_id", sa.Integer(), nullable=True),
+        sa.Column("last_segment_index", sa.Integer(), nullable=True),
+        sa.Column("position_ms", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("last_activity_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.ForeignKeyConstraint(["book_id"], ["books.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["last_learning_unit_id"], ["learning_units.id"], ondelete="SET NULL"),
+        sa.ForeignKeyConstraint(["last_segment_id"], ["learning_unit_segments.id"], ondelete="SET NULL"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("user_id", "book_id", "mode", name="uq_book_learning_state_user_book_mode"),
+    )
+    op.create_index("ix_book_learning_states_user_id", "book_learning_states", ["user_id"])
+    op.create_index("ix_book_learning_states_book_id", "book_learning_states", ["book_id"])
+    op.create_index("ix_book_learning_states_mode", "book_learning_states", ["mode"])
+    op.create_index("ix_book_learning_states_status", "book_learning_states", ["status"])
+    op.create_index("ix_book_learning_states_last_activity_at", "book_learning_states", ["last_activity_at"])
+    op.create_index("ix_book_learning_states_completed_at", "book_learning_states", ["completed_at"])
+    op.create_index("ix_book_learning_states_user_status", "book_learning_states", ["user_id", "status"])
+    op.create_index("ix_book_learning_states_book_mode", "book_learning_states", ["book_id", "mode"])
+
+    op.execute(
+        """
+        with playable_units as (
+            select
+                lu.user_id,
+                lu.book_id,
+                lu.mode,
+                lu.id as learning_unit_id
+            from learning_units lu
+            where exists (
+                select 1
+                from learning_unit_segments seg
+                where seg.learning_unit_id = lu.id
+            )
+        ),
+        latest_progress as (
+            select distinct on (lup.user_id, lup.book_id, lup.mode)
+                lup.user_id,
+                lup.book_id,
+                lup.mode,
+                lup.learning_unit_id,
+                lup.current_segment_id,
+                lup.last_segment_index,
+                lup.position_ms,
+                coalesce(lup.last_activity_at, lup.updated_at) as latest_at
+            from learning_unit_progress lup
+            order by
+                lup.user_id,
+                lup.book_id,
+                lup.mode,
+                coalesce(lup.last_activity_at, lup.updated_at) desc nulls last,
+                lup.updated_at desc
+        ),
+        summary as (
+            select
+                pu.user_id,
+                pu.book_id,
+                pu.mode,
+                count(*)::int as playable_units,
+                count(lup.id) filter (where lup.status = 'COMPLETED')::int as completed_units,
+                coalesce(round(avg(coalesce(lup.max_progress_percent, 0)))::int, 0) as book_progress_percent,
+                min(lup.started_at) as started_at,
+                max(coalesce(lup.last_activity_at, lup.updated_at)) as last_activity_at,
+                max(lup.completed_at) as latest_completed_at
+            from playable_units pu
+            left join learning_unit_progress lup
+                on lup.user_id = pu.user_id
+                and lup.book_id = pu.book_id
+                and lup.mode = pu.mode
+                and lup.learning_unit_id = pu.learning_unit_id
+            group by pu.user_id, pu.book_id, pu.mode
+        )
+        insert into book_learning_states (
+            id,
+            user_id,
+            book_id,
+            mode,
+            status,
+            book_progress_percent,
+            completed_units,
+            playable_units,
+            last_learning_unit_id,
+            last_segment_id,
+            last_segment_index,
+            position_ms,
+            started_at,
+            last_activity_at,
+            completed_at
+        )
+        select
+            gen_random_uuid(),
+            s.user_id,
+            s.book_id,
+            s.mode,
+            case
+                when s.playable_units > 0 and s.completed_units >= s.playable_units then 'completed'
+                when s.last_activity_at is not null then 'in_progress'
+                else 'not_started'
+            end as status,
+            s.book_progress_percent,
+            s.completed_units,
+            s.playable_units,
+            lp.learning_unit_id,
+            lp.current_segment_id,
+            lp.last_segment_index,
+            coalesce(lp.position_ms, 0),
+            s.started_at,
+            s.last_activity_at,
+            case
+                when s.playable_units > 0 and s.completed_units >= s.playable_units then s.latest_completed_at
+                else null
+            end as completed_at
+        from summary s
+        left join latest_progress lp
+            on lp.user_id = s.user_id
+            and lp.book_id = s.book_id
+            and lp.mode = s.mode
+        on conflict (user_id, book_id, mode) do nothing;
+        """
+    )
+
+    op.execute(
+        """
+        update reading_plans rp
+        set
+            status = 'completed',
+            completed_at = bls.completed_at,
+            updated_at = now()
+        from book_learning_states bls
+        where rp.book_id = bls.book_id
+            and rp.mode = bls.mode
+            and bls.status = 'completed';
+        """
+    )
+
+    op.execute(
+        """
+        delete from reading_plan_schedule_slots slots
+        using reading_plans rp
+        where slots.plan_id = rp.id
+            and rp.status = 'completed';
+        """
+    )
+
+
+def downgrade() -> None:
+    op.drop_index("ix_book_learning_states_book_mode", table_name="book_learning_states")
+    op.drop_index("ix_book_learning_states_user_status", table_name="book_learning_states")
+    op.drop_index("ix_book_learning_states_completed_at", table_name="book_learning_states")
+    op.drop_index("ix_book_learning_states_last_activity_at", table_name="book_learning_states")
+    op.drop_index("ix_book_learning_states_status", table_name="book_learning_states")
+    op.drop_index("ix_book_learning_states_mode", table_name="book_learning_states")
+    op.drop_index("ix_book_learning_states_book_id", table_name="book_learning_states")
+    op.drop_index("ix_book_learning_states_user_id", table_name="book_learning_states")
+    op.drop_table("book_learning_states")
+
+    op.drop_index("ix_reading_plans_completed_at", table_name="reading_plans")
+    op.drop_column("reading_plans", "completed_at")
+    op.drop_column("reading_plans", "paused_at")
+    op.drop_column("reading_plans", "started_at")
+
+```
+
 ### app\db\migrations\versions\34b51c319023_optimize_all_db_schema_add_plan_table.py
 
 ```py
@@ -2248,7 +2649,7 @@ def upgrade() -> None:
     op.execute("""
         DELETE FROM book_knowledge bk
         WHERE NOT EXISTS (
-            SELECT 1 FROM chapters c 
+            SELECT 1 FROM chapters c
             WHERE c.book_id = bk.book_id AND c.chapter_index = bk.chapter_index
         )
     """)
@@ -2304,8 +2705,8 @@ Create Date: 2026-05-07 13:20:01.447773
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
@@ -2392,13 +2793,140 @@ def downgrade() -> None:
 
 ```
 
+### app\db\migrations\versions\7a12b34c56d8_phase_12_calendar_reading_plan_sessions.py
+
+```py
+"""phase 12 calendar reading plan sessions
+
+Revision ID: 7a12b34c56d8
+Revises: 2f6b7c8d9e01
+Create Date: 2026-06-11
+"""
+
+from typing import Sequence, Union
+
+import sqlalchemy as sa
+from alembic import op
+from sqlalchemy.dialects import postgresql
+
+revision: str = "7a12b34c56d8"
+down_revision: Union[str, None] = "2f6b7c8d9e01"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+plan_mode = postgresql.ENUM("FULL", "PARETO", name="planmode", create_type=False)
+
+
+def upgrade() -> None:
+    op.create_table(
+        "reading_plan_sessions",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("user_id", sa.UUID(), nullable=False),
+        sa.Column("plan_id", sa.UUID(), nullable=False),
+        sa.Column("book_id", sa.UUID(), nullable=False),
+        sa.Column("mode", plan_mode, nullable=False),
+        sa.Column("session_index", sa.Integer(), nullable=False),
+        sa.Column("scheduled_at", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("local_date", sa.Text(), nullable=False),
+        sa.Column("reminder_time", sa.Text(), nullable=False),
+        sa.Column("timezone", sa.Text(), server_default="Asia/Ho_Chi_Minh", nullable=False),
+        sa.Column("status", sa.Text(), server_default="scheduled", nullable=False),
+        sa.Column("completed_units", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("total_units", sa.Integer(), server_default="0", nullable=False),
+        sa.Column("started_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("skipped_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("missed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.ForeignKeyConstraint(["book_id"], ["books.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["plan_id"], ["reading_plans.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("plan_id", "session_index", name="uq_reading_plan_sessions_plan_index"),
+    )
+    op.create_index("ix_reading_plan_sessions_user_id", "reading_plan_sessions", ["user_id"])
+    op.create_index("ix_reading_plan_sessions_plan_id", "reading_plan_sessions", ["plan_id"])
+    op.create_index("ix_reading_plan_sessions_book_id", "reading_plan_sessions", ["book_id"])
+    op.create_index("ix_reading_plan_sessions_mode", "reading_plan_sessions", ["mode"])
+    op.create_index("ix_reading_plan_sessions_scheduled_at", "reading_plan_sessions", ["scheduled_at"])
+    op.create_index("ix_reading_plan_sessions_local_date", "reading_plan_sessions", ["local_date"])
+    op.create_index("ix_reading_plan_sessions_status", "reading_plan_sessions", ["status"])
+    op.create_index("ix_reading_plan_sessions_completed_at", "reading_plan_sessions", ["completed_at"])
+    op.create_index("ix_reading_plan_sessions_user_status", "reading_plan_sessions", ["user_id", "status"])
+    op.create_index("ix_reading_plan_sessions_book_mode", "reading_plan_sessions", ["book_id", "mode"])
+    op.create_index("ix_reading_plan_sessions_plan_status", "reading_plan_sessions", ["plan_id", "status"])
+    op.create_index(
+        "uq_reading_plan_sessions_user_scheduled_active",
+        "reading_plan_sessions",
+        ["user_id", "scheduled_at"],
+        unique=True,
+        postgresql_where=sa.text("status != 'cancelled'"),
+    )
+
+    op.create_table(
+        "reading_plan_session_units",
+        sa.Column("id", sa.UUID(), nullable=False),
+        sa.Column("session_id", sa.UUID(), nullable=False),
+        sa.Column("plan_id", sa.UUID(), nullable=False),
+        sa.Column("book_id", sa.UUID(), nullable=False),
+        sa.Column("learning_unit_id", sa.UUID(), nullable=False),
+        sa.Column("unit_order", sa.Integer(), nullable=False),
+        sa.Column("status", sa.Text(), server_default="pending", nullable=False),
+        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.ForeignKeyConstraint(["book_id"], ["books.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["learning_unit_id"], ["learning_units.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["plan_id"], ["reading_plans.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["session_id"], ["reading_plan_sessions.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("plan_id", "learning_unit_id", name="uq_reading_plan_session_units_plan_unit"),
+        sa.UniqueConstraint("session_id", "unit_order", name="uq_reading_plan_session_units_session_order"),
+    )
+    op.create_index("ix_reading_plan_session_units_session_id", "reading_plan_session_units", ["session_id"])
+    op.create_index("ix_reading_plan_session_units_plan_id", "reading_plan_session_units", ["plan_id"])
+    op.create_index("ix_reading_plan_session_units_book_id", "reading_plan_session_units", ["book_id"])
+    op.create_index("ix_reading_plan_session_units_learning_unit_id", "reading_plan_session_units", ["learning_unit_id"])
+    op.create_index("ix_reading_plan_session_units_status", "reading_plan_session_units", ["status"])
+    op.create_index("ix_reading_plan_session_units_completed_at", "reading_plan_session_units", ["completed_at"])
+    op.create_index("ix_reading_plan_session_units_session_status", "reading_plan_session_units", ["session_id", "status"])
+    op.create_index("ix_reading_plan_session_units_book_unit", "reading_plan_session_units", ["book_id", "learning_unit_id"])
+
+
+def downgrade() -> None:
+    op.drop_index("ix_reading_plan_session_units_book_unit", table_name="reading_plan_session_units")
+    op.drop_index("ix_reading_plan_session_units_session_status", table_name="reading_plan_session_units")
+    op.drop_index("ix_reading_plan_session_units_completed_at", table_name="reading_plan_session_units")
+    op.drop_index("ix_reading_plan_session_units_status", table_name="reading_plan_session_units")
+    op.drop_index("ix_reading_plan_session_units_learning_unit_id", table_name="reading_plan_session_units")
+    op.drop_index("ix_reading_plan_session_units_book_id", table_name="reading_plan_session_units")
+    op.drop_index("ix_reading_plan_session_units_plan_id", table_name="reading_plan_session_units")
+    op.drop_index("ix_reading_plan_session_units_session_id", table_name="reading_plan_session_units")
+    op.drop_table("reading_plan_session_units")
+
+    op.drop_index("uq_reading_plan_sessions_user_scheduled_active", table_name="reading_plan_sessions")
+    op.drop_index("ix_reading_plan_sessions_plan_status", table_name="reading_plan_sessions")
+    op.drop_index("ix_reading_plan_sessions_book_mode", table_name="reading_plan_sessions")
+    op.drop_index("ix_reading_plan_sessions_user_status", table_name="reading_plan_sessions")
+    op.drop_index("ix_reading_plan_sessions_completed_at", table_name="reading_plan_sessions")
+    op.drop_index("ix_reading_plan_sessions_status", table_name="reading_plan_sessions")
+    op.drop_index("ix_reading_plan_sessions_local_date", table_name="reading_plan_sessions")
+    op.drop_index("ix_reading_plan_sessions_scheduled_at", table_name="reading_plan_sessions")
+    op.drop_index("ix_reading_plan_sessions_mode", table_name="reading_plan_sessions")
+    op.drop_index("ix_reading_plan_sessions_book_id", table_name="reading_plan_sessions")
+    op.drop_index("ix_reading_plan_sessions_plan_id", table_name="reading_plan_sessions")
+    op.drop_index("ix_reading_plan_sessions_user_id", table_name="reading_plan_sessions")
+    op.drop_table("reading_plan_sessions")
+
+```
+
 ### app\db\migrations\versions\7c1f860609e9_added_error_message_to_book.py
 
 ```py
 """added error_message to book
 
 Revision ID: 7c1f860609e9
-Revises: 
+Revises:
 Create Date: 2026-04-07 22:49:48.167966
 
 """
@@ -2529,6 +3057,41 @@ def downgrade() -> None:
 
 ```
 
+### app\db\migrations\versions\8b34c56d7e90_phase_12_allow_session_regeneration_history.py
+
+```py
+"""phase 12 allow session regeneration history
+
+Revision ID: 8b34c56d7e90
+Revises: 7a12b34c56d8
+Create Date: 2026-06-11
+"""
+
+from typing import Sequence, Union
+
+from alembic import op
+
+revision: str = "8b34c56d7e90"
+down_revision: Union[str, None] = "7a12b34c56d8"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    op.drop_constraint("uq_reading_plan_sessions_plan_index", "reading_plan_sessions", type_="unique")
+    op.create_index("ix_reading_plan_sessions_plan_index", "reading_plan_sessions", ["plan_id", "session_index"])
+
+
+def downgrade() -> None:
+    op.drop_index("ix_reading_plan_sessions_plan_index", table_name="reading_plan_sessions")
+    op.create_unique_constraint(
+        "uq_reading_plan_sessions_plan_index",
+        "reading_plan_sessions",
+        ["plan_id", "session_index"],
+    )
+
+```
+
 ### app\db\migrations\versions\8c31c9cd4c1f_add_reminder_time_to_reading_plans.py
 
 ```py
@@ -2541,9 +3104,8 @@ Create Date: 2026-05-30 00:04:53.875259
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '8c31c9cd4c1f'
@@ -2579,9 +3141,8 @@ Create Date: 2026-05-15 13:13:09.969012
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '91b0326bdf19'
@@ -2666,9 +3227,8 @@ Create Date: 2026-05-06 22:08:41.499014
 """
 from typing import Sequence, Union
 
-from alembic import op
 import sqlalchemy as sa
-
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = '951590abaacf'
@@ -2694,13 +3254,13 @@ def upgrade() -> None:
                nullable=False)
     planmode_enum = sa.Enum('FULL', 'PARETO', name='planmode')
     planmode_enum.create(op.get_bind(), checkfirst=True)
-    
+
     op.execute("UPDATE chapter_segments SET mode = 'PARETO' WHERE UPPER(mode) = 'PARETO_MODE'")
     op.execute("UPDATE chapter_segments SET mode = 'FULL' WHERE UPPER(mode) = 'FULL_MODE'")
     op.execute("UPDATE chapter_segments SET mode = UPPER(mode)")
-    
+
     op.alter_column('chapter_segments', 'mode', server_default=None)
-    
+
     op.alter_column('chapter_segments', 'mode',
                existing_type=sa.TEXT(),
                type_=planmode_enum,
@@ -2715,7 +3275,7 @@ def upgrade() -> None:
     op.add_column('reading_plans', sa.Column('updated_at', sa.DateTime(timezone=True), nullable=True))
     op.execute("UPDATE reading_plans SET updated_at = NOW()")
     op.alter_column('reading_plans', 'updated_at', nullable=False)
-    
+
     op.execute("UPDATE reading_plans SET mode = 'PARETO' WHERE UPPER(mode) = 'PARETO_MODE'")
     op.execute("UPDATE reading_plans SET mode = 'FULL' WHERE UPPER(mode) = 'FULL_MODE'")
     op.execute("UPDATE reading_plans SET mode = UPPER(mode)")
@@ -2830,6 +3390,71 @@ def downgrade() -> None:
                existing_type=sa.UUID(),
                nullable=False)
     # ### end Alembic commands ###
+
+```
+
+### app\db\migrations\versions\9c45d67e8f01_phase_12_allow_session_unit_regeneration.py
+
+```py
+"""phase 12 allow session unit regeneration
+
+Revision ID: 9c45d67e8f01
+Revises: 8b34c56d7e90
+Create Date: 2026-06-11
+"""
+
+from typing import Sequence, Union
+
+from alembic import op
+
+revision: str = "9c45d67e8f01"
+down_revision: Union[str, None] = "8b34c56d7e90"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    op.drop_constraint("uq_reading_plan_session_units_plan_unit", "reading_plan_session_units", type_="unique")
+    op.create_index("ix_reading_plan_session_units_plan_unit", "reading_plan_session_units", ["plan_id", "learning_unit_id"])
+
+
+def downgrade() -> None:
+    op.drop_index("ix_reading_plan_session_units_plan_unit", table_name="reading_plan_session_units")
+    op.create_unique_constraint(
+        "uq_reading_plan_session_units_plan_unit",
+        "reading_plan_session_units",
+        ["plan_id", "learning_unit_id"],
+    )
+
+```
+
+### app\db\migrations\versions\a13f1e2d3c4b_phase_13_calendar_session_actions.py
+
+```py
+"""phase 13 calendar session actions
+
+Revision ID: a13f1e2d3c4b
+Revises: 9c45d67e8f01
+Create Date: 2026-06-12
+"""
+
+from typing import Sequence, Union
+
+import sqlalchemy as sa
+from alembic import op
+
+revision: str = "a13f1e2d3c4b"
+down_revision: Union[str, None] = "9c45d67e8f01"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    op.add_column("reading_plan_sessions", sa.Column("missed_notified_at", sa.DateTime(timezone=True), nullable=True))
+
+
+def downgrade() -> None:
+    op.drop_column("reading_plan_sessions", "missed_notified_at")
 
 ```
 
@@ -3122,6 +3747,39 @@ def downgrade() -> None:
 
 ```
 
+### app\db\migrations\versions\b14c2d3e4f50_phase_14_drop_legacy_book_knowledge.py
+
+```py
+"""phase 14 drop legacy book knowledge
+
+Revision ID: b14c2d3e4f50
+Revises: a13f1e2d3c4b
+Create Date: 2026-06-13
+"""
+
+from typing import Sequence, Union
+
+from alembic import op
+
+revision: str = "b14c2d3e4f50"
+down_revision: Union[str, None] = "a13f1e2d3c4b"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    op.execute("drop function if exists match_book_knowledge(vector, double precision, integer, uuid[])")
+    op.execute("drop table if exists book_knowledge cascade")
+
+
+def downgrade() -> None:
+    # `book_knowledge` stored legacy learning-unit embeddings. The table data
+    # cannot be reconstructed by Alembic after a destructive cleanup; restore a
+    # database backup if this migration must be rolled back in production.
+    pass
+
+```
+
 ### app\db\migrations\versions\b8e4f2a7c9d1_add_document_type_and_unique_constraints.py
 
 ```py
@@ -3185,6 +3843,138 @@ def downgrade() -> None:
     op.drop_constraint("uq_segments_chapter_mode_segment_index", "chapter_segments", type_="unique")
     op.drop_constraint("uq_chapters_book_id_chapter_index", "chapters", type_="unique")
     op.drop_column("books", "document_type")
+
+```
+
+### app\db\migrations\versions\c15d3e4f5061_phase_14_1_clean_reading_plan_schedule_config.py
+
+```py
+"""phase 14.1 clean reading plan schedule config
+
+Revision ID: c15d3e4f5061
+Revises: b14c2d3e4f50
+Create Date: 2026-06-13
+"""
+
+from typing import Sequence, Union
+
+import sqlalchemy as sa
+from alembic import op
+from sqlalchemy.dialects import postgresql
+
+revision: str = "c15d3e4f5061"
+down_revision: Union[str, None] = "b14c2d3e4f50"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+DAY_TO_WEEKDAY_CASE = """
+case lower(trim(day.value))
+  when 'mon' then 0
+  when 'monday' then 0
+  when 'tue' then 1
+  when 'tuesday' then 1
+  when 'wed' then 2
+  when 'wednesday' then 2
+  when 'thu' then 3
+  when 'thursday' then 3
+  when 'fri' then 4
+  when 'friday' then 4
+  when 'sat' then 5
+  when 'saturday' then 5
+  when 'sun' then 6
+  when 'sunday' then 6
+  else null
+end
+"""
+
+
+WEEKDAY_TO_DAY_CASE = """
+case s.weekday
+  when 0 then 'Mon'
+  when 1 then 'Tue'
+  when 2 then 'Wed'
+  when 3 then 'Thu'
+  when 4 then 'Fri'
+  when 5 then 'Sat'
+  when 6 then 'Sun'
+  else s.weekday::text
+end
+"""
+
+
+def upgrade() -> None:
+    op.execute("create extension if not exists pgcrypto")
+    op.execute(
+        f"""
+        insert into reading_plan_schedule_slots (
+            id,
+            user_id,
+            plan_id,
+            book_id,
+            weekday,
+            reminder_time,
+            timezone,
+            is_active,
+            created_at,
+            updated_at
+        )
+        select
+            gen_random_uuid(),
+            b.user_id,
+            rp.id,
+            rp.book_id,
+            {DAY_TO_WEEKDAY_CASE} as weekday,
+            coalesce(rp.reminder_time, '20:00') as reminder_time,
+            coalesce(ns.timezone, 'Asia/Ho_Chi_Minh') as timezone,
+            (
+                rp.status = 'active'
+                and not exists (
+                    select 1
+                    from reading_plan_schedule_slots active_conflict
+                    where active_conflict.user_id = b.user_id
+                      and active_conflict.weekday = {DAY_TO_WEEKDAY_CASE}
+                      and active_conflict.reminder_time = coalesce(rp.reminder_time, '20:00')
+                      and active_conflict.is_active is true
+                )
+            ) as is_active,
+            now(),
+            now()
+        from reading_plans rp
+        join books b on b.id = rp.book_id
+        left join notification_settings ns on ns.user_id = b.user_id
+        cross join lateral jsonb_array_elements_text(rp.schedule_config) as day(value)
+        where rp.schedule_config is not null
+          and jsonb_typeof(rp.schedule_config) = 'array'
+          and {DAY_TO_WEEKDAY_CASE} is not null
+          and not exists (
+              select 1
+              from reading_plan_schedule_slots existing
+              where existing.plan_id = rp.id
+          )
+        """
+    )
+    op.drop_column("reading_plans", "schedule_config")
+
+
+def downgrade() -> None:
+    op.add_column(
+        "reading_plans",
+        sa.Column("schedule_config", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+    )
+    op.execute(
+        f"""
+        update reading_plans rp
+        set schedule_config = coalesce(
+            (
+                select jsonb_agg({WEEKDAY_TO_DAY_CASE} order by s.weekday)
+                from reading_plan_schedule_slots s
+                where s.plan_id = rp.id
+            ),
+            '[]'::jsonb
+        )
+        """
+    )
 
 ```
 
@@ -3538,6 +4328,96 @@ def downgrade() -> None:
         $$;
         """
     )
+
+```
+
+### app\db\migrations\versions\d16e5f607182_phase_14_4_read_path_indexes.py
+
+```py
+"""phase 14.4 read path indexes
+
+Revision ID: d16e5f607182
+Revises: c15d3e4f5061
+Create Date: 2026-06-15
+"""
+
+from typing import Sequence, Union
+
+from alembic import op
+
+revision: str = "d16e5f607182"
+down_revision: Union[str, None] = "c15d3e4f5061"
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    op.execute("create index if not exists ix_books_user_created_at on books (user_id, created_at desc, id desc)")
+    op.execute(
+        """
+        create index if not exists ix_reading_plans_book_status_updated
+        on reading_plans (book_id, status, updated_at desc, created_at desc)
+        """
+    )
+    op.execute(
+        """
+        create index if not exists ix_learning_unit_progress_user_book_mode_updated
+        on learning_unit_progress (user_id, book_id, mode, updated_at desc)
+        """
+    )
+    op.execute(
+        """
+        create index if not exists ix_learning_unit_progress_user_book_mode_activity
+        on learning_unit_progress (user_id, book_id, mode, last_activity_at desc)
+        where last_activity_at is not null
+        """
+    )
+    op.execute(
+        """
+        create index if not exists ix_spaced_review_items_user_book_mode_status_due
+        on spaced_review_items (user_id, book_id, mode, status, due_at)
+        """
+    )
+    op.execute(
+        """
+        create index if not exists ix_rps_user_local_date_scheduled
+        on reading_plan_sessions (user_id, local_date, scheduled_at, session_index)
+        where status <> 'cancelled'
+        """
+    )
+    op.execute(
+        """
+        create index if not exists ix_rps_user_book_mode_scheduled
+        on reading_plan_sessions (user_id, book_id, mode, scheduled_at, session_index)
+        where status <> 'cancelled'
+        """
+    )
+    op.execute(
+        """
+        create index if not exists ix_rps_overdue_user_status_scheduled
+        on reading_plan_sessions (user_id, status, scheduled_at)
+        where status in ('scheduled', 'due', 'in_progress')
+        """
+    )
+    op.execute(
+        """
+        create index if not exists ix_rps_due_reminder_status_scheduled
+        on reading_plan_sessions (status, scheduled_at)
+        where status in ('scheduled', 'due')
+        """
+    )
+
+
+def downgrade() -> None:
+    op.execute("drop index if exists ix_rps_due_reminder_status_scheduled")
+    op.execute("drop index if exists ix_rps_overdue_user_status_scheduled")
+    op.execute("drop index if exists ix_rps_user_book_mode_scheduled")
+    op.execute("drop index if exists ix_rps_user_local_date_scheduled")
+    op.execute("drop index if exists ix_spaced_review_items_user_book_mode_status_due")
+    op.execute("drop index if exists ix_learning_unit_progress_user_book_mode_activity")
+    op.execute("drop index if exists ix_learning_unit_progress_user_book_mode_updated")
+    op.execute("drop index if exists ix_reading_plans_book_status_updated")
+    op.execute("drop index if exists ix_books_user_created_at")
 
 ```
 
@@ -4384,33 +5264,28 @@ def downgrade() -> None:
 ```py
 from contextlib import asynccontextmanager
 
-from alembic.autogenerate.api import log
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
-from fastapi.responses import JSONResponse, StreamingResponse
+from fastapi.responses import JSONResponse
 
-from app.api.v1.routers import admin, audiobooks, health, jobs, learning_progress, live, notifications, reviews, study_context, threads, upload
+from app.api.v1.routers import admin, audiobooks, health, jobs, learning_progress, live, notifications, reading_plan_sessions, reviews, study_context, threads, upload
 from app.core.exceptions import AppException
+from app.core.logger import log
 from app.db.database import dispose_engine
-from app.services.tts_service import stream_text_to_speech_edge
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # --- Chạy khi STARTUP ---
     log.info("Khởi động hệ thống... (TRIAM)")
-    # Schema được quản lý bởi Alembic. Chạy: alembic upgrade head
-    # Sau từ khóa yield là lúc ứng dụng đang chạy (đang phục vụ người dùng)
+    # Alembic owns schema migration; startup only manages runtime resources.
     yield
-    # --- Chạy khi SHUTDOWN ---
     log.info("Đang dọn dẹp tài nguyên...")
     dispose_engine()
 
 
 app = FastAPI(title="TRIAM Assistant API", lifespan=lifespan)
 
-# Allow Cross-Origin Resource Sharing (CORS) for development
 app.add_middleware(
     CORSMiddleware,
     allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
@@ -4420,9 +5295,6 @@ app.add_middleware(
 )
 
 
-# ---------------------------------------------------------------------------
-# Global Exception Handler — bắt tất cả AppException và subclass của nó
-# ---------------------------------------------------------------------------
 @app.exception_handler(AppException)
 async def app_exception_handler(request: Request, exc: AppException) -> JSONResponse:
     message = f"AppException: {exc.detail} - Status Code: {exc.status_code}"
@@ -4439,7 +5311,6 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     return JSONResponse(status_code=500, content={"detail": "Lỗi hệ thống nội bộ."})
 
 
-# Include Router
 app.include_router(health.router, prefix="/api/v1", tags=["Health"])
 app.include_router(upload.router, prefix="/api/v1", tags=["Upload"])
 app.include_router(live.router, prefix="/api/v1", tags=["Live"])
@@ -4447,6 +5318,7 @@ app.include_router(audiobooks.router, prefix="/api/v1", tags=["Audiobooks"])
 app.include_router(jobs.router, prefix="/api/v1", tags=["Jobs"])
 app.include_router(notifications.router, prefix="/api/v1", tags=["Notifications"])
 app.include_router(learning_progress.router, prefix="/api/v1", tags=["Learning Progress"])
+app.include_router(reading_plan_sessions.router, prefix="/api/v1", tags=["Reading Plan Sessions"])
 app.include_router(reviews.router, prefix="/api/v1", tags=["Reviews"])
 app.include_router(study_context.router, prefix="/api/v1", tags=["Study Context"])
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
@@ -4457,17 +5329,6 @@ app.include_router(threads.router, prefix="/api/v1", tags=["Threads Chat"])
 @app.get("/")
 async def root():
     return {"message": "TRIAM Backend is running fast with uv!"}
-
-
-@app.get("/test-voice-stream-edge")
-async def test_voice_stream_edge(
-    text: str = "Xin chào, đây là thử nghiệm tốc độ đọc của TRIAM.",
-):
-    """
-    Endpoint này demo khả năng stream audio ngay lập tức.
-    """
-    # Trả về StreamingResponse để Client nghe được ngay khi có byte đầu tiên
-    return StreamingResponse(stream_text_to_speech_edge(text), media_type="audio/mpeg")
 
 
 if __name__ == "__main__":
@@ -4566,11 +5427,13 @@ class ReadingPlan(SQLModel, table=True):
     book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
     mode: PlanMode = Field(sa_column=Column(SAEnum(PlanMode), nullable=False))
     pace: int = Field(sa_column=Column(Integer, nullable=False))
-    schedule_config: Optional[Any] = Field(default=None, sa_column=Column(JSONB))
     status: str = Field(sa_column=Column(Text, nullable=False))
     reminder_time: str = Field(default="20:00", sa_column=Column(Text, nullable=False, server_default="20:00"))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    paused_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
 
     # === RELATIONSHIPS ===
     book: Book = Relationship(back_populates="reading_plans")
@@ -4589,6 +5452,60 @@ class ReadingPlanScheduleSlot(SQLModel, table=True):
     is_active: bool = Field(default=True, sa_column=Column(Boolean, index=True, nullable=False))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+
+
+class ReadingPlanSession(SQLModel, table=True):
+    __tablename__ = "reading_plan_sessions"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
+    plan_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("reading_plans.id", ondelete="CASCADE"), index=True, nullable=False))
+    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
+    mode: PlanMode = Field(sa_column=Column(SAEnum(PlanMode), index=True, nullable=False))
+    session_index: int = Field(sa_column=Column(Integer, nullable=False))
+    scheduled_at: datetime = Field(sa_column=Column(DateTime(timezone=True), index=True, nullable=False))
+    local_date: str = Field(sa_column=Column(Text, index=True, nullable=False))
+    reminder_time: str = Field(sa_column=Column(Text, nullable=False))
+    timezone: str = Field(default="Asia/Ho_Chi_Minh", sa_column=Column(Text, nullable=False, server_default="Asia/Ho_Chi_Minh"))
+    status: str = Field(default="scheduled", sa_column=Column(Text, index=True, nullable=False, server_default="scheduled"))
+    completed_units: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    total_units: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
+    skipped_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    missed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    missed_notified_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+
+    __table_args__ = (
+        Index("ix_reading_plan_sessions_plan_index", "plan_id", "session_index"),
+        Index("ix_reading_plan_sessions_user_status", "user_id", "status"),
+        Index("ix_reading_plan_sessions_book_mode", "book_id", "mode"),
+        Index("ix_reading_plan_sessions_plan_status", "plan_id", "status"),
+    )
+
+
+class ReadingPlanSessionUnit(SQLModel, table=True):
+    __tablename__ = "reading_plan_session_units"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    session_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("reading_plan_sessions.id", ondelete="CASCADE"), index=True, nullable=False))
+    plan_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("reading_plans.id", ondelete="CASCADE"), index=True, nullable=False))
+    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
+    learning_unit_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("learning_units.id", ondelete="CASCADE"), index=True, nullable=False))
+    unit_order: int = Field(sa_column=Column(Integer, nullable=False))
+    status: str = Field(default="pending", sa_column=Column(Text, index=True, nullable=False, server_default="pending"))
+    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+
+    __table_args__ = (
+        Index("ix_reading_plan_session_units_plan_unit", "plan_id", "learning_unit_id"),
+        UniqueConstraint("session_id", "unit_order", name="uq_reading_plan_session_units_session_order"),
+        Index("ix_reading_plan_session_units_session_status", "session_id", "status"),
+        Index("ix_reading_plan_session_units_book_unit", "book_id", "learning_unit_id"),
+    )
 
 
 class ProcessingJob(SQLModel, table=True):
@@ -4713,6 +5630,34 @@ class LearningUnitProgress(SQLModel, table=True):
     __table_args__ = (UniqueConstraint("user_id", "learning_unit_id", name="uq_unit_progress_user_unit"),)
 
 
+class BookLearningState(SQLModel, table=True):
+    __tablename__ = "book_learning_states"
+
+    id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
+    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
+    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
+    mode: PlanMode = Field(sa_column=Column(SAEnum(PlanMode), index=True, nullable=False))
+    status: str = Field(default="not_started", sa_column=Column(Text, index=True, nullable=False, server_default="not_started"))
+    book_progress_percent: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    completed_units: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    playable_units: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    last_learning_unit_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("learning_units.id", ondelete="SET NULL")))
+    last_segment_id: Optional[int] = Field(default=None, sa_column=Column(Integer, ForeignKey("learning_unit_segments.id", ondelete="SET NULL")))
+    last_segment_index: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    position_ms: int = Field(default=0, sa_column=Column(Integer, nullable=False, server_default="0"))
+    started_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
+    last_activity_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
+    completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), index=True))
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "book_id", "mode", name="uq_book_learning_state_user_book_mode"),
+        Index("ix_book_learning_states_user_status", "user_id", "status"),
+        Index("ix_book_learning_states_book_mode", "book_id", "mode"),
+    )
+
+
 class NotificationSettings(SQLModel, table=True):
     __tablename__ = "notification_settings"
 
@@ -4804,20 +5749,6 @@ class UserDeviceToken(SQLModel, table=True):
         default_factory=lambda: datetime.now(timezone.utc),
         sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
     )
-
-
-class BookKnowledge(SQLModel, table=True):
-    __tablename__ = "book_knowledge"
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    book_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="CASCADE"), index=True, nullable=False))
-    learning_unit_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("learning_units.id", ondelete="CASCADE"), index=True))
-    chunk_index: int = Field(sa_column=Column(Integer, nullable=False))
-    content: str = Field(sa_column=Column(Text, nullable=False))
-    # TODO: REPALCE 1536 (OpenAI text-embedding-3-small)
-    embedding: Optional[list[float]] = Field(default=None, sa_column=Column(Vector(1536)))
-
-    __table_args__ = (UniqueConstraint("learning_unit_id", "chunk_index", name="uq_book_knowledge_unit_chunk_index"),)
 
 
 class BookSectionKnowledge(SQLModel, table=True):
@@ -5195,17 +6126,18 @@ def get_grounding_scope(session: Session, allowed_book_ids: list[uuid.UUID]) -> 
         return GroundingScope((), (), ())
 
     books = list(session.exec(select(Book).where(col(Book.id).in_(allowed_book_ids))).all())
-    actual_book_ids = [book.id for book in books]
+
+    books_by_id = {book.id: book for book in books}
+
+    ordered_books = [books_by_id[book_id] for book_id in allowed_book_ids if book_id in books_by_id]
+
+    actual_book_ids = [book.id for book in ordered_books]
+
     if not actual_book_ids:
         return GroundingScope(tuple(allowed_book_ids), (), ())
 
-    sections = list(
-        session.exec(
-            select(BookSection)
-            .where(col(BookSection.book_id).in_(actual_book_ids))
-            .order_by(col(BookSection.book_id), col(BookSection.section_index))
-        ).all()
-    )
+    sections = list(session.exec(select(BookSection).where(col(BookSection.book_id).in_(actual_book_ids)).order_by(col(BookSection.book_id), col(BookSection.section_index))).all())
+
     root_count_by_book: dict[uuid.UUID, int] = {}
     for section in sections:
         if section.parent_id is None:
@@ -5221,8 +6153,9 @@ def get_grounding_scope(session: Session, allowed_book_ids: list[uuid.UUID]) -> 
             status=book.status,
             root_section_count=root_count_by_book.get(book.id, 0),
         )
-        for book in books
+        for book in ordered_books
     )
+
     grounding_sections = tuple(
         GroundingSection(
             id=section.id,
@@ -5236,6 +6169,7 @@ def get_grounding_scope(session: Session, allowed_book_ids: list[uuid.UUID]) -> 
         )
         for section in sections
     )
+
     return GroundingScope(tuple(actual_book_ids), grounding_books, grounding_sections)
 
 
@@ -5291,7 +6225,6 @@ def load_scoped_section_texts(
             allowed_book_ids=allowed_book_ids,
         )
 
-
 ```
 
 ### app\repositories\audiobook_repo.py
@@ -5300,12 +6233,13 @@ def load_scoped_section_texts(
 import uuid
 from typing import Optional
 
-from sqlmodel import Session, select
+from sqlalchemy import or_
+from sqlmodel import Session, col, delete, select
 
 from app.core.exceptions import BookNotFoundError, StorageOperationError
 from app.core.logger import log
 from app.core.supabase import supabase
-from app.models.db_models import Book
+from app.models.db_models import Book, NotificationOutbox, UserNotification
 from app.schemas.audiobook import BookUpdateRequest
 
 
@@ -5364,6 +6298,36 @@ def delete_book(session: Session, book_id: uuid.UUID) -> None:
         session.commit()
 
 
+def cleanup_book_side_effects(session: Session, *, book_id: uuid.UUID, user_id: uuid.UUID) -> None:
+    book_id_str = str(book_id)
+
+    outbox_filter = or_(
+        NotificationOutbox.payload.contains({"book_id": book_id_str}),
+        NotificationOutbox.payload.contains({"action_payload": {"book_id": book_id_str}}),
+    )
+
+    outbox_ids = list(session.exec(select(NotificationOutbox.id).where(NotificationOutbox.user_id == user_id, outbox_filter)).all())
+
+    user_notification_filter = UserNotification.action_payload.contains({"book_id": book_id_str})
+
+    if outbox_ids:
+        user_notification_filter = or_(
+            UserNotification.action_payload.contains({"book_id": book_id_str}),
+            col(UserNotification.outbox_id).in_(outbox_ids),
+        )
+
+    session.exec(delete(UserNotification).where(UserNotification.user_id == user_id, user_notification_filter))
+    if outbox_ids:
+        session.exec(
+            delete(NotificationOutbox).where(
+                NotificationOutbox.user_id == user_id,
+                col(NotificationOutbox.id).in_(outbox_ids),
+            )
+        )
+
+    session.flush()
+
+
 async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uuid.UUID):
     """
     Xóa sạch assets trong Storage và bản ghi trong Database.
@@ -5371,6 +6335,7 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uui
     book = get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
+
 
     str_book_id = str(book_id)
     target_buckets = ["audios", "raw_books"]
@@ -5391,7 +6356,8 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uui
                     supabase.storage.from_(bucket).remove(paths)
                     log.info(f"Đã xóa {len(paths)} files từ bucket: {bucket}")
 
-        # 3. Xóa record trong DB
+        # 3. Xóa record trong DB + notification
+        cleanup_book_side_effects(session, book_id=book_id, user_id=user_id)
         delete_book(session, book_id)
         log.info(f"Đã dọn dẹp sạch sẽ database cho book: {str_book_id}")
 
@@ -5403,31 +6369,187 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uui
 
 ```
 
-### app\repositories\book_knowledge_repo.py
+### app\repositories\book_learning_state_repo.py
 
 ```py
 import uuid
+from datetime import datetime, timezone
 
 from sqlmodel import Session, select
 
-from app.models.db_models import BookKnowledge
+from app.core.constant import PlanMode
+from app.models.db_models import BookLearningState
 
 
-def bulk_create_knowledge(session: Session, records: list[BookKnowledge]) -> None:
-    """Insert hàng loạt BookKnowledge (vector chunks) vào DB."""
-    for record in records:
-        session.add(record)
+def get_book_learning_state(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    book_id: uuid.UUID,
+    mode: PlanMode,
+) -> BookLearningState | None:
+    return session.exec(
+        select(BookLearningState).where(
+            BookLearningState.user_id == user_id,
+            BookLearningState.book_id == book_id,
+            BookLearningState.mode == mode,
+        )
+    ).first()
+
+
+def upsert_book_learning_state(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    book_id: uuid.UUID,
+    mode: PlanMode,
+    status: str,
+    book_progress_percent: int,
+    completed_units: int,
+    playable_units: int,
+    last_learning_unit_id: uuid.UUID | None,
+    last_segment_id: int | None,
+    last_segment_index: int | None,
+    position_ms: int,
+    started_at: datetime | None,
+    last_activity_at: datetime | None,
+    completed_at: datetime | None,
+) -> BookLearningState:
+    now = datetime.now(timezone.utc)
+    state = get_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode)
+    if state is None:
+        state = BookLearningState(user_id=user_id, book_id=book_id, mode=mode)
+
+    state.status = status
+    state.book_progress_percent = book_progress_percent
+    state.completed_units = completed_units
+    state.playable_units = playable_units
+    state.last_learning_unit_id = last_learning_unit_id
+    state.last_segment_id = last_segment_id
+    state.last_segment_index = last_segment_index
+    state.position_ms = position_ms
+    state.started_at = state.started_at or started_at
+    state.last_activity_at = last_activity_at
+    state.completed_at = state.completed_at or completed_at
+    state.updated_at = now
+
+    session.add(state)
     session.commit()
+    session.refresh(state)
+    return state
+
+```
+
+### app\repositories\book_read_repo.py
+
+```py
+import uuid
+from dataclasses import dataclass
+
+from sqlmodel import Session, col, select
+
+from app.core.constant import PlanStatus
+from app.models.db_models import Book, BookLearningState, ReadingPlan
 
 
-def delete_knowledge_by_learning_unit(session: Session, learning_unit_id: uuid.UUID) -> None:
-    records = session.exec(
-        select(BookKnowledge).where(BookKnowledge.learning_unit_id == learning_unit_id)
-    ).all()
-    for record in records:
-        session.delete(record)
-    session.commit()
+@dataclass(frozen=True)
+class BookListProjection:
+    book: Book
+    current_plan: ReadingPlan | None
+    learning_state: BookLearningState | None
 
+
+def _latest_plan_by_book(plans: list[ReadingPlan]) -> dict[uuid.UUID, ReadingPlan]:
+    result: dict[uuid.UUID, ReadingPlan] = {}
+    for plan in plans:
+        result.setdefault(plan.book_id, plan)
+    return result
+
+
+def _mode_key(mode: object) -> str:
+    return str(mode.value if hasattr(mode, "value") else mode)
+
+
+def _learning_state_by_book_mode(states: list[BookLearningState]) -> dict[tuple[uuid.UUID, str], BookLearningState]:
+    return {(state.book_id, _mode_key(state.mode)): state for state in states}
+
+
+def list_book_library_projections(session: Session, *, user_id: uuid.UUID) -> list[BookListProjection]:
+    books = list(
+        session.exec(
+            select(Book)
+            .where(Book.user_id == user_id)
+            .order_by(col(Book.created_at).desc(), col(Book.id).desc())
+        ).all()
+    )
+    if not books:
+        return []
+
+    book_ids = [book.id for book in books]
+    plans = list(
+        session.exec(
+            select(ReadingPlan)
+            .where(
+                col(ReadingPlan.book_id).in_(book_ids),
+                ReadingPlan.status != PlanStatus.ERROR.value,
+            )
+            .order_by(col(ReadingPlan.updated_at).desc(), col(ReadingPlan.created_at).desc())
+        ).all()
+    )
+    states = list(
+        session.exec(
+            select(BookLearningState).where(
+                BookLearningState.user_id == user_id,
+                col(BookLearningState.book_id).in_(book_ids),
+            )
+        ).all()
+    )
+
+    plan_by_book = _latest_plan_by_book(plans)
+    state_by_book_mode = _learning_state_by_book_mode(states)
+    return [
+        BookListProjection(
+            book=book,
+            current_plan=plan_by_book.get(book.id),
+            learning_state=state_by_book_mode.get(
+                (book.id, _mode_key(plan_by_book[book.id].mode))
+            )
+            if book.id in plan_by_book
+            else None,
+        )
+        for book in books
+    ]
+
+
+def get_book_library_projection(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    book_id: uuid.UUID,
+) -> BookListProjection | None:
+    book = session.exec(select(Book).where(Book.id == book_id, Book.user_id == user_id)).first()
+    if not book:
+        return None
+
+    plan = session.exec(
+        select(ReadingPlan)
+        .where(
+            ReadingPlan.book_id == book_id,
+            ReadingPlan.status != PlanStatus.ERROR.value,
+        )
+        .order_by(col(ReadingPlan.updated_at).desc(), col(ReadingPlan.created_at).desc())
+    ).first()
+    state = None
+    if plan:
+        state = session.exec(
+            select(BookLearningState).where(
+                BookLearningState.user_id == user_id,
+                BookLearningState.book_id == book_id,
+                BookLearningState.mode == plan.mode,
+            )
+        ).first()
+
+    return BookListProjection(book=book, current_plan=plan, learning_state=state)
 
 ```
 
@@ -6355,6 +7477,72 @@ def update_processing_job(
 
 ```
 
+### app\repositories\reading_plan_repo.py
+
+```py
+import uuid
+
+from sqlmodel import Session, col, select
+
+from app.core.constant import PlanMode, PlanStatus
+from app.models.db_models import Book, ReadingPlan
+
+
+def get_current_plan_for_owned_book(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    book_id: uuid.UUID,
+) -> ReadingPlan | None:
+    return session.exec(
+        select(ReadingPlan)
+        .join(Book, Book.id == ReadingPlan.book_id)
+        .where(
+            Book.id == book_id,
+            Book.user_id == user_id,
+            ReadingPlan.status != PlanStatus.ERROR.value,
+        )
+        .order_by(col(ReadingPlan.updated_at).desc(), col(ReadingPlan.created_at).desc())
+    ).first()
+
+
+def get_plan_for_book_mode(
+    session: Session,
+    *,
+    book_id: uuid.UUID,
+    mode: PlanMode,
+) -> ReadingPlan | None:
+    return session.exec(
+        select(ReadingPlan)
+        .where(
+            ReadingPlan.book_id == book_id,
+            ReadingPlan.mode == mode,
+            ReadingPlan.status != PlanStatus.ERROR.value,
+        )
+        .order_by(col(ReadingPlan.updated_at).desc(), col(ReadingPlan.created_at).desc())
+    ).first()
+
+
+def list_plans_for_book_mode(
+    session: Session,
+    *,
+    book_id: uuid.UUID,
+    mode: PlanMode,
+) -> list[ReadingPlan]:
+    return list(
+        session.exec(
+            select(ReadingPlan)
+            .where(
+                ReadingPlan.book_id == book_id,
+                ReadingPlan.mode == mode,
+                ReadingPlan.status != PlanStatus.ERROR.value,
+            )
+            .order_by(col(ReadingPlan.updated_at).desc(), col(ReadingPlan.created_at).desc())
+        ).all()
+    )
+
+```
+
 ### app\repositories\reading_plan_schedule_repo.py
 
 ```py
@@ -6442,6 +7630,360 @@ def delete_slots_for_plan(session: Session, *, plan_id: uuid.UUID) -> int:
     result = session.exec(statement)
     return int(result.rowcount or 0)
 
+
+def set_slots_active(session: Session, *, plan_id: uuid.UUID, is_active: bool) -> int:
+    slots = list_slots_for_plan(session, plan_id=plan_id, active_only=False)
+    for slot in slots:
+        slot.is_active = is_active
+        session.add(slot)
+    return len(slots)
+
+
+def replace_slots_for_plan(
+    session: Session,
+    *,
+    plan_id: uuid.UUID,
+    slots: list[ReadingPlanScheduleSlot],
+) -> list[ReadingPlanScheduleSlot]:
+    delete_slots_for_plan(session, plan_id=plan_id)
+    for slot in slots:
+        session.add(slot)
+    return slots
+
+```
+
+### app\repositories\reading_plan_session_repo.py
+
+```py
+import uuid
+from dataclasses import dataclass
+from datetime import datetime
+
+from sqlmodel import Session, col, func, select
+
+from app.core.constant import PlanMode, ReadingPlanSessionStatus
+from app.models.db_models import ReadingPlanSession, ReadingPlanSessionUnit
+
+FINAL_SESSION_STATUSES = {
+    ReadingPlanSessionStatus.COMPLETED.value,
+    ReadingPlanSessionStatus.SKIPPED.value,
+    ReadingPlanSessionStatus.CANCELLED.value,
+}
+ACTIVE_SESSION_STATUSES = {
+    ReadingPlanSessionStatus.SCHEDULED.value,
+    ReadingPlanSessionStatus.DUE.value,
+    ReadingPlanSessionStatus.IN_PROGRESS.value,
+    ReadingPlanSessionStatus.MISSED.value,
+}
+
+
+@dataclass(frozen=True)
+class PlanSessionSummaryCounts:
+    total_sessions: int
+    completed_sessions: int
+    missed_sessions: int
+
+
+def get_owned_session(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    session_id: uuid.UUID,
+) -> ReadingPlanSession | None:
+    return session.exec(
+        select(ReadingPlanSession).where(
+            ReadingPlanSession.id == session_id,
+            ReadingPlanSession.user_id == user_id,
+        )
+    ).first()
+
+
+def list_sessions_for_plan(
+    session: Session,
+    *,
+    plan_id: uuid.UUID,
+    include_cancelled: bool = False,
+) -> list[ReadingPlanSession]:
+    statement = select(ReadingPlanSession).where(ReadingPlanSession.plan_id == plan_id)
+    if not include_cancelled:
+        statement = statement.where(ReadingPlanSession.status != ReadingPlanSessionStatus.CANCELLED.value)
+    statement = statement.order_by(col(ReadingPlanSession.scheduled_at), col(ReadingPlanSession.session_index))
+    return list(session.exec(statement).all())
+
+
+def list_sessions_for_book(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    book_id: uuid.UUID,
+    mode: PlanMode | None = None,
+    include_cancelled: bool = False,
+) -> list[ReadingPlanSession]:
+    statement = select(ReadingPlanSession).where(
+        ReadingPlanSession.user_id == user_id,
+        ReadingPlanSession.book_id == book_id,
+    )
+    if mode:
+        statement = statement.where(ReadingPlanSession.mode == mode)
+    if not include_cancelled:
+        statement = statement.where(ReadingPlanSession.status != ReadingPlanSessionStatus.CANCELLED.value)
+    statement = statement.order_by(col(ReadingPlanSession.scheduled_at), col(ReadingPlanSession.session_index))
+    return list(session.exec(statement).all())
+
+
+def list_sessions_for_user_local_date(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    local_date: str,
+    include_cancelled: bool = False,
+) -> list[ReadingPlanSession]:
+    statement = select(ReadingPlanSession).where(
+        ReadingPlanSession.user_id == user_id,
+        ReadingPlanSession.local_date == local_date,
+    )
+    if not include_cancelled:
+        statement = statement.where(ReadingPlanSession.status != ReadingPlanSessionStatus.CANCELLED.value)
+    statement = statement.order_by(col(ReadingPlanSession.scheduled_at), col(ReadingPlanSession.session_index))
+    return list(session.exec(statement).all())
+
+
+def list_sessions_for_user_range(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    from_local_date: str,
+    to_local_date: str,
+    book_id: uuid.UUID | None = None,
+    mode: PlanMode | None = None,
+    status: str | None = None,
+    include_cancelled: bool = False,
+) -> list[ReadingPlanSession]:
+    statement = select(ReadingPlanSession).where(
+        ReadingPlanSession.user_id == user_id,
+        ReadingPlanSession.local_date >= from_local_date,
+        ReadingPlanSession.local_date <= to_local_date,
+    )
+    if book_id:
+        statement = statement.where(ReadingPlanSession.book_id == book_id)
+    if mode:
+        statement = statement.where(ReadingPlanSession.mode == mode)
+    if status:
+        statement = statement.where(ReadingPlanSession.status == status)
+    if not include_cancelled:
+        statement = statement.where(ReadingPlanSession.status != ReadingPlanSessionStatus.CANCELLED.value)
+    statement = statement.order_by(col(ReadingPlanSession.scheduled_at), col(ReadingPlanSession.session_index))
+    return list(session.exec(statement).all())
+
+
+def get_plan_session_summary_counts(session: Session, *, plan_id: uuid.UUID) -> PlanSessionSummaryCounts:
+    rows = session.exec(
+        select(ReadingPlanSession.status, func.count(ReadingPlanSession.id))
+        .where(
+            ReadingPlanSession.plan_id == plan_id,
+            ReadingPlanSession.status != ReadingPlanSessionStatus.CANCELLED.value,
+        )
+        .group_by(ReadingPlanSession.status)
+    ).all()
+    counts = {status: int(count or 0) for status, count in rows}
+    return PlanSessionSummaryCounts(
+        total_sessions=sum(counts.values()),
+        completed_sessions=counts.get(ReadingPlanSessionStatus.COMPLETED.value, 0),
+        missed_sessions=counts.get(ReadingPlanSessionStatus.MISSED.value, 0),
+    )
+
+
+def get_next_session_for_plan(session: Session, *, plan_id: uuid.UUID) -> ReadingPlanSession | None:
+    return session.exec(
+        select(ReadingPlanSession)
+        .where(
+            ReadingPlanSession.plan_id == plan_id,
+            ReadingPlanSession.status.notin_(list(FINAL_SESSION_STATUSES)),
+        )
+        .order_by(col(ReadingPlanSession.scheduled_at), col(ReadingPlanSession.session_index))
+    ).first()
+
+
+def find_session_schedule_conflict(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    scheduled_at: datetime,
+    exclude_session_id: uuid.UUID,
+) -> ReadingPlanSession | None:
+    return session.exec(
+        select(ReadingPlanSession)
+        .where(
+            ReadingPlanSession.user_id == user_id,
+            ReadingPlanSession.scheduled_at == scheduled_at,
+            ReadingPlanSession.id != exclude_session_id,
+            ReadingPlanSession.status.in_(list(ACTIVE_SESSION_STATUSES)),
+        )
+        .order_by(col(ReadingPlanSession.scheduled_at))
+    ).first()
+
+
+def list_due_reminder_sessions(
+    session: Session,
+    *,
+    now: datetime,
+    limit: int,
+) -> list[ReadingPlanSession]:
+    return list(
+        session.exec(
+            select(ReadingPlanSession)
+            .where(ReadingPlanSession.scheduled_at <= now)
+            .where(
+                ReadingPlanSession.status.in_(
+                    [
+                        ReadingPlanSessionStatus.SCHEDULED.value,
+                        ReadingPlanSessionStatus.DUE.value,
+                    ]
+                )
+            )
+            .order_by(col(ReadingPlanSession.scheduled_at))
+            .limit(limit)
+        ).all()
+    )
+
+
+def get_session_unit_for_learning_unit(
+    session: Session,
+    *,
+    plan_id: uuid.UUID,
+    learning_unit_id: uuid.UUID,
+) -> ReadingPlanSessionUnit | None:
+    return session.exec(
+        select(ReadingPlanSessionUnit).where(
+            ReadingPlanSessionUnit.plan_id == plan_id,
+            ReadingPlanSessionUnit.learning_unit_id == learning_unit_id,
+        )
+    ).first()
+
+
+def list_session_units(session: Session, *, session_ids: list[uuid.UUID]) -> list[ReadingPlanSessionUnit]:
+    if not session_ids:
+        return []
+    return list(
+        session.exec(
+            select(ReadingPlanSessionUnit)
+            .where(ReadingPlanSessionUnit.session_id.in_(session_ids))
+            .order_by(col(ReadingPlanSessionUnit.session_id), col(ReadingPlanSessionUnit.unit_order))
+        ).all()
+    )
+
+
+def count_completed_session_units(session: Session, *, session_id: uuid.UUID) -> int:
+    result = session.exec(
+        select(func.count(ReadingPlanSessionUnit.id)).where(
+            ReadingPlanSessionUnit.session_id == session_id,
+            ReadingPlanSessionUnit.status == "completed",
+        )
+    ).one()
+    return int(result or 0)
+
+
+def cancel_unfinished_sessions_for_plan(
+    session: Session,
+    *,
+    plan_id: uuid.UUID,
+    now: datetime,
+) -> int:
+    rows = session.exec(
+        select(ReadingPlanSession).where(
+            ReadingPlanSession.plan_id == plan_id,
+            ReadingPlanSession.status.notin_(list(FINAL_SESSION_STATUSES)),
+        )
+    ).all()
+    for row in rows:
+        row.status = ReadingPlanSessionStatus.CANCELLED.value
+        row.updated_at = now
+        session.add(row)
+    return len(rows)
+
+
+def mark_overdue_sessions_missed_rows(
+    session: Session,
+    *,
+    user_id: uuid.UUID | None,
+    now: datetime,
+) -> list[ReadingPlanSession]:
+    statement = (
+        select(ReadingPlanSession)
+        .where(ReadingPlanSession.scheduled_at < now)
+        .where(
+            ReadingPlanSession.status.in_(
+                [
+                    ReadingPlanSessionStatus.SCHEDULED.value,
+                    ReadingPlanSessionStatus.DUE.value,
+                    ReadingPlanSessionStatus.IN_PROGRESS.value,
+                ]
+            )
+        )
+        .where(ReadingPlanSession.completed_units < ReadingPlanSession.total_units)
+    )
+    if user_id:
+        statement = statement.where(ReadingPlanSession.user_id == user_id)
+
+    rows = list(session.exec(statement).all())
+    for row in rows:
+        row.status = ReadingPlanSessionStatus.MISSED.value
+        row.missed_at = row.missed_at or now
+        row.updated_at = now
+        session.add(row)
+    return rows
+
+
+def list_missed_sessions_pending_notification(
+    session: Session,
+    *,
+    now: datetime,
+    limit: int,
+) -> list[ReadingPlanSession]:
+    return list(
+        session.exec(
+            select(ReadingPlanSession)
+            .where(ReadingPlanSession.status == ReadingPlanSessionStatus.MISSED.value)
+            .where(ReadingPlanSession.missed_at.is_not(None))
+            .where(ReadingPlanSession.missed_at <= now)
+            .where(ReadingPlanSession.missed_notified_at.is_(None))
+            .order_by(col(ReadingPlanSession.missed_at))
+            .limit(limit)
+        ).all()
+    )
+
+
+def mark_overdue_sessions_missed(
+    session: Session,
+    *,
+    user_id: uuid.UUID | None,
+    now: datetime,
+) -> int:
+    statement = (
+        select(ReadingPlanSession)
+        .where(ReadingPlanSession.scheduled_at < now)
+        .where(
+            ReadingPlanSession.status.in_(
+                [
+                    ReadingPlanSessionStatus.SCHEDULED.value,
+                    ReadingPlanSessionStatus.DUE.value,
+                    ReadingPlanSessionStatus.IN_PROGRESS.value,
+                ]
+            )
+        )
+        .where(ReadingPlanSession.completed_units < ReadingPlanSession.total_units)
+    )
+    if user_id:
+        statement = statement.where(ReadingPlanSession.user_id == user_id)
+
+    rows = session.exec(statement).all()
+    for row in rows:
+        row.status = ReadingPlanSessionStatus.MISSED.value
+        row.missed_at = row.missed_at or now
+        row.updated_at = now
+        session.add(row)
+    return len(rows)
+
 ```
 
 ### app\repositories\spaced_review_repo.py
@@ -6451,9 +7993,9 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
-from app.core.constant import ReviewItemStatus
+from app.core.constant import PlanMode, ReviewItemStatus
 from app.models.db_models import SpacedReviewItem
 
 
@@ -6548,6 +8090,84 @@ def get_review_item_for_user(
             SpacedReviewItem.user_id == user_id,
         )
     ).first()
+
+
+def list_review_items_for_user(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    now: datetime,
+    status_filter: str = "due",
+    book_id: uuid.UUID | None = None,
+    mode: PlanMode | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> list[SpacedReviewItem]:
+    statement = select(SpacedReviewItem).where(SpacedReviewItem.user_id == user_id)
+    if book_id:
+        statement = statement.where(SpacedReviewItem.book_id == book_id)
+    if mode:
+        statement = statement.where(SpacedReviewItem.mode == mode)
+
+    if status_filter == "due":
+        statement = statement.where(
+            SpacedReviewItem.status.in_([ReviewItemStatus.DUE, ReviewItemStatus.PENDING]),
+            SpacedReviewItem.due_at <= now,
+        )
+    elif status_filter == "upcoming":
+        statement = statement.where(
+            SpacedReviewItem.status == ReviewItemStatus.PENDING,
+            SpacedReviewItem.due_at > now,
+        )
+    elif status_filter == "completed":
+        statement = statement.where(SpacedReviewItem.status == ReviewItemStatus.COMPLETED)
+    elif status_filter == "skipped":
+        statement = statement.where(SpacedReviewItem.status == ReviewItemStatus.SKIPPED)
+    elif status_filter != "all":
+        statement = statement.where(SpacedReviewItem.status == ReviewItemStatus(status_filter))
+
+    if status_filter == "all":
+        statement = statement.where(SpacedReviewItem.status != ReviewItemStatus.CANCELLED)
+
+    return list(session.exec(statement.order_by(SpacedReviewItem.due_at).offset(offset).limit(limit)).all())
+
+
+def count_review_items_for_user(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    now: datetime,
+    status_filter: str,
+    book_id: uuid.UUID,
+    mode: PlanMode,
+) -> int:
+    statement = select(func.count(SpacedReviewItem.id)).where(
+        SpacedReviewItem.user_id == user_id,
+        SpacedReviewItem.book_id == book_id,
+        SpacedReviewItem.mode == mode,
+    )
+
+    if status_filter == "due":
+        statement = statement.where(
+            SpacedReviewItem.status.in_([ReviewItemStatus.DUE, ReviewItemStatus.PENDING]),
+            SpacedReviewItem.due_at <= now,
+        )
+    elif status_filter == "upcoming":
+        statement = statement.where(
+            SpacedReviewItem.status == ReviewItemStatus.PENDING,
+            SpacedReviewItem.due_at > now,
+        )
+    elif status_filter == "completed":
+        statement = statement.where(SpacedReviewItem.status == ReviewItemStatus.COMPLETED)
+    elif status_filter == "skipped":
+        statement = statement.where(SpacedReviewItem.status == ReviewItemStatus.SKIPPED)
+    elif status_filter == "all":
+        statement = statement.where(SpacedReviewItem.status != ReviewItemStatus.CANCELLED)
+    else:
+        statement = statement.where(SpacedReviewItem.status == ReviewItemStatus(status_filter))
+
+    result = session.exec(statement).one()
+    return int(result or 0)
 
 
 def mark_review_item_completed(session: Session, review_item: SpacedReviewItem, *, completed_at: datetime) -> SpacedReviewItem:
@@ -7006,10 +8626,6 @@ class BookUpdateRequest(BaseModel):
     title: str | None = Field(default=None, min_length=1, max_length=255)
     author: str | None = Field(default=None, max_length=255)
 
-
-# Backward-compatible alias while old imports are cleaned up.
-BookInput = BookUpdateRequest
-
 ```
 
 ### app\schemas\learning_progress.py
@@ -7020,7 +8636,7 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
-from app.core.constant import LearningProgressStatus, PlanMode
+from app.core.constant import BookLearningStatus, LearningProgressStatus, PlanMode
 
 
 class LearningUnitProgressUpdateRequest(BaseModel):
@@ -7052,9 +8668,13 @@ class LearningUnitProgressResponse(BaseModel):
     completed_at: datetime | None = None
 
 
-class BookLearningProgressResponse(BaseModel):
+class BookLearningSummaryResponse(BaseModel):
     book_id: uuid.UUID
     mode: PlanMode
+    learning_status: BookLearningStatus
+    is_completed: bool
+    can_resume: bool
+    can_review: bool
     book_progress_percent: int
     completed_units: int
     playable_units: int
@@ -7062,6 +8682,14 @@ class BookLearningProgressResponse(BaseModel):
     last_segment_id: int | None = None
     last_segment_index: int | None = None
     position_ms: int | None = None
+    started_at: datetime | None = None
+    last_activity_at: datetime | None = None
+    completed_at: datetime | None = None
+    due_reviews_count: int = 0
+    upcoming_reviews_count: int = 0
+
+
+class BookLearningProgressResponse(BookLearningSummaryResponse):
     units: list[LearningUnitProgressResponse]
 
 ```
@@ -7159,7 +8787,7 @@ class DeviceTokenResponse(BaseModel):
 
 ```py
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 
 from pydantic import BaseModel, Field
 
@@ -7169,8 +8797,8 @@ from app.core.constant import PlanMode
 class PlanInput(BaseModel):
     book_id: uuid.UUID
     mode: PlanMode
-    pace: int  # số chương/ngày
-    schedule_config: list[str]  # VD: ["Mon", "Wed", "Fri"]
+    pace: int  # số learning unit mỗi buổi học
+    schedule_config: list[str]  # VD: ["Mon", "Wed", "Fri"]; request-only compatibility field
     reminder_time: str | None = None  # VD: "20:00", nếu None sẽ lấy từ user settings
     activate: bool = False  # False: chỉ cấu hình/generate, True: active lịch ngay
 
@@ -7199,6 +8827,72 @@ class ReadingPlanUserSlotResponse(ReadingPlanSlotResponse):
     book_id: uuid.UUID
 
 
+class ReadingPlanSessionUnitResponse(BaseModel):
+    id: uuid.UUID
+    learning_unit_id: uuid.UUID
+    unit_title: str = ""
+    unit_order: int
+    status: str
+    completed_at: datetime | None = None
+
+
+class ReadingPlanSessionResponse(BaseModel):
+    id: uuid.UUID
+    plan_id: uuid.UUID
+    book_id: uuid.UUID
+    mode: PlanMode
+    session_index: int
+    scheduled_at: datetime
+    local_date: str
+    reminder_time: str
+    timezone: str
+    status: str
+    completed_units: int
+    total_units: int
+    is_overdue: bool
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    missed_at: datetime | None = None
+    skipped_at: datetime | None = None
+    units: list[ReadingPlanSessionUnitResponse] = Field(default_factory=list)
+
+
+class ReadingPlanSessionListResponse(BaseModel):
+    book_id: uuid.UUID | None = None
+    local_date: str | None = None
+    timezone: str | None = None
+    total: int
+    items: list[ReadingPlanSessionResponse] = Field(default_factory=list)
+
+
+class ReadingPlanSessionRangeResponse(ReadingPlanSessionListResponse):
+    from_date: date
+    to_date: date
+    summary: dict[str, int] = Field(default_factory=dict)
+
+
+class ReadingPlanSessionSkipRequest(BaseModel):
+    reason: str | None = None
+
+
+class ReadingPlanSessionRescheduleRequest(BaseModel):
+    local_date: date
+    reminder_time: str
+    timezone: str | None = None
+
+
+class ReadingPlanSessionActionResponse(BaseModel):
+    message: str
+    session: ReadingPlanSessionResponse
+
+
+class ReadingPlanSessionSummaryResponse(BaseModel):
+    total_sessions: int = 0
+    completed_sessions: int = 0
+    missed_sessions: int = 0
+    next_session: ReadingPlanSessionResponse | None = None
+
+
 class ReadingPlanResponse(BaseModel):
     plan_id: uuid.UUID
     book_id: uuid.UUID
@@ -7211,6 +8905,10 @@ class ReadingPlanResponse(BaseModel):
     active_slots: list[ReadingPlanSlotResponse] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
+    started_at: datetime | None = None
+    paused_at: datetime | None = None
+    completed_at: datetime | None = None
+    session_summary: ReadingPlanSessionSummaryResponse | None = None
 
 
 class ReadingPlanUpdateResponse(ReadingPlanResponse):
@@ -7281,6 +8979,7 @@ from typing import Optional
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.core.constant import DocumentType
+from app.schemas.learning_progress import BookLearningSummaryResponse
 
 
 class BookResponse(BaseModel):
@@ -7292,6 +8991,9 @@ class BookResponse(BaseModel):
     total_sections: Optional[int] = None
     total_units: Optional[int] = None
     status: Optional[str] = None
+    learning_status: Optional[str] = None
+    book_progress_percent: Optional[int] = None
+    completed_at: Optional[datetime] = None
     document_type: Optional[DocumentType] = None
     file_url: Optional[str] = None
     created_at: datetime
@@ -7329,6 +9031,7 @@ class BookDetailResponse(BaseModel):
     mode: str
     total_sections: Optional[int] = None
     total_units: int = 0
+    learning_summary: Optional[BookLearningSummaryResponse] = None
     units: list[LearningUnitDetailResponse] = Field(default_factory=list)
 
 
@@ -7442,9 +9145,33 @@ __all__ = [
 import uuid
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from app.core.constant import ReviewItemStatus
+from app.core.constant import PlanMode, ReviewItemStatus
+
+
+class ReviewItemResponse(BaseModel):
+    review_item_id: uuid.UUID
+    book_id: uuid.UUID
+    book_title: str | None = None
+    learning_unit_id: uuid.UUID | None = None
+    learning_unit_title: str | None = None
+    mode: PlanMode
+    status: ReviewItemStatus
+    due_at: datetime
+    interval_days: int
+    sequence_index: int
+    review_text: str = ""
+    review_audio_url: str | None = None
+    anchor_completed_at: datetime | None = None
+    last_reviewed_at: datetime | None = None
+    completed_at: datetime | None = None
+    notified_at: datetime | None = None
+
+
+class ReviewListResponse(BaseModel):
+    items: list[ReviewItemResponse] = Field(default_factory=list)
+    total: int
 
 
 class ReviewActionResponse(BaseModel):
@@ -7907,7 +9634,7 @@ from app.services.agent_grounding.contracts import (
     ResolutionQuality,
     SectionTextLoader,
 )
-from app.services.agent_grounding.intent_router import detect_external_current_info, detect_metadata_intent, detect_section_intent
+from app.services.agent_grounding.intent_router import detect_metadata_intent, detect_section_intent
 from app.services.agent_grounding.query_normalizer import normalize_query
 from app.services.agent_grounding.response_renderer import render_metadata_answer
 from app.services.agent_grounding.section_context_builder import build_section_context, descendant_section_ids
@@ -7944,20 +9671,18 @@ class GroundingRouter:
         else:
             reference = parse_section_reference(normalized)
             section_intent = detect_section_intent(normalized, reference)
+
+            result = None
             if section_intent == GroundingIntent.CLARIFICATION_REQUIRED:
                 result = self._clarification("missing_section_reference", "Bạn muốn hỏi chương hoặc đề mục nào?")
             elif section_intent is not None:
                 result = await self._resolve_section(normalized, reference, section_intent)
-            elif detect_external_current_info(normalized):
-                result = GroundingResult(
-                    GroundingDecision(
-                        GroundingIntent.EXTERNAL_CURRENT_INFO,
-                        GroundingRoute.WEB_POLICY,
-                        ResolutionQuality.EXACT,
-                        "clear_external_current_info",
-                    )
-                )
-            else:
+                if result.decision.route == GroundingRoute.CLARIFICATION:
+                    is_explicit = reference.explicit_path is not None or reference.explicit_ordinal is not None
+                    if not is_explicit:
+                        result = None
+
+            if result is None:
                 result = GroundingResult(
                     GroundingDecision(
                         GroundingIntent.BOOK_SEMANTIC_QUESTION,
@@ -8043,7 +9768,6 @@ class GroundingRouter:
         source = source_by_route.get(decision.route)
         if source is not None:
             tracer.record_answer_source(input_mode, source)
-
 
 ```
 
@@ -8466,22 +10190,6 @@ SUMMARY_MARKERS = (
     "overview",
 )
 SECTION_CONTENT_MARKERS = ("nội dung", "giải thích", "trình bày", "explain", "what is in", "content")
-CURRENT_MARKERS = ("hôm nay", "hiện tại", "mới nhất", "gần đây", "today", "current", "latest", "recent")
-EXTERNAL_MARKERS = (
-    "bitcoin",
-    "tiền điện tử",
-    "giá",
-    "thời tiết",
-    "tin tức",
-    "internet",
-    "web",
-    "stock",
-    "crypto",
-    "weather",
-    "news",
-    "price",
-)
-BOOK_MARKERS = ("sách", "quyển sách", "chương", "mục", "đề mục", "book", "chapter", "section")
 
 
 def detect_metadata_intent(query: NormalizedQuery) -> GroundingIntent | None:
@@ -8503,20 +10211,11 @@ def detect_metadata_intent(query: NormalizedQuery) -> GroundingIntent | None:
 
 def detect_section_intent(query: NormalizedQuery, reference: SectionReference) -> GroundingIntent | None:
     summary_requested = contains_any_phrase(query, SUMMARY_MARKERS)
-    content_requested = contains_any_phrase(query, SECTION_CONTENT_MARKERS)
     if reference.has_target:
         return GroundingIntent.BOOK_SECTION_SUMMARY if summary_requested else GroundingIntent.BOOK_SECTION_CONTENT
-    if reference.marker_present and (summary_requested or content_requested or len(query.tokens) <= 5):
-        return GroundingIntent.CLARIFICATION_REQUIRED
     return None
 
 
-def detect_external_current_info(query: NormalizedQuery) -> bool:
-    return (
-        contains_any_phrase(query, CURRENT_MARKERS)
-        and contains_any_phrase(query, EXTERNAL_MARKERS)
-        and not contains_any_phrase(query, BOOK_MARKERS)
-    )
 
 ```
 
@@ -8921,6 +10620,9 @@ def parse_section_reference(query: NormalizedQuery) -> SectionReference:
         if token not in SECTION_MARKERS:
             continue
 
+        if token == "phan" and index + 1 < len(query.tokens) and query.tokens[index + 1] == "tram":
+            continue
+
         remaining = query.tokens[index + 1 :]
         if not remaining:
             return SectionReference(marker_present=True, title_hint=quoted_title)
@@ -9067,45 +10769,60 @@ def _clarification_for_candidates(candidates: tuple[GroundingSection, ...]) -> s
     return "Tôi tìm thấy nhiều đề mục phù hợp. Bạn vui lòng nói rõ số mục hoặc đường dẫn mục lục."
 
 
-def resolve_section(scope: GroundingScope, query: NormalizedQuery, reference: SectionReference) -> SectionResolution:
-    if not reference.has_target:
-        return SectionResolution(
-            ResolutionQuality.NOT_FOUND,
-            "missing_section_reference",
-            clarification="Bạn muốn hỏi chương hoặc đề mục nào?",
-        )
+def _primary_book_with_reference(scope: GroundingScope, reference: SectionReference) -> GroundingBook | None:
+    if not scope.allowed_book_ids:
+        return None
 
+    primary_id = scope.allowed_book_ids[0]
+    primary_book = next((book for book in scope.books if book.id == primary_id), None)
+    if primary_book is None:
+        return None
+
+    candidates = _reference_candidates(_sections_for_book(scope, primary_book.id), reference)
+    return primary_book if candidates else None
+
+
+def _candidate_books_for_reference(
+    scope: GroundingScope,
+    query: NormalizedQuery,
+    reference: SectionReference,
+) -> tuple[GroundingBook, ...]:
     named_books = _named_books(scope, query)
-    candidate_books = named_books
-    if not candidate_books and scope.books:
-        if scope.allowed_book_ids:
-            primary_id = scope.allowed_book_ids[0]
-            primary_book = next((b for b in scope.books if b.id == primary_id), None)
-            if primary_book is not None:
-                primary_matches = []
-                for section in _reference_candidates(_sections_for_book(scope, primary_book.id), reference):
-                    primary_matches.append((primary_book, section))
-                if primary_matches:
-                    candidate_books = (primary_book,)
-        if not candidate_books:
-            candidate_books = scope.books
+    if named_books:
+        return named_books
 
-    if not candidate_books:
-        return SectionResolution(
-            ResolutionQuality.NOT_FOUND,
-            "no_allowed_books",
-            clarification="Tôi chưa tìm thấy sách nào trong ngữ cảnh học tập hiện tại.",
-        )
+    if not scope.books:
+        return ()
 
+    primary_book = _primary_book_with_reference(scope, reference)
+    if primary_book is not None:
+        return (primary_book,)
+
+    return scope.books
+
+
+def _section_matches(
+    scope: GroundingScope,
+    candidate_books: tuple[GroundingBook, ...],
+    reference: SectionReference,
+) -> list[tuple[GroundingBook, GroundingSection]]:
     matches: list[tuple[GroundingBook, GroundingSection]] = []
     for book in candidate_books:
-        for section in _reference_candidates(_sections_for_book(scope, book.id), reference):
+        sections = _sections_for_book(scope, book.id)
+        for section in _reference_candidates(sections, reference):
             matches.append((book, section))
+    return matches
 
+
+def _section_resolution_from_matches(
+    matches: list[tuple[GroundingBook, GroundingSection]],
+    reference: SectionReference,
+) -> SectionResolution | None:
     if len(matches) == 1:
         book, section = matches[0]
         reason = "exact_section_path" if reference.explicit_path or reference.explicit_ordinal is not None else "exact_section_title"
         return SectionResolution(ResolutionQuality.EXACT, reason, book=book, section=section)
+
     if len(matches) > 1:
         candidates = tuple(section for _, section in matches)
         return SectionResolution(
@@ -9114,6 +10831,32 @@ def resolve_section(scope: GroundingScope, query: NormalizedQuery, reference: Se
             candidates=candidates,
             clarification=_clarification_for_candidates(candidates),
         )
+
+    return None
+
+
+def resolve_section(scope: GroundingScope, query: NormalizedQuery, reference: SectionReference) -> SectionResolution:
+    if not reference.has_target:
+        return SectionResolution(
+            ResolutionQuality.NOT_FOUND,
+            "missing_section_reference",
+            clarification="Bạn muốn hỏi chương hoặc đề mục nào?",
+        )
+
+    candidate_books = _candidate_books_for_reference(scope, query, reference)
+    if not candidate_books:
+        return SectionResolution(
+            ResolutionQuality.NOT_FOUND,
+            "no_allowed_books",
+            clarification="Tôi chưa tìm thấy sách nào trong ngữ cảnh học tập hiện tại.",
+        )
+
+    resolution = _section_resolution_from_matches(
+        _section_matches(scope, candidate_books, reference),
+        reference,
+    )
+    if resolution is not None:
+        return resolution
 
     return SectionResolution(
         ResolutionQuality.NOT_FOUND,
@@ -9236,8 +10979,10 @@ MODEL_CONFIG_KEYS = (
     "VOICE_AGENT_PERMISSION_CLASSIFIER_MODEL",
 )
 RUNTIME_CONFIG_KEYS = (
-    "AGENT_CANONICAL_SECTION_RAG_ENABLED",
     "AGENT_HYBRID_RAG_ENABLED",
+    "BOOK_SECTION_EMBEDDING_VERSION",
+    "BOOK_SECTION_RAG_MATCH_THRESHOLD",
+    "BOOK_SECTION_RAG_MATCH_COUNT",
 )
 REPORT_CONFIG_KEYS = MODEL_CONFIG_KEYS + RUNTIME_CONFIG_KEYS
 MODEL_ENV_ALLOWLIST = set(MODEL_CONFIG_KEYS) - {"AGENT_MODEL_PROFILE"}
@@ -10523,6 +12268,7 @@ from app.services.voice_agent.query_guard import VoiceQueryGuardConfig, VoiceQue
 from app.services.voice_agent.rag_context import format_rag_context, search_voice_book_context, trim_text
 from app.services.voice_agent.tool_reply_watchdog import VoiceToolReplyWatchdog, VoiceToolReplyWatchdogConfig
 from app.services.voice_agent.transcript_store import VoiceTranscriptStore, normalize_transcript_text
+from app.services.voice_agent.transcription_prompt import build_realtime_transcription_prompt
 from app.services.voice_agent.turn_state import VoiceTurnState
 from app.services.voice_agent.web_permission_intent_classifier import normalize_intent_text
 from app.services.voice_agent.web_permission_policy import WebSearchPermissionPolicy
@@ -10550,8 +12296,9 @@ You are TRIAM, a Vietnamese audiobook study assistant.
 Core rules:
 - Answer in Vietnamese only.
 - Keep replies natural and short: 2-3 sentences.
-- Do not use Markdown, bullet lists, headings, or emoji.
+- You are encouraged to use Markdown formatting (including headings, bold text, bullet/numbered lists, and tables) in your transcript text to make the on-screen display rich and structured. However, speak in a natural, conversational manner.
 - If audio is unclear, partial, noisy, silent, or unintelligible, ask the user to repeat in Vietnamese.
+- If the user asks a general/conceptual book question or requests a character/concept summary without specifying a chapter, do not ask them to specify a chapter. Answer directly using the provided context (e.g. from BOOK_CONTEXT_FOUND).
 
 Tool rules:
 - For any question about book content, concepts, chapters, learning topics, or study context, ALWAYS call `search_book_knowledge` first.
@@ -10593,7 +12340,8 @@ Tool rules:
 - If a tool returns `WEB_SEARCH_PERMISSION_REQUIRED` or `WEB_SEARCH_PERMISSION_UNCLEAR`, ask permission and stop.
 - If a tool returns `WEB_SEARCH_PERMISSION_DENIED`, do not search the web.
 - Do not call `search_book_knowledge_text` again in the same turn after a clarification, unavailable-section, context-error, or web-permission marker.
-- Answer in Vietnamese only, 2-3 short sentences, no Markdown, no emoji.
+- Answer in Vietnamese only, keeping the response structured and focused. You are encouraged to use rich Markdown formatting (such as headings #/##, bold text **, lists, and tables) to present your answers beautifully and clearly on the UI.
+- If the user asks a general/conceptual book question or requests a character/concept summary without specifying a chapter, do not ask them to specify a chapter. Answer directly using the provided context.
 """.strip()
 
 SECTION_TEXT_ANSWER_INSTRUCTIONS = """
@@ -10618,12 +12366,18 @@ Web result:
 {web_result}
 
 Answer in Vietnamese only, briefly.
-Do not use Markdown, bullet lists, headings, numbering, or emoji.
+You are encouraged to use Markdown formatting (such as bold text, headings, bullet/numbered lists, and tables) to structure your explanation clearly based on the web results.
 If the web result is weak or incomplete, say so.
 """.strip()
 
 
-GREETING_INSTRUCTIONS = "Chào ông, tôi là TRIAM đây. Bạn muốn thảo luận về chương sách nào hôm nay?"
+GREETING_INSTRUCTIONS = (
+    "Speak exactly the following greeting in Vietnamese: "
+    '"Chào bạn, tôi là TRIAM đây. Bạn muốn thảo luận về chương sách nào hôm nay?" '
+    "Under no circumstances should you call any tools (including search_book_knowledge) "
+    "or attempt to answer any historical queries from previous turns. Just output the "
+    "greeting text and finish this turn immediately."
+)
 
 
 def _get_job_executor_type() -> JobExecutorType:
@@ -10730,6 +12484,7 @@ class ChatTextOutput(voice_io.TextOutput):
         # Flush is sync; schedule async publish.
         self._flush_task = asyncio.create_task(_publish(self._topic, message))
 
+
 class TriamAssistant(Agent):
     def __init__(
         self,
@@ -10766,8 +12521,6 @@ class TriamAssistant(Agent):
         return VoiceQueryGuardConfig(
             min_chars=settings.VOICE_AGENT_QUERY_GUARD_MIN_CHARS,
             min_tokens=settings.VOICE_AGENT_QUERY_GUARD_MIN_TOKENS,
-            min_overlap_ratio=settings.VOICE_AGENT_QUERY_GUARD_MIN_OVERLAP_RATIO,
-            min_important_overlap_ratio=settings.VOICE_AGENT_QUERY_GUARD_MIN_IMPORTANT_OVERLAP_RATIO,
             clarification_confirmation_max_tokens=settings.VOICE_AGENT_CLARIFICATION_CONFIRMATION_MAX_TOKENS,
             clarification_min_query_prompt_overlap=settings.VOICE_AGENT_CLARIFICATION_MIN_QUERY_PROMPT_OVERLAP,
         )
@@ -10867,9 +12620,7 @@ class TriamAssistant(Agent):
     def _current_pending_clarification(self):
         if not settings.VOICE_AGENT_CLARIFICATION_STATE_ENABLED:
             return None
-        return self.voice_turn_state.recent_pending_clarification(
-            settings.VOICE_AGENT_CLARIFICATION_STATE_TTL_SECONDS
-        )
+        return self.voice_turn_state.recent_pending_clarification(settings.VOICE_AGENT_CLARIFICATION_STATE_TTL_SECONDS)
 
     def _record_query_guard_result(
         self,
@@ -11023,12 +12774,7 @@ class TriamAssistant(Agent):
             return format_rag_context(result)
         except Exception as exc:
             self.tracer.record_error(input_mode, "book_rag_search_error")
-            log.warning(
-                "Book RAG search failed | "
-                f"input_mode={input_mode.value} | "
-                f"document_count={len(self.document_ids)} | "
-                f"error_type={type(exc).__name__}"
-            )
+            log.warning(f"Book RAG search failed | input_mode={input_mode.value} | document_count={len(self.document_ids)} | error_type={type(exc).__name__}")
             if input_mode == AgentInputMode.VOICE:
                 self.voice_turn_state.clear_pending_clarification()
             return "BOOK_CONTEXT_ERROR: Không thể tìm kiếm dữ liệu trong sách lúc này."
@@ -11087,6 +12833,7 @@ class TriamAssistant(Agent):
             try:
                 result = await web_search(query)
                 self._remember_web_result(query, result)
+                log.info(f"Voice web search completed | query_chars={len(query)} | result_chars={len(result or '')}")
                 self.tracer.record_latency(input_mode, "web_search", int((time.perf_counter() - started) * 1000))
                 self.tracer.record_answer_source(input_mode, AgentAnswerSource.WEB)
                 return result
@@ -11120,11 +12867,7 @@ def _tool_reply_watchdog_config() -> VoiceToolReplyWatchdogConfig:
         enabled=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_ENABLED,
         grace_seconds=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_GRACE_SECONDS,
         thinking_grace_seconds=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_THINKING_GRACE_SECONDS,
-        monitored_tools={
-            item.strip()
-            for item in settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_TOOLS.split(",")
-            if item.strip()
-        },
+        monitored_tools={item.strip() for item in settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_TOOLS.split(",") if item.strip()},
         allow_error_outputs=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_ALLOW_ERROR_OUTPUTS,
         force_tool_choice_none=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_FORCE_TOOL_CHOICE_NONE,
     )
@@ -11138,11 +12881,16 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
     document_ids = job_meta.document_ids
 
     if not document_ids:
-        log.info("❌ Không tìm thấy document_ids trong metadata! Thoát.")
-        return
+        if ctx.room.name == "console":
+            log.warning("Voice console started without VOICE_AGENT_CONSOLE_BOOK_ID; limited STT-only run. Full local console testing requires a book ID.")
+        else:
+            log.info("No document_ids found in LiveKit metadata; closing voice job.")
+            return
 
-    log.info(f"✅ Document IDs từ metadata: {document_ids}")
-    log.info(f"🏠 Room Name (session): {ctx.room.name}")
+    if ctx.room.name == "console" and not thread_id:
+        log.warning("Voice console started without VOICE_AGENT_CONSOLE_THREAD_ID; chat persistence is disabled for this run.")
+
+    log.info(f"Voice session scope ready | document_count={len(document_ids)} | room={ctx.room.name}")
     log.info(f"Bat dau phien doc sach cho Thread ID: {thread_id}")
 
     thread_uuid: uuid.UUID | None = None
@@ -11183,6 +12931,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         late_transcript_window_seconds=settings.AGENT_TRACE_LATE_TRANSCRIPT_WINDOW_SECONDS,
     )
 
+    grounding_scope = None
     grounding_router: GroundingRouter | None = None
     if settings.AGENT_GROUNDING_ROUTER_ENABLED:
         try:
@@ -11202,13 +12951,11 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 _load_section_texts,
                 section_context_max_chars=settings.AGENT_SECTION_CONTEXT_MAX_CHARS,
             )
-            log.info(
-                "Grounding router ready | "
-                f"books={len(grounding_scope.books)} | sections={len(grounding_scope.sections)} | "
-                f"load_ms={int((time.perf_counter() - grounding_started) * 1000)}"
-            )
-        except Exception as exc:
-            log.warning(f"Grounding router initialization failed; using legacy RAG flow | error_type={type(exc).__name__}")
+            log.info(f"Grounding router ready | books={len(grounding_scope.books)} | sections={len(grounding_scope.sections)} | load_ms={int((time.perf_counter() - grounding_started) * 1000)}")
+        except Exception:
+            log.exception("Failed to initialize grounding router")
+            grounding_scope = None
+            grounding_router = None
 
     voice_turn_state = VoiceTurnState()
     shared_policy = SharedAgentPolicy(
@@ -11539,7 +13286,6 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 log.info("lk.control: payload không phải JSON hợp lệ")
             return
 
-
         # --- Kênh chat thông thường ---
         if packet.topic == LK_CHAT_TOPIC:
             participant_id = packet.participant.identity if packet.participant else None
@@ -11551,11 +13297,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
     empty_room_cleanup_task: asyncio.Task[None] | None = None
 
     def _remote_participant_identities(exclude_identity: str | None = None) -> list[str]:
-        return [
-            participant.identity
-            for participant in ctx.room.remote_participants.values()
-            if participant.identity != exclude_identity
-        ]
+        return [participant.identity for participant in ctx.room.remote_participants.values() if participant.identity != exclude_identity]
 
     async def _close_empty_room_after_grace() -> None:
         try:
@@ -11592,10 +13334,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             return
         if empty_room_cleanup_task and not empty_room_cleanup_task.done():
             return
-        log.info(
-            "No remote participants left. Scheduling agent cleanup "
-            f"after {settings.LIVEKIT_AGENT_EMPTY_ROOM_GRACE_SECONDS}s grace period."
-        )
+        log.info(f"No remote participants left. Scheduling agent cleanup after {settings.LIVEKIT_AGENT_EMPTY_ROOM_GRACE_SECONDS}s grace period.")
         empty_room_cleanup_task = asyncio.create_task(_close_empty_room_after_grace())
 
     async def _cancel_empty_room_cleanup() -> None:
@@ -11647,10 +13386,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             tracer.complete_turn(AgentInputMode.VOICE)
             log.info(f"Assistant voice speech saved | text_len={len(text)} | thread_id={thread_uuid}")
             asyncio.create_task(transcript_store.save_and_publish_assistant(text))
-            if (
-                settings.VOICE_AGENT_ASSISTANT_CLARIFICATION_HEURISTIC_ENABLED
-                and agent_instance._looks_like_assistant_clarification(text)
-            ):
+            if settings.VOICE_AGENT_ASSISTANT_CLARIFICATION_HEURISTIC_ENABLED and agent_instance._looks_like_assistant_clarification(text):
                 voice_turn_state.set_pending_clarification(
                     prompt_text=text,
                     reason_code="assistant_confirmation",
@@ -11699,6 +13435,22 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         def on_close(_ev):
             watchdog.close()
 
+    transcription_prompt_result = build_realtime_transcription_prompt(
+        base_prompt=settings.OPENAI_REALTIME_TRANSCRIPTION_PROMPT,
+        grounding_scope=grounding_scope,
+        enabled=settings.OPENAI_REALTIME_DYNAMIC_TRANSCRIPTION_PROMPT_ENABLED,
+        max_chars=settings.OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_CHARS,
+        max_terms=settings.OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_TERMS,
+        max_section_terms=settings.OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_SECTION_TERMS,
+    )
+
+    log.info(
+        "Realtime transcription prompt ready | "
+        f"dynamic={transcription_prompt_result.dynamic_enabled} | "
+        f"terms={transcription_prompt_result.term_count} | "
+        f"chars={transcription_prompt_result.prompt_chars}"
+    )
+
     # Start session with fallback when a configured model is unavailable.
     last_start_exc: Exception | None = None
     for model_name in model_candidates:
@@ -11711,9 +13463,9 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 input_audio_transcription=AudioTranscription(
                     model=settings.OPENAI_REALTIME_TRANSCRIPTION_MODEL,
                     language=settings.OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE,
-                    prompt=settings.OPENAI_REALTIME_TRANSCRIPTION_PROMPT,
+                    prompt=transcription_prompt_result.prompt,
                 ),
-                input_audio_noise_reduction="near_field",
+                input_audio_noise_reduction=settings.OPENAI_REALTIME_INPUT_AUDIO_NOISE_REDUCTION,
             )
             session = AgentSession(
                 llm=model,
@@ -11837,14 +13589,16 @@ def get_loop_semaphore(name: str, limit: int) -> asyncio.Semaphore:
 
 ```py
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlmodel import Session
 
 from app.core.constant import BookStatus, PlanMode, PlanStatus, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import BookNotFoundError, BookStatusConflictError, ExternalServiceError, NoReadingPlanError, ReadingPlanNotFoundError, ReadingPlanScheduleConflictError
 from app.models.db_models import Book, LearningUnit, LearningUnitSegment, ProcessingJob, ReadingPlan, ReadingPlanScheduleSlot
 from app.repositories import audiobook_repo
+from app.repositories.book_read_repo import BookListProjection, get_book_library_projection, list_book_library_projections
 from app.repositories.book_section_repo import BookSectionOutlineRow, list_book_section_outline_rows, list_book_sections
 from app.repositories.learning_unit_repo import (
     count_unit_segments_by_book_and_mode,
@@ -11853,22 +13607,49 @@ from app.repositories.learning_unit_repo import (
     list_unit_segments,
 )
 from app.repositories.processing_job_repo import create_processing_job, update_processing_job
-from app.repositories.reading_plan_schedule_repo import delete_slots_for_plan, list_active_slots, list_slots_for_plan
+from app.repositories.reading_plan_repo import get_current_plan_for_owned_book
+from app.repositories.reading_plan_schedule_repo import list_active_slots, list_slots_for_plan, replace_slots_for_plan, set_slots_active
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
+from app.services.learning_progress_service import build_book_learning_summary_from_state
 from app.services.learning_unit_planner_service import plan_learning_units_async
-from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
+from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, WEEKDAY_SHORT_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
+from app.services.reading_plan_session_service import (
+    build_plan_session_summary,
+    cancel_future_sessions_for_plan,
+    ensure_future_sessions_for_plan,
+    mark_due_sessions_missed,
+    sync_existing_session_units_from_progress,
+)
 from app.tasks.book_tasks import switch_mode_task
 
 
-def list_books(session: Session, user_id: uuid.UUID) -> list[Book]:
-    return audiobook_repo.get_audiobooks_by_user(session, user_id)
+def _book_to_response_dict(projection: BookListProjection) -> dict:
+    book = projection.book
+    book_data = book.model_dump()
+    learning_status = None
+    book_progress_percent = None
+    completed_at = None
+    if projection.learning_state:
+        learning_status = projection.learning_state.status
+        book_progress_percent = projection.learning_state.book_progress_percent
+        completed_at = projection.learning_state.completed_at
+    return {
+        **book_data,
+        "learning_status": learning_status,
+        "book_progress_percent": book_progress_percent,
+        "completed_at": completed_at,
+    }
 
 
-def get_book(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> Book:
-    book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
-    if not book:
+def list_books(session: Session, user_id: uuid.UUID) -> list[dict]:
+    return [_book_to_response_dict(projection) for projection in list_book_library_projections(session, user_id=user_id)]
+
+
+def get_book(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> dict:
+    projection = get_book_library_projection(session, user_id=user_id, book_id=book_id)
+    if not projection:
         raise BookNotFoundError()
-    return book
+    return _book_to_response_dict(projection)
 
 
 def create_new_book(session: Session, user_id: uuid.UUID, payload: BookCreateRequest) -> Book:
@@ -11888,8 +13669,8 @@ async def delete_book_and_assets(session: Session, book_id: uuid.UUID, user_id: 
     await audiobook_repo.delete_book_storage(session, book_id, user_id)
 
 
-def _active_plan(session: Session, book_id: uuid.UUID) -> ReadingPlan:
-    plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
+def _active_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> ReadingPlan:
+    plan = get_current_plan_for_owned_book(session, user_id=user_id, book_id=book_id)
     if not plan:
         raise NoReadingPlanError()
     return plan
@@ -11914,20 +13695,29 @@ def _user_slot_to_dict(slot: ReadingPlanScheduleSlot) -> dict:
     }
 
 
+def _slots_to_schedule_config(slots: list[ReadingPlanScheduleSlot]) -> list[str]:
+    return [WEEKDAY_SHORT_LABELS.get(slot.weekday, str(slot.weekday)) for slot in slots]
+
+
 def _reading_plan_to_dict(session: Session, plan: ReadingPlan) -> dict:
+    all_slots = list_slots_for_plan(session, plan_id=plan.id, active_only=False)
     active_slots = list_slots_for_plan(session, plan_id=plan.id, active_only=True)
     return {
         "plan_id": plan.id,
         "book_id": plan.book_id,
         "mode": PlanMode(plan.mode),
         "pace": plan.pace,
-        "schedule_config": list(plan.schedule_config or []),
+        "schedule_config": _slots_to_schedule_config(all_slots),
         "reminder_time": plan.reminder_time,
         "status": plan.status,
         "plan_status": plan.status,
         "active_slots": [_slot_to_dict(slot) for slot in active_slots],
         "created_at": plan.created_at,
         "updated_at": plan.updated_at,
+        "started_at": plan.started_at,
+        "paused_at": plan.paused_at,
+        "completed_at": plan.completed_at,
+        "session_summary": build_plan_session_summary(session, plan_id=plan.id),
     }
 
 
@@ -11935,9 +13725,11 @@ def get_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -
     book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
-    plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
+    plan = get_current_plan_for_owned_book(session, user_id=user_id, book_id=book_id)
     if not plan:
         raise ReadingPlanNotFoundError()
+    mark_due_sessions_missed(session, user_id=user_id)
+    session.commit()
     return _reading_plan_to_dict(session, plan)
 
 
@@ -11974,8 +13766,9 @@ def get_book_details(session: Session, book_id: uuid.UUID, user_id: uuid.UUID, *
     if not book:
         raise BookNotFoundError()
 
-    plan = _active_plan(session, book_id)
+    plan = _active_plan(session, book_id, user_id)
     active_mode = PlanMode(mode) if mode else PlanMode(plan.mode)
+    learning_summary = build_book_learning_summary_from_state(session, user_id=user_id, book_id=book_id, mode=active_mode)
     units = list_learning_units(session, book_id, active_mode)
     segments_map = _segments_by_unit(list_unit_segments(session, [unit.id for unit in units]))
 
@@ -11985,6 +13778,7 @@ def get_book_details(session: Session, book_id: uuid.UUID, user_id: uuid.UUID, *
         "mode": active_mode.value,
         "total_sections": book.total_sections,
         "total_units": len(units),
+        "learning_summary": learning_summary,
         "units": [_unit_to_dict(unit, segments_map.get(unit.id, [])) for unit in units],
     }
 
@@ -12062,7 +13856,7 @@ async def switch_book_mode(
         raise BookNotFoundError()
     requested_mode = PlanMode(payload_mode)
 
-    plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
+    plan = get_current_plan_for_owned_book(session, user_id=user_id, book_id=book_id)
     if not plan:
         raise ReadingPlanNotFoundError()
 
@@ -12130,10 +13924,12 @@ def pause_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID)
     book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
-    plan = _active_plan(session, book_id)
+    plan = _active_plan(session, book_id, user_id)
     plan.status = PlanStatus.INACTIVE.value
+    plan.paused_at = datetime.now(timezone.utc)
     session.add(plan)
-    delete_slots_for_plan(session, plan_id=plan.id)
+    set_slots_active(session, plan_id=plan.id, is_active=False)
+    cancel_future_sessions_for_plan(session, plan_id=plan.id)
     session.commit()
     return {"message": "Đã tạm dừng kế hoạch học tập.", **_reading_plan_to_dict(session, plan)}
 
@@ -12142,34 +13938,47 @@ def resume_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID
     book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
-    plan = _active_plan(session, book_id)
+    plan = _active_plan(session, book_id, user_id)
 
     if plan.status == PlanStatus.ACTIVE.value:
         return {"message": "Kế hoạch học tập đang hoạt động.", **_reading_plan_to_dict(session, plan)}
+    if plan.status == PlanStatus.COMPLETED.value:
+        raise BookStatusConflictError("Sách đã hoàn thành. Hãy dùng chức năng ôn tập hoặc học lại nếu muốn bắt đầu vòng mới.")
 
     if book.status not in (BookStatus.PARTIAL_READY.value, BookStatus.READY.value):
         raise BookStatusConflictError("Tài liệu chưa sẵn sàng để bắt đầu học. Vui lòng chờ hệ thống xử lý thêm.")
 
+    existing_slots = list_slots_for_plan(session, plan_id=plan.id, active_only=False)
+    if not existing_slots:
+        raise ReadingPlanScheduleConflictError("Kế hoạch học tập chưa có lịch học. Vui lòng cập nhật lịch học trước khi tiếp tục.")
+
     slots = validate_plan_schedule_for_activation(
         session,
         user_id=user_id,
-        schedule_config=plan.schedule_config,
+        schedule_config=_slots_to_schedule_config(existing_slots),
         reminder_time=plan.reminder_time,
+        exclude_plan_id=plan.id,
     )
 
     plan.status = PlanStatus.ACTIVE.value
+    plan.started_at = plan.started_at or datetime.now(timezone.utc)
+    plan.paused_at = None
     session.add(plan)
-    delete_slots_for_plan(session, plan_id=plan.id)
-
-    for slot in build_slots_for_plan(
-        user_id=user_id,
-        book_id=book_id,
+    replace_slots_for_plan(
+        session,
         plan_id=plan.id,
-        slots=slots,
-    ):
-        session.add(slot)
+        slots=build_slots_for_plan(
+            user_id=user_id,
+            book_id=book_id,
+            plan_id=plan.id,
+            slots=slots,
+            is_active=True,
+        ),
+    )
 
     try:
+        ensure_future_sessions_for_plan(session, plan=plan, user_id=user_id, replace_unfinished=True)
+        sync_existing_session_units_from_progress(session, plan=plan, user_id=user_id)
         session.commit()
     except IntegrityError as exc:
         session.rollback()
@@ -12188,10 +13997,11 @@ def update_reading_plan(
     book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
-    plan = _active_plan(session, book_id)
+    plan = _active_plan(session, book_id, user_id)
 
     new_pace = pace if pace is not None else plan.pace
-    new_schedule_config = schedule_config if schedule_config is not None else plan.schedule_config
+    existing_slots = list_slots_for_plan(session, plan_id=plan.id, active_only=False)
+    new_schedule_config = schedule_config if schedule_config is not None else _slots_to_schedule_config(existing_slots)
     new_reminder_time = reminder_time if reminder_time is not None else plan.reminder_time
 
     if plan.status == PlanStatus.ACTIVE.value:
@@ -12203,29 +14013,43 @@ def update_reading_plan(
             exclude_plan_id=plan.id,
         )
 
-        delete_slots_for_plan(session, plan_id=plan.id)
-
-        for slot in build_slots_for_plan(
-            user_id=user_id,
-            book_id=book_id,
+        replace_slots_for_plan(
+            session,
             plan_id=plan.id,
-            slots=slots,
-        ):
-            session.add(slot)
+            slots=build_slots_for_plan(
+                user_id=user_id,
+                book_id=book_id,
+                plan_id=plan.id,
+                slots=slots,
+                is_active=True,
+            ),
+        )
     else:
-        validate_plan_schedule_shape(
+        slots = validate_plan_schedule_shape(
             session,
             user_id=user_id,
             schedule_config=new_schedule_config,
             reminder_time=new_reminder_time,
         )
-        delete_slots_for_plan(session, plan_id=plan.id)
+        replace_slots_for_plan(
+            session,
+            plan_id=plan.id,
+            slots=build_slots_for_plan(
+                user_id=user_id,
+                book_id=book_id,
+                plan_id=plan.id,
+                slots=slots,
+                is_active=False,
+            ),
+        )
 
     plan.pace = new_pace
-    plan.schedule_config = new_schedule_config
     plan.reminder_time = new_reminder_time
     session.add(plan)
     try:
+        if plan.status == PlanStatus.ACTIVE.value:
+            ensure_future_sessions_for_plan(session, plan=plan, user_id=user_id, replace_unfinished=True)
+            sync_existing_session_units_from_progress(session, plan=plan, user_id=user_id)
         session.commit()
     except IntegrityError as exc:
         session.rollback()
@@ -12944,84 +14768,6 @@ async def parse_docx_structure(file_obj) -> ParsedDocument:
 
 ```
 
-### app\services\embed_service.py
-
-```py
-import uuid
-
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from openai import AsyncOpenAI
-from sqlmodel import Session
-
-from app.core.config import settings
-from app.core.logger import log
-from app.models.db_models import BookKnowledge
-from app.repositories.book_knowledge_repo import bulk_create_knowledge
-
-aclient = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-
-_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=1200,
-    chunk_overlap=200,
-    separators=["\n\n", "\n", ".", "!", "?", " ", ""],
-)
-
-
-def process_book_to_enriched_chunks(book_title: str, unit_title: str, raw_text: str):
-    raw_chunks = _splitter.split_text(raw_text)
-    enriched_chunks = []
-
-    for chunk in raw_chunks:
-        # BƠM NGỮ CẢNH: Giúp Vector nắm bắt được bối cảnh toàn cục
-        header = f"[Tác phẩm: {book_title} | Bài học: {unit_title}]\n"
-        enriched_content = header + chunk
-
-        enriched_chunks.append(enriched_content)
-
-    return enriched_chunks
-
-
-async def embed_and_save_learning_unit(
-    book_id: uuid.UUID,
-    learning_unit_id: uuid.UUID,
-    book_title: str,
-    unit_title: str,
-    raw_text: str,
-    session: Session,
-) -> None:
-    chunks: list[str] = process_book_to_enriched_chunks(
-        book_title=book_title,
-        unit_title=unit_title,
-        raw_text=raw_text,
-    )
-
-    if not chunks:
-        return
-
-    records: list[BookKnowledge] = []
-    batch_size = max(1, settings.EMBEDDING_BATCH_SIZE)
-    for start in range(0, len(chunks), batch_size):
-        batch = chunks[start:start + batch_size]
-        response = await aclient.embeddings.create(
-            input=batch,
-            model="text-embedding-3-small",
-        )
-        records.extend(
-            BookKnowledge(
-                book_id=book_id,
-                learning_unit_id=learning_unit_id,
-                chunk_index=start + i,
-                content=batch[i],
-                embedding=embedding_data.embedding,
-            )
-            for i, embedding_data in enumerate(response.data)
-        )
-
-    bulk_create_knowledge(session, records)
-    log.info(f"RAG: Saved {len(records)} vectors for learning_unit_id={learning_unit_id}")
-
-```
-
 ### app\services\epub_service.py
 
 ```py
@@ -13370,16 +15116,21 @@ from datetime import datetime, timedelta, timezone
 from sqlmodel import Session, select
 
 from app.core.config import settings
-from app.core.constant import LearningProgressStatus, PlanMode, PlanStatus
+from app.core.constant import BookLearningStatus, LearningProgressStatus, PlanMode, PlanStatus
 from app.core.exceptions import BadRequestError, BookNotFoundError, NoPlayableAudioError
-from app.models.db_models import Book, LearningUnit, LearningUnitProgress, LearningUnitSegment, ReadingPlan
+from app.models.db_models import Book, BookLearningState, LearningUnit, LearningUnitProgress, LearningUnitSegment
+from app.repositories.book_learning_state_repo import get_book_learning_state, upsert_book_learning_state
 from app.repositories.learning_progress_repo import get_latest_activity, get_progress, list_book_progress, list_playable_unit_ids, save_progress
-from app.repositories.reading_plan_schedule_repo import delete_slots_for_plan
+from app.repositories.reading_plan_repo import get_plan_for_book_mode
+from app.repositories.reading_plan_schedule_repo import set_slots_active
+from app.repositories.spaced_review_repo import count_review_items_for_user
 from app.schemas.learning_progress import (
     BookLearningProgressResponse,
+    BookLearningSummaryResponse,
     LearningUnitProgressResponse,
     LearningUnitProgressUpdateRequest,
 )
+from app.services.reading_plan_session_service import cancel_future_sessions_for_plan, sync_reading_plan_session_unit_completion
 from app.services.spaced_review_service import create_spaced_reviews_after_unit_completion
 
 
@@ -13512,29 +15263,183 @@ def _should_persist_progress(
     return bool(last_saved_at and now - last_saved_at >= timedelta(seconds=settings.LEARNING_PROGRESS_STALE_SECONDS))
 
 
-def _check_and_deactivate_plan_on_completion(
+def _complete_reading_plan_if_needed(
+    session: Session,
+    *,
+    book_id: uuid.UUID,
+    mode: PlanMode,
+    completed_at: datetime,
+) -> None:
+    plan = get_plan_for_book_mode(session, book_id=book_id, mode=mode)
+    if not plan or plan.status == PlanStatus.COMPLETED.value:
+        return
+
+    plan.status = PlanStatus.COMPLETED.value
+    plan.completed_at = plan.completed_at or completed_at
+    plan.updated_at = datetime.now(timezone.utc)
+    session.add(plan)
+    set_slots_active(session, plan_id=plan.id, is_active=False)
+    cancel_future_sessions_for_plan(session, plan_id=plan.id, now=completed_at)
+    session.commit()
+
+
+def sync_book_learning_state(
     session: Session,
     *,
     user_id: uuid.UUID,
     book_id: uuid.UUID,
     mode: PlanMode,
-) -> None:
+) -> BookLearningState:
     playable_ids = list_playable_unit_ids(session, book_id=book_id, mode=mode)
-    if not playable_ids:
-        return
     progress_rows = list_book_progress(session, user_id=user_id, book_id=book_id, mode=mode)
-    completed_count = sum(
-        1
-        for p in progress_rows
-        if p.status == LearningProgressStatus.COMPLETED and p.learning_unit_id in playable_ids
+    progress_by_unit = {progress.learning_unit_id: progress for progress in progress_rows}
+    existing_state = get_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode)
+
+    playable_count = len(playable_ids)
+    total_percent = 0
+    completed_count = 0
+    started_at_candidates: list[datetime] = []
+    latest_activity_candidates: list[datetime] = []
+    completed_at_candidates: list[datetime] = []
+
+    for learning_unit_id in playable_ids:
+        progress = progress_by_unit.get(learning_unit_id)
+        if not progress:
+            continue
+        total_percent += progress.max_progress_percent
+        completed_count += int(progress.status == LearningProgressStatus.COMPLETED)
+        if progress.started_at:
+            started_at_candidates.append(progress.started_at)
+        if progress.last_activity_at:
+            latest_activity_candidates.append(progress.last_activity_at)
+        if progress.completed_at:
+            completed_at_candidates.append(progress.completed_at)
+
+    latest = get_latest_activity(session, user_id=user_id, book_id=book_id, mode=mode)
+    if playable_count and completed_count >= playable_count:
+        learning_status = BookLearningStatus.COMPLETED
+    elif progress_rows:
+        learning_status = BookLearningStatus.IN_PROGRESS
+    else:
+        learning_status = BookLearningStatus.NOT_STARTED
+
+    completed_at = None
+    if learning_status == BookLearningStatus.COMPLETED:
+        completed_at = existing_state.completed_at if existing_state and existing_state.completed_at else max(completed_at_candidates, default=datetime.now(timezone.utc))
+
+    state = upsert_book_learning_state(
+        session,
+        user_id=user_id,
+        book_id=book_id,
+        mode=mode,
+        status=learning_status.value,
+        book_progress_percent=int(total_percent / playable_count) if playable_count else 0,
+        completed_units=completed_count,
+        playable_units=playable_count,
+        last_learning_unit_id=latest.learning_unit_id if latest else None,
+        last_segment_id=latest.current_segment_id if latest else None,
+        last_segment_index=latest.last_segment_index if latest else None,
+        position_ms=latest.position_ms if latest else 0,
+        started_at=min(started_at_candidates, default=None),
+        last_activity_at=max(latest_activity_candidates, default=None),
+        completed_at=completed_at,
     )
-    if completed_count >= len(playable_ids):
-        plan = session.exec(select(ReadingPlan).where(ReadingPlan.book_id == book_id)).first()
-        if plan and plan.status == PlanStatus.ACTIVE.value:
-            plan.status = PlanStatus.INACTIVE.value
-            session.add(plan)
-            delete_slots_for_plan(session, plan_id=plan.id)
-            session.commit()
+    if learning_status == BookLearningStatus.COMPLETED and completed_at:
+        _complete_reading_plan_if_needed(session, book_id=book_id, mode=mode, completed_at=completed_at)
+    return state
+
+
+def build_book_learning_summary(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    book_id: uuid.UUID,
+    mode: PlanMode,
+) -> BookLearningSummaryResponse:
+    state = sync_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode)
+    return build_book_learning_summary_from_state(
+        session,
+        user_id=user_id,
+        book_id=book_id,
+        mode=mode,
+        state=state,
+    )
+
+
+def build_book_learning_summary_from_state(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    book_id: uuid.UUID,
+    mode: PlanMode,
+    state: BookLearningState | None = None,
+    include_review_counts: bool = True,
+) -> BookLearningSummaryResponse:
+    state = state or get_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode)
+    due_reviews_count = 0
+    upcoming_reviews_count = 0
+    if include_review_counts:
+        now = datetime.now(timezone.utc)
+        due_reviews_count = count_review_items_for_user(
+            session,
+            user_id=user_id,
+            now=now,
+            status_filter="due",
+            book_id=book_id,
+            mode=mode,
+        )
+        upcoming_reviews_count = count_review_items_for_user(
+            session,
+            user_id=user_id,
+            now=now,
+            status_filter="upcoming",
+            book_id=book_id,
+            mode=mode,
+        )
+    if state is None:
+        learning_status = BookLearningStatus.NOT_STARTED
+        return BookLearningSummaryResponse(
+            book_id=book_id,
+            mode=mode,
+            learning_status=learning_status,
+            is_completed=False,
+            can_resume=False,
+            can_review=due_reviews_count > 0 or upcoming_reviews_count > 0,
+            book_progress_percent=0,
+            completed_units=0,
+            playable_units=0,
+            last_learning_unit_id=None,
+            last_segment_id=None,
+            last_segment_index=None,
+            position_ms=None,
+            started_at=None,
+            last_activity_at=None,
+            completed_at=None,
+            due_reviews_count=due_reviews_count,
+            upcoming_reviews_count=upcoming_reviews_count,
+        )
+
+    learning_status = BookLearningStatus(state.status)
+    return BookLearningSummaryResponse(
+        book_id=book_id,
+        mode=mode,
+        learning_status=learning_status,
+        is_completed=learning_status == BookLearningStatus.COMPLETED,
+        can_resume=learning_status == BookLearningStatus.IN_PROGRESS,
+        can_review=state.completed_units > 0 or due_reviews_count > 0 or upcoming_reviews_count > 0,
+        book_progress_percent=state.book_progress_percent,
+        completed_units=state.completed_units,
+        playable_units=state.playable_units,
+        last_learning_unit_id=state.last_learning_unit_id,
+        last_segment_id=state.last_segment_id,
+        last_segment_index=state.last_segment_index,
+        position_ms=state.position_ms if state.last_learning_unit_id else None,
+        started_at=state.started_at,
+        last_activity_at=state.last_activity_at,
+        completed_at=state.completed_at,
+        due_reviews_count=due_reviews_count,
+        upcoming_reviews_count=upcoming_reviews_count,
+    )
 
 
 def update_learning_unit_progress(
@@ -13601,7 +15506,17 @@ def update_learning_unit_progress(
     saved = save_progress(session, progress)
     if first_completion:
         _create_reviews_after_completion_once(session, user_id=user_id, book=book, unit=unit, progress=saved)
-        _check_and_deactivate_plan_on_completion(session, user_id=user_id, book_id=book_id, mode=mode)
+    sync_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode)
+    sync_reading_plan_session_unit_completion(
+        session,
+        user_id=user_id,
+        book_id=book_id,
+        learning_unit_id=learning_unit_id,
+        mode=mode,
+        progress_status=saved.status,
+        completed_at=saved.completed_at,
+        now=saved.last_activity_at,
+    )
     return _to_unit_response(saved)
 
 
@@ -13650,7 +15565,17 @@ def complete_learning_unit_manually(
     saved = save_progress(session, progress)
     if first_completion:
         _create_reviews_after_completion_once(session, user_id=user_id, book=book, unit=unit, progress=saved)
-        _check_and_deactivate_plan_on_completion(session, user_id=user_id, book_id=book_id, mode=mode_value)
+    sync_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode_value)
+    sync_reading_plan_session_unit_completion(
+        session,
+        user_id=user_id,
+        book_id=book_id,
+        learning_unit_id=learning_unit_id,
+        mode=mode_value,
+        progress_status=saved.status,
+        completed_at=saved.completed_at,
+        now=saved.last_activity_at,
+    )
     return _to_unit_response(saved)
 
 
@@ -13668,13 +15593,9 @@ def get_book_learning_progress(
     progress_by_unit = {progress.learning_unit_id: progress for progress in progress_rows}
 
     units: list[LearningUnitProgressResponse] = []
-    total_percent = 0
-    completed = 0
     for learning_unit_id in playable_ids:
         progress = progress_by_unit.get(learning_unit_id)
         if progress:
-            total_percent += progress.max_progress_percent
-            completed += int(progress.status == LearningProgressStatus.COMPLETED)
             units.append(_to_unit_response(progress))
         else:
             units.append(
@@ -13693,18 +15614,9 @@ def get_book_learning_progress(
                 )
             )
 
-    playable_count = len(playable_ids)
-    latest = get_latest_activity(session, user_id=user_id, book_id=book_id, mode=mode_value)
+    summary = build_book_learning_summary(session, user_id=user_id, book_id=book_id, mode=mode_value)
     return BookLearningProgressResponse(
-        book_id=book_id,
-        mode=mode_value,
-        book_progress_percent=int(total_percent / playable_count) if playable_count else 0,
-        completed_units=completed,
-        playable_units=playable_count,
-        last_learning_unit_id=latest.learning_unit_id if latest else None,
-        last_segment_id=latest.current_segment_id if latest else None,
-        last_segment_index=latest.last_segment_index if latest else None,
-        position_ms=latest.position_ms if latest else None,
+        **summary.model_dump(),
         units=units,
     )
 
@@ -14375,6 +16287,11 @@ from app.core.constant import NotificationType
 def build_notification_copy(notification_type: NotificationType, payload: dict) -> tuple[str, str]:
     match notification_type:
         case NotificationType.PLAN_REMINDER:
+            if payload.get("subtype") == "missed_session":
+                return (
+                    "Bạn đã lỡ một buổi học",
+                    f"Có thể học bù {payload.get('book_title', 'sách của bạn')} khi bạn rảnh.",
+                )
             return (
                 "Đến giờ học rồi",
                 f"Tiếp tục nghe {payload.get('book_title', 'sách của bạn')} nhé.",
@@ -14424,7 +16341,7 @@ from app.core.constant import (
     NotificationStatus,
     NotificationType,
     PlanMode,
-    PlanStatus,
+    ReadingPlanSessionStatus,
     ReviewItemStatus,
 )
 from app.core.logger import log
@@ -14433,7 +16350,7 @@ from app.models.db_models import (
     LearningUnit,
     LearningUnitProgress,
     NotificationOutbox,
-    ReadingPlan,
+    ReadingPlanSession,
     SpacedReviewItem,
     UserNotification,
 )
@@ -14445,16 +16362,15 @@ from app.repositories.notification_outbox_repo import (
     mark_outbox_sent,
 )
 from app.repositories.notification_settings_repo import get_or_create_notification_settings
+from app.repositories.reading_plan_session_repo import list_due_reminder_sessions, list_missed_sessions_pending_notification
 from app.repositories.spaced_review_repo import defer_review_item, get_due_review_items, mark_review_item_due
 from app.repositories.user_notification_repo import create_user_notification_once
 from app.services.fcm_service import send_fcm_notification
 from app.services.notification_copy_service import build_notification_copy
 from app.services.reminder_schedule_service import (
     local_day_bounds_utc,
-    reminder_due_at_for_today,
     shift_out_of_quiet_hours,
     to_local,
-    weekday_is_enabled,
 )
 
 
@@ -14695,98 +16611,211 @@ def create_due_review_outbox_rows(session: Session, *, now: datetime) -> int:
     return created_count
 
 
-def _build_plan_reminder_outbox(session: Session, plan: ReadingPlan, book: Book, *, now: datetime) -> NotificationOutbox | None:
-    user_settings = get_or_create_notification_settings(session, book.user_id)
+def _build_plan_session_reminder_outbox(
+    session: Session,
+    plan_session: ReadingPlanSession,
+    book: Book,
+    *,
+    now: datetime,
+) -> NotificationOutbox | None:
+    user_settings = get_or_create_notification_settings(session, plan_session.user_id)
     if not user_settings.reminders_enabled:
         return None
-
-    local_now = to_local(now, user_settings.timezone)
-    if not weekday_is_enabled(plan.schedule_config, local_now):
+    if not has_playable_uncompleted_unit(session, user_id=plan_session.user_id, book_id=book.id, mode=plan_session.mode):
         return None
 
-    reminder_time = plan.reminder_time or user_settings.reminder_time
-    reminder_due_at = reminder_due_at_for_today(
-        now_utc=now,
-        timezone_name=user_settings.timezone,
-        reminder_time=reminder_time,
-    )
-    if now < reminder_due_at:
-        return None
-
-    due_at = shift_out_of_quiet_hours(
-        reminder_due_at,
-        user_settings.timezone,
-        user_settings.quiet_hours_start,
-        user_settings.quiet_hours_end,
-    )
-    if not _daily_cap_available(session, user_id=book.user_id, due_at=due_at, user_settings=user_settings):
-        return None
-
-    if not has_playable_uncompleted_unit(session, user_id=book.user_id, book_id=book.id, mode=plan.mode):
-        return None
-
-    start_utc, end_utc = local_day_bounds_utc(local_now.date(), user_settings.timezone)
+    local_scheduled = to_local(plan_session.scheduled_at, plan_session.timezone)
+    start_utc, end_utc = local_day_bounds_utc(local_scheduled.date(), plan_session.timezone)
     if has_studied_book_between(
         session,
-        user_id=book.user_id,
+        user_id=plan_session.user_id,
         book_id=book.id,
-        mode=plan.mode,
+        mode=plan_session.mode,
         start_utc=start_utc,
         end_utc=end_utc,
     ):
         return None
 
-    local_date = local_now.date().isoformat()
+    due_at = shift_out_of_quiet_hours(
+        plan_session.scheduled_at,
+        user_settings.timezone,
+        user_settings.quiet_hours_start,
+        user_settings.quiet_hours_end,
+    )
+    if due_at > now:
+        return None
+    if not _daily_cap_available(session, user_id=plan_session.user_id, due_at=due_at, user_settings=user_settings):
+        return None
+
     payload = {
         "book_id": str(book.id),
         "book_title": book.title,
-        "plan_id": str(plan.id),
-        "mode": plan.mode.value,
-        "local_date": local_date,
-        "action_type": "open_book",
+        "plan_id": str(plan_session.plan_id),
+        "session_id": str(plan_session.id),
+        "session_index": plan_session.session_index,
+        "mode": plan_session.mode.value,
+        "local_date": plan_session.local_date,
+        "action_type": "open_plan_session",
         "action_payload": {
             "book_id": str(book.id),
-            "mode": plan.mode.value,
+            "plan_id": str(plan_session.plan_id),
+            "session_id": str(plan_session.id),
+            "mode": plan_session.mode.value,
         },
     }
-    return create_outbox_once(
+    idempotency_key = f"plan-session:{plan_session.user_id}:{plan_session.id}:{plan_session.local_date}"
+    outbox = create_outbox_once(
         session,
         NotificationOutbox(
-            user_id=book.user_id,
+            user_id=plan_session.user_id,
             type=NotificationType.PLAN_REMINDER,
             channel=NotificationChannel.ALL,
             status=NotificationStatus.PENDING,
             payload=payload,
             due_at=due_at,
-            idempotency_key=f"plan:{book.user_id}:{book.id}:{plan.id}:{local_date}",
+            idempotency_key=idempotency_key,
         ),
     )
+    if outbox or get_outbox_by_idempotency_key(session, idempotency_key):
+        plan_session.status = ReadingPlanSessionStatus.DUE.value
+        plan_session.updated_at = now
+        session.add(plan_session)
+        session.commit()
+    return outbox
 
 
-def create_due_plan_reminder_outbox_rows(session: Session, *, now: datetime) -> int:
-    plan_ids = session.exec(
-        select(ReadingPlan.id)
-        .join(Book, ReadingPlan.book_id == Book.id)
-        .where(ReadingPlan.status == PlanStatus.ACTIVE)
-        .where(Book.status.in_([BookStatus.PARTIAL_READY.value, BookStatus.READY.value]))
-    ).all()
-
+def _create_due_plan_session_reminder_outbox_rows(session: Session, *, now: datetime) -> int:
     created_count = 0
-    for plan_id in plan_ids:
+    sessions = list_due_reminder_sessions(
+        session,
+        now=now,
+        limit=settings.NOTIFICATION_DELIVERY_BATCH_SIZE * 2,
+    )
+    for plan_session in sessions:
         try:
-            plan = session.get(ReadingPlan, plan_id)
-            if not plan:
-                continue
-            book = session.get(Book, plan.book_id)
+            book = session.get(Book, plan_session.book_id)
             if not book or book.status not in (BookStatus.PARTIAL_READY.value, BookStatus.READY.value):
                 continue
-            if _build_plan_reminder_outbox(session, plan, book, now=now):
+            if _build_plan_session_reminder_outbox(session, plan_session, book, now=now):
                 created_count += 1
         except ObjectDeletedError:
             session.rollback()
-            log.warning(f"Reading plan or book was deleted concurrently during scan | plan_id={plan_id}")
+            log.warning(f"Reading plan session was deleted concurrently during scan | session_id={plan_session.id}")
             continue
     return created_count
+
+
+def _build_missed_plan_session_outbox(
+    session: Session,
+    plan_session: ReadingPlanSession,
+    book: Book,
+    *,
+    now: datetime,
+) -> NotificationOutbox | None:
+    user_settings = get_or_create_notification_settings(session, plan_session.user_id)
+    if not user_settings.reminders_enabled:
+        plan_session.missed_notified_at = plan_session.missed_notified_at or now
+        plan_session.updated_at = now
+        session.add(plan_session)
+        session.commit()
+        return None
+
+    if has_studied_book_between(
+        session,
+        user_id=plan_session.user_id,
+        book_id=book.id,
+        mode=plan_session.mode,
+        start_utc=plan_session.scheduled_at,
+        end_utc=now,
+    ):
+        plan_session.missed_notified_at = plan_session.missed_notified_at or now
+        plan_session.updated_at = now
+        session.add(plan_session)
+        session.commit()
+        return None
+
+    reminder_key = f"plan-session:{plan_session.user_id}:{plan_session.id}:{plan_session.local_date}"
+    if get_outbox_by_idempotency_key(session, reminder_key):
+        plan_session.missed_notified_at = plan_session.missed_notified_at or now
+        plan_session.updated_at = now
+        session.add(plan_session)
+        session.commit()
+        return None
+
+    due_at = shift_out_of_quiet_hours(
+        now,
+        user_settings.timezone,
+        user_settings.quiet_hours_start,
+        user_settings.quiet_hours_end,
+    )
+    if not _daily_cap_available(session, user_id=plan_session.user_id, due_at=due_at, user_settings=user_settings):
+        return None
+
+    payload = {
+        "subtype": "missed_session",
+        "book_id": str(book.id),
+        "book_title": book.title,
+        "plan_id": str(plan_session.plan_id),
+        "session_id": str(plan_session.id),
+        "session_index": plan_session.session_index,
+        "mode": plan_session.mode.value,
+        "local_date": plan_session.local_date,
+        "action_type": "open_plan_session",
+        "action_payload": {
+            "book_id": str(book.id),
+            "plan_id": str(plan_session.plan_id),
+            "session_id": str(plan_session.id),
+            "mode": plan_session.mode.value,
+        },
+    }
+    idempotency_key = f"missed-session:{plan_session.user_id}:{plan_session.id}"
+    outbox = create_outbox_once(
+        session,
+        NotificationOutbox(
+            user_id=plan_session.user_id,
+            type=NotificationType.PLAN_REMINDER,
+            channel=NotificationChannel.ALL,
+            status=NotificationStatus.PENDING,
+            payload=payload,
+            due_at=due_at,
+            idempotency_key=idempotency_key,
+        ),
+    )
+    if outbox or get_outbox_by_idempotency_key(session, idempotency_key):
+        plan_session.missed_notified_at = plan_session.missed_notified_at or now
+        plan_session.updated_at = now
+        session.add(plan_session)
+        session.commit()
+    return outbox
+
+
+def create_missed_plan_session_outbox_rows(session: Session, *, now: datetime) -> int:
+    created_count = 0
+    sessions = list_missed_sessions_pending_notification(
+        session,
+        now=now,
+        limit=settings.NOTIFICATION_DELIVERY_BATCH_SIZE * 2,
+    )
+    for plan_session in sessions:
+        try:
+            book = session.get(Book, plan_session.book_id)
+            if not book or book.status not in (BookStatus.PARTIAL_READY.value, BookStatus.READY.value):
+                plan_session.missed_notified_at = plan_session.missed_notified_at or now
+                plan_session.updated_at = now
+                session.add(plan_session)
+                session.commit()
+                continue
+            if _build_missed_plan_session_outbox(session, plan_session, book, now=now):
+                created_count += 1
+        except ObjectDeletedError:
+            session.rollback()
+            log.warning(f"Reading plan session was deleted concurrently during missed scan | session_id={plan_session.id}")
+            continue
+    return created_count
+
+
+def create_due_plan_reminder_outbox_rows(session: Session, *, now: datetime) -> int:
+    return _create_due_plan_session_reminder_outbox_rows(session, now=now) + create_missed_plan_session_outbox_rows(session, now=now)
 
 
 def deliver_outbox_notification(session: Session, outbox: NotificationOutbox, *, now: datetime) -> None:
@@ -15385,18 +17414,6 @@ from app.core.logger import log
 from app.services.document_structure_types import ParsedDocument, ParsedSection, flatten_sections, has_extractable_text
 
 
-def get_pdf_outline_structure(file_obj) -> list[dict]:
-    return [
-        {
-            "title": section.title,
-            "page_index": max(0, (section.page_start or 1) - 1),
-            "level": section.level,
-            "path": section.path,
-        }
-        for section in flatten_sections(_read_pdf_outline_tree(file_obj))
-    ]
-
-
 def _read_pdf_outline_tree(file_obj) -> list[ParsedSection]:
     file_obj.seek(0)
     try:
@@ -15585,89 +17602,6 @@ async def parse_pdf_structure(file_obj) -> ParsedDocument:
 
     return ParsedDocument(document_type="pdf", sections=sections)
 
-
-async def extract_text_from_pdf(file_obj, max_pages=None):
-    """
-    Helper function: Extract raw text từ PDF (không chia chương).
-    Dùng cho demo endpoints như /process-book-intro.
-
-    Args:
-        file_obj: File object của PDF
-        max_pages: Số trang tối đa cần extract (None = all pages)
-
-    Returns:
-        str: Raw text từ PDF
-    """
-    file_obj.seek(0)
-    extracted_text = ""
-
-    with pdfplumber.open(file_obj) as pdf:
-        pages_to_read = len(pdf.pages) if max_pages is None else min(
-            max_pages, len(pdf.pages))
-
-        for i in range(pages_to_read):
-            text = pdf.pages[i].extract_text()
-            if text:
-                extracted_text += text + "\n"
-
-    return extracted_text.strip()
-
-
-def extract_text_by_page_range(pdf_obj, start_page: int, end_page: int):
-    """
-    Trích xuất text từ trang A đến trang B.
-    - pdf_obj: Đối tượng pdfplumber đã mở.
-    - start_page: Số trang thực tế (ví dụ: 5).
-    - end_page: Số trang thực tế (ví dụ: 10).
-    -> Trả về text của trang 5, 6, 7, 8, 9, 10.
-    """
-    extracted_text = ""
-
-    # Validate: Đảm bảo trang kết thúc không vượt quá tổng số trang
-    total_pages = len(pdf_obj.pages)
-    if end_page > total_pages:
-        end_page = total_pages
-
-    # Vòng lặp lấy text
-    # LƯU Ý: Python index bắt đầu từ 0.
-    # Nếu muốn lấy trang 5 (start_page), index phải là 4 (start_page - 1).
-    # Hàm range(a, b) chạy đến b-1, nên tham số thứ 2 là end_page (tương ứng index end_page-1)
-
-    # Ví dụ: Lấy trang 5 đến 7.
-    # start_page=5 -> index=4
-    # end_page=7
-    # range(4, 7) sẽ chạy qua index: 4 (trang 5), 5 (trang 6), 6 (trang 7). CHUẨN.
-
-    for i in range(start_page - 1, end_page):
-        try:
-            page = pdf_obj.pages[i]
-            text = page.extract_text()
-            if text:
-                extracted_text += text + "\n"
-        except Exception as e:
-            log.warning(f"Lỗi đọc trang {i + 1}: {e}")
-
-    return extracted_text
-
-
-def extract_clean_text(page):
-    """
-    Chỉ lấy phần thân trang, bỏ Header (trên cùng) và Footer (số trang dưới cùng)
-    """
-    width = page.width
-    height = page.height
-
-    # Giả sử Header chiếm 50px trên cùng, Footer chiếm 50px dưới cùng
-    # Tọa độ crop: (x0, top, x1, bottom)
-    bounding_box = (0, 50, width, height - 50)
-
-    try:
-        cropped_page = page.crop(bounding_box)
-        return cropped_page.extract_text()
-    except ValueError:
-        # Fallback nếu trang không crop được (ví dụ trang trắng)
-        return page.extract_text()
-
 ```
 
 ### app\services\processing_job_service.py
@@ -15716,7 +17650,6 @@ from app.services.agent_grounding.query_normalizer import normalized_key
 ai_client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
 
 BOOK_CONTEXT_NOT_FOUND_MESSAGE = "Không tìm thấy thông tin cụ thể trong sách."
-LEGACY_BOOK_KNOWLEDGE_EMBEDDING_MODEL = "text-embedding-3-small"
 
 
 def _execute_supabase_rpc(name: str, payload: dict[str, Any]):
@@ -15739,25 +17672,6 @@ async def _embed_query(query: str, *, model: str) -> list[float]:
     res = await ai_client.embeddings.create(model=model, input=[query])
     query_vector = res.data[0].embedding
     return query_vector
-
-
-async def search_learning_unit_knowledge(query: str, document_ids: list[str]) -> list[dict[str, Any]] | str:
-    query_vector = await _embed_query(query, model=LEGACY_BOOK_KNOWLEDGE_EMBEDDING_MODEL)
-    result = await asyncio.to_thread(
-        _execute_supabase_rpc,
-        "match_book_knowledge",
-        {
-            "query_embedding": query_vector,
-            "match_threshold": 0.3,
-            "match_count": 10,
-            "filter_book_ids": document_ids,
-        },
-    )
-
-    if not result.data:
-        return BOOK_CONTEXT_NOT_FOUND_MESSAGE
-
-    return result.data
 
 
 async def search_book_section_knowledge(
@@ -15874,18 +17788,7 @@ async def search_book_knowledge(query: str, document_ids: list[str]) -> list[dic
     if settings.AGENT_HYBRID_RAG_ENABLED:
         return await search_book_hybrid_knowledge(query, document_ids)
 
-    if not settings.AGENT_CANONICAL_SECTION_RAG_ENABLED:
-        return await search_learning_unit_knowledge(query, document_ids)
-
-    canonical_result = await search_book_section_knowledge(query, document_ids)
-    if isinstance(canonical_result, list) and canonical_result:
-        return canonical_result
-
-    if settings.AGENT_CANONICAL_SECTION_RAG_FALLBACK_LEGACY:
-        log.info("Canonical section RAG returned no chunks; falling back to legacy learning-unit RAG.")
-        return await search_learning_unit_knowledge(query, document_ids)
-
-    return canonical_result
+    return await search_book_section_knowledge(query, document_ids)
 
 ```
 
@@ -15913,6 +17816,16 @@ WEEKDAY_LABELS = {
     4: "friday",
     5: "saturday",
     6: "sunday",
+}
+
+WEEKDAY_SHORT_LABELS = {
+    0: "Mon",
+    1: "Tue",
+    2: "Wed",
+    3: "Thu",
+    4: "Fri",
+    5: "Sat",
+    6: "Sun",
 }
 
 WEEKDAY_VI_LABELS = {
@@ -15990,6 +17903,7 @@ def build_slots_for_plan(
     book_id: uuid.UUID,
     plan_id: uuid.UUID,
     slots: list[ScheduleSlotInput],
+    is_active: bool = True,
 ) -> list[ReadingPlanScheduleSlot]:
     return [
         ReadingPlanScheduleSlot(
@@ -15999,7 +17913,7 @@ def build_slots_for_plan(
             weekday=slot.weekday,
             reminder_time=slot.reminder_time,
             timezone=slot.timezone,
-            is_active=True,
+            is_active=is_active,
         )
         for slot in slots
     ]
@@ -16073,6 +17987,581 @@ def create_schedule_slots_for_plan(
         )
     except IntegrityError as exc:
         raise ReadingPlanScheduleConflictError() from exc
+
+```
+
+### app\services\reading_plan_session_service.py
+
+```py
+import uuid
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from sqlmodel import Session, select
+
+from app.core.constant import LearningProgressStatus, PlanMode, PlanStatus, ReadingPlanSessionStatus, ReadingPlanSessionUnitStatus
+from app.core.exceptions import BadRequestError, BookNotFoundError, ReadingPlanScheduleConflictError, ReadingPlanSessionNotFoundError, ReadingPlanSessionStatusConflictError
+from app.models.db_models import (
+    Book,
+    LearningUnit,
+    ReadingPlan,
+    ReadingPlanScheduleSlot,
+    ReadingPlanSession,
+    ReadingPlanSessionUnit,
+)
+from app.repositories.learning_progress_repo import list_book_progress
+from app.repositories.learning_unit_repo import list_learning_units
+from app.repositories.notification_settings_repo import get_or_create_notification_settings
+from app.repositories.reading_plan_repo import list_plans_for_book_mode
+from app.repositories.reading_plan_schedule_repo import list_slots_for_plan
+from app.repositories.reading_plan_session_repo import (
+    FINAL_SESSION_STATUSES,
+    cancel_unfinished_sessions_for_plan,
+    find_session_schedule_conflict,
+    get_next_session_for_plan,
+    get_owned_session,
+    get_plan_session_summary_counts,
+    get_session_unit_for_learning_unit,
+    list_session_units,
+    list_sessions_for_book,
+    list_sessions_for_plan,
+    list_sessions_for_user_local_date,
+    list_sessions_for_user_range,
+    mark_overdue_sessions_missed,
+    mark_overdue_sessions_missed_rows,
+)
+from app.services.reminder_schedule_service import ensure_aware_utc, parse_hhmm, to_local
+
+MAX_SESSION_RANGE_DAYS = 120
+
+
+def _now_utc() -> datetime:
+    return datetime.now(timezone.utc)
+
+
+def _chunk_units(units: list[LearningUnit], pace: int) -> list[list[LearningUnit]]:
+    safe_pace = max(1, int(pace or 1))
+    return [units[index : index + safe_pace] for index in range(0, len(units), safe_pace)]
+
+
+def _next_session_datetimes(
+    *,
+    slots: list[ReadingPlanScheduleSlot],
+    now: datetime,
+    count: int,
+    lookahead_days: int = 370,
+) -> list[datetime]:
+    if count <= 0 or not slots:
+        return []
+
+    now = ensure_aware_utc(now)
+    candidates: list[datetime] = []
+    for slot in sorted(slots, key=lambda value: (value.weekday, value.reminder_time)):
+        slot_time = parse_hhmm(slot.reminder_time)
+        tz = ZoneInfo(slot.timezone)
+        local_now = now.astimezone(tz)
+        for offset in range(lookahead_days):
+            local_day = local_now.date() + timedelta(days=offset)
+            if local_day.weekday() != slot.weekday:
+                continue
+            local_dt = datetime.combine(local_day, slot_time, tzinfo=tz)
+            scheduled_at = local_dt.astimezone(timezone.utc)
+            if scheduled_at >= now:
+                candidates.append(scheduled_at)
+
+    unique_candidates = sorted(set(candidates))
+    return unique_candidates[:count]
+
+
+def _completed_unit_ids(session: Session, *, user_id: uuid.UUID, book_id: uuid.UUID, mode: PlanMode) -> set[uuid.UUID]:
+    progress_rows = list_book_progress(session, user_id=user_id, book_id=book_id, mode=mode)
+    return {row.learning_unit_id for row in progress_rows if row.status == LearningProgressStatus.COMPLETED}
+
+
+def _remaining_units_for_plan(session: Session, *, plan: ReadingPlan, user_id: uuid.UUID) -> list[LearningUnit]:
+    mode = PlanMode(plan.mode)
+    units = list_learning_units(session, plan.book_id, mode)
+    completed_ids = _completed_unit_ids(session, user_id=user_id, book_id=plan.book_id, mode=mode)
+    return [unit for unit in units if unit.id not in completed_ids]
+
+
+def _session_local_date(scheduled_at: datetime, timezone_name: str) -> str:
+    return ensure_aware_utc(scheduled_at).astimezone(ZoneInfo(timezone_name)).date().isoformat()
+
+
+def ensure_future_sessions_for_plan(
+    session: Session,
+    *,
+    plan: ReadingPlan,
+    user_id: uuid.UUID,
+    now: datetime | None = None,
+    replace_unfinished: bool = False,
+) -> int:
+    now = ensure_aware_utc(now or _now_utc())
+    if plan.status == PlanStatus.COMPLETED.value:
+        return 0
+
+    if replace_unfinished:
+        cancel_unfinished_sessions_for_plan(session, plan_id=plan.id, now=now)
+    else:
+        existing = [
+            row
+            for row in list_sessions_for_plan(session, plan_id=plan.id)
+            if row.status not in FINAL_SESSION_STATUSES
+        ]
+        if existing:
+            return 0
+
+    slots = list_slots_for_plan(session, plan_id=plan.id, active_only=True)
+    if not slots:
+        return 0
+
+    remaining_units = _remaining_units_for_plan(session, plan=plan, user_id=user_id)
+    unit_groups = _chunk_units(remaining_units, plan.pace)
+    scheduled_times = _next_session_datetimes(slots=slots, now=now, count=len(unit_groups))
+    created = 0
+
+    for index, (scheduled_at, unit_group) in enumerate(zip(scheduled_times, unit_groups, strict=False)):
+        slot = min(slots, key=lambda value: abs((scheduled_at.astimezone(ZoneInfo(value.timezone)).weekday() - value.weekday) % 7))
+        plan_session = ReadingPlanSession(
+            user_id=user_id,
+            plan_id=plan.id,
+            book_id=plan.book_id,
+            mode=PlanMode(plan.mode),
+            session_index=index,
+            scheduled_at=scheduled_at,
+            local_date=_session_local_date(scheduled_at, slot.timezone),
+            reminder_time=slot.reminder_time,
+            timezone=slot.timezone,
+            status=ReadingPlanSessionStatus.SCHEDULED.value,
+            completed_units=0,
+            total_units=len(unit_group),
+        )
+        session.add(plan_session)
+        session.flush()
+
+        for unit_order, unit in enumerate(unit_group):
+            session.add(
+                ReadingPlanSessionUnit(
+                    session_id=plan_session.id,
+                    plan_id=plan.id,
+                    book_id=plan.book_id,
+                    learning_unit_id=unit.id,
+                    unit_order=unit_order,
+                    status=ReadingPlanSessionUnitStatus.PENDING.value,
+                )
+            )
+        created += 1
+
+    return created
+
+
+def cancel_future_sessions_for_plan(
+    session: Session,
+    *,
+    plan_id: uuid.UUID,
+    now: datetime | None = None,
+) -> int:
+    return cancel_unfinished_sessions_for_plan(session, plan_id=plan_id, now=ensure_aware_utc(now or _now_utc()))
+
+
+def mark_due_sessions_missed(
+    session: Session,
+    *,
+    user_id: uuid.UUID | None = None,
+    now: datetime | None = None,
+) -> int:
+    return mark_overdue_sessions_missed(session, user_id=user_id, now=ensure_aware_utc(now or _now_utc()))
+
+
+def mark_due_sessions_missed_rows(
+    session: Session,
+    *,
+    user_id: uuid.UUID | None = None,
+    now: datetime | None = None,
+) -> list[ReadingPlanSession]:
+    return mark_overdue_sessions_missed_rows(session, user_id=user_id, now=ensure_aware_utc(now or _now_utc()))
+
+
+def _recalculate_parent_session(session: Session, plan_session: ReadingPlanSession, *, now: datetime) -> ReadingPlanSession:
+    units = list_session_units(session, session_ids=[plan_session.id])
+    completed_count = sum(1 for unit in units if unit.status == ReadingPlanSessionUnitStatus.COMPLETED.value)
+    active_count = sum(
+        1
+        for unit in units
+        if unit.status
+        in (
+            ReadingPlanSessionUnitStatus.IN_PROGRESS.value,
+            ReadingPlanSessionUnitStatus.COMPLETED.value,
+        )
+    )
+
+    plan_session.completed_units = completed_count
+    plan_session.total_units = len(units)
+    plan_session.updated_at = now
+
+    if len(units) > 0 and completed_count >= len(units):
+        plan_session.status = ReadingPlanSessionStatus.COMPLETED.value
+        plan_session.completed_at = plan_session.completed_at or now
+    elif active_count > 0:
+        plan_session.status = ReadingPlanSessionStatus.IN_PROGRESS.value
+        plan_session.started_at = plan_session.started_at or now
+    elif plan_session.scheduled_at <= now and plan_session.status == ReadingPlanSessionStatus.SCHEDULED.value:
+        plan_session.status = ReadingPlanSessionStatus.DUE.value
+
+    session.add(plan_session)
+    return plan_session
+
+
+def sync_reading_plan_session_unit_completion(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    book_id: uuid.UUID,
+    learning_unit_id: uuid.UUID,
+    mode: PlanMode,
+    progress_status: LearningProgressStatus,
+    completed_at: datetime | None = None,
+    now: datetime | None = None,
+    commit: bool = True,
+) -> None:
+    now = ensure_aware_utc(now or _now_utc())
+    plans = list_plans_for_book_mode(session, book_id=book_id, mode=mode)
+    changed = False
+    for plan in plans:
+        session_unit = get_session_unit_for_learning_unit(session, plan_id=plan.id, learning_unit_id=learning_unit_id)
+        if not session_unit:
+            continue
+
+        if progress_status == LearningProgressStatus.COMPLETED:
+            session_unit.status = ReadingPlanSessionUnitStatus.COMPLETED.value
+            session_unit.completed_at = session_unit.completed_at or completed_at or now
+        elif progress_status == LearningProgressStatus.IN_PROGRESS and session_unit.status == ReadingPlanSessionUnitStatus.PENDING.value:
+            session_unit.status = ReadingPlanSessionUnitStatus.IN_PROGRESS.value
+        else:
+            continue
+
+        session_unit.updated_at = now
+        session.add(session_unit)
+        parent = session.get(ReadingPlanSession, session_unit.session_id)
+        if parent:
+            _recalculate_parent_session(session, parent, now=now)
+        changed = True
+
+    if changed and commit:
+        session.commit()
+
+
+def _learning_unit_title_map(session: Session, unit_ids: list[uuid.UUID]) -> dict[uuid.UUID, str]:
+    if not unit_ids:
+        return {}
+    rows = session.exec(select(LearningUnit.id, LearningUnit.title).where(LearningUnit.id.in_(unit_ids))).all()
+    return dict(rows)
+
+
+def sessions_to_response(session: Session, sessions: list[ReadingPlanSession]) -> list[dict]:
+    units = list_session_units(session, session_ids=[item.id for item in sessions])
+    units_by_session: dict[uuid.UUID, list[ReadingPlanSessionUnit]] = {}
+    for unit in units:
+        units_by_session.setdefault(unit.session_id, []).append(unit)
+
+    titles = _learning_unit_title_map(session, [unit.learning_unit_id for unit in units])
+    now = _now_utc()
+    result: list[dict] = []
+    for item in sessions:
+        item_units = units_by_session.get(item.id, [])
+        result.append(
+            {
+                "id": item.id,
+                "plan_id": item.plan_id,
+                "book_id": item.book_id,
+                "mode": item.mode,
+                "session_index": item.session_index,
+                "scheduled_at": item.scheduled_at,
+                "local_date": item.local_date,
+                "reminder_time": item.reminder_time,
+                "timezone": item.timezone,
+                "status": item.status,
+                "completed_units": item.completed_units,
+                "total_units": item.total_units,
+                "is_overdue": item.status not in FINAL_SESSION_STATUSES and item.scheduled_at < now,
+                "started_at": item.started_at,
+                "completed_at": item.completed_at,
+                "missed_at": item.missed_at,
+                "skipped_at": item.skipped_at,
+                "units": [
+                    {
+                        "id": unit.id,
+                        "learning_unit_id": unit.learning_unit_id,
+                        "unit_title": titles.get(unit.learning_unit_id, ""),
+                        "unit_order": unit.unit_order,
+                        "status": unit.status,
+                        "completed_at": unit.completed_at,
+                    }
+                    for unit in item_units
+                ],
+            }
+        )
+    return result
+
+
+def build_plan_session_summary(session: Session, *, plan_id: uuid.UUID) -> dict:
+    counts = get_plan_session_summary_counts(session, plan_id=plan_id)
+    next_session = get_next_session_for_plan(session, plan_id=plan_id)
+    return {
+        "total_sessions": counts.total_sessions,
+        "completed_sessions": counts.completed_sessions,
+        "missed_sessions": counts.missed_sessions,
+        "next_session": sessions_to_response(session, [next_session])[0] if next_session else None,
+    }
+
+
+def list_book_reading_plan_sessions(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    book_id: uuid.UUID,
+    mode: PlanMode | str | None = None,
+) -> dict:
+    now = _now_utc()
+    mode_value = PlanMode(mode) if mode else None
+    book = session.exec(select(Book).where(Book.id == book_id, Book.user_id == user_id)).first()
+    if not book:
+        raise BookNotFoundError()
+    mark_due_sessions_missed(session, user_id=user_id, now=now)
+    session.commit()
+    sessions = list_sessions_for_book(session, user_id=user_id, book_id=book_id, mode=mode_value)
+    return {
+        "book_id": book_id,
+        "total": len(sessions),
+        "items": sessions_to_response(session, sessions),
+    }
+
+
+def list_today_reading_plan_sessions(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    local_date: date | None = None,
+) -> dict:
+    now = _now_utc()
+    user_settings = get_or_create_notification_settings(session, user_id)
+    resolved_date = local_date or to_local(now, user_settings.timezone).date()
+    mark_due_sessions_missed(session, user_id=user_id, now=now)
+    session.commit()
+    sessions = list_sessions_for_user_local_date(session, user_id=user_id, local_date=resolved_date.isoformat())
+    return {
+        "local_date": resolved_date.isoformat(),
+        "timezone": user_settings.timezone,
+        "total": len(sessions),
+        "items": sessions_to_response(session, sessions),
+    }
+
+
+def _resolve_status_filter(status: str | None) -> str | None:
+    if status is None:
+        return None
+    try:
+        return ReadingPlanSessionStatus(status).value
+    except ValueError as exc:
+        raise BadRequestError("Trạng thái buổi học không hợp lệ.") from exc
+
+
+def _resolve_mode_filter(mode: PlanMode | str | None) -> PlanMode | None:
+    if mode is None:
+        return None
+    try:
+        return PlanMode(mode)
+    except ValueError as exc:
+        raise BadRequestError("Mode kế hoạch học không hợp lệ.") from exc
+
+
+def _resolve_timezone_name(timezone_name: str | None, fallback: str) -> str:
+    resolved = timezone_name or fallback or "Asia/Ho_Chi_Minh"
+    try:
+        ZoneInfo(resolved)
+    except ZoneInfoNotFoundError as exc:
+        raise BadRequestError("Timezone không hợp lệ.") from exc
+    return resolved
+
+
+def _scheduled_at_from_local(*, local_date: date, reminder_time: str, timezone_name: str) -> datetime:
+    try:
+        local_time = parse_hhmm(reminder_time)
+    except ValueError as exc:
+        raise BadRequestError("Giờ nhắc học phải đúng định dạng HH:MM.") from exc
+    tz = ZoneInfo(timezone_name)
+    return datetime.combine(local_date, local_time, tzinfo=tz).astimezone(timezone.utc)
+
+
+def _session_summary_counts(sessions: list[ReadingPlanSession]) -> dict[str, int]:
+    return {status.value: sum(1 for item in sessions if item.status == status.value) for status in ReadingPlanSessionStatus}
+
+
+def list_reading_plan_sessions_range(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    from_date: date | None = None,
+    to_date: date | None = None,
+    book_id: uuid.UUID | None = None,
+    mode: PlanMode | str | None = None,
+    status: str | None = None,
+) -> dict:
+    now = _now_utc()
+    user_settings = get_or_create_notification_settings(session, user_id)
+    local_today = to_local(now, user_settings.timezone).date()
+    resolved_from = from_date or local_today - timedelta(days=7)
+    resolved_to = to_date or local_today + timedelta(days=30)
+    if resolved_from > resolved_to:
+        raise BadRequestError("from_date không được lớn hơn to_date.")
+    if (resolved_to - resolved_from).days > MAX_SESSION_RANGE_DAYS:
+        raise BadRequestError(f"Khoảng thời gian không được vượt quá {MAX_SESSION_RANGE_DAYS} ngày.")
+
+    if book_id:
+        book = session.exec(select(Book).where(Book.id == book_id, Book.user_id == user_id)).first()
+        if not book:
+            raise BookNotFoundError()
+
+    mode_value = _resolve_mode_filter(mode)
+    status_value = _resolve_status_filter(status)
+    mark_due_sessions_missed(session, user_id=user_id, now=now)
+    session.commit()
+
+    sessions = list_sessions_for_user_range(
+        session,
+        user_id=user_id,
+        from_local_date=resolved_from.isoformat(),
+        to_local_date=resolved_to.isoformat(),
+        book_id=book_id,
+        mode=mode_value,
+        status=status_value,
+    )
+    return {
+        "book_id": book_id,
+        "timezone": user_settings.timezone,
+        "from_date": resolved_from,
+        "to_date": resolved_to,
+        "total": len(sessions),
+        "summary": _session_summary_counts(sessions),
+        "items": sessions_to_response(session, sessions),
+    }
+
+
+def _ensure_session_can_change(plan_session: ReadingPlanSession, *, action: str) -> None:
+    if plan_session.status in FINAL_SESSION_STATUSES:
+        raise ReadingPlanSessionStatusConflictError(f"Buổi học đã ở trạng thái cuối, không thể {action}.")
+
+
+def skip_reading_plan_session(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    session_id: uuid.UUID,
+    reason: str | None = None,
+) -> dict:
+    now = _now_utc()
+    plan_session = get_owned_session(session, user_id=user_id, session_id=session_id)
+    if not plan_session:
+        raise ReadingPlanSessionNotFoundError()
+    _ensure_session_can_change(plan_session, action="bỏ qua")
+
+    plan_session.status = ReadingPlanSessionStatus.SKIPPED.value
+    plan_session.skipped_at = plan_session.skipped_at or now
+    plan_session.updated_at = now
+    session.add(plan_session)
+
+    units = list_session_units(session, session_ids=[plan_session.id])
+    for unit in units:
+        if unit.status in (ReadingPlanSessionUnitStatus.PENDING.value, ReadingPlanSessionUnitStatus.IN_PROGRESS.value):
+            unit.status = ReadingPlanSessionUnitStatus.SKIPPED.value
+            unit.updated_at = now
+            session.add(unit)
+
+    session.commit()
+    session.refresh(plan_session)
+    return {
+        "message": "Đã bỏ qua buổi học.",
+        "session": sessions_to_response(session, [plan_session])[0],
+    }
+
+
+def reschedule_reading_plan_session(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    session_id: uuid.UUID,
+    local_date: date,
+    reminder_time: str,
+    timezone_name: str | None = None,
+) -> dict:
+    now = _now_utc()
+    plan_session = get_owned_session(session, user_id=user_id, session_id=session_id)
+    if not plan_session:
+        raise ReadingPlanSessionNotFoundError()
+    _ensure_session_can_change(plan_session, action="dời lịch")
+
+    resolved_timezone = _resolve_timezone_name(timezone_name, plan_session.timezone)
+    scheduled_at = _scheduled_at_from_local(
+        local_date=local_date,
+        reminder_time=reminder_time,
+        timezone_name=resolved_timezone,
+    )
+    conflict = find_session_schedule_conflict(
+        session,
+        user_id=user_id,
+        scheduled_at=scheduled_at,
+        exclude_session_id=plan_session.id,
+    )
+    if conflict:
+        conflict_book = session.get(Book, conflict.book_id)
+        conflict_title = conflict_book.title if conflict_book else "một sách khác"
+        raise ReadingPlanScheduleConflictError(
+            f'Lịch học bị trùng với sách "{conflict_title}" vào {reminder_time} ngày {local_date.isoformat()}.'
+        )
+
+    units = list_session_units(session, session_ids=[plan_session.id])
+    has_started_unit = any(unit.status in (ReadingPlanSessionUnitStatus.IN_PROGRESS.value, ReadingPlanSessionUnitStatus.COMPLETED.value) for unit in units)
+    plan_session.scheduled_at = scheduled_at
+    plan_session.local_date = local_date.isoformat()
+    plan_session.reminder_time = reminder_time
+    plan_session.timezone = resolved_timezone
+    plan_session.updated_at = now
+    if has_started_unit or plan_session.started_at:
+        plan_session.status = ReadingPlanSessionStatus.IN_PROGRESS.value
+        plan_session.started_at = plan_session.started_at or now
+        if scheduled_at > now:
+            plan_session.missed_at = None
+    elif scheduled_at > now:
+        plan_session.status = ReadingPlanSessionStatus.SCHEDULED.value
+        plan_session.missed_at = None
+    else:
+        plan_session.status = ReadingPlanSessionStatus.MISSED.value
+        plan_session.missed_at = plan_session.missed_at or now
+
+    session.add(plan_session)
+    session.commit()
+    session.refresh(plan_session)
+    return {
+        "message": "Đã dời lịch buổi học.",
+        "session": sessions_to_response(session, [plan_session])[0],
+    }
+
+
+def sync_existing_session_units_from_progress(session: Session, *, plan: ReadingPlan, user_id: uuid.UUID) -> None:
+    progress_rows = list_book_progress(session, user_id=user_id, book_id=plan.book_id, mode=PlanMode(plan.mode))
+    for progress in progress_rows:
+        sync_reading_plan_session_unit_completion(
+            session,
+            user_id=user_id,
+            book_id=plan.book_id,
+            learning_unit_id=progress.learning_unit_id,
+            mode=PlanMode(plan.mode),
+            progress_status=progress.status,
+            completed_at=progress.completed_at,
+            now=progress.completed_at or progress.last_activity_at or _now_utc(),
+            commit=False,
+        )
 
 ```
 
@@ -16153,13 +18642,6 @@ def local_day_bounds_utc(local_day: date, timezone_name: str) -> tuple[datetime,
     return start_local.astimezone(timezone.utc), end_local.astimezone(timezone.utc)
 
 
-def weekday_is_enabled(schedule_config: object, local_dt: datetime) -> bool:
-    if not isinstance(schedule_config, list):
-        return False
-    enabled_days = {WEEKDAY_ALIASES.get(str(day).strip().lower()) for day in schedule_config}
-    return local_dt.weekday() in enabled_days
-
-
 def reminder_due_at_for_today(
     *,
     now_utc: datetime,
@@ -16181,9 +18663,72 @@ from datetime import datetime, timezone
 
 from sqlmodel import Session
 
-from app.core.exceptions import ReviewItemNotFoundError
-from app.repositories.spaced_review_repo import get_review_item_for_user, mark_review_item_completed, mark_review_item_skipped
-from app.schemas.review import ReviewActionResponse
+from app.core.constant import PlanMode
+from app.core.exceptions import BadRequestError, ReviewItemNotFoundError
+from app.models.db_models import Book, LearningUnit, SpacedReviewItem
+from app.repositories.spaced_review_repo import get_review_item_for_user, list_review_items_for_user, mark_review_item_completed, mark_review_item_skipped
+from app.schemas.review import ReviewActionResponse, ReviewItemResponse, ReviewListResponse
+
+
+def _to_review_item_response(session: Session, item: SpacedReviewItem) -> ReviewItemResponse:
+    book = session.get(Book, item.book_id)
+    unit = session.get(LearningUnit, item.learning_unit_id) if item.learning_unit_id else None
+    return ReviewItemResponse(
+        review_item_id=item.id,
+        book_id=item.book_id,
+        book_title=book.title if book else None,
+        learning_unit_id=item.learning_unit_id,
+        learning_unit_title=unit.title if unit else None,
+        mode=item.mode,
+        status=item.status,
+        due_at=item.due_at,
+        interval_days=item.interval_days,
+        sequence_index=item.sequence_index,
+        review_text=item.review_text_snapshot or (unit.review_text if unit else "") or "",
+        review_audio_url=unit.review_audio_url if unit else None,
+        anchor_completed_at=item.anchor_completed_at,
+        last_reviewed_at=item.last_reviewed_at,
+        completed_at=item.completed_at,
+        notified_at=item.notified_at,
+    )
+
+
+def list_review_items(
+    session: Session,
+    *,
+    user_id: uuid.UUID,
+    status: str = "due",
+    book_id: uuid.UUID | None = None,
+    mode: str | None = None,
+    limit: int = 50,
+    offset: int = 0,
+) -> ReviewListResponse:
+    allowed_statuses = {"due", "upcoming", "completed", "skipped", "all"}
+    if status not in allowed_statuses:
+        raise BadRequestError("Trạng thái ôn tập không hợp lệ.")
+    try:
+        mode_value = PlanMode(mode) if mode else None
+    except ValueError as exc:
+        raise BadRequestError("Mode ôn tập không hợp lệ.") from exc
+    now = datetime.now(timezone.utc)
+    items = list_review_items_for_user(
+        session,
+        user_id=user_id,
+        now=now,
+        status_filter=status,
+        book_id=book_id,
+        mode=mode_value,
+        limit=limit,
+        offset=offset,
+    )
+    return ReviewListResponse(items=[_to_review_item_response(session, item) for item in items], total=len(items))
+
+
+def get_review_item_detail(session: Session, *, user_id: uuid.UUID, review_item_id: uuid.UUID) -> ReviewItemResponse:
+    item = get_review_item_for_user(session, user_id=user_id, review_item_id=review_item_id)
+    if not item:
+        raise ReviewItemNotFoundError()
+    return _to_review_item_response(session, item)
 
 
 def complete_review_item(session: Session, *, user_id: uuid.UUID, review_item_id: uuid.UUID) -> ReviewActionResponse:
@@ -16368,6 +18913,14 @@ def _get_owned_thread(session: Session, thread_id: uuid.UUID, user_id: uuid.UUID
         raise ThreadNotFoundError()
     _get_owned_context(session, thread.context_id, user_id)
     return thread
+
+
+def get_documents_in_context(session: Session, user_id: uuid.UUID, context_id: uuid.UUID) -> list[dict]:
+    """Lấy danh sách các tài liệu trong context sau khi kiểm tra quyền sở hữu."""
+    context = _get_owned_context(session, context_id, user_id)
+    from app.services.audiobook_service import _book_to_response_dict
+
+    return [_book_to_response_dict(session, book) for book in context.books]
 
 
 def list_contexts(session: Session, user_id: uuid.UUID) -> list[StudyContext]:
@@ -16677,7 +19230,6 @@ import asyncio
 from pathlib import Path
 
 import edge_tts
-from openai import AsyncOpenAI
 
 from app.core.config import settings
 from app.core.exceptions import ExternalServiceError, TTSInputTooShortError
@@ -16685,38 +19237,8 @@ from app.core.logger import log
 from app.services.async_limiter import get_loop_semaphore
 from app.services.tts_script_quality_service import sanitize_tts_script_text
 
-client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-
 SUPPORTED_TTS_PROVIDERS = {"edge", "google", "gg"}
 _google_tts_client = None
-
-
-async def stream_text_to_speech(text: str, voice: str = "alloy"):
-    """
-    Hàm này nhận text, gọi OpenAI TTS và trả về stream audio ngay lập tức.
-    """
-    try:
-        async with client.audio.speech.with_streaming_response.create(
-            model="tts-1",
-            voice=voice,
-            input=text,
-        ) as response:
-            async for chunk in response.iter_bytes(chunk_size=4096):
-                if chunk:
-                    yield chunk
-
-    except Exception as e:
-        log.error(f"Error in TTS Stream: {e}")
-
-
-async def stream_text_to_speech_edge(text: str, voice: str = settings.EDGE_TTS_VOICE):
-    """
-    Sử dụng Edge TTS: Hoàn toàn MIỄN PHÍ và chất lượng Neural rất tốt.
-    """
-    communicate = edge_tts.Communicate(text, voice)
-    async for chunk in communicate.stream():
-        if chunk["type"] == "audio":
-            yield chunk["data"]
 
 
 def _clean_text_for_tts(text: str) -> str:
@@ -16827,9 +19349,6 @@ def _generate_audio_file_google_sync(text: str, filename: str, voice_name: str) 
 
 
 async def generate_audio_file_edge(text: str, filename: str, voice: str = settings.EDGE_TTS_VOICE):
-    """
-    Tạo file audio từ text bằng Edge TTS và lưu vào file.
-    """
     cleaned = _clean_text_for_tts(text)
     _validate_tts_text(cleaned)
     await _generate_audio_file_edge(cleaned, filename, voice)
@@ -16842,16 +19361,6 @@ async def generate_audio_and_get_duration(
     voice: str | None = None,
     max_retries: int = 6,
 ) -> int:
-    """
-    Tạo file audio bằng provider đang cấu hình và đo thời lượng (milliseconds).
-
-    - Semaphore(settings.TTS_GENERATION_CONCURRENCY): giới hạn TTS calls đồng thời
-    - Provider: settings.TTS_PROVIDER = edge | google
-    - Không tự fallback provider: giữ giọng đọc nhất quán
-    - KHÔNG dùng voice fallback: giữ giọng đọc nhất quán
-
-    Trả về duration_ms.
-    """
     cleaned = _clean_text_for_tts(text)
     _validate_tts_text(cleaned)
     provider = _selected_tts_provider()
@@ -16950,7 +19459,8 @@ from app.services.document_parser_service import parse_document_structure
 from app.services.document_structure_service import build_outline_preview, detect_structure_warnings, validate_document_structure
 from app.services.document_structure_types import flatten_sections
 from app.services.learning_unit_planner_service import plan_learning_units_async
-from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
+from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, WEEKDAY_SHORT_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
+from app.services.reading_plan_session_service import build_plan_session_summary, ensure_future_sessions_for_plan
 from app.services.storage_service import upload_file_to_supabase
 from app.tasks.book_tasks import index_book_sections_task, process_book_task
 
@@ -17018,7 +19528,6 @@ async def _create_plan_and_job_async(
         book_id=payload.book_id,
         mode=payload.mode,
         pace=payload.pace,
-        schedule_config=payload.schedule_config,
         status=plan_status.value,
         reminder_time=resolved_reminder_time,
     )
@@ -17030,6 +19539,7 @@ async def _create_plan_and_job_async(
         book_id=payload.book_id,
         plan_id=plan.id,
         slots=slots,
+        is_active=plan_status == PlanStatus.ACTIVE,
     ):
         session.add(slot)
 
@@ -17042,6 +19552,9 @@ async def _create_plan_and_job_async(
             planned_units=planned_units,
         )
         book.total_units = len(created_units)
+
+    if plan.status == PlanStatus.ACTIVE.value:
+        ensure_future_sessions_for_plan(session, plan=plan, user_id=user_id, replace_unfinished=True)
 
     job = ProcessingJob(
         user_id=user_id,
@@ -17198,7 +19711,7 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
             reminder_time=payload.reminder_time,
         )
         plan_status = PlanStatus.INACTIVE
-        slots_to_create = []
+        slots_to_create = slots
     resolved_reminder_time = slots[0].reminder_time
 
     # 2. Lưu ReadingPlan + schedule slots + learning units + progress job
@@ -17252,11 +19765,15 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
         "mode": payload.mode.value,
         "plan_status": plan.status,
         "pace": plan.pace,
-        "schedule_config": list(plan.schedule_config or []),
+        "schedule_config": [
+            WEEKDAY_SHORT_LABELS.get(slot.weekday, str(slot.weekday))
+            for slot in list_slots_for_plan(session, plan_id=plan.id, active_only=False)
+        ],
         "reminder_time": plan.reminder_time,
         "status": job.status,
         "progress_percent": job.progress_percent,
         "active_slots": [_slot_response(slot) for slot in list_slots_for_plan(session, plan_id=plan.id, active_only=True)] if plan.status == PlanStatus.ACTIVE.value else [],
+        "session_summary": build_plan_session_summary(session, plan_id=plan.id),
         "planned_units": [
             {
                 "unit_index": index,
@@ -17394,12 +19911,17 @@ _MISSING_SECTION_CLARIFICATION = "Bạn muốn hỏi chương hoặc đề mục
 _MISMATCH_CLARIFICATION = "Mình nghe chưa chắc câu hỏi. Bạn nói lại ngắn gọn giúp mình nhé."
 
 
+GENERIC_CLARIFICATION_REASON_CODES = frozenset(
+    {
+        "too_short_or_ack_only",
+    }
+)
+
+
 @dataclass(frozen=True)
 class VoiceQueryGuardConfig:
     min_chars: int = 6
     min_tokens: int = 2
-    min_overlap_ratio: float = 0.34
-    min_important_overlap_ratio: float = 0.25
     clarification_confirmation_max_tokens: int = 4
     clarification_min_query_prompt_overlap: float = 0.45
 
@@ -17424,11 +19946,7 @@ def _content_tokens(text: str) -> set[str]:
 
 def _important_tokens(text: str) -> set[str]:
     normalized = normalize_query(text)
-    important = {
-        token
-        for token in normalized.tokens
-        if token not in _STOPWORDS and (len(token) >= 4 or any(character.isdigit() for character in token))
-    }
+    important = {token for token in normalized.tokens if token not in _STOPWORDS and (len(token) >= 4 or any(character.isdigit() for character in token))}
     for acronym in _ACRONYM_RE.findall(text):
         important.update(tokenize(normalized_key(acronym)))
     for quoted in _QUOTED_RE.findall(text):
@@ -17477,9 +19995,10 @@ def _query_matches_pending_clarification(
         return False
     query_targets = _section_reference_targets(query)
 
-    candidates = [pending.prompt_text]
+    candidates = []
     if pending.candidate_query:
         candidates.append(pending.candidate_query)
+    candidates.append(pending.prompt_text)
 
     for candidate in candidates:
         candidate_tokens = _content_tokens(candidate)
@@ -17537,14 +20056,30 @@ def _pending_clarification_reply_result(
         max_grant_tokens=config.clarification_confirmation_max_tokens,
     )
     if resolved_reply is None:
-        return None
+        # TRIAM_FIX_ROOT_CAUSE: Since we removed semantic QUESTION_HINTS from the fast-path classifier,
+        # a new question might return resolved_reply = None if it doesn't contain an explicit '?'.
+        # In this case, we check if the new query matches the pending clarification.
+        # If it does, we treat it as a confirmation (grant).
+        if _query_matches_pending_clarification(
+            query,
+            pending,
+            min_ratio=config.clarification_min_query_prompt_overlap,
+        ):
+            return _valid_clarification_confirmation(base_result, transcript, pending)
+        # If it does not match, it is a new question.
+        return VoiceQueryGuardResult(
+            valid=False,
+            reason_code="clarification_new_question",
+            clarification=None,
+            token_count=base_result.token_count,
+            important_token_count=base_result.important_token_count,
+            transcript_source=transcript.source,
+            guard_mode="clarification_new_question",
+            pending_reason_code=pending.reason_code,
+        )
 
     if resolved_reply.intent == "grant":
-        is_generic_mismatch = pending.reason_code in {
-            "tool_query_transcript_mismatch",
-            "tool_query_important_token_mismatch",
-            "too_short_or_ack_only",
-        }
+        is_generic_mismatch = pending.reason_code in GENERIC_CLARIFICATION_REASON_CODES
         if is_generic_mismatch or _query_matches_pending_clarification(
             query,
             pending,
@@ -17668,60 +20203,13 @@ def compare_query_with_transcript(
         )
         if pending_result is not None:
             return pending_result
-    else:
-        if resolved_reply is not None and resolved_reply.intent == "grant":
-            return VoiceQueryGuardResult(
-                valid=True,
-                reason_code="valid_confirmation_bypass",
-                token_count=base_result.token_count,
-                important_token_count=base_result.important_token_count,
-                overlap_ratio=1.0,
-                important_overlap_ratio=1.0,
-                transcript_source=transcript.source,
-                guard_mode="confirmation_bypass",
-            )
-
-    query_tokens = _content_tokens(query)
-    transcript_tokens = _content_tokens(transcript.text)
-    important_query_tokens = _important_tokens(query)
-    important_transcript_tokens = _important_tokens(transcript.text)
-    overlap_ratio = _ratio(len(query_tokens & transcript_tokens), len(query_tokens))
-    important_overlap_ratio = (
-        _ratio(len(important_query_tokens & important_transcript_tokens), len(important_query_tokens))
-        if important_query_tokens
-        else None
-    )
-
-    if overlap_ratio < resolved_config.min_overlap_ratio:
-        return _invalid(
-            "tool_query_transcript_mismatch",
-            _MISMATCH_CLARIFICATION,
-            token_count=base_result.token_count,
-            important_token_count=base_result.important_token_count,
-            overlap_ratio=overlap_ratio,
-            important_overlap_ratio=important_overlap_ratio,
-            transcript_source=transcript.source,
-        )
-
-    if important_overlap_ratio is not None and important_overlap_ratio < resolved_config.min_important_overlap_ratio:
-        return _invalid(
-            "tool_query_important_token_mismatch",
-            _MISMATCH_CLARIFICATION,
-            token_count=base_result.token_count,
-            important_token_count=base_result.important_token_count,
-            overlap_ratio=overlap_ratio,
-            important_overlap_ratio=important_overlap_ratio,
-            transcript_source=transcript.source,
-        )
-
     return VoiceQueryGuardResult(
         valid=True,
-        reason_code="valid",
+        reason_code="valid_transcript_snapshot_available",
         token_count=base_result.token_count,
         important_token_count=base_result.important_token_count,
-        overlap_ratio=overlap_ratio,
-        important_overlap_ratio=important_overlap_ratio,
         transcript_source=transcript.source,
+        guard_mode="transcript_snapshot",
     )
 
 
@@ -18049,6 +20537,7 @@ class VoiceToolReplyWatchdog:
 
         kwargs: dict[str, Any] = {
             "allow_interruptions": True,
+            # "instructions": POST_TOOL_REPLY_INSTRUCTIONS,
         }
         if self.config.force_tool_choice_none:
             kwargs["tool_choice"] = "none"
@@ -18086,6 +20575,226 @@ Reply in Vietnamese, naturally and briefly, in 1-2 short sentences.
 
 ```
 
+### app\services\voice_agent\transcription_prompt.py
+
+```py
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from typing import Iterable
+
+from app.services.agent_grounding.contracts import GroundingScope
+
+_WHITESPACE_RE = re.compile(r"\s+")
+_SECTION_NUMBER_RE = re.compile(r"^\s*(chapter|chương|part|phần|section|mục)\s+\d+", re.IGNORECASE)
+
+
+@dataclass(frozen=True)
+class TranscriptionPromptBuildResult:
+    prompt: str
+    term_count: int
+    prompt_chars: int
+    dynamic_enabled: bool
+
+
+def _normalize_term(value: object) -> str:
+    text = str(value or "").strip()
+    text = _WHITESPACE_RE.sub(" ", text)
+    text = text.strip(" -–—|,.;:")
+    return text
+
+
+def _add_unique(terms: list[str], seen: set[str], value: object, *, max_len: int = 80) -> None:
+    term = _normalize_term(value)
+    if not term:
+        return
+
+    if len(term) > max_len:
+        term = term[:max_len].rstrip()
+
+    key = term.casefold()
+    if key in seen:
+        return
+
+    seen.add(key)
+    terms.append(term)
+
+
+def _split_path_terms(path: str | None) -> list[str]:
+    if not path:
+        return []
+
+    raw = _normalize_term(path)
+    if not raw:
+        return []
+
+    parts = re.split(r"\s*(?:>|/|\\|»|›)\s*", raw)
+    result: list[str] = []
+
+    for part in parts:
+        part = _normalize_term(part)
+        if part:
+            result.append(part)
+
+    if raw and raw not in result:
+        result.append(raw)
+
+    return result
+
+
+def _base_domain_terms() -> tuple[str, ...]:
+    return (
+        "Tri Âm",
+        "TRIAM",
+        "chương",
+        "sách",
+        "tóm tắt",
+        "nội dung chính",
+        "nhân vật",
+        "tác giả",
+        "mục lục",
+        "bài học",
+        "đề mục",
+        "định lý",
+        "phương pháp",
+        "khái niệm",
+        "ví dụ",
+        "giải thích",
+        "so sánh",
+        "tìm web",
+        "tìm trên internet",
+        "tra cứu web",
+        "đồng ý",
+        "không đồng ý",
+        "có",
+        "không",
+        "tiếp tục",
+        "dừng lại",
+        "GPT",
+        "Gemini",
+        "OpenAI",
+        "RAG",
+    )
+
+
+def _add_scope_terms(
+    terms: list[str],
+    seen: set[str],
+    grounding_scope: GroundingScope,
+    *,
+    max_section_terms: int,
+) -> None:
+    for book in grounding_scope.books:
+        _add_unique(terms, seen, book.title)
+        _add_unique(terms, seen, book.author)
+        if book.document_type:
+            _add_unique(terms, seen, str(book.document_type))
+
+    section_added = 0
+    for section in grounding_scope.sections:
+        if section_added >= max_section_terms:
+            break
+        section_added += _add_section_terms(terms, seen, section.title, section.path, max_section_terms - section_added)
+
+
+def _add_section_terms(terms: list[str], seen: set[str], title: str, path: str, remaining: int) -> int:
+    added = 0
+    if remaining <= 0:
+        return added
+
+    if _normalize_term(title):
+        _add_unique(terms, seen, title)
+        added += 1
+
+    for path_term in _split_path_terms(path):
+        if added >= remaining:
+            break
+        _add_unique(terms, seen, path_term)
+        added += 1
+
+    return added
+
+
+def _collect_dynamic_terms(
+    grounding_scope: GroundingScope | None,
+    *,
+    max_terms: int,
+    max_section_terms: int,
+    extra_terms: Iterable[str] | None,
+) -> list[str]:
+    terms: list[str] = []
+    seen: set[str] = set()
+
+    for term in _base_domain_terms():
+        _add_unique(terms, seen, term)
+
+    if extra_terms:
+        for term in extra_terms:
+            _add_unique(terms, seen, term)
+
+    if grounding_scope is not None:
+        _add_scope_terms(terms, seen, grounding_scope, max_section_terms=max_section_terms)
+
+    return terms[: max(0, max_terms)]
+
+
+def _build_prompt(base: str, terms: list[str], *, max_chars: int) -> str:
+    dynamic_suffix = " Session-specific expected terms: " + ", ".join(terms) + "." if terms else ""
+    prompt = (
+        base
+        + " The user may mix Vietnamese with English book titles, author names, character names, AI terms, and short app commands."
+        + " Prefer the exact expected terms when acoustically plausible; do not force them when the audio clearly says something else."
+        + dynamic_suffix
+    ).strip()
+    return _trim_prompt(prompt, max_chars=max_chars)
+
+
+def _trim_prompt(prompt: str, *, max_chars: int) -> str:
+    if max_chars <= 0 or len(prompt) <= max_chars:
+        return prompt
+
+    trimmed = prompt[:max_chars].rstrip()
+    return trimmed if trimmed.endswith(".") else trimmed + "."
+
+
+def build_realtime_transcription_prompt(
+    *,
+    base_prompt: str,
+    grounding_scope: GroundingScope | None,
+    enabled: bool,
+    max_chars: int,
+    max_terms: int,
+    max_section_terms: int,
+    extra_terms: Iterable[str] | None = None,
+) -> TranscriptionPromptBuildResult:
+    base = _normalize_term(base_prompt)
+
+    if not enabled:
+        return TranscriptionPromptBuildResult(
+            prompt=base,
+            term_count=0,
+            prompt_chars=len(base),
+            dynamic_enabled=False,
+        )
+
+    terms = _collect_dynamic_terms(
+        grounding_scope,
+        max_terms=max_terms,
+        max_section_terms=max_section_terms,
+        extra_terms=extra_terms,
+    )
+    prompt = _build_prompt(base, terms, max_chars=max_chars)
+
+    return TranscriptionPromptBuildResult(
+        prompt=prompt,
+        term_count=len(terms),
+        prompt_chars=len(prompt),
+        dynamic_enabled=True,
+    )
+
+```
+
 ### app\services\voice_agent\transcript_store.py
 
 ```py
@@ -18107,7 +20816,11 @@ HistoryLoader = Callable[[int], list[ChatMessage]]
 
 
 def normalize_transcript_text(text: str) -> str:
-    return " ".join((text or "").split())
+    if not text:
+        return ""
+    lines = text.splitlines()
+    normalized_lines = [" ".join(line.split()) for line in lines]
+    return "\n".join(normalized_lines)
 
 
 class VoiceTranscriptStore:
@@ -18369,7 +21082,6 @@ POSITIVE_ACTION_PHRASES = (
     "dung roi",
     "dung do",
     "chinh xac",
-    "phai",
     "phai roi",
     "tim di",
     "tim kiem di",
@@ -18406,11 +21118,16 @@ POSITIVE_SHORT_REPLIES = (
     "phai",
     "phai roi",
     "cho phep",
+    "vang",
+    "da vang",
 )
 NEGATIVE_PHRASES = (
     "khong phai",
     "khong can",
     "khong dau",
+    "khong duoc",
+    "khong muon",
+    "khong thich",
     "khong",
     "khoi",
     "dung lam",
@@ -18427,42 +21144,9 @@ NEGATIVE_PHRASES = (
     "dont",
     "do not",
 )
-AMBIGUOUS_PHRASES = (
-    "tuy",
-    "tuy anh",
-    "sao cung duoc",
-    "sao cung",
-    "cung duoc",
-    "khong biet",
-    "maybe",
-    "up to you",
-)
-QUESTION_HINTS = (
-    " la gi",
-    " gi ",
-    " nao",
-    " ai ",
-    " tai sao",
-    " vi sao",
-    " nhu the nao",
-    " the nao",
-    " co nhung",
-    " chuong",
-    " muc",
-    " de muc",
-    " noi dung",
-    " phuong phap",
-    " tom tat",
-    " giai thich",
-    " what",
-    " why",
-    " how",
-    " when",
-    " where",
-    " which",
-    " who",
-    " tell me",
-)
+
+CONTEXT_SENSITIVE_NEGATIONS = {"khong", "no"}
+CONTEXT_SENSITIVE_CONFIRMATIONS = {"co", "duoc", "dung", "phai", "uh", "um"}
 
 
 @dataclass(frozen=True)
@@ -18486,37 +21170,46 @@ def phrase_in_text(phrase: str, text: str) -> bool:
 
 
 def looks_like_new_question(original_text: str, normalized_text: str) -> bool:
-    if "?" in original_text:
-        return True
-    padded = f" {normalized_text} "
-    return any(hint in padded for hint in QUESTION_HINTS)
+    return "?" in original_text
 
 
-def classify_voice_reply_intent_fast_path(text: str, *, max_grant_tokens: int = 3) -> VoiceReplyIntentResult | None:
+def classify_voice_reply_intent_fast_path(text: str, *, max_grant_tokens: int = 4) -> VoiceReplyIntentResult | None:
     normalized = normalize_voice_intent_text(text)
     if not normalized:
-        return VoiceReplyIntentResult("unclear", 1.0, "Empty reply", "fast_path")
+        return None
 
-    if any(phrase_in_text(phrase, normalized) for phrase in NEGATIVE_PHRASES):
-        return VoiceReplyIntentResult("deny", 0.96, "Matched negative fast path", "fast_path")
+    if looks_like_new_question(text, normalized):
+        return VoiceReplyIntentResult("new_question", 0.88, "Explicit question mark detected", "fast_path")
+
+    # Constrain fast path positive/negative matching to short replies only to avoid false positives on long queries
+    token_count = len(normalized.split())
+    if token_count > max(4, max_grant_tokens):
+        return None
+
+    # For negative check:
+    for phrase in NEGATIVE_PHRASES:
+        if phrase in CONTEXT_SENSITIVE_NEGATIONS:
+            if token_count <= 2 and phrase_in_text(phrase, normalized):
+                return VoiceReplyIntentResult("deny", 0.96, "Matched negative fast path", "fast_path")
+        else:
+            if phrase_in_text(phrase, normalized):
+                return VoiceReplyIntentResult("deny", 0.96, "Matched negative fast path", "fast_path")
 
     if any(phrase_in_text(phrase, normalized) for phrase in POSITIVE_ACTION_PHRASES):
         return VoiceReplyIntentResult("grant", 0.96, "Matched positive action fast path", "fast_path")
 
-    if any(phrase_in_text(phrase, normalized) for phrase in AMBIGUOUS_PHRASES):
-        return VoiceReplyIntentResult("unclear", 0.88, "Matched ambiguous fast path", "fast_path")
-
-    if looks_like_new_question(text, normalized):
-        return VoiceReplyIntentResult("new_question", 0.88, "Looks like a new question", "fast_path")
-
-    token_count = len(normalized.split())
-    if token_count <= max(1, max_grant_tokens) and any(
-        phrase_in_text(phrase, normalized) for phrase in POSITIVE_SHORT_REPLIES
-    ):
-        return VoiceReplyIntentResult("grant", 0.94, "Matched short positive fast path", "fast_path")
+    # For positive short replies:
+    for phrase in POSITIVE_SHORT_REPLIES:
+        if phrase in CONTEXT_SENSITIVE_CONFIRMATIONS:
+            # Only match context-sensitive confirmations if it's a very short response (<= 2 tokens)
+            # to avoid false positives on yes/no questions (e.g. "chương này có không")
+            if token_count <= 2 and phrase_in_text(phrase, normalized):
+                return VoiceReplyIntentResult("grant", 0.94, "Matched short positive fast path", "fast_path")
+        else:
+            if phrase_in_text(phrase, normalized):
+                return VoiceReplyIntentResult("grant", 0.94, "Matched short positive fast path", "fast_path")
 
     return None
-
 ```
 
 ### app\services\voice_agent\web_permission_intent_classifier.py
@@ -19214,7 +21907,7 @@ async def _track_progress(
         raise
 
 
-async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | None, *, include_rag: bool) -> None:
+async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | None) -> None:
     if _job_is_ready(job_id):
         logger.info(f"Skip book processing because job is already READY | book_id={book_id} | job_id={job_id}")
         return
@@ -19244,7 +21937,7 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
         job_id,
         status=ProcessingJobStatus.PROCESSING,
         progress_percent=0,
-        current_step="Đã tạo các bài học, đang xử lý audio và tri thức.",
+        current_step="Đã tạo các bài học, đang xử lý audio.",
         total_units=total_units,
         done_units=0,
         estimated_input_tokens=estimated_input_tokens,
@@ -19265,7 +21958,6 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
             item.budget.char_count,
             item.budget.estimated_tokens,
             item.budget.estimated_audio_seconds,
-            include_rag=include_rag,
         )
         completed += 1
         progress = int(completed * 100 / total_units)
@@ -19294,7 +21986,6 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
                     item.budget.char_count,
                     item.budget.estimated_tokens,
                     item.budget.estimated_audio_seconds,
-                    include_rag=include_rag,
                 )
             )
             for item in remaining_items
@@ -19316,7 +22007,7 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
 
 async def run_background_processing(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | None = None) -> None:
     try:
-        await _run_unit_pipeline(book_id, mode, job_id, include_rag=True)
+        await _run_unit_pipeline(book_id, mode, job_id)
     except Exception as exc:
         _set_book_status(book_id, BookStatus.ERROR, str(exc))
         _fail_job(job_id, "Xử lý sách thất bại.", str(exc))
@@ -19326,7 +22017,7 @@ async def run_background_processing(book_id: uuid.UUID, mode: str, job_id: uuid.
 async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str, job_id: uuid.UUID | None = None) -> None:
     try:
         _set_book_status(book_id, BookStatus.PROCESSING)
-        await _run_unit_pipeline(book_id, new_mode, job_id, include_rag=False)
+        await _run_unit_pipeline(book_id, new_mode, job_id)
     except Exception as exc:
         _set_book_status(book_id, BookStatus.ERROR, str(exc))
         _fail_job(job_id, f"Sinh audio mode {new_mode} thất bại.", str(exc))
@@ -19358,6 +22049,7 @@ class LearningUnitTTSResult:
     main_segment_count: int
     review_audio_created: bool
     review_text: str
+    generated_audio_seconds: int = 0
 
 
 async def _generate_unit_main_segments(
@@ -19480,10 +22172,14 @@ async def run_learning_unit_tts_pipeline(
 
     _store_unit_tts_result(learning_unit_id, mode, review_text, review_url, segments)
 
+    total_ms = sum(seg.duration_ms or 0 for seg in segments)
+    generated_seconds = int(total_ms / 1000)
+
     return LearningUnitTTSResult(
         main_segment_count=len(segments),
         review_audio_created=bool(review_url),
         review_text=review_text,
+        generated_audio_seconds=generated_seconds,
     )
 
 ```
@@ -19502,10 +22198,8 @@ from app.core.constant import ProcessingJobStatus
 from app.core.logger import log as logger
 from app.db.database import engine
 from app.models.db_models import LearningUnit
-from app.repositories.book_knowledge_repo import delete_knowledge_by_learning_unit
 from app.repositories.learning_unit_repo import delete_unit_segments, unit_segments_exist, update_learning_unit_processing
 from app.services.async_limiter import get_loop_semaphore
-from app.services.embed_service import embed_and_save_learning_unit
 from app.services.workers.learning_unit_tts_worker import run_learning_unit_tts_pipeline
 
 
@@ -19514,17 +22208,6 @@ class LearningUnitProcessingResult:
     learning_unit_id: uuid.UUID
     main_segment_count: int
     skipped: bool = False
-
-
-async def _run_rag_pipeline(
-    book_id: uuid.UUID,
-    learning_unit_id: uuid.UUID,
-    book_title: str,
-    unit_title: str,
-    raw_text: str,
-) -> None:
-    with Session(engine) as session:
-        await embed_and_save_learning_unit(book_id, learning_unit_id, book_title, unit_title, raw_text, session)
 
 
 async def _cancel_pending_tasks(tasks: list[asyncio.Task]) -> None:
@@ -19537,7 +22220,6 @@ async def _cancel_pending_tasks(tasks: list[asyncio.Task]) -> None:
 def _cleanup_failed_unit(learning_unit_id: uuid.UUID, unit_index: int, error_message: str) -> None:
     with Session(engine) as session:
         unit = session.get(LearningUnit, learning_unit_id)
-        delete_knowledge_by_learning_unit(session, learning_unit_id)
         delete_unit_segments(session, learning_unit_id)
         if unit:
             update_learning_unit_processing(session, unit, status=ProcessingJobStatus.ERROR, error_message=error_message)
@@ -19554,14 +22236,12 @@ async def process_learning_unit(
     raw_text_char_count: int = 0,
     estimated_tokens: int = 0,
     estimated_audio_seconds: int = 0,
-    *,
-    include_rag: bool = True,
 ) -> LearningUnitProcessingResult:
     async with get_loop_semaphore("learning_unit_processing", settings.LEARNING_UNIT_PROCESSING_CONCURRENCY):
         logger.info(
             f"Learning unit processing start | unit={unit.unit_index + 1} | mode={unit.mode.value} | "
             f"title={unit.title} | chars={raw_text_char_count or len(raw_text)} | "
-            f"estimated_tokens={estimated_tokens} | estimated_audio_seconds={estimated_audio_seconds} | rag={include_rag}"
+            f"estimated_tokens={estimated_tokens} | estimated_audio_seconds={estimated_audio_seconds}"
         )
 
         with Session(engine) as session:
@@ -19597,13 +22277,6 @@ async def process_learning_unit(
                     )
                 )
             ]
-            if include_rag:
-                pipeline_tasks.append(
-                    asyncio.create_task(
-                        _run_rag_pipeline(book_id, unit.id, book_title, unit.title, raw_text)
-                    )
-                )
-
             tts_result = (await asyncio.gather(*pipeline_tasks))[0]
             with Session(engine) as session:
                 current_unit = session.get(LearningUnit, unit.id)
@@ -19613,6 +22286,7 @@ async def process_learning_unit(
                         current_unit,
                         status=ProcessingJobStatus.READY,
                         main_segment_count=tts_result.main_segment_count,
+                        estimated_audio_seconds=tts_result.generated_audio_seconds,
                     )
             logger.info(f"Learning unit {unit.unit_index + 1} READY | segments={tts_result.main_segment_count}")
             return LearningUnitProcessingResult(unit.id, tts_result.main_segment_count)
@@ -19749,7 +22423,13 @@ from app.repositories.notification_outbox_repo import (
     mark_outbox_retry,
     recover_stale_outbox,
 )
-from app.services.notification_event_service import create_due_plan_reminder_outbox_rows, create_due_review_outbox_rows, deliver_outbox_notification
+from app.services.notification_event_service import (
+    create_due_plan_reminder_outbox_rows,
+    create_due_review_outbox_rows,
+    create_missed_plan_session_outbox_rows,
+    deliver_outbox_notification,
+)
+from app.services.reading_plan_session_service import mark_due_sessions_missed
 
 
 @celery_app.task(name="triam.notifications.scan_due")
@@ -19768,6 +22448,9 @@ def scan_due_notifications_task() -> None:
         )
         created_count += create_due_review_outbox_rows(session, now=now)
         created_count += create_due_plan_reminder_outbox_rows(session, now=now)
+        mark_due_sessions_missed(session, now=now)
+        created_count += create_missed_plan_session_outbox_rows(session, now=now)
+        session.commit()
         should_deliver = created_count > 0 or recovered_count > 0 or has_due_outbox(session, now=now)
 
     log.info(f"Notification scan done | created={created_count} | recovered={recovered_count} | should_deliver={should_deliver}")
@@ -19844,10 +22527,6 @@ def deliver_one_notification(outbox_id: uuid.UUID) -> None:
 # TRIAM Backend Application
 
 ```
-
-### pyproject.toml
-
-*(Unsupported file type)*
 
 ### start.sh
 
@@ -19928,3 +22607,7 @@ else
 fi
 
 ```
+
+### pyproject.toml
+
+*(Unsupported file type)*

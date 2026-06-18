@@ -1,3 +1,4 @@
+import asyncio
 import os
 import uuid
 from dataclasses import dataclass
@@ -21,7 +22,50 @@ class LearningUnitTTSResult:
     review_text: str
     generated_audio_seconds: int = 0
 
+# --- Helper for processing single segment ---
+async def _process_single_script_task(
+    index: int,
+    script: str,
+    book_id: uuid.UUID,
+    learning_unit_id: uuid.UUID,
+    unit_index: int,
+    mode: str,
+    total_scripts: int,
+) -> LearningUnitSegment | None:
+    """
+    Process single segment: Generate audio, upload to cloud storage, and clean up temporary files.
+    """
+    local_file = f"uploads/{uuid.uuid4()}.mp3"
+    os.makedirs("uploads", exist_ok=True)
+    try:
+        logger.info(f"TTS segment start | unit={unit_index + 1} | mode={mode} | segment={index + 1}/{total_scripts} | chars={len(script)}")
+        # 1. Generate audio file
+        duration_ms = await generate_audio_and_get_duration(script, local_file)
 
+        # 2. Upload file to cloud storage
+        storage_path = f"{book_id}/unit_{unit_index + 1}/{mode}/part_{index + 1}.mp3"
+        audio_url = await upload_file_to_supabase(local_file, storage_path, "audios", "audio/mpeg")
+
+        logger.info(f"TTS segment done | unit={unit_index + 1} | mode={mode} | segment={index + 1}/{total_scripts} | duration_ms={duration_ms}")
+
+        # Return segment object
+        return LearningUnitSegment(
+            learning_unit_id=learning_unit_id,
+            segment_index=index,
+            audio_url=audio_url,
+            duration_ms=duration_ms,
+            text_content=script,
+        )
+    except Exception as seg_err:
+        logger.warning(f"Segment {index + 1} unit {unit_index + 1} TTS failed ({len(script)} chars): {seg_err}")
+        return None
+    finally:
+        # Ensure temporary files are deleted immediately after this small task ends
+        if os.path.exists(local_file):
+            os.remove(local_file)
+
+
+# --- Main function
 async def _generate_unit_main_segments(
     book_id: uuid.UUID,
     learning_unit_id: uuid.UUID,
@@ -29,43 +73,80 @@ async def _generate_unit_main_segments(
     mode: str,
     main_scripts: list[str],
 ) -> list[LearningUnitSegment]:
-    segments: list[LearningUnitSegment] = []
     total_scripts = len(main_scripts)
     logger.info(f"TTS main segments start | unit={unit_index + 1} | mode={mode} | total_scripts={total_scripts}")
-    for i, script in enumerate(main_scripts):
-        local_file = f"uploads/{uuid.uuid4()}.mp3"
-        os.makedirs("uploads", exist_ok=True)
-        try:
-            logger.info(
-                f"TTS segment start | unit={unit_index + 1} | mode={mode} | "
-                f"segment={i + 1}/{total_scripts} | chars={len(script)}"
-            )
-            duration_ms = await generate_audio_and_get_duration(script, local_file)
-            storage_path = f"{book_id}/unit_{unit_index + 1}/{mode}/part_{i + 1}.mp3"
-            audio_url = await upload_file_to_supabase(local_file, storage_path, "audios", "audio/mpeg")
-            segments.append(
-                LearningUnitSegment(
-                    learning_unit_id=learning_unit_id,
-                    segment_index=i,
-                    audio_url=audio_url,
-                    duration_ms=duration_ms,
-                    text_content=script,
-                )
-            )
-            logger.info(
-                f"TTS segment done | unit={unit_index + 1} | mode={mode} | "
-                f"segment={i + 1}/{total_scripts} | duration_ms={duration_ms}"
-            )
-        except Exception as seg_err:
-            logger.warning(f"Segment {i + 1} unit {unit_index + 1} TTS failed ({len(script)} chars): {seg_err}")
-        finally:
-            if os.path.exists(local_file):
-                os.remove(local_file)
-    logger.info(
-        f"TTS main segments done | unit={unit_index + 1} | mode={mode} | "
-        f"created_segments={len(segments)}/{total_scripts}"
-    )
+
+    # 1. Create a list of coroutine tasks (not yet awaited)
+    tasks = [
+        _process_single_script_task(
+            index=i,
+            script=script,
+            book_id=book_id,
+            learning_unit_id=learning_unit_id,
+            unit_index=unit_index,
+            mode=mode,
+            total_scripts=total_scripts,
+        )
+        for i, script in enumerate(main_scripts)
+    ]
+
+    # 2. Run all tasks in parallel
+    # I/O network tasks (upload) and API (TTS) will interleave, running extremely fast
+    results = await asyncio.gather(*tasks)
+
+    # 3. Filter out None results (failed segments) and preserve order
+    segments = [seg for seg in results if seg is not None]
+
+    # 4. Sort segments in the original index order to ensure correct playback order
+    segments.sort(key=lambda x: x.segment_index)
+
+    logger.info(f"TTS main segments done | unit={unit_index + 1} | mode={mode} | created_segments={len(segments)}/{total_scripts}")
     return segments
+
+# async def _generate_unit_main_segments(
+#     book_id: uuid.UUID,
+#     learning_unit_id: uuid.UUID,
+#     unit_index: int,
+#     mode: str,
+#     main_scripts: list[str],
+# ) -> list[LearningUnitSegment]:
+#     segments: list[LearningUnitSegment] = []
+#     total_scripts = len(main_scripts)
+#     logger.info(f"TTS main segments start | unit={unit_index + 1} | mode={mode} | total_scripts={total_scripts}")
+#     for i, script in enumerate(main_scripts):
+#         local_file = f"uploads/{uuid.uuid4()}.mp3"
+#         os.makedirs("uploads", exist_ok=True)
+#         try:
+#             logger.info(
+#                 f"TTS segment start | unit={unit_index + 1} | mode={mode} | "
+#                 f"segment={i + 1}/{total_scripts} | chars={len(script)}"
+#             )
+#             duration_ms = await generate_audio_and_get_duration(script, local_file)
+#             storage_path = f"{book_id}/unit_{unit_index + 1}/{mode}/part_{i + 1}.mp3"
+#             audio_url = await upload_file_to_supabase(local_file, storage_path, "audios", "audio/mpeg")
+#             segments.append(
+#                 LearningUnitSegment(
+#                     learning_unit_id=learning_unit_id,
+#                     segment_index=i,
+#                     audio_url=audio_url,
+#                     duration_ms=duration_ms,
+#                     text_content=script,
+#                 )
+#             )
+#             logger.info(
+#                 f"TTS segment done | unit={unit_index + 1} | mode={mode} | "
+#                 f"segment={i + 1}/{total_scripts} | duration_ms={duration_ms}"
+#             )
+#         except Exception as seg_err:
+#             logger.warning(f"Segment {i + 1} unit {unit_index + 1} TTS failed ({len(script)} chars): {seg_err}")
+#         finally:
+#             if os.path.exists(local_file):
+#                 os.remove(local_file)
+#     logger.info(
+#         f"TTS main segments done | unit={unit_index + 1} | mode={mode} | "
+#         f"created_segments={len(segments)}/{total_scripts}"
+#     )
+#     return segments
 
 
 async def _generate_unit_review_audio(
@@ -140,10 +221,10 @@ async def run_learning_unit_tts_pipeline(
     if not segments:
         raise NoPlayableAudioError("Không tạo được segment audio nào.")
 
-    _store_unit_tts_result(learning_unit_id, mode, review_text, review_url, segments)
-
     total_ms = sum(seg.duration_ms or 0 for seg in segments)
     generated_seconds = int(total_ms / 1000)
+
+    _store_unit_tts_result(learning_unit_id, mode, review_text, review_url, segments)
 
     return LearningUnitTTSResult(
         main_segment_count=len(segments),

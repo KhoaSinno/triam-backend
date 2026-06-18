@@ -1,0 +1,30 @@
+@startuml triam_usecase_listen_progress
+skinparam Shadowing false
+skinparam backgroundColor #FFFFFF
+skinparam defaultFontName Arial
+' skinparam roundcorner 14
+' skinparam linetype ortho
+
+skinparam actor {
+  BackgroundColor #DBEAFE
+  BorderColor #1D4ED8
+}
+skinparam usecase {
+  BackgroundColor #FEF3C7
+  BorderColor #B45309
+}
+
+left to right direction
+
+actor "Độc giả" as Reader
+
+rectangle "Phân hệ Nghe sách nói và Tiến độ" {
+  (Nghe audio bài học) as UC_Listen
+  (Chuyển đổi chế độ học) as UC_SwitchMode
+  (Cập nhật tiến độ nghe) as UC_Progress
+}
+
+Reader -- UC_Listen
+Reader -- UC_SwitchMode
+Reader -- UC_Progress
+@enduml
