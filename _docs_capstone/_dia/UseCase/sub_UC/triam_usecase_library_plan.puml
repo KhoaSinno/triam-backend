@@ -18,7 +18,7 @@ left to right direction
 
 actor "Độc giả" as Reader
 
-rectangle "Phân hệ Tài liệu & Kế hoạch học" {
+rectangle "Phân hệ Tài liệu và Kế hoạch học" {
   (Upload sách) as UC_UploadBook
   ' TODO: Hiện tại chưa có Chọn sách từ thư viện
   (Chọn sách từ thư viện) as UC_SelectBook
@@ -29,7 +29,7 @@ rectangle "Phân hệ Tài liệu & Kế hoạch học" {
   (Nghe sớm bài học) as UC_ListenEarly
 
   ' Mũi tên hướng từ tính năng mở rộng về tính năng gốc
-  UC_ListenEarly ..> UC_TrackJob : <<extend>>
+  UC_TrackJob <.. UC_ListenEarly  : <<extend>>
 }
 
 Reader -- UC_UploadBook

@@ -464,9 +464,401 @@ sequenceDiagram
 
 ---
 
-## 4. Hướng dẫn Dành Cho Nhà Phát Triển Mới (Developer Cheat Sheet)
+## 4. Vòng Đời Dữ Liệu và Sự Kiện Biến Đổi (Data Lifecycle & Event Pipeline)
 
-### 4.1 Quy trình Metadata Cloning & Xóa Sách An Toàn
+Dữ liệu trong hệ thống TRIAM không tĩnh lặng mà liên tục biến đổi qua các giai đoạn khác nhau trong vòng đời của một phiên học tập. Dưới đây là phân tích chi tiết về **Thời điểm Tạo ra**, **Khi nào Thay đổi**, và **Khi nào Biến mất** của các bảng dữ liệu chính theo từng giai đoạn nghiệp vụ:
+
+```mermaid
+graph TD
+    Stage1[Đăng ký & Cấu hình] -->|Tạo cấu hình| Settings[notification_settings]
+    Stage2[Upload Sách] -->|Tạo sách & chunking| Books[books / book_sections / knowledge]
+    Stage3[Tạo Kế hoạch] -->|Sinh bài học & Lịch| Plan[reading_plans / slots / units]
+    Stage4[Học tập thực tế] -->|Sinh sessions & tiến độ| Sessions[sessions / progress / states]
+    Stage5[Ôn tập SM-2] -->|Sinh thẻ ôn tập| Review[spaced_review_items]
+    Stage6[Thông báo đẩy] -->|Lập outbox & inbox| Outbox[outbox / user_notifications]
+```
+
+### 4.1 Giai đoạn 1: Đăng ký & Cá nhân hóa tài khoản (Onboarding & Setting Up)
+Quản lý thiết lập nhắc nhở, đăng ký thiết bị nhận thông báo và tối ưu khung giờ gửi thông báo cá nhân.
+
+*   **notification_settings** (Cấu hình nhắc nhở)
+    *   *Thời điểm tạo ra*: Được tạo tự động ngay sau khi tài khoản người dùng được khởi tạo (nhờ trigger từ Supabase Auth hoặc khi Client lần đầu gọi API cấu hình `GET /notifications/settings`).
+        - **Các trường khởi tạo ban đầu**:
+          - `user_id` (UUID - Khóa chính, khớp với user_id của tài khoản).
+          - `timezone` (Text - Múi giờ của người dùng, mặc định: `"Asia/Ho_Chi_Minh"`).
+          - `reminders_enabled` (Boolean - Bật nhắc nhở đọc sách hàng ngày, mặc định: `true`).
+          - `spaced_review_enabled` (Boolean - Bật nhắc nhở ôn tập ngắt quãng, mặc định: `true`).
+          - `reminder_time` (Text - Giờ gửi nhắc nhở mặc định dạng `"HH:MM"`, mặc định: `"20:00"`).
+          - `quiet_hours_start` (Text - Giờ bắt đầu không làm phiền dạng `"HH:MM"`, mặc định: `"22:00"`).
+          - `quiet_hours_end` (Text - Giờ kết thúc không làm phiền dạng `"HH:MM"`, mặc định: `"07:00"`).
+          - `daily_cap` (Integer - Giới hạn tối đa số thông báo đẩy mỗi ngày, mặc định: `3`).
+          - `created_at` (DateTime với timezone - Thời điểm tạo bản ghi, mặc định: thời gian UTC hiện tại).
+          - `updated_at` (DateTime với timezone - Thời điểm cập nhật bản ghi, mặc định: thời gian UTC hiện tại).
+    *   *Khi nào thay đổi*: Khi người dùng truy cập màn hình Cài đặt (Settings) trên ứng dụng và thay đổi cấu hình.
+        - **Các trường thay đổi**: `timezone`, `reminders_enabled`, `spaced_review_enabled`, `reminder_time`, `quiet_hours_start`, `quiet_hours_end`, `daily_cap`, `updated_at` (tự động cập nhật thời gian UTC hiện tại).
+    *   *Ví dụ thực tế*: Người học A tại Paris cài đặt app lần đầu. Hệ thống tự động tạo dòng config với múi giờ mặc định Việt Nam. Sau đó người học A vào Settings đổi cấu hình: múi giờ được cập nhật thành `"Europe/Paris"`, tắt ôn tập ngắt quãng (`spaced_review_enabled = false`), đổi giờ học chung thành `"21:30"` và tăng giới hạn tin nhận hàng ngày `daily_cap = 5`.
+    *   *Khi nào biến mất*: Khi người dùng yêu cầu xóa vĩnh viễn tài khoản (Cascade Delete theo `user_id`).
+*   **user_device_tokens** (Token thiết bị nhận thông báo)
+    *   *Thời điểm tạo ra*: Được tạo khi người dùng đăng nhập thành công trên điện thoại và Client gửi token đẩy tin qua API `POST /notifications/devices`.
+        - **Các trường khởi tạo ban đầu**:
+          - `id` (UUID - Khóa chính, tự sinh bằng uuid4).
+          - `user_id` (UUID - ID người dùng sở hữu thiết bị).
+          - `device_token` (Text - Token định danh thiết bị duy nhất từ APNS/FCM).
+          - `created_at` & `updated_at` (DateTime với timezone - Thời điểm hiện tại).
+    *   *Khi nào thay đổi*: Khi người dùng đổi thiết bị hoặc Push Token được làm mới (refresh) bởi hệ thống Firebase/Apple APNS.
+        - **Các trường thay đổi**: `device_token` (cập nhật token mới), `updated_at` (thời điểm cập nhật).
+    *   *Ví dụ thực tế*: Người học đăng nhập app trên điện thoại iPhone mới. Client gửi device token `"fcm_token_xyz_123"` lên. Backend tìm kiếm: nếu token chưa tồn tại thì ghi dòng mới với `user_id = user_id_A` và `device_token = "fcm_token_xyz_123"`.
+    *   *Khi nào biến mất*: Khi người dùng đăng xuất khỏi thiết bị (Client gọi API xóa token tương ứng), khi worker phát hiện token không còn hiệu lực (bị Firebase trả về lỗi invalid) hoặc khi xóa tài khoản (Cascade Delete).
+
+---
+
+### 4.2 Giai đoạn 2: Tải sách lên & Phân tích cấu trúc (Book Uploading & Parsing)
+Tải sách vật lý, băm nhỏ tài liệu, trích xuất cấu trúc đề mục và tính toán vector ngữ nghĩa.
+
+*   **books** (Thông tin sách)
+    *   *Thời điểm tạo ra*: Được khởi tạo ngay khi người dùng nhấn nút tải sách lên trên ứng dụng (Client gọi API `POST /upload`).
+        - **Các trường khởi tạo ban đầu**:
+          - `id` (UUID - Khóa chính, tự sinh).
+          - `user_id` (UUID - ID của người dùng tải sách).
+          - `title` (Text - Tiêu đề sách, mặc định lấy tên file tải lên hoặc user nhập).
+          - `status` (Text - Trạng thái xử lý ban đầu, mặc định: `"queued"`).
+          - `created_at` & `updated_at` (DateTime với timezone - Mốc thời gian hiện tại).
+          - Các trường kỹ thuật được khởi tạo bằng `None` (Null): `author` (Tác giả), `file_url` (Đường dẫn lưu file), `document_type` (Định dạng file), `total_sections` (Số chương), `total_units` (Số bài học), `error_message` (Ghi lỗi).
+    *   *Khi nào thay đổi*: Khi tiến trình nền Celery bắt đầu xử lý file và khi hoàn thành/lỗi.
+        - **Các trường thay đổi**:
+          - `status` (Chuyển từ `"queued"` -> `"processing"` -> `"completed"` hoặc `"error"`).
+          - `file_url` (Đường dẫn lưu file vật lý trên Supabase Storage, ví dụ: `"https://storage.supabase.../books/bo_gia.epub"`).
+          - `document_type` (Định dạng tài liệu được trích xuất: `"pdf"`, `"epub"`, hoặc `"docx"`).
+          - `author` (Tên tác giả trích xuất từ metadata của sách).
+          - `total_sections` (Tổng số chương/phần phụ được trích xuất vào cây đề mục).
+          - `total_units` (Tổng số bài học học viên có thể học, được điền sau khi hoàn thành AI planning).
+          - `error_message` (Lý do lỗi chi tiết nếu status chuyển thành `"error"`).
+          - `updated_at` (Thời điểm cập nhật thay đổi).
+    *   *Ví dụ thực tế*: Người dùng tải lên file *Nha_Gia_Kim.epub*. Hệ thống tạo dòng sách mới với `status = "queued"`. Khi Celery Task nhận việc, status chuyển thành `"processing"`. Sau khi giải nén và phân tích, hệ thống phát hiện sách định dạng EPUB, có 15 chương, tác giả Paulo Coelho. Hệ thống cập nhật: `document_type = "epub"`, `author = "Paulo Coelho"`, `total_sections = 15`, `file_url = "https://storage.supabase.../Nha_Gia_Kim.epub"`, và `status = "completed"`.
+    *   *Khi nào biến mất*: Khi người dùng nhấn nút xóa sách khỏi ứng dụng. Bảng này sẽ bị xóa kéo theo toàn bộ dữ liệu phụ thuộc (Cascade Delete).
+*   **processing_jobs** (Theo dõi tiến trình nền)
+    *   *Thời điểm tạo ra*: Được tạo đồng thời cùng lúc khởi chạy Celery Task để xử lý phân tích sách (qua API `POST /upload`) hoặc lập kế hoạch học tập/âm thanh (qua API `POST /generate-plan`).
+        - **Các trường khởi tạo ban đầu**:
+          - `id` (UUID - Khóa chính, tự sinh).
+          - `user_id` (UUID - ID người dùng yêu cầu).
+          - `book_id` (UUID - ID sách liên quan, hoặc `None`).
+          - `job_type` (Enum `ProcessingJobType` - Loại công việc: `BOOK_PARSING`, `PLAN_GENERATION`, hoặc `AUDIO_GENERATION`).
+          - `status` (Enum `ProcessingJobStatus` - Trạng thái: `QUEUED`, `PROCESSING`, `COMPLETED`, hoặc `FAILED`, mặc định: `QUEUED`).
+          - `progress_percent` (Integer - Phần trăm tiến độ hoàn thành, mặc định: `0`).
+          - `total_units` (Integer - Tổng số đơn vị học tập cần xử lý, mặc định: `0`).
+          - `done_units` (Integer - Số đơn vị đã hoàn thành, mặc định: `0`).
+          - `failed_units` (Integer - Số đơn vị xử lý lỗi, mặc định: `0`).
+          - `created_at` & `updated_at` (DateTime với timezone - Thời điểm hiện tại).
+          - Các trường mặc định `None` (Null): `mode` (Chế độ kế hoạch), `current_step` (Bước xử lý thô), `estimated_input_tokens`, `estimated_audio_seconds`, `error_message`, `started_at`, `finished_at`.
+    *   *Khi nào thay đổi*: Cập nhật liên tục bởi Celery worker trong quá trình xử lý nền để Client lấy dữ liệu hiển thị Progress Bar.
+        - **Các trường thay đổi**:
+          - `status` (Chuyển thành `PROCESSING` khi worker bắt đầu xử lý, và thành `COMPLETED` hoặc `FAILED` khi kết thúc).
+          - `progress_percent` (Tăng từ 0% -> 100% dựa trên khối lượng công việc hoàn thành).
+          - `current_step` (Mô tả ngắn bước đang thực hiện, ví dụ: `"Đang trích xuất văn bản"`, `"Đang chạy AI planning"`, `"Đang sinh audio cho bài học"`).
+          - `total_units`, `done_units`, `failed_units` (Cập nhật tiến trình sinh âm thanh cho từng unit).
+          - `estimated_input_tokens`, `estimated_audio_seconds` (Tính toán sau khi hoàn thành AI planning).
+          - `started_at` & `finished_at` (Ghi nhận mốc thời gian bắt đầu và kết thúc job).
+          - `error_message` (Điền lỗi nếu job thất bại).
+          - `updated_at` (Thời điểm cập nhật).
+    *   *Ví dụ thực tế*: Khi người dùng tạo một kế hoạch Pareto cho cuốn sách, một job `PLAN_GENERATION` được tạo ra. Khi worker nhận job, `status = PROCESSING`, `started_at = NOW()`. AI Planner xác định có 3 bài học cần tạo -> `total_units = 3`. Khi sinh xong âm thanh bài học 1, hệ thống cập nhật `done_units = 1`, `progress_percent = 33%`, `current_step = "Đang sinh âm thanh cho Unit 2"`. Khi cả 3 bài học sinh xong, `status = COMPLETED`, `progress_percent = 100%`, `finished_at = NOW()`.
+    *   *Khi nào biến mất*: Tự động xóa (Cascade Delete) khi sách (`book_id`) bị xóa, hoặc dọn dẹp định kỳ bởi Admin.
+*   **book_sections** (Mục lục sách)
+    *   *Thời điểm tạo ra*: Được ghi hàng loạt bởi worker chạy ngầm sau khi Client gọi API `POST /upload` và file được giải nén thành công để trích xuất Outline cây đề mục (TOC).
+        - **Các trường khởi tạo ban đầu**:
+          - `id` (UUID - Khóa chính, tự sinh).
+          - `book_id` (UUID - ID sách sở hữu).
+          - `parent_id` (UUID - ID của chương cha nếu đây là chương con, hoặc `None` nếu là chương lớn cấp 1).
+          - `section_index` (Integer - Thứ tự của chương trong sách, bắt đầu từ `0`).
+          - `title` (Text - Tiêu đề chương/phần).
+          - `level` (Integer - Độ sâu phả hệ mục lục: `1` cho chương lớn, `2` cho phần con).
+          - `path` (Text - genealogy path đại diện phả hệ, ví dụ: `"0"` cho chương 1, `"0/1"` cho phần con đầu tiên của chương 1).
+          - `text_content` (Text - Toàn bộ nội dung chữ thô trích xuất từ chương).
+          - `text_char_count` (Integer - Số ký tự văn bản, mặc định `0`).
+          - `page_start` & `page_end` (Integer - Trang bắt đầu và kết thúc trong bản PDF, hoặc `None` đối với EPUB/DOCX).
+          - `source_href` & `source_anchor` (Text - Link neo liên kết định vị chương trong file EPUB/DOCX, hoặc `None`).
+          - `created_at` & `updated_at` (DateTime với timezone - Thời điểm hiện tại).
+    *   *Khi nào thay đổi*: Dữ liệu mục lục sách là tĩnh và KHÔNG thay đổi sau khi ghi nhận thành công.
+    *   *Khi nào biến mất*: Tự động xóa sạch (Cascade Delete) khi sách (`book_id`) tương ứng bị xóa.
+*   **book_section_knowledge** (Vector chunk ngữ nghĩa)
+    *   *Thời điểm tạo ra*: Được ghi hàng loạt bởi worker chạy ngầm sau khi Client gọi API `POST /upload` và tiến trình trích xuất text/chunking hoàn thành để lấy vector embedding.
+        - **Các trường khởi tạo ban đầu**:
+          - `id` (Integer - Khóa chính tự tăng).
+          - `book_id` (UUID - ID sách).
+          - `section_id` (UUID - ID chương chứa đoạn văn).
+          - `chunk_index` (Integer - Thứ tự của chunk trong chương đó, bắt đầu từ `0`).
+          - `content` (Text - Đoạn văn bản thô của chunk).
+          - `search_text` (Text - Đoạn văn bản thô được chuẩn hóa loại bỏ dấu tiếng Việt để phục vụ tìm kiếm lexical search nhanh).
+          - `content_hash` (Text - Mã MD5 hash của `content` để kiểm tra trùng lắp).
+          - `embedding_model` (Text - Tên mô hình nhúng, ví dụ: `"text-embedding-3-small"`).
+          - `embedding_version` (Text - Phiên bản cấu trúc embedding).
+          - `char_count` (Integer - Số ký tự của đoạn văn).
+          - `token_count` (Integer - Số lượng token ước lượng, hoặc `None`).
+          - `embedding` (Vector(1536) - Mảng float 1536 chiều biểu diễn ngữ nghĩa chunk).
+          - `created_at` & `updated_at` (DateTime với timezone - Thời điểm hiện tại).
+    *   *Khi nào thay đổi*: Dữ liệu vector chunk là tĩnh và KHÔNG thay đổi sau khi tạo lập.
+    *   *Khi nào biến mất*: Tự động xóa sạch (Cascade Delete) khi chương sách (`section_id`) hoặc cuốn sách (`book_id`) bị xóa.
+
+---
+
+### 4.3 Giai đoạn 3: Lập kế hoạch học & AI Planning (Learning Paths Generation)
+Phân hoạch bài nghe tóm tắt, cắt gộp chương sách thành các bài học và tạo lịch biểu học tập trong tuần.
+
+*   **reading_plans** (Kế hoạch đọc sách)
+    *   *Thời điểm tạo ra*: Khởi tạo khi người học cấu hình chế độ học tập và nhấn nút tạo kế hoạch cho một cuốn sách (Client gọi API `POST /generate-plan`).
+        - **Các trường khởi tạo ban đầu**:
+          - `id` (UUID - Khóa chính, tự sinh).
+          - `book_id` (UUID - ID sách áp dụng).
+          - `mode` (Enum `PlanMode` - Chế độ học: `PlanMode.DETAILED` hoặc `PlanMode.PARETO`).
+          - `pace` (Integer - Số bài học cần hoàn thành trong một ngày học, ví dụ: `2`).
+          - `status` (Text - Trạng thái kế hoạch: mặc định `"active"`).
+          - `reminder_time` (Text - Giờ nhắc học chung dạng `"HH:MM"`, mặc định lấy từ `notification_settings.reminder_time`).
+          - `started_at` (DateTime với timezone - Thời điểm kích hoạt kế hoạch).
+          - `created_at` & `updated_at` (DateTime với timezone - Thời điểm hiện tại).
+          - Các trường mặc định `None` (Null): `paused_at`, `completed_at`.
+    *   *Khi nào thay đổi*: Khi người học điều chỉnh thông số kế hoạch (tạm dừng học, thay đổi giờ nhắc, đổi tốc độ) hoặc khi hoàn tất kế hoạch học tập.
+        - **Các trường thay đổi**:
+          - `status` (Chuyển `"active"` -> `"paused"` khi người học tạm dừng; chuyển thành `"completed"` khi hoàn thành bài học cuối cùng).
+          - `pace` (Khi người học thay đổi số bài học học mỗi ngày).
+          - `reminder_time` (Khi người học đổi giờ nhắc nhở học chung của kế hoạch).
+          - `paused_at` (Điền thời điểm tạm dừng kế hoạch).
+          - `completed_at` (Điền thời điểm học xong bài học cuối cùng).
+          - `updated_at` (Thời điểm cập nhật thay đổi).
+    *   *Khi nào biến mất*: Cascade Delete khi cuốn sách (`book_id`) bị xóa khỏi hệ thống.
+*   **reading_plan_schedule_slots** (Slot lịch học trong tuần)
+    *   *Thời điểm tạo ra*: Sinh ra đồng thời khi tạo `ReadingPlan` (Client gọi API `POST /generate-plan`). Hệ thống tự động tạo các dòng tương ứng với các ngày học được chọn trong tuần.
+        - **Các trường khởi tạo ban đầu**:
+          - `id` (UUID - Khóa chính, tự sinh).
+          - `user_id` (UUID - ID người học).
+          - `plan_id` (UUID - ID kế hoạch học tập tương ứng).
+          - `book_id` (UUID - ID sách).
+          - `weekday` (Integer - Thứ trong tuần: `0` là Chủ Nhật, `1` là Thứ 2, ..., `6` là Thứ 7).
+          - `reminder_time` (Text - Giờ nhắc học riêng cho ngày đó, mặc định lấy từ `reading_plans.reminder_time`).
+          - `timezone` (Text - Múi giờ của người học, lấy từ `notification_settings.timezone`).
+          - `is_active` (Boolean - Trạng thái bật/tắt của slot học ngày đó, mặc định: `true`).
+          - `created_at` & `updated_at` (DateTime với timezone - Thời điểm hiện tại).
+    *   *Khi nào thay đổi*: Khi người học chỉnh sửa ngày học hoặc giờ học của từng ngày trên giao diện lịch học (ví dụ: đổi lịch chỉ học Thứ 2, 4, 6 thành Thứ 3, 5, 7, hoặc đổi giờ nhắc Thứ Bảy thành 09:00 thay vì 20:00).
+        - **Các trường thay đổi**: `reminder_time`, `timezone`, `is_active`, `updated_at`.
+    *   *Khi nào biến mất*: Cascade Delete khi kế hoạch học (`plan_id`) bị xóa.
+*   **learning_units** (Đơn vị bài học chính)
+    *   *Thời điểm tạo ra*: Được ghi hàng loạt bởi worker chạy ngầm sau khi Client gọi API `POST /generate-plan` và thuật toán AI Planner phân tách cấu trúc sách thành lộ trình các bài học phù hợp.
+        - **Các trường khởi tạo ban đầu**:
+          - `id` (UUID - Khóa chính, tự sinh).
+          - `user_id` (UUID - ID người học).
+          - `book_id` (UUID - ID sách).
+          - `mode` (Enum `PlanMode` - Chế độ kế hoạch).
+          - `unit_index` (Integer - Thứ tự bài học trong sách, bắt đầu từ `0`).
+          - `title` (Text - Tiêu đề bài học do AI biên soạn dựa trên nội dung gốc).
+          - `unit_type` (Text - Phân loại đơn vị học tập, ví dụ: `"main_audio"`, `"review_audio"`).
+          - `status` (Enum `ProcessingJobStatus` - Trạng thái sinh âm thanh, mặc định: `QUEUED`).
+          - `source_text_char_count` (Integer - Độ dài văn bản gốc, mặc định `0`).
+          - `estimated_tokens` (Integer - Số lượng token ước tính, mặc định `0`).
+          - `estimated_audio_seconds` (Integer - Thời lượng âm thanh ước tính, mặc định `0`).
+          - `main_segment_count` (Integer - Số lượng segment âm thanh, mặc định `0`).
+          - `created_at` & `updated_at` (DateTime với timezone - Thời điểm hiện tại).
+          - Các trường mặc định `None` (Null): `review_audio_url`, `review_text` (Tóm tắt kiến thức ôn tập), `planner_reason` (Lý do chọn nội dung của AI), `error_message`, `started_at`, `finished_at`.
+    *   *Khi nào thay đổi*: Khi tiến trình nền Celery bắt đầu tạo lời thoại, chạy TTS sinh file âm thanh chính/ôn tập và cắt nhỏ phân mảnh.
+        - **Các trường thay đổi**:
+          - `status` (Chuyển sang `PROCESSING` khi worker bắt đầu xử lý, và thành `COMPLETED` hoặc `ERROR` khi kết thúc).
+          - `review_text` (Đoạn tóm tắt kiến thức ôn tập ngắn do AI sinh ra).
+          - `review_audio_url` (Đường dẫn lưu file âm thanh ôn tập tóm tắt trên Supabase Storage).
+          - `planner_reason` (Lý do thuật toán AI lựa chọn các chương sách này vào bài học).
+          - `source_text_char_count`, `estimated_tokens`, `estimated_audio_seconds` (Các giá trị thực tế sau khi tính toán).
+          - `main_segment_count` (Tổng số segment âm thanh con được tạo lập).
+          - `started_at` & `finished_at` (Ghi vết thời gian bắt đầu và kết thúc xử lý).
+          - `error_message` (Lý do lỗi chi tiết nếu sinh âm thanh thất bại).
+          - `updated_at` (Thời điểm cập nhật thay đổi).
+    *   *Khi nào biến mất*: Cascade Delete khi cuốn sách (`book_id`) bị xóa khỏi hệ thống.
+*   **learning_unit_sources** (Liên kết chương nguồn)
+    *   *Thời điểm tạo ra*: Ghi một lần duy nhất bởi worker chạy ngầm sau khi Client gọi API `POST /generate-plan` tại thời điểm tạo bài học.
+        - **Các trường khởi tạo ban đầu**:
+          - `learning_unit_id` (UUID - ID bài học).
+          - `section_id` (UUID - ID chương sách nguồn).
+          - `source_order` (Integer - Thứ tự chương sách tham chiếu trong bài học, bắt đầu từ `0`).
+    *   *Khi nào biến mất*: Cascade Delete khi bài học hoặc chương sách tương ứng bị xóa.
+*   **learning_unit_segments** (Phân đoạn âm thanh bài học)
+    *   *Thời điểm tạo ra*: Được ghi hàng loạt bởi worker chạy ngầm sau khi Client gọi API `POST /generate-plan`, file âm thanh TTS chính của bài học được tạo lập và cắt nhỏ thành các phân đoạn ngắn (khoảng 30 giây) để tối ưu phát trực tuyến trên điện thoại.
+        - **Các trường khởi tạo ban đầu**:
+          - `id` (Integer - Khóa chính tự tăng).
+          - `learning_unit_id` (UUID - ID bài học chủ quản).
+          - `segment_index` (Integer - Thứ tự phân đoạn âm thanh trong bài học, bắt đầu từ `0`).
+          - `audio_url` (Text - Link file phân đoạn âm thanh trên Supabase Storage).
+          - `text_content` (Text - Đoạn văn bản lời thoại tương ứng của phân đoạn).
+          - `duration_ms` (Integer - Thời lượng phân đoạn tính bằng mili giây).
+          - `created_at` (DateTime với timezone - Thời điểm hiện tại).
+    *   *Khi nào thay đổi*: Dữ liệu phân đoạn âm thanh là tĩnh và KHÔNG thay đổi sau khi tạo lập.
+    *   *Khi nào biến mất*: Cascade Delete khi bài học (`learning_unit_id`) bị xóa.
+
+*   **Ví dụ thực tế toàn bộ Giai đoạn 3**: Người học B tạo kế hoạch học tập Pareto cho cuốn sách *Bo Gia* (Pace: 2 bài/ngày, Lịch học: Thứ 2 và Thứ 4):
+    1. Một bản ghi `reading_plans` được tạo: `mode = PlanMode.PARETO`, `pace = 2`, `status = "active"`.
+    2. Hệ thống tạo 2 bản ghi `reading_plan_schedule_slots` cho người học: slot 1 có `weekday = 1` (Thứ 2), slot 2 có `weekday = 3` (Thứ 4).
+    3. AI Planner phân tích cấu trúc sách và quyết định tạo ra 3 bài học (`learning_units`) chính.
+    4. Hệ thống tạo 3 bản ghi `learning_units` có `unit_index` lần lượt là `0`, `1`, `2`. Bài học số 1 (`unit_index = 0`) được tổng hợp từ Chương 1 và Chương 2 của sách. Hệ thống tạo 2 bản ghi `learning_unit_sources` để liên kết: dòng thứ nhất liên kết `learning_unit_id` với `section_id` của Chương 1 (`source_order = 0`), dòng thứ hai liên kết với Chương 2 (`source_order = 1`).
+    5. Khi worker chạy xử lý sinh âm thanh cho Bài học số 1, file âm thanh sinh ra dài 10 phút. Hệ thống cắt file thành 20 đoạn nhỏ và lưu vào bảng `learning_unit_segments` với `segment_index` từ `0` đến `19`, mỗi phân đoạn dài 30,000ms (`duration_ms = 30000`). Trạng thái của bài học chuyển thành `status = COMPLETED`.
+
+---
+
+### 4.4 Giai đoạn 4: Học tập hàng ngày & Đồng bộ tiến độ (Daily Study & Progress Tracking)
+Định thời sinh phiên học thực tế và đồng bộ hóa vị trí nghe của học viên.
+
+*   **reading_plan_sessions** (Phiên học hàng ngày)
+    *   *Thời điểm tạo ra*: Sinh ra tự động hàng tuần bởi worker chạy ngầm (Celery Beat) hoặc tạo ngay khi có kế hoạch học (qua API `POST /generate-plan`) để chuẩn bị trước lịch trình học sắp tới (FE lấy lịch trình qua API `GET /reading-plan/sessions`).
+        - **Các trường khởi tạo ban đầu**:
+          - `id` (PK), `user_id`, `plan_id`, `book_id`, `mode`.
+          - `session_index` (Chỉ số phiên).
+          - `scheduled_at` (Giờ học dự kiến dạng UTC datetime, tính toán dựa trên slot ngày học và timezone của user).
+          - `local_date` (Ngày học dạng chuỗi cục bộ `"YYYY-MM-DD"`).
+          - `reminder_time` & `timezone` (Snapshot từ slot tại thời điểm tạo).
+          - `status` (Mặc định: `"scheduled"`).
+          - `completed_units = 0`, `total_units` (Số bài nghe chỉ định trong phiên).
+          - `created_at` & `updated_at`.
+    *   *Khi nào thay đổi*: Khi người dùng tương tác học tập hoặc quá hạn.
+        - **Các trường thay đổi**: `status` (chuyển `"scheduled"` -> `"in_progress"` khi user bắt đầu phát bài nghe đầu tiên; chuyển `"completed"` khi học xong tất cả bài nghe; chuyển `"missed"` nếu quá ngày local mà chưa hoàn thành; chuyển `"skipped"` nếu user bấm nút bỏ qua), `completed_units` (Tăng lên khi có bài học con hoàn thành), `started_at`, `completed_at`, `skipped_at`, `missed_at`, `updated_at`.
+    *   *Ví dụ thực tế*: Ngày 22/06 user có phiên học lúc 20:00. Khi bắt đầu phát bài nghe 1 lúc 20:05, `status` phiên học chuyển thành `"in_progress"`, `started_at = 20:05:00`. Khi nghe xong bài nghe thứ 2 (hết số bài của phiên), `completed_units` cập nhật thành 2, `status = "completed"`, `completed_at = 20:35:00`.
+*   **reading_plan_session_units** (Liên kết bài nghe trong phiên)
+    *   *Thời điểm tạo ra*: Sinh ra cùng lúc với `ReadingPlanSession` (nhờ worker chạy ngầm hoặc qua trigger lập plan `POST /generate-plan`) để chỉ định danh sách bài nghe của phiên đó.
+        - **Các trường khởi tạo ban đầu**: `id` (PK), `session_id`, `plan_id`, `book_id`, `learning_unit_id`, `unit_order`, `status` (Mặc định: `"pending"`).
+    *   *Khi nào thay đổi*: Khi người dùng bắt đầu nghe và hoàn thành bài học tương ứng.
+        - **Các trường thay đổi**: `status` (chuyển `"pending"` -> `"in_progress"` -> `"completed"`), `completed_at`, `updated_at`.
+*   **learning_unit_progress** (Tiến trình bài nghe cá nhân)
+    *   *Thời điểm tạo ra*: Khởi tạo bản ghi lần đầu tiên ngay khi người dùng nhấn nút "Phát" (play) bài học (`LearningUnit`) đó lần đầu (Client gọi API `PUT /books/{book_id}/learning-units/{learning_unit_id}/progress`).
+        - **Các trường khởi tạo ban đầu**:
+          - `id` (UUID tự sinh làm PK).
+          - `user_id` (UUID người dùng), `book_id` (UUID sách), `learning_unit_id` (UUID bài học), `mode` (`PlanMode`).
+          - `started_at` (Thời điểm bắt đầu - UTC datetime hiện tại).
+          - Các trường tiến độ mặc định bằng `0` hoặc `None`: `current_segment_id = None`, `last_segment_index = 0`, `position_ms = 0`, `listened_ms = 0`, `total_duration_ms = 0`, `progress_percent = 0`, `max_progress_percent = 0`, `status = LearningProgressStatus.NOT_STARTED`.
+    *   *Khi nào thay đổi*: Cập nhật định kỳ (mỗi 3-5 giây) khi người dùng phát audio từ Client di động gửi lên.
+        - **Các trường cập nhật liên tục**:
+          - **`position_ms`**: Cập nhật vị trí đầu phát (playhead offset) hiện tại **bên trong phân đoạn âm thanh đó** (Segment-level position).
+          - `current_segment_id` (ID của segment đang nghe), `last_segment_index` (Index vị trí của segment trong bài).
+          - `listened_ms` (Thời lượng thực tế đã nghe qua công thức lấy giá trị lớn nhất: `max(listened_ms, payload.listened_ms)`).
+          - `total_duration_ms` (Tổng thời lượng bài nghe, tính bằng tổng thời lượng các segment con).
+          - `progress_percent` & `max_progress_percent` (Tính lũy kế tiến độ dựa trên index segment và position_ms hiện tại).
+          - `status`: Chuyển sang `IN_PROGRESS` và tự động đổi thành `COMPLETED` (kèm `completed_at`) ngay khi `max_progress_percent >= 80` (ngưỡng 80% hoàn thành).
+          - `last_activity_at` & `updated_at`: Ghi vết thời điểm hoạt động hiện tại.
+    *   *Ví dụ thực tế*: Người dùng nghe Bài học số 5 (gồm 3 phân đoạn segment, mỗi phân đoạn dài 100,000ms, tổng bài nghe dài 300,000ms).
+        - Người dùng nghe đến giây thứ 50 của Segment 2 (tức segment_index = 1).
+        - Bản ghi `learning_unit_progress` cập nhật:
+          - `current_segment_id` = ID Segment 2.
+          - `last_segment_index` = 1.
+          - **`position_ms` = 50,000 (ms)** (Tức là đang ở vị trí 50 giây của riêng Segment 2).
+          - `progress_percent` = `(100,000 + 50,000) / 300,000 = 50%`. Trạng thái chuyển sang `IN_PROGRESS`.
+    *   *Khi nào biến mất*: Tự động xóa vĩnh viễn (Cascade Delete) khi tài khoản người dùng hoặc cuốn sách bị xóa khỏi hệ thống.
+*   **book_learning_states** (Trạng thái học tổng thể cuốn sách)
+    *   *Thời điểm tạo ra*: Được tạo ra lần đầu tiên song song khi bản ghi `learning_unit_progress` đầu tiên của cuốn sách đó được tạo nhằm theo dõi trạng thái tổng thể (Client gọi API `PUT /books/{book_id}/learning-units/{learning_unit_id}/progress`).
+        - **Các trường khởi tạo ban đầu**:
+          - `id` (UUID tự sinh làm PK).
+          - `user_id` (UUID người dùng), `book_id` (UUID sách), `mode` (`PlanMode`).
+          - `status` (Trạng thái mặc định: `"not_started"`).
+          - `book_progress_percent = 0`, `completed_units = 0`.
+          - `playable_units` = Tổng số bài học sẵn có của cuốn sách.
+          - `started_at` = null (sau đó lấy timestamp nhỏ nhất của các progress).
+          - Các trường định vị resume mặc định bằng null/0: `last_learning_unit_id = None`, `last_segment_id = None`, `last_segment_index = None`, `position_ms = 0`.
+    *   *Khi nào thay đổi*: Được đồng bộ ngay lập tức sau mỗi lần `learning_unit_progress` của người dùng được cập nhật thành công (đồng bộ thời gian thực).
+        - **Các trường cập nhật liên tục**:
+          - **`position_ms`**: Vị trí đầu phát hiện tại **bên trong phân đoạn âm thanh gần nhất đó** (sao chép trực tiếp từ `learning_unit_progress.position_ms` của bài học tương tác cuối cùng). Dùng làm điểm lưu vết resume ở cấp độ cuốn sách.
+          - `last_learning_unit_id` (ID bài học nghe gần nhất), `last_segment_id` (ID segment gần nhất), `last_segment_index` (Index segment gần nhất).
+          - `book_progress_percent` (Tính trung bình cộng phần trăm của tất cả playable units).
+          - `completed_units` (Số bài học đã đạt trạng thái `COMPLETED`).
+          - `status`: Chuyển sang `"learning"`, và tự động đổi sang `"completed"` (kèm `completed_at`) khi `completed_units >= playable_units`.
+          - `last_activity_at`: Ghi vết thời điểm hoạt động gần nhất của sách.
+    *   *Ví dụ thực tế*: Tiếp tục ví dụ học Bài học số 5 ở trên, sau khi `learning_unit_progress` cập nhật vị trí phát tại Segment 2 giây thứ 50, hệ thống lập tức cập nhật bảng `book_learning_states`:
+        - `last_learning_unit_id` = ID Bài học số 5.
+        - `last_segment_id` = ID Segment 2.
+        - `last_segment_index` = 1.
+        - **`position_ms` = 50,000 (ms)**.
+        - Khi người dùng tắt app đi ngủ, ngày hôm sau mở lại app và bấm nút "Học tiếp Sách này": Client sẽ gọi API lấy `book_learning_states` và biết chính xác người dùng đang nghe dở bài học nào, phân đoạn nào và tại giây thứ bao nhiêu để tự động tải audio và nhảy (seek) đến giây thứ 50 của Segment 2, giúp trải nghiệm học tập diễn ra liền mạch.
+    *   *Khi nào biến mất*: Tự động xóa vĩnh viễn (Cascade Delete) khi tài khoản người dùng hoặc cuốn sách bị xóa khỏi hệ thống.
+
+---
+
+### 4.5 Giai đoạn 5: Ôn tập ngắt quãng (Spaced Repetition Review)
+Lập chu kỳ ôn tập củng cố kiến thức dựa trên kết quả hoàn thành bài học theo thuật toán Spaced Repetition (mốc cố định: 1, 3, 7, 14, 30 ngày).
+
+*   **spaced_review_items** (Thẻ ôn tập ngắt quãng)
+    *   *Thời điểm tạo ra*: Được tạo tự động khi Client gọi API cập nhật tiến trình `PUT /books/{book_id}/learning-units/{learning_unit_id}/progress` làm cho tiến độ đạt điều kiện hoàn thành `COMPLETED` (tức `max_progress_percent >= 80`).
+        - **Các trường khởi tạo ban đầu**:
+          - `id` (UUID - Khóa chính, tự sinh bằng uuid4).
+          - `user_id` (UUID - ID người học).
+          - `book_id` (UUID - ID sách).
+          - `learning_unit_id` (UUID - ID bài học cần ôn tập).
+          - `mode` (Enum `PlanMode` - Chế độ học tập).
+          - `interval_days` (Integer - Khoảng cách số ngày ôn tập: lần lượt nhận giá trị `1`, `3`, `7`, `14`, và `30`).
+          - `sequence_index` (Integer - Thứ tự lượt ôn tập trong chuỗi: từ `0` đến `4`).
+          - `due_at` (DateTime với timezone - Thời điểm đến hạn ôn tập, tính bằng công thức: `completed_at` của progress gốc + `interval_days` ngày).
+          - `status` (Enum `ReviewItemStatus` - Trạng thái ôn tập, mặc định: `ReviewItemStatus.PENDING`).
+          - `review_text_snapshot` (Text - Bản sao văn bản tóm tắt ôn tập của unit gốc để hiển thị nhanh khi ôn).
+          - `anchor_completed_at` (DateTime với timezone - Thời điểm hoàn thành bài học gốc để làm mốc tính chu kỳ).
+          - `source_unit_progress_id` (UUID - ID bản ghi tiến độ `learning_unit_progress` gốc).
+          - `created_at` & `updated_at` (DateTime với timezone - Thời điểm hiện tại).
+          - Các trường khởi tạo bằng `None` (Null): `notified_at` (Đã báo tin), `last_reviewed_at` (Xem thẻ gần nhất), `completed_at` (Học xong thẻ).
+    *   *Khi nào thay đổi*: Khi thẻ đến hạn cần ôn tập và người học thực hiện hành động ôn tập (hoặc bỏ qua) trên giao diện ứng dụng.
+        - **Các trường thay đổi**:
+          - `status` (Chuyển từ `"pending"` sang `"due"` khi cron job quét phát hiện đến hạn và gửi thông báo nhắc nhở; chuyển thành `"completed"` khi học viên đã học xong nội dung tóm tắt; chuyển thành `"skipped"` nếu học viên chọn bỏ qua thẻ này; chuyển thành `"cancelled"` nếu tiến độ học gốc bị reset/làm lại).
+          - `notified_at` (Ghi nhận mốc thời gian hệ thống đã gửi thông báo nhắc ôn tập cho thẻ này).
+          - `last_reviewed_at` (Ghi nhận thời điểm học viên bắt đầu nhấn vào xem nội dung thẻ).
+          - `completed_at` (Ghi nhận thời điểm học viên hoàn thành thẻ ôn tập).
+          - `updated_at` (Thời điểm cập nhật thay đổi).
+    *   *Ví dụ thực tế*: Ngày 20/06 lúc 20:00 người học hoàn thành Unit 1 của sách *Bo Gia* (tiến độ đạt 80%).
+        - Hệ thống tự động tạo 5 bản ghi `spaced_review_items` có `sequence_index` từ 0 đến 4.
+        - Thẻ thứ nhất (`sequence_index = 0`, `interval_days = 1`) có `due_at = 21/06 20:00:00`.
+        - Đúng 20:00 ngày 21/06, cron job quét qua phát hiện thẻ này đến hạn. Hệ thống cập nhật `status = "due"`, điền `notified_at = 21/06 20:00:03` và sinh thông báo nhắc nhở trong Outbox.
+        - Đến 20:15 ngày 21/06, người học mở màn hình Ôn tập và học xong thẻ này. Hệ thống cập nhật thẻ: `status = "completed"`, `completed_at = 21/06 20:17:00`, `last_reviewed_at = 21/06 20:15:00`.
+    *   *Khi nào biến mất*: Cascade Delete khi cuốn sách bị gỡ bỏ khỏi tài khoản người dùng, hoặc khi người dùng reset/xóa dữ liệu tiến trình học của cuốn sách đó.
+
+---
+
+### 4.6 Giai đoạn 6: Đẩy thông báo nhắc nhở (Notification Delivery Outbox)
+Vận hành mô hình Outbox Pattern để lưu trữ hàng đợi sự kiện thông báo đẩy (Reminders) và quản lý Inbox hiển thị.
+
+*   **notification_outbox** (Hàng đợi gửi thông báo)
+    *   *Thời điểm tạo ra*: Được ghi nhận tự động bởi tiến trình lập lịch chạy ngầm (Celery Beat) khi phát hiện có phiên học hoặc thẻ ôn tập đến hạn, không cần FE gọi trực tiếp.
+        - **Các trường khởi tạo ban đầu**:
+          - `id` (UUID - Khóa chính, tự sinh).
+          - `user_id` (UUID - ID người nhận thông báo).
+          - `type` (Enum `NotificationType` - Loại sự kiện: `DAILY_STUDY`, `SPACED_REVIEW`, hoặc `MISSED_SESSION`).
+          - `channel` (Enum `NotificationChannel` - Kênh gửi tin: `NotificationChannel.IN_APP` hoặc `NotificationChannel.PUSH`, mặc định: `PUSH`).
+          - `status` (Enum `NotificationStatus` - Trạng thái hàng đợi: mặc định `NotificationStatus.PENDING`).
+          - `payload` (JSONB - Nội dung dữ liệu thông báo, chứa tiêu đề, nội dung và sự kiện điều hướng màn hình).
+          - `due_at` (DateTime với timezone - Thời điểm dự kiến cần đẩy tin đi).
+          - `idempotency_key` (Text - Khóa chống gửi trùng duy nhất, được sinh bằng hash nghiệp vụ, ví dụ: `"spaced_review_userA_unitB_seq0"`).
+          - `created_at` & `updated_at` (DateTime với timezone - Thời điểm hiện tại).
+          - Các trường mặc định `None` hoặc `0`: `next_retry_at`, `locked_at`, `locked_by`, `sent_at`, `attempts = 0`, `error_message`.
+    *   *Khi nào thay đổi*: Khi worker quét hàng đợi outbox để xử lý gửi tin và xử lý lỗi kết nối.
+        - **Các trường thay đổi**:
+          - `status` (Chuyển sang `NotificationStatus.SENT` khi gửi tin thành công qua Firebase FCM, hoặc `NotificationStatus.FAILED` khi lỗi và vượt quá số lần thử lại tối đa).
+          - `locked_at` & `locked_by` (Điền thời gian và định danh worker đang khóa dòng này để tránh gửi trùng lặp).
+          - `attempts` (Tăng thêm 1 sau mỗi lần worker thử gửi tin).
+          - `sent_at` (Điền thời gian gửi tin thành công thực tế).
+          - `error_message` & `next_retry_at` (Điền lỗi và lập lịch thử lại bằng cơ chế Exponential Backoff nếu quá trình gửi qua FCM bị lỗi mạng đột xuất).
+          - `updated_at` (Thời điểm cập nhật thay đổi).
+    *   *Khi nào biến mất*: Không tự động biến mất để phục vụ thống kê, nhưng hệ thống sẽ chạy tiến trình dọn dẹp (pruning) tự động xóa các outbox cũ hơn 30 ngày.
+*   **user_notifications** (Thông báo inbox hiển thị)
+    *   *Thời điểm tạo ra*: Được ghi nhận đồng thời ngay sau khi outbox gửi đi thành công (`status = "sent"`), đóng vai trò lưu trữ lịch sử tin nhắn hiển thị tại Hộp thư thông báo trong ứng dụng (Client lấy danh sách qua API `GET /notifications`).
+        - **Các trường khởi tạo ban đầu**:
+          - `id` (UUID - Khóa chính, tự sinh).
+          - `user_id` (UUID - ID người dùng).
+          - `outbox_id` (UUID - Liên kết trỏ về bản ghi outbox nguồn, hoặc `None`).
+          - `type` (Enum `NotificationType` - Loại thông báo).
+          - `title` & `body` (Text - Tiêu đề và nội dung thông báo hiển thị).
+          - `action_type` & `action_payload` (Text & JSONB - Dữ liệu điều hướng màn hình khi người dùng click vào).
+          - `created_at` (DateTime với timezone - Thời điểm hiện tại).
+          - `read_at` (DateTime với timezone - Khởi tạo bằng `None`).
+    *   *Khi nào thay đổi*: Khi người dùng mở app di động, nhấn vào xem thông báo trong danh sách Hộp thư.
+        - **Các trường thay đổi**: `read_at` (Cập nhật mốc thời gian UTC thực tế khi người dùng đọc tin).
+    *   *Ví dụ thực tế toàn bộ Giai đoạn 6*: Hệ thống cần nhắc nhở người học C học bài lúc 20:00 ngày 22/06.
+        1. Lúc 19:30, worker tạo một dòng outbox: `type = "DAILY_STUDY"`, `due_at = 22/06 20:00:00`, `idempotency_key = "daily_study_userC_2026-06-22"`, `status = "pending"`.
+        2. Đúng 20:00, worker quét dòng này, cập nhật: `locked_at = 20:00:00`, `locked_by = "worker_node_2"`, `attempts = 1`.
+        3. Worker gọi API Firebase FCM để đẩy tin. Gửi thành công.
+        4. Worker cập nhật: `status = "sent"`, `sent_at = 20:00:02`.
+        5. Hệ thống lập tức insert dòng mới vào `user_notifications`: `title = "Giờ học đến rồi!"`, `body = "Hãy tiếp tục nghe Bo Gia hôm nay nhé."`, `read_at = None`.
+        6. Lúc 20:10, người học chạm vào thông báo mở app, backend cập nhật `read_at = 20:10:15 UTC`.
+    *   *Khi nào biến mất*: User có thể chủ động nhấn nút "Xóa thông báo" trên giao diện để xóa bản ghi hiển thị (xóa logic). Hoặc Cascade Delete khi xóa tài khoản.
+
+---
+
+## 5. Hướng dẫn Dành Cho Nhà Phát Triển Mới (Developer Cheat Sheet)
+
+### 5.1 Quy trình Metadata Cloning & Xóa Sách An Toàn
 
 Đối với tính năng chia sẻ sách mẫu từ Thư viện hệ thống sang tài khoản cá nhân, TRIAM sử dụng mô hình **Metadata Cloning**:
 1. Hệ thống chỉ clone các dữ liệu metadata trong CSDL (`book_sections`, `book_section_knowledge`, `learning_units`, `learning_unit_segments`).
@@ -479,7 +871,7 @@ sequenceDiagram
 
 ---
 
-### 4.2 Thiết Kế Database Engine trong LiveKit Voice Agent
+### 5.2 Thiết Kế Database Engine trong LiveKit Voice Agent
 
 Trong phân hệ Realtime Voice Agent (`agent_voice_gpt_realtime.py` và `transcript_store.py`), các phiên hội thoại âm thanh đòi hỏi độ trễ cực thấp (dưới 1ms) và tránh tắc nghẽn Pool kết nối.
 
@@ -492,7 +884,7 @@ Trong phân hệ Realtime Voice Agent (`agent_voice_gpt_realtime.py` và `transc
 
 ---
 
-### 4.3 Tối ưu hóa Async/Sync và Tránh đóng băng Event Loop
+### 5.3 Tối ưu hóa Async/Sync và Tránh đóng băng Event Loop
 
 FastAPI chạy hoàn toàn trên một Event Loop bất đồng bộ đơn luồng. Các tác vụ mạng I/O đồng bộ nếu không được xử lý đúng cách sẽ làm đứng hình toàn bộ ứng dụng.
 
@@ -512,7 +904,7 @@ FastAPI chạy hoàn toàn trên một Event Loop bất đồng bộ đơn luồ
 
 ---
 
-### 4.4 Cách Viết Truy Vấn Vector Đặc Trưng (pgvector)
+### 5.4 Cách Viết Truy Vấn Vector Đặc Trưng (pgvector)
 Để truy xuất dữ liệu ngữ nghĩa tương tự gần nhất từ bảng `book_section_knowledge` sử dụng Cosine Distance:
 ```python
 from pgvector.sqlalchemy import Vector
@@ -533,7 +925,7 @@ results = session.exec(stmt).all()
 
 ---
 
-### 4.5 Tạo Revision di trú CSDL với Alembic
+### 5.5 Tạo Revision di trú CSDL với Alembic
 Khi bạn có bất kỳ thay đổi nào trong file `app/models/db_models.py`, tuyệt đối không thay đổi trực tiếp trên DB production. Hãy làm theo quy trình:
 1. Tạo file migration tự động:
    ```powershell

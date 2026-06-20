@@ -17,6 +17,7 @@ skinparam usecase {
 left to right direction
 
 actor "Quản trị viên" as Admin
+actor "Độc giả" as Reader
 
 rectangle "Phân hệ Quản trị hệ thống" {
   (Xem dashboard) as UC_AdminDashboard
@@ -31,4 +32,6 @@ Admin -- UC_AdminUser
 Admin -- UC_AdminCatalog
 Admin -- UC_AdminJob
 Admin -- UC_Audit
+Admin -|> Reader
+
 @enduml
