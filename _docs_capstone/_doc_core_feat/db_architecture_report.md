@@ -701,7 +701,7 @@ Phân hoạch bài nghe tóm tắt, cắt gộp chương sách thành các bài 
 Định thời sinh phiên học thực tế và đồng bộ hóa vị trí nghe của học viên.
 
 *   **reading_plan_sessions** (Phiên học hàng ngày)
-    *   *Thời điểm tạo ra*: Sinh ra tự động hàng tuần bởi worker chạy ngầm (Celery Beat) hoặc tạo ngay khi có kế hoạch học (qua API `POST /generate-plan`) để chuẩn bị trước lịch trình học sắp tới (FE lấy lịch trình qua API `GET /reading-plan/sessions`).
+    *   *Thời điểm tạo ra*: Sinh ra đồng thời cho **toàn bộ các bài học còn lại** (chứ không phải sinh theo tuần) ngay khi kế hoạch học được thiết lập (qua API `POST /generate-plan`) hoặc khi kế hoạch được cập nhật/tính toán lại lịch trình. Trong code không có Celery Beat định kỳ sinh sessions; Celery Beat chỉ chạy tác vụ bảo trì định kỳ quét để đánh dấu các session quá hạn thành `"missed"`. (FE lấy danh sách lịch trình qua API `GET /reading-plan/sessions`).
         - **Các trường khởi tạo ban đầu**:
           - `id` (PK), `user_id`, `plan_id`, `book_id`, `mode`.
           - `session_index` (Chỉ số phiên).
@@ -715,7 +715,7 @@ Phân hoạch bài nghe tóm tắt, cắt gộp chương sách thành các bài 
         - **Các trường thay đổi**: `status` (chuyển `"scheduled"` -> `"in_progress"` khi user bắt đầu phát bài nghe đầu tiên; chuyển `"completed"` khi học xong tất cả bài nghe; chuyển `"missed"` nếu quá ngày local mà chưa hoàn thành; chuyển `"skipped"` nếu user bấm nút bỏ qua), `completed_units` (Tăng lên khi có bài học con hoàn thành), `started_at`, `completed_at`, `skipped_at`, `missed_at`, `updated_at`.
     *   *Ví dụ thực tế*: Ngày 22/06 user có phiên học lúc 20:00. Khi bắt đầu phát bài nghe 1 lúc 20:05, `status` phiên học chuyển thành `"in_progress"`, `started_at = 20:05:00`. Khi nghe xong bài nghe thứ 2 (hết số bài của phiên), `completed_units` cập nhật thành 2, `status = "completed"`, `completed_at = 20:35:00`.
 *   **reading_plan_session_units** (Liên kết bài nghe trong phiên)
-    *   *Thời điểm tạo ra*: Sinh ra cùng lúc với `ReadingPlanSession` (nhờ worker chạy ngầm hoặc qua trigger lập plan `POST /generate-plan`) để chỉ định danh sách bài nghe của phiên đó.
+    *   *Thời điểm tạo ra*: Sinh ra cùng lúc với `ReadingPlanSession` khi lập kế hoạch (`POST /generate-plan`) hoặc tính toán lại lịch để chỉ định danh sách bài nghe của phiên đó.
         - **Các trường khởi tạo ban đầu**: `id` (PK), `session_id`, `plan_id`, `book_id`, `learning_unit_id`, `unit_order`, `status` (Mặc định: `"pending"`).
     *   *Khi nào thay đổi*: Khi người dùng bắt đầu nghe và hoàn thành bài học tương ứng.
         - **Các trường thay đổi**: `status` (chuyển `"pending"` -> `"in_progress"` -> `"completed"`), `completed_at`, `updated_at`.

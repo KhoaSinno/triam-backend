@@ -325,7 +325,7 @@ class NotificationSettings(SQLModel, table=True):
     reminder_time: str = Field(default="20:00", sa_column=Column(Text, nullable=False))
     quiet_hours_start: str = Field(default="22:00", sa_column=Column(Text, nullable=False))
     quiet_hours_end: str = Field(default="07:00", sa_column=Column(Text, nullable=False))
-    daily_cap: int = Field(default=3, sa_column=Column(Integer, nullable=False))
+    daily_cap: int = Field(default=15, sa_column=Column(Integer, nullable=False))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
