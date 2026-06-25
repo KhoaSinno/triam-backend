@@ -1,11 +1,11 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
-from app.core.constant import ProcessingJobStatus, ProcessingJobType
-from app.core.exceptions import BadRequestError, BookNotFoundError, ExternalServiceError, ProcessingJobNotFoundError, ProcessingJobStatusConflictError
-from app.models.db_models import AdminAuditLog, AdminUser, ProcessingJob
+from app.core.constant import BookStatus, PlanMode, ProcessingJobStatus, ProcessingJobType
+from app.core.exceptions import BadRequestError, BookNotFoundError, BookStatusConflictError, ExternalServiceError, ProcessingJobNotFoundError, ProcessingJobStatusConflictError
+from app.models.db_models import AdminAuditLog, AdminUser, Book, LearningUnit, ProcessingJob
 from app.repositories.admin_repo import (
     count_learning_unit_segments_for_book,
     count_learning_units_by_status,
@@ -18,11 +18,13 @@ from app.repositories.admin_repo import (
     list_admin_jobs,
     list_admin_users,
 )
+from app.repositories.learning_unit_repo import create_learning_units
 from app.repositories.processing_job_repo import get_processing_job_by_id
 from app.schemas.admin import (
     AdminAuditLogItem,
     AdminAuditLogsResponse,
     AdminBookDetailResponse,
+    AdminBookListItem,
     AdminBooksResponse,
     AdminDashboardResponse,
     AdminJobListItem,
@@ -32,6 +34,7 @@ from app.schemas.admin import (
     AdminUsersResponse,
 )
 from app.schemas.user import UserTokenPayload
+from app.services.upload_service import _planned_units_for_book
 from app.tasks.book_tasks import process_book_task, switch_mode_task
 
 RETRYABLE_JOB_STATUSES = {ProcessingJobStatus.ERROR, ProcessingJobStatus.CANCELLED}
@@ -75,7 +78,41 @@ def get_books(
         user_id=user_id,
         q=q,
     )
-    return AdminBooksResponse(total=total, limit=limit, offset=offset, items=books)
+
+    book_ids = [b.id for b in books]
+    modes_map = {}
+    if book_ids:
+        rows = session.exec(
+            select(LearningUnit.book_id, LearningUnit.mode)
+            .where(LearningUnit.book_id.in_(book_ids))
+            .group_by(LearningUnit.book_id, LearningUnit.mode)
+        ).all()
+        for b_id, mode in rows:
+            modes_map.setdefault(b_id, set()).add(mode.value)
+
+    items = []
+    for b in books:
+        book_modes = modes_map.get(b.id, set())
+        items.append(
+            AdminBookListItem(
+                id=b.id,
+                user_id=b.user_id,
+                title=b.title,
+                author=b.author,
+                document_type=b.document_type,
+                status=b.status,
+                total_sections=b.total_sections,
+                total_units=b.total_units,
+                error_message=b.error_message,
+                is_shared=b.is_shared,
+                parent_shared_id=b.parent_shared_id,
+                has_full_mode="full" in book_modes,
+                has_pareto_mode="pareto" in book_modes,
+                created_at=b.created_at,
+                updated_at=b.updated_at,
+            )
+        )
+    return AdminBooksResponse(total=total, limit=limit, offset=offset, items=items)
 
 
 def get_book_detail(session: Session, book_id: uuid.UUID) -> AdminBookDetailResponse:
@@ -84,8 +121,31 @@ def get_book_detail(session: Session, book_id: uuid.UUID) -> AdminBookDetailResp
         raise BookNotFoundError()
 
     latest_job = get_latest_admin_job_for_book(session, book_id)
+    
+    # Query modes
+    rows = session.exec(
+        select(LearningUnit.mode)
+        .where(LearningUnit.book_id == book_id)
+        .group_by(LearningUnit.mode)
+    ).all()
+    book_modes = {mode.value for mode in rows}
+
     return AdminBookDetailResponse(
-        **book.model_dump(),
+        id=book.id,
+        user_id=book.user_id,
+        title=book.title,
+        author=book.author,
+        document_type=book.document_type,
+        status=book.status,
+        total_sections=book.total_sections,
+        total_units=book.total_units,
+        error_message=book.error_message,
+        is_shared=book.is_shared,
+        parent_shared_id=book.parent_shared_id,
+        has_full_mode="full" in book_modes,
+        has_pareto_mode="pareto" in book_modes,
+        created_at=book.created_at,
+        updated_at=book.updated_at,
         latest_job=AdminJobListItem.model_validate(latest_job) if latest_job else None,
         learning_units_by_status=count_learning_units_by_status(session, book_id),
         segment_count=count_learning_unit_segments_for_book(session, book_id),
@@ -227,3 +287,96 @@ def _audit_log_response(log: AdminAuditLog) -> AdminAuditLogItem:
         metadata=log.metadata_json,
         created_at=log.created_at,
     )
+
+
+async def start_admin_book_processing(
+    session: Session,
+    *,
+    book_id: uuid.UUID,
+    mode: str,
+    admin_user_id: uuid.UUID,
+    is_shared: bool = False
+) -> AdminRetryJobResponse:
+    """
+    Kích hoạt trực tiếp tiến trình băm chữ, tạo RAG vector và sinh audio cho sách mẫu
+    mà không cần bất kỳ lịch trình học cá nhân (ReadingPlan) nào của Admin.
+    """
+
+    book = session.get(Book, book_id)
+    if not book:
+        raise BookNotFoundError()
+
+    # 1. Cho phép xử lý sách mẫu nếu sách ở trạng thái nháp, đang xử lý, đã xong (READY) hoặc lỗi
+    if book.status not in (BookStatus.DRAFT.value, BookStatus.PROCESSING.value, BookStatus.READY.value, BookStatus.ERROR.value):
+        raise BookStatusConflictError(f"Sách đang ở trạng thái '{book.status}', không thể xử lý.")
+
+    requested_mode = PlanMode(mode)
+
+    # 2. Ngăn chặn việc chạy trùng lặp cùng một mode đang xử lý
+    existing_job = session.exec(
+        select(ProcessingJob).where(
+            ProcessingJob.book_id == book_id,
+            ProcessingJob.mode == requested_mode,
+            ProcessingJob.status.in_([ProcessingJobStatus.QUEUED, ProcessingJobStatus.PROCESSING])
+        )
+    ).first()
+    if existing_job:
+        raise BookStatusConflictError(f"Chế độ học tập '{mode}' đang được xử lý cho cuốn sách này.")
+
+    # 3. Sinh cấu trúc bài học dự kiến
+    planned_units = await _planned_units_for_book(session, book_id, requested_mode)
+
+    # 4. Lưu học phần (LearningUnits) vào DB
+    created_units = create_learning_units(
+        session,
+        user_id=admin_user_id,
+        book_id=book_id,
+        mode=requested_mode,
+        planned_units=planned_units,
+    )
+    # Cập nhật thông minh tránh ghi đè số lượng lớn hơn của FULL mode
+    book.total_units = max(book.total_units or 0, len(created_units))
+    book.status = BookStatus.PROCESSING.value
+    if is_shared:
+        book.is_shared = True
+    session.add(book)
+
+    # 5. Tạo ProcessingJob để theo dõi tiến trình
+    job = ProcessingJob(
+        user_id=admin_user_id,
+        book_id=book_id,
+        job_type=ProcessingJobType.GENERATE_PLAN,
+        status=ProcessingJobStatus.QUEUED,
+        mode=requested_mode,
+        total_units=len(planned_units) if planned_units else book.total_units or 0,
+        done_units=0,
+        progress_percent=0,
+        current_step="Đang chờ xử lý sách (Admin).",
+    )
+    session.add(job)
+    session.commit()
+    session.refresh(job)
+    session.refresh(book)
+
+    # 6. Ghi Audit Log hành động của Admin
+    create_admin_audit_log(
+        session,
+        admin_user_id=admin_user_id,
+        action="book.admin_process",
+        target_type="book",
+        target_id=book_id,
+        metadata={"mode": mode, "job_id": str(job.id), "is_shared": is_shared},
+    )
+    session.commit()
+
+    # 7. Kích hoạt Celery Task
+    process_book_task.apply_async(
+        args=[str(book_id), requested_mode.value, str(job.id)],
+        queue="document",
+    )
+
+    return AdminRetryJobResponse(
+        job=AdminJobListItem.model_validate(job),
+        message="Sách đã được đưa vào hàng đợi xử lý âm thanh & vector."
+    )
+

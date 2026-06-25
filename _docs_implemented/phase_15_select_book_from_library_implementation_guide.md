@@ -2,9 +2,11 @@
 
 Tài liệu này cung cấp hướng dẫn triển khai chi tiết từng bước, mã nguồn hoàn chỉnh (Backend & Test) cho tính năng: **Admin chia sẻ sách mẫu -> User chọn sách từ thư viện -> Hệ thống thực hiện nhân bản nhanh bằng PostgreSQL Stored Procedure (Supabase RPC) để RAG & học tập độc lập**.
 
-Đặc biệt, tài liệu này giải quyết 2 bài toán kiến trúc quan trọng:
-1. **Admin bỏ qua lập lịch học**: Cung cấp API riêng cho Admin kích hoạt sinh bài học & âm thanh mà không cần tạo lịch học (`ReadingPlan` / `Slots`) cá nhân. Hỗ trợ tùy chọn **Auto-Publish (Tự động công khai)** ngay khi hoàn tất.
-2. **User kích hoạt lịch học trên sách clone**: Sửa đổi API `/generate-plan` của User để phát hiện sách clone đã có sẵn bài học/âm thanh và chỉ tạo lịch học cá nhân mà không chạy lại Celery hay xóa audio cũ.
+Đặc biệt, tài liệu này giải quyết 4 bài toán kiến trúc quan trọng (đã qua Audit bảo mật và toàn vẹn dữ liệu):
+1. **Admin xử lý song song không bị khóa trạng thái**: Cho phép gọi API xử lý đồng thời cả 2 chế độ (`FULL` & `PARETO`) mà không bị lỗi `BookStatusConflictError` do cơ chế khóa trạng thái `PROCESSING`.
+2. **Cú pháp SQL Procedure chính xác**: Khắc phục lỗi Alias trong câu lệnh khôi phục cấu trúc `parent_id` của `BookSection` trong Postgres.
+3. **Tránh ghi đè số lượng bài học (`total_units`)**: Cập nhật thông minh `total_units` của sách để phản ánh số bài học lớn nhất (FULL mode), tránh việc chế độ PARETO (chỉ chiếm 25% bài học) ghi đè và làm giảm hiển thị số lượng bài của sách gốc.
+4. **Giải quyết Race Condition của Auto-Publish**: Ngăn chặn việc sách hiển thị ra thư viện quá sớm khi chỉ mới có 1 trong 2 chế độ xử lý xong (Celery worker sẽ chỉ đưa trạng thái sách về `READY` khi **tất cả** các Job xử lý của cuốn sách đó hoàn tất).
 
 ---
 
@@ -81,7 +83,7 @@ def upgrade() -> None:
         )
         SELECT 
             new_book_id, new_user_id, title, author, file_url, document_type, 
-            total_sections, total_units, 'READY', false, shared_book_id, 
+            total_sections, total_units, 'ready', false, shared_book_id, 
             now(), now()
         FROM books 
         WHERE id = shared_book_id;
@@ -239,6 +241,10 @@ Chạy lệnh để áp dụng migration vào DB:
 ```bash
 uv run alembic upgrade head
 ```
+
+> [!WARNING]
+> **⚠️ LƯU Ý BẢO TRÌ (SCHEMA EXPANSION GUARD):**
+> Do PostgreSQL Stored Function `clone_shared_book` liệt kê tường minh danh sách các cột (`INSERT INTO books (...) SELECT ...`), khi dự án TRIAM mở rộng thêm tính năng và bổ sung/xóa các cột trên các bảng liên quan (`books`, `book_sections`, `book_section_knowledge`, `learning_units`, `learning_unit_sources`, `learning_unit_segments`), lập trình viên **bắt buộc phải cập nhật đồng bộ cấu trúc cột** tương ứng trong Stored Function này để tránh mất mát dữ liệu hoặc lỗi ràng buộc `NOT NULL` khi người dùng clone sách.
 
 ---
 
@@ -481,6 +487,8 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
 ```python
 # Tìm hàm _create_plan_and_job_async trong app/services/upload_service.py và thay thế logic tạo units/job:
 
+from typing import Optional
+
 async def _create_plan_and_job_async(
     session: Session,
     *,
@@ -531,10 +539,12 @@ async def _create_plan_and_job_async(
                 mode=payload.mode,
                 planned_units=planned_units,
             )
-            book.total_units = len(created_units)
+            # Cập nhật thông minh tránh ghi đè số lượng lớn hơn của FULL mode
+            book.total_units = max(book.total_units or 0, len(created_units))
     else:
-        # Nếu đã CÓ bài học sẵn (Sách clone), giữ nguyên và liên kết
-        book.total_units = len(existing_units)
+        # Nếu đã CÓ bài học sẵn (Sách clone), giữ nguyên dữ liệu tổng hợp đã có
+        # Hoặc dùng max() để tránh ghi đè làm giảm tổng số lượng bài hiển thị
+        book.total_units = max(book.total_units or 0, len(existing_units))
 
     if plan.status == PlanStatus.ACTIVE.value:
         ensure_future_sessions_for_plan(session, plan=plan, user_id=user_id, replace_unfinished=True)
@@ -555,8 +565,8 @@ async def _create_plan_and_job_async(
         )
         session.add(job)
         book.status = BookStatus.PROCESSING
-        session.add(book)
 
+    session.add(book) # Đảm bảo luôn lưu thay đổi của book (bao gồm cả total_units ở nhánh else)
     return job, planned_units, plan
 ```
 
@@ -590,15 +600,28 @@ async def start_admin_book_processing(
     book = session.get(Book, book_id)
     if not book:
         raise BookNotFoundError()
-    if book.status not in (BookStatus.DRAFT.value, BookStatus.ERROR.value):
+    
+    # 1. Cho phép xử lý sách mẫu nếu sách ở trạng thái nháp, đang xử lý, đã xong (READY) hoặc lỗi
+    if book.status not in (BookStatus.DRAFT.value, BookStatus.PROCESSING.value, BookStatus.READY.value, BookStatus.ERROR.value):
         raise BookStatusConflictError(f"Sách đang ở trạng thái '{book.status}', không thể xử lý.")
 
     requested_mode = PlanMode(mode)
     
-    # 1. Sinh cấu trúc bài học dự kiến
+    # 2. Ngăn chặn việc chạy trùng lặp cùng một mode đang xử lý
+    existing_job = session.exec(
+        select(ProcessingJob).where(
+            ProcessingJob.book_id == book_id,
+            ProcessingJob.mode == requested_mode,
+            ProcessingJob.status.in_([ProcessingJobStatus.QUEUED, ProcessingJobStatus.PROCESSING])
+        )
+    ).first()
+    if existing_job:
+        raise BookStatusConflictError(f"Chế độ học tập '{mode}' đang được xử lý cho cuốn sách này.")
+    
+    # 3. Sinh cấu trúc bài học dự kiến
     planned_units = await _planned_units_for_book(session, book_id, requested_mode)
     
-    # 2. Lưu học phần (LearningUnits) rỗng vào DB
+    # 4. Lưu học phần (LearningUnits) rỗng vào DB
     created_units = create_learning_units(
         session,
         user_id=admin_user_id,
@@ -606,12 +629,13 @@ async def start_admin_book_processing(
         mode=requested_mode,
         planned_units=planned_units,
     )
-    book.total_units = len(created_units)
+    # Cập nhật thông minh tránh ghi đè số lượng lớn hơn của FULL mode
+    book.total_units = max(book.total_units or 0, len(created_units))
     book.status = BookStatus.PROCESSING.value
     book.is_shared = is_shared  # Tự động gán trạng thái chia sẻ nếu Admin cấu hình
     session.add(book)
     
-    # 3. Tạo ProcessingJob để theo dõi tiến trình
+    # 5. Tạo ProcessingJob để theo dõi tiến trình
     job = ProcessingJob(
         user_id=admin_user_id,
         book_id=book_id,
@@ -628,7 +652,7 @@ async def start_admin_book_processing(
     session.refresh(job)
     session.refresh(book)
     
-    # 4. Ghi Audit Log hành động của Admin
+    # 6. Ghi Audit Log hành động của Admin
     create_admin_audit_log(
         session,
         admin_user_id=admin_user_id,
@@ -639,7 +663,7 @@ async def start_admin_book_processing(
     )
     session.commit()
     
-    # 5. Kích hoạt Celery Task
+    # 7. Kích hoạt Celery Task
     process_book_task.apply_async(
         args=[str(book_id), requested_mode.value, str(job.id)],
         queue="document",
@@ -653,7 +677,59 @@ async def start_admin_book_processing(
 
 ---
 
-## 8. Viết Test Tự Động (Integration Test)
+## 8. Cập nhật Worker Pipeline: Đồng bộ Trạng thái READY của Sách
+
+Mở file [book_pipeline.py](file:///w:/WorkSpace_IT/_CAPSTON_PROJECT/triam-backend/app/services/workers/book_pipeline.py), tìm hàm `_set_book_status` và sửa lại để giải quyết triệt để cuộc đua điều kiện trạng thái (Race Condition) của các tiến trình chạy song song:
+
+### 8.1 Sửa đổi phần imports ở đầu file:
+```python
+# Mở đầu file app/services/workers/book_pipeline.py và cập nhật các dòng import:
+from sqlmodel import Session, select
+from app.db.database import engine # Đảm bảo engine được import đầy đủ
+```
+
+### 8.2 Sửa đổi hàm `_set_book_status`:
+```python
+# Thay thế hàm _set_book_status trong app/services/workers/book_pipeline.py bằng nội dung:
+
+def _set_book_status(
+    book_id: uuid.UUID,
+    status: BookStatus,
+    *, # Bắt buộc truyền các tham số phía sau bằng tên (Keyword-Only Arguments)
+    current_job_id: uuid.UUID | None = None,
+    error_message: str | None = None
+) -> None:
+    with Session(engine) as session:
+        # Nếu worker muốn đặt trạng thái READY cho sách
+        if status == BookStatus.READY:
+            # Kiểm tra xem còn tiến trình (Job) xử lý nào khác cho sách đang chạy không (loại trừ job hiện tại)
+            query = select(ProcessingJob).where(
+                ProcessingJob.book_id == book_id,
+                ProcessingJob.status.in_([ProcessingJobStatus.QUEUED, ProcessingJobStatus.PROCESSING])
+            )
+            if current_job_id:
+                query = query.where(ProcessingJob.id != current_job_id)
+                
+            active_jobs = session.exec(query).all()
+            
+            # Nếu còn ít nhất 1 job khác đang chạy (ví dụ chế độ còn lại đang gen)
+            if active_jobs:
+                logger.info(f"Sách {book_id} vẫn còn {len(active_jobs)} job khác đang xử lý. Giữ trạng thái ở mức PARTIAL_READY.")
+                update_book_status(session, book_id, BookStatus.PARTIAL_READY, error_message)
+                return
+        
+        # Thiết lập bình thường nếu không vướng job chạy song song
+        update_book_status(session, book_id, status, error_message)
+
+# LƯU Ý: Do sử dụng Keyword-Only Arguments, bạn cần cập nhật tất cả các lệnh gọi _set_book_status khác trong book_pipeline.py:
+# Ví dụ:
+# _set_book_status(book_id, BookStatus.ERROR, error_message=error_message)
+# _set_book_status(book_id, BookStatus.READY, current_job_id=job_id)
+```
+
+---
+
+## 9. Viết Test Tự Động (Integration Test)
 
 Tạo file mới có tên `tests/test_phase15_select_book_from_library.py` chứa kịch bản kiểm thử tự động toàn diện tích hợp kiểm tra cả Admin API và User API:
 

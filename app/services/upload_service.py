@@ -1,5 +1,6 @@
 import os
 import uuid
+from typing import Optional
 
 import aiofiles
 from fastapi import UploadFile
@@ -20,7 +21,7 @@ from app.core.exceptions import (
     UnsupportedFileTypeError,
 )
 from app.core.logger import log as logger
-from app.models.db_models import Book, ProcessingJob, ReadingPlan
+from app.models.db_models import Book, LearningUnit, ProcessingJob, ReadingPlan
 from app.repositories.audiobook_repo import update_book_status
 from app.repositories.book_section_repo import create_book_sections, list_book_sections
 from app.repositories.learning_unit_repo import create_learning_units
@@ -93,8 +94,10 @@ async def _create_plan_and_job_async(
     slots: list,
     resolved_reminder_time: str,
     plan_status: PlanStatus,
-) -> tuple[ProcessingJob, list, ReadingPlan]:
-    planned_units = await _planned_units_for_book(session, payload.book_id, payload.mode)
+) -> tuple[Optional[ProcessingJob], list, ReadingPlan]:
+
+    # Kiểm tra xem các bài học (LearningUnits) cho chế độ này đã được clone/tạo sẵn chưa
+    existing_units = session.exec(select(LearningUnit).where(LearningUnit.book_id == payload.book_id, LearningUnit.mode == payload.mode)).all()
 
     plan = ReadingPlan(
         book_id=payload.book_id,
@@ -115,33 +118,45 @@ async def _create_plan_and_job_async(
     ):
         session.add(slot)
 
-    if planned_units:
-        created_units = create_learning_units(
-            session,
-            user_id=user_id,
-            book_id=payload.book_id,
-            mode=payload.mode,
-            planned_units=planned_units,
-        )
-        book.total_units = len(created_units)
+    planned_units = []
+    # Nếu CHƯA có bài học nào (Sách gốc tự upload), tiến hành lập kế hoạch học phần mới
+    if not existing_units:
+        planned_units = await _planned_units_for_book(session, payload.book_id, payload.mode)
+        if planned_units:
+            created_units = create_learning_units(
+                session,
+                user_id=user_id,
+                book_id=payload.book_id,
+                mode=payload.mode,
+                planned_units=planned_units,
+            )
+            # Cập nhật thông minh tránh ghi đè số lượng lớn hơn của FULL mode
+            book.total_units = max(book.total_units or 0, len(created_units))
+    else:
+        # Have book clone, save it don't change it. Update total_units
+        book.total_units = max(book.total_units or 0, len(existing_units))
 
     if plan.status == PlanStatus.ACTIVE.value:
         ensure_future_sessions_for_plan(session, plan=plan, user_id=user_id, replace_unfinished=True)
 
-    job = ProcessingJob(
-        user_id=user_id,
-        book_id=payload.book_id,
-        job_type=ProcessingJobType.GENERATE_PLAN,
-        status=ProcessingJobStatus.QUEUED,
-        mode=payload.mode,
-        total_units=len(planned_units) if planned_units else book.total_units or 0,
-        done_units=0,
-        progress_percent=0,
-        current_step="Đang chờ xử lý sách.",
-    )
-    session.add(job)
-    book.status = BookStatus.PROCESSING
-    session.add(book)
+    job = None
+    # Chỉ tạo Job xử lý nền và chạy Celery nếu CHƯA có bài học sẵn
+    if not existing_units:
+        job = ProcessingJob(
+            user_id=user_id,
+            book_id=payload.book_id,
+            job_type=ProcessingJobType.GENERATE_PLAN,
+            status=ProcessingJobStatus.QUEUED,
+            mode=payload.mode,
+            total_units=len(planned_units) if planned_units else book.total_units or 0,
+            done_units=0,
+            progress_percent=0,
+            current_step="Đang chờ xử lý sách.",
+        )
+        session.add(job)
+        book.status = BookStatus.PROCESSING
+
+    session.add(book)  # Đảm bảo luôn lưu thay đổi của book (bao gồm cả total_units ở nhánh else)
     return job, planned_units, plan
 
 
@@ -259,11 +274,11 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
     Bước 2: Validate trạng thái sách, tạo ReadingPlan, tạo progress job,
     kick-off background processing.
     """
-    # 1. Validate book tồn tại và đang ở trạng thái DRAFT
+    # 1. Validate book tồn tại và đang ở trạng thái DRAFT hoặc là sách clone READY
     book = session.exec(select(Book).where(Book.id == payload.book_id, Book.user_id == user_id)).first()
     if not book:
         raise BookNotFoundError()
-    if book.status not in (BookStatus.DRAFT,):
+    if book.status not in (BookStatus.DRAFT,) and book.parent_shared_id is None:
         raise BookStatusConflictError(f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
 
     if payload.activate:
@@ -298,10 +313,12 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
             plan_status=plan_status,
         )
         session.commit()
-        session.refresh(job)
+        if job:
+            session.refresh(job)
         session.refresh(plan)
 
-        logger.info(f"📋 ReadingPlan created for book {payload.book_id} | mode={payload.mode.value} | job={job.id}")
+        job_id_str = str(job.id) if job else "N/A"
+        logger.info(f"📋 ReadingPlan created for book {payload.book_id} | mode={payload.mode.value} | job={job_id_str}")
     except IntegrityError as e:
         session.rollback()
         raise ReadingPlanScheduleConflictError() from e
@@ -313,27 +330,28 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
         logger.error(f"Failed to create reading plan: {e}")
         raise DatabaseError(f"Lỗi lưu ReadingPlan: {str(e)}") from e
 
-    try:
-        process_book_task.apply_async(
-            args=[str(payload.book_id), payload.mode.value, str(job.id)],
-            queue="document",
-        )
-    except Exception as e:
-        update_processing_job(
-            session,
-            job.id,
-            status=ProcessingJobStatus.ERROR,
-            current_step="Không thể đưa sách vào hàng đợi xử lý.",
-            error_message=str(e),
-        )
-        update_book_status(session, payload.book_id, BookStatus.ERROR, "Không thể đưa sách vào hàng đợi xử lý.")
-        raise ExternalServiceError("Không thể đưa sách vào hàng đợi xử lý. Vui lòng thử lại sau.") from e
+    if job:
+        try:
+            process_book_task.apply_async(
+                args=[str(payload.book_id), payload.mode.value, str(job.id)],
+                queue="document",
+            )
+        except Exception as e:
+            update_processing_job(
+                session,
+                job.id,
+                status=ProcessingJobStatus.ERROR,
+                current_step="Không thể đưa sách vào hàng đợi xử lý.",
+                error_message=str(e),
+            )
+            update_book_status(session, payload.book_id, BookStatus.ERROR, "Không thể đưa sách vào hàng đợi xử lý.")
+            raise ExternalServiceError("Không thể đưa sách vào hàng đợi xử lý. Vui lòng thử lại sau.") from e
 
     return {
-        "message": "Kế hoạch học tập đã được tạo! Chúng tôi đang xử lý sách của bạn.",
+        "message": "Kế hoạch học tập đã được tạo! " + ("Chúng tôi đang xử lý sách của bạn." if job else "Sách đã sẵn sàng để học."),
         "book_id": str(payload.book_id),
         "plan_id": str(plan.id),
-        "job_id": str(job.id),
+        "job_id": str(job.id) if job else None,
         "mode": payload.mode.value,
         "plan_status": plan.status,
         "pace": plan.pace,
@@ -342,8 +360,8 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
             for slot in list_slots_for_plan(session, plan_id=plan.id, active_only=False)
         ],
         "reminder_time": plan.reminder_time,
-        "status": job.status,
-        "progress_percent": job.progress_percent,
+        "status": job.status if job else "ready",
+        "progress_percent": job.progress_percent if job else 100,
         "active_slots": [_slot_response(slot) for slot in list_slots_for_plan(session, plan_id=plan.id, active_only=True)] if plan.status == PlanStatus.ACTIVE.value else [],
         "session_summary": build_plan_session_summary(session, plan_id=plan.id),
         "planned_units": [

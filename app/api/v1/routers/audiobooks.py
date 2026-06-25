@@ -2,11 +2,12 @@ import uuid
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
-from sqlmodel import Session
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
 
 from app.api.dependencies.auth import CurrentUser
 from app.db.database import get_session
+from app.models.db_models import Book
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
 from app.schemas.plan import (
     PlanUpdateRequest,
@@ -27,8 +28,10 @@ from app.services.audiobook_service import (
     get_reading_plan,
     list_books,
     list_reading_plan_slots,
+    list_shared_library,
     pause_reading_plan,
     resume_reading_plan,
+    select_shared_book_to_user,
     switch_book_mode,
     update_book_by_id,
     update_reading_plan,
@@ -41,6 +44,14 @@ router = APIRouter()
 @router.get("/books", response_model=list[BookResponse])
 def read_all_books(current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
     return list_books(session, current_user.sub)
+
+
+@router.get("/books/library", response_model=list[BookResponse])
+def read_shared_library(current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
+    """
+    Lấy danh sách sách mẫu được chia sẻ công khai từ Thư viện Hệ thống.
+    """
+    return list_shared_library(session)
 
 
 @router.get("/books/{book_id}", response_model=BookResponse)
@@ -168,3 +179,33 @@ def update_plan(
         schedule_config=payload.schedule_config,
         reminder_time=payload.reminder_time,
     )
+
+
+@router.post("/books/{shared_book_id}/select", response_model=BookResponse)
+def select_book_from_library(shared_book_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
+    """
+    User chọn một cuốn sách từ thư viện dùng chung.
+    Backend thực hiện nhân bản nhanh toàn bộ cấu trúc để có thể bắt đầu học ngay lập tức.
+    """
+    try:
+        cloned_book = select_shared_book_to_user(session, shared_book_id=shared_book_id, user_id=current_user.sub)
+        
+        # Query modes associated with the cloned learning units to populate has_full_mode/has_pareto_mode
+        from app.models.db_models import LearningUnit
+        rows = session.exec(
+            select(LearningUnit.mode)
+            .where(LearningUnit.book_id == cloned_book.id)
+            .group_by(LearningUnit.mode)
+        ).all()
+        book_modes = {mode.value for mode in rows}
+        
+        book_data = cloned_book.model_dump()
+        return {
+            **book_data,
+            "learning_status": "not_started",
+            "book_progress_percent": 0,
+            "has_full_mode": "full" in book_modes,
+            "has_pareto_mode": "pareto" in book_modes,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))

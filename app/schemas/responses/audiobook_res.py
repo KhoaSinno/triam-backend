@@ -22,6 +22,10 @@ class BookResponse(BaseModel):
     completed_at: Optional[datetime] = None
     document_type: Optional[DocumentType] = None
     file_url: Optional[str] = None
+    is_shared: Optional[bool] = False
+    parent_shared_id: Optional[uuid.UUID] = None
+    has_full_mode: Optional[bool] = False
+    has_pareto_mode: Optional[bool] = False
     created_at: datetime
     updated_at: datetime
 

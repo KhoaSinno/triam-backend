@@ -1,8 +1,9 @@
 import uuid
 from datetime import datetime, timezone
 
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.core.constant import BookStatus, PlanMode, PlanStatus, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import BookNotFoundError, BookStatusConflictError, ExternalServiceError, NoReadingPlanError, ReadingPlanNotFoundError, ReadingPlanScheduleConflictError
@@ -33,7 +34,7 @@ from app.services.reading_plan_session_service import (
 from app.tasks.book_tasks import switch_mode_task
 
 
-def _book_to_response_dict(projection: BookListProjection) -> dict:
+def _book_to_response_dict(projection: BookListProjection, modes_map: dict[uuid.UUID, set[str]] | None = None) -> dict:
     book = projection.book
     book_data = book.model_dump()
     learning_status = None
@@ -43,23 +44,76 @@ def _book_to_response_dict(projection: BookListProjection) -> dict:
         learning_status = projection.learning_state.status
         book_progress_percent = projection.learning_state.book_progress_percent
         completed_at = projection.learning_state.completed_at
+
+    book_modes = (modes_map or {}).get(book.id, set())
     return {
         **book_data,
         "learning_status": learning_status,
         "book_progress_percent": book_progress_percent,
         "completed_at": completed_at,
+        "has_full_mode": "full" in book_modes,
+        "has_pareto_mode": "pareto" in book_modes,
     }
 
 
 def list_books(session: Session, user_id: uuid.UUID) -> list[dict]:
-    return [_book_to_response_dict(projection) for projection in list_book_library_projections(session, user_id=user_id)]
+    projections = list_book_library_projections(session, user_id=user_id)
+    book_ids = [p.book.id for p in projections]
+    modes_map = {}
+    if book_ids:
+        rows = session.exec(select(LearningUnit.book_id, LearningUnit.mode).where(LearningUnit.book_id.in_(book_ids)).group_by(LearningUnit.book_id, LearningUnit.mode)).all()
+        for b_id, mode in rows:
+            modes_map.setdefault(b_id, set()).add(mode.value)
+    return [_book_to_response_dict(p, modes_map) for p in projections]
 
 
 def get_book(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> dict:
     projection = get_book_library_projection(session, user_id=user_id, book_id=book_id)
     if not projection:
         raise BookNotFoundError()
-    return _book_to_response_dict(projection)
+    rows = session.exec(select(LearningUnit.mode).where(LearningUnit.book_id == book_id).group_by(LearningUnit.mode)).all()
+    book_modes = {mode.value for mode in rows}
+    return _book_to_response_dict(projection, {book_id: book_modes})
+
+
+def list_shared_library(session: Session) -> list[dict]:
+    """
+    Lấy danh sách sách mẫu được chia sẻ công khai kèm thông tin các chế độ học đã bóc tách xong.
+    """
+    books = session.exec(select(Book).where(Book.is_shared == True, Book.status == "ready")).all()
+
+    book_ids = [b.id for b in books]
+    modes_map = {}
+    if book_ids:
+        rows = session.exec(select(LearningUnit.book_id, LearningUnit.mode).where(LearningUnit.book_id.in_(book_ids)).group_by(LearningUnit.book_id, LearningUnit.mode)).all()
+        for b_id, mode in rows:
+            modes_map.setdefault(b_id, set()).add(mode.value)
+
+    items = []
+    for b in books:
+        book_modes = modes_map.get(b.id, set())
+        items.append(
+            {
+                "id": b.id,
+                "title": b.title,
+                "author": b.author,
+                "total_sections": b.total_sections,
+                "total_units": b.total_units,
+                "status": b.status,
+                "learning_status": None,
+                "book_progress_percent": 0,
+                "completed_at": None,
+                "document_type": b.document_type,
+                "file_url": b.file_url,
+                "is_shared": b.is_shared,
+                "parent_shared_id": b.parent_shared_id,
+                "has_full_mode": "full" in book_modes,
+                "has_pareto_mode": "pareto" in book_modes,
+                "created_at": b.created_at,
+                "updated_at": b.updated_at,
+            }
+        )
+    return items
 
 
 def create_new_book(session: Session, user_id: uuid.UUID, payload: BookCreateRequest) -> Book:
@@ -469,3 +523,31 @@ def update_reading_plan(
         "message": "Đã cập nhật kế hoạch học tập.",
         **_reading_plan_to_dict(session, plan),
     }
+
+
+def select_shared_book_to_user(session: Session, *, shared_book_id: uuid.UUID, user_id: uuid.UUID) -> Book:
+    """
+    Nhân bản toàn bộ metadata của một sách hệ thống (shared) cho một User cụ thể.
+    Sử dụng PostgreSQL Stored Procedure (clone_shared_book) để tối ưu hóa hiệu năng tối đa.
+    """
+
+    # 1. Kiểm tra sách gốc có tồn tại và được chia sẻ không
+    shared_book = session.get(Book, shared_book_id)
+    if not shared_book or not shared_book.is_shared:
+        raise ValueError("Sách hệ thống không tồn tại hoặc chưa được chia sẻ công khai.")
+
+    # 2. Kiểm tra xem user đã chọn sách này trước đây chưa
+    existing = session.exec(select(Book).where(Book.parent_shared_id == shared_book_id, Book.user_id == user_id)).first()
+    if existing:
+        return existing
+
+    # 3. Gọi PostgreSQL Stored Function để nhân bản cực nhanh
+    new_book_id = uuid.uuid4()
+    session.execute(text("SELECT clone_shared_book(:shared_book_id, :new_user_id, :new_book_id)"), {"shared_book_id": shared_book_id, "new_user_id": user_id, "new_book_id": new_book_id})
+    session.commit()
+
+    # 4. Trả về đối tượng Book vừa được clone thành công
+    cloned_book = session.get(Book, new_book_id)
+    if not cloned_book:
+        raise ValueError("Lỗi nhân bản sách từ thư viện.")
+    return cloned_book

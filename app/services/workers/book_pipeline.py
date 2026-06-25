@@ -4,7 +4,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.core.constant import BookStatus, PlanMode, ProcessingJobStatus
@@ -68,8 +68,24 @@ def _update_job(
         )
 
 
-def _set_book_status(book_id: uuid.UUID, status: BookStatus, error_message: str | None = None) -> None:
+def _set_book_status(book_id: uuid.UUID, status: BookStatus, *, current_job_id: uuid.UUID | None = None, error_message: str | None = None) -> None:
     with Session(engine) as session:
+        # Nếu worker muốn đặt trạng thái READY cho sách
+        if status == BookStatus.READY:
+            # Kiểm tra xem còn tiến trình (Job) xử lý nào khác cho sách đang chạy không (loại trừ job hiện tại)
+            query = select(ProcessingJob).where(ProcessingJob.book_id == book_id, ProcessingJob.status.in_([ProcessingJobStatus.QUEUED, ProcessingJobStatus.PROCESSING]))
+            if current_job_id:
+                query = query.where(ProcessingJob.id != current_job_id)
+
+            active_jobs = session.exec(query).all()
+
+            # Nếu còn ít nhất 1 job khác đang chạy (ví dụ chế độ còn lại đang gen)
+            if active_jobs:
+                logger.info(f"Sách {book_id} vẫn còn {len(active_jobs)} job khác đang xử lý. Giữ trạng thái ở mức PARTIAL_READY.")
+                update_book_status(session, book_id, BookStatus.PARTIAL_READY, error_message)
+                return
+
+        # Thiết lập bình thường nếu không vướng job chạy song song
         update_book_status(session, book_id, status, error_message)
 
 
@@ -249,14 +265,14 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
     total_units = len(work_items)
     if total_units == 0:
         error_message = "Không có bài học nào có nội dung để xử lý."
-        _set_book_status(book_id, BookStatus.ERROR, error_message)
+        _set_book_status(book_id, BookStatus.ERROR, error_message=error_message)
         _fail_job(job_id, error_message, error_message, progress_percent=0, total_units=0)
         return
 
     hard_limit_error = _hard_limit_error(work_items)
     estimated_input_tokens, estimated_audio_seconds = _total_estimates(work_items)
     if hard_limit_error:
-        _set_book_status(book_id, BookStatus.ERROR, hard_limit_error)
+        _set_book_status(book_id, BookStatus.ERROR, error_message=hard_limit_error)
         _fail_job(job_id, "Tài liệu vượt giới hạn xử lý.", hard_limit_error, progress_percent=0, total_units=total_units)
         return
 
@@ -289,7 +305,7 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
         completed += 1
         progress = int(completed * 100 / total_units)
         if completed < total_units:
-            _set_book_status(book_id, BookStatus.PARTIAL_READY)
+            _set_book_status(book_id=book_id, status=BookStatus.PARTIAL_READY, current_job_id=job_id)
             _update_job(
                 job_id,
                 status=ProcessingJobStatus.PARTIAL_READY,
@@ -319,7 +335,7 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
         ]
         await _track_progress(tasks, job_id, total_units, book_id, "Đã xử lý {completed}/{total} bài học.", completed_offset=completed)
 
-    _set_book_status(book_id, BookStatus.READY)
+    _set_book_status(book_id=book_id, status=BookStatus.READY, current_job_id=job_id)
     _create_book_ready_notification_safely(book_id, mode_value.value)
     _update_job(
         job_id,
@@ -336,7 +352,7 @@ async def run_background_processing(book_id: uuid.UUID, mode: str, job_id: uuid.
     try:
         await _run_unit_pipeline(book_id, mode, job_id)
     except Exception as exc:
-        _set_book_status(book_id, BookStatus.ERROR, str(exc))
+        _set_book_status(book_id, BookStatus.ERROR, error_message=str(exc))
         _fail_job(job_id, "Xử lý sách thất bại.", str(exc))
         logger.error(f"LỖI XỬ LÝ SÁCH {book_id}: {exc}")
 
@@ -346,6 +362,6 @@ async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str, job_id: 
         _set_book_status(book_id, BookStatus.PROCESSING)
         await _run_unit_pipeline(book_id, new_mode, job_id)
     except Exception as exc:
-        _set_book_status(book_id, BookStatus.ERROR, str(exc))
+        _set_book_status(book_id, BookStatus.ERROR, error_message=str(exc))
         _fail_job(job_id, f"Sinh audio mode {new_mode} thất bại.", str(exc))
         logger.error(f"LỖI SWITCH MODE SÁCH {book_id}: {exc}")

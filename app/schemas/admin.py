@@ -52,6 +52,10 @@ class AdminBookListItem(BaseModel):
     total_sections: int | None = None
     total_units: int | None = None
     error_message: str | None = None
+    is_shared: bool = False
+    parent_shared_id: uuid.UUID | None = None
+    has_full_mode: bool = False
+    has_pareto_mode: bool = False
     created_at: datetime
     updated_at: datetime
 
