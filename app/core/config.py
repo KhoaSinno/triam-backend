@@ -51,8 +51,8 @@ class Settings(BaseSettings):
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-mini"
     OPENAI_REALTIME_VOICE: str = "cedar"
     # Text and local console test behavior
-    VOICE_AGENT_HISTORY_LIMIT: int = 24
-    VOICE_AGENT_RAG_MAX_CHARS: int = 6000
+    VOICE_AGENT_HISTORY_LIMIT: int = 12
+    VOICE_AGENT_RAG_MAX_CHARS: int = 12000
     # Local console fallback only. Production LiveKit rooms must provide
     # thread_id and document_ids through job metadata from the backend token flow.
     VOICE_AGENT_CONSOLE_BOOK_ID: str = "c3f13d07-4494-4995-ba75-30a12589b8fc"
@@ -121,7 +121,12 @@ class Settings(BaseSettings):
     AGENT_HYBRID_LEXICAL_CANDIDATES: int = 12
     AGENT_HYBRID_MAX_CONTEXT_CHUNKS: int = 6
     AGENT_HYBRID_MAX_CHUNKS_PER_SECTION: int = 2
-
+    # Reranker
+    COHERE_API_KEY: str | None = None
+    AGENT_RERANKER_ENABLED: bool = True
+    AGENT_RERANKER_MODEL: str = "rerank-multilingual-v3.0"
+    AGENT_RERANKER_TOP_N: int = 10  # Maximum cadidates Reranker reuturn
+    AGENT_RERANKER_CANDIDATES_LIMIT: int = 20  # Maximum cadidates sent to Cohere
     # Upload file
     MAX_FILE_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB
     ALLOWED_MIME_TYPES: Set[str] = {

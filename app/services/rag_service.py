@@ -1,3 +1,4 @@
+from app.services.agent_grounding.reranker import rerank_candidates
 import asyncio
 from typing import Any
 
@@ -97,13 +98,17 @@ def _as_payload_list(payload: list[dict[str, Any]] | str) -> list[dict[str, Any]
 
 
 def _hybrid_config() -> HybridRetrievalConfig:
+    max_chunks = settings.AGENT_HYBRID_MAX_CONTEXT_CHUNKS
+    if settings.AGENT_RERANKER_ENABLED:
+        max_chunks = settings.AGENT_RERANKER_CANDIDATES_LIMIT
+
     return HybridRetrievalConfig(
         vector_weight=settings.AGENT_HYBRID_VECTOR_WEIGHT,
         lexical_weight=settings.AGENT_HYBRID_LEXICAL_WEIGHT,
         title_match_boost=settings.AGENT_HYBRID_TITLE_MATCH_BOOST,
         multi_source_boost=settings.AGENT_HYBRID_MULTI_SOURCE_BOOST,
         min_final_score=settings.AGENT_HYBRID_MIN_FINAL_SCORE,
-        max_context_chunks=settings.AGENT_HYBRID_MAX_CONTEXT_CHUNKS,
+        max_context_chunks=max_chunks,
         max_chunks_per_section=settings.AGENT_HYBRID_MAX_CHUNKS_PER_SECTION,
     )
 
@@ -115,17 +120,19 @@ async def search_book_hybrid_knowledge(
     section_ids: list[str] | None = None,
 ) -> list[dict[str, Any]] | str:
 
+    cadidates_limit = settings.AGENT_RERANKER_CANDIDATES_LIMIT
+
     vector_task = search_book_section_knowledge(
         query,
         document_ids,
         section_ids=section_ids,
-        match_count=settings.AGENT_HYBRID_VECTOR_CANDIDATES,
+        match_count=cadidates_limit,
     )
     lexical_task = search_book_section_knowledge_lexical(
         query,
         document_ids,
         section_ids=section_ids,
-        match_count=settings.AGENT_HYBRID_LEXICAL_CANDIDATES,
+        match_count=cadidates_limit,
     )
 
     vector_result, lexical_result = await asyncio.gather(vector_task, lexical_task, return_exceptions=True)
@@ -144,21 +151,28 @@ async def search_book_hybrid_knowledge(
         lexical_payload=_as_payload_list(lexical_result),
         config=_hybrid_config(),
     )
+    if not hybrid_result.found:
+        return BOOK_CONTEXT_NOT_FOUND_MESSAGE
+    
+    final_chunks = hybrid_result.chunks
+    if settings.AGENT_RERANKER_ENABLED:
+        log.info(f"Reranker start: {len(final_chunks)} with Cohere Reranker...")
+        final_chunks = await rerank_candidates(query, final_chunks)
+        final_chunks = final_chunks[:settings.AGENT_RERANKER_TOP_N]
+
     log.info(
         "Hybrid section RAG done | "
         f"found={hybrid_result.found} | "
-        f"reason={hybrid_result.reason_code} | "
         f"candidates={hybrid_result.candidate_count} | "
-        f"chunks={len(hybrid_result.chunks)} | "
-        f"top_id={hybrid_result.top_candidate_id} | "
-        f"top_vector={_round_score(hybrid_result.top_vector_score)} | "
-        f"top_lexical={_round_score(hybrid_result.top_lexical_score)} | "
-        f"top_final={_round_score(hybrid_result.top_final_score)} | "
-        f"missing_token_count={hybrid_result.missing_token_count}"
+        f"final_chunks_count={len(final_chunks)} | "
+        f"top_id={final_chunks[0].get('id') if final_chunks else None} | "
+        f"top_final_score={_round_score(final_chunks[0].get('final_score')) if final_chunks else None}"
     )
-    if not hybrid_result.found:
+
+    if not final_chunks:
         return BOOK_CONTEXT_NOT_FOUND_MESSAGE
-    return hybrid_result.chunks
+    
+    return final_chunks
 
 
 async def search_book_knowledge(query: str, document_ids: list[str]) -> list[dict[str, Any]] | str:
