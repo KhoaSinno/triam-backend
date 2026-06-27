@@ -41,7 +41,8 @@ async def upload_file_to_supabase(
         try:
             async with aiofiles.open(local_path, "rb") as f:
                 file_bytes = await f.read()
-            supabase.storage.from_(bucket).upload(
+            await asyncio.to_thread(
+                supabase.storage.from_(bucket).upload,
                 path=storage_path,
                 file=file_bytes,
                 file_options={

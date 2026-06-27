@@ -37,6 +37,45 @@ def _cleanup_failed_unit(learning_unit_id: uuid.UUID, unit_index: int, error_mes
     logger.info(f"Cleaned failed side effects for learning unit {unit_index + 1}.")
 
 
+def _pre_check_and_update_unit_db(
+    unit_id: uuid.UUID,
+    raw_text_char_count: int,
+    estimated_tokens: int,
+    estimated_audio_seconds: int
+) -> tuple[bool, int]:
+    with Session(engine) as session:
+        current_unit = session.get(LearningUnit, unit_id)
+        if current_unit and current_unit.status == ProcessingJobStatus.READY and unit_segments_exist(session, unit_id):
+            return True, current_unit.main_segment_count or 0
+        if current_unit:
+            update_learning_unit_processing(
+                session,
+                current_unit,
+                status=ProcessingJobStatus.PROCESSING,
+                raw_text_char_count=raw_text_char_count,
+                estimated_tokens=estimated_tokens,
+                estimated_audio_seconds=estimated_audio_seconds,
+            )
+        return False, 0
+
+
+def _post_update_unit_db(
+    unit_id: uuid.UUID,
+    main_segment_count: int,
+    generated_audio_seconds: int
+) -> None:
+    with Session(engine) as session:
+        current_unit = session.get(LearningUnit, unit_id)
+        if current_unit:
+            update_learning_unit_processing(
+                session,
+                current_unit,
+                status=ProcessingJobStatus.READY,
+                main_segment_count=main_segment_count,
+                estimated_audio_seconds=generated_audio_seconds,
+            )
+
+
 async def process_learning_unit(
     user_id: uuid.UUID,
     book_id: uuid.UUID,
@@ -55,24 +94,20 @@ async def process_learning_unit(
             f"estimated_tokens={estimated_tokens} | estimated_audio_seconds={estimated_audio_seconds}"
         )
 
-        with Session(engine) as session:
-            current_unit = session.get(LearningUnit, unit.id)
-            if current_unit and current_unit.status == ProcessingJobStatus.READY and unit_segments_exist(session, unit.id):
-                logger.info(f"Learning unit {unit.unit_index + 1} already READY, skip.")
-                return LearningUnitProcessingResult(
-                    learning_unit_id=unit.id,
-                    main_segment_count=current_unit.main_segment_count,
-                    skipped=True,
-                )
-            if current_unit:
-                update_learning_unit_processing(
-                    session,
-                    current_unit,
-                    status=ProcessingJobStatus.PROCESSING,
-                    raw_text_char_count=raw_text_char_count,
-                    estimated_tokens=estimated_tokens,
-                    estimated_audio_seconds=estimated_audio_seconds,
-                )
+        is_ready, segment_count = await asyncio.to_thread(
+            _pre_check_and_update_unit_db,
+            unit.id,
+            raw_text_char_count,
+            estimated_tokens,
+            estimated_audio_seconds
+        )
+        if is_ready:
+            logger.info(f"Learning unit {unit.unit_index + 1} already READY, skip.")
+            return LearningUnitProcessingResult(
+                learning_unit_id=unit.id,
+                main_segment_count=segment_count,
+                skipped=True,
+            )
 
         pipeline_tasks: list[asyncio.Task] = []
         try:
@@ -89,16 +124,12 @@ async def process_learning_unit(
                 )
             ]
             tts_result = (await asyncio.gather(*pipeline_tasks))[0]
-            with Session(engine) as session:
-                current_unit = session.get(LearningUnit, unit.id)
-                if current_unit:
-                    update_learning_unit_processing(
-                        session,
-                        current_unit,
-                        status=ProcessingJobStatus.READY,
-                        main_segment_count=tts_result.main_segment_count,
-                        estimated_audio_seconds=tts_result.generated_audio_seconds,
-                    )
+            await asyncio.to_thread(
+                _post_update_unit_db,
+                unit.id,
+                tts_result.main_segment_count,
+                tts_result.generated_audio_seconds
+            )
             logger.info(f"Learning unit {unit.unit_index + 1} READY | segments={tts_result.main_segment_count}")
             return LearningUnitProcessingResult(unit.id, tts_result.main_segment_count)
 
@@ -106,7 +137,12 @@ async def process_learning_unit(
             logger.warning(f"Learning unit {unit.unit_index + 1} bị hủy vì book job thất bại.")
             try:
                 await _cancel_pending_tasks(pipeline_tasks)
-                _cleanup_failed_unit(unit.id, unit.unit_index, "Learning unit processing cancelled because the book job failed.")
+                await asyncio.to_thread(
+                    _cleanup_failed_unit,
+                    unit.id,
+                    unit.unit_index,
+                    "Learning unit processing cancelled because the book job failed."
+                )
             except Exception as rollback_err:
                 logger.error(f"Failed to clean cancelled learning unit {unit.unit_index + 1}: {rollback_err}")
             raise
@@ -114,7 +150,12 @@ async def process_learning_unit(
             logger.error(f"Learning unit {unit.unit_index + 1} thất bại: {exc}")
             try:
                 await _cancel_pending_tasks(pipeline_tasks)
-                _cleanup_failed_unit(unit.id, unit.unit_index, str(exc))
+                await asyncio.to_thread(
+                    _cleanup_failed_unit,
+                    unit.id,
+                    unit.unit_index,
+                    str(exc)
+                )
             except Exception as rollback_err:
                 logger.error(f"Failed to clean failed learning unit {unit.unit_index + 1}: {rollback_err}")
             raise

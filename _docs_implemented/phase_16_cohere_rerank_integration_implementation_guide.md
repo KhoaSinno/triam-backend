@@ -105,7 +105,7 @@ async def rerank_candidates(
     rerank_top_n = top_n or settings.AGENT_RERANKER_TOP_N
 
     # 2. Xây dựng payload và headers gửi tới Cohere API
-    url = "https://api.cohere.com/v1/rerank"
+    url = "https://api.cohere.com/v2/rerank"
     headers = {
         "Authorization": f"Bearer {settings.COHERE_API_KEY}",
         "Content-Type": "application/json",
@@ -127,7 +127,7 @@ async def rerank_candidates(
             response = await client.post(url, json=payload, headers=headers, timeout=8.0)
             
             if response.status_code != 200:
-                log.error(f"Reranker: Cohere API trả về mã lỗi {response.status_code}: {response.text}")
+                log.error(f"Reranker: Cohere API v2 trả về mã lỗi {response.status_code}: {response.text}")
                 return candidates  # Fallback
 
             results = response.json().get("results", [])

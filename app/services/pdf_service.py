@@ -156,7 +156,7 @@ def _extract_section_text_from_pdf(pdf, current_section: ParsedSection, next_sec
     return text, section_page_end
 
 
-async def parse_pdf_structure(file_obj) -> ParsedDocument:
+def parse_pdf_structure_sync(file_obj) -> ParsedDocument:
     file_obj.seek(0)
     outline_tree = _read_pdf_outline_tree(file_obj)
     outline_items = flatten_sections(outline_tree)
@@ -193,3 +193,10 @@ async def parse_pdf_structure(file_obj) -> ParsedDocument:
         )
 
     return ParsedDocument(document_type="pdf", sections=sections)
+
+
+async def parse_pdf_structure(file_obj) -> ParsedDocument:
+    import asyncio
+    import io
+    file_bytes = file_obj.read()
+    return await asyncio.to_thread(parse_pdf_structure_sync, io.BytesIO(file_bytes))
