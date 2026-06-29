@@ -21,6 +21,7 @@ class HybridRetrievalConfig:
     min_final_score: float
     max_context_chunks: int
     max_chunks_per_section: int
+    validate_evidence_enabled: bool = True
 
 
 @dataclass
@@ -205,6 +206,9 @@ def validate_evidence(
 ) -> EvidenceValidationResult:
     if not selected_candidates:
         return EvidenceValidationResult(valid=False, reason_code="no_candidates")
+
+    if not config.validate_evidence_enabled:
+        return EvidenceValidationResult(valid=True, reason_code="valid")
 
     top_vector_score = selected_candidates[0].vector_score
     if top_vector_score is not None and top_vector_score < config.min_final_score:

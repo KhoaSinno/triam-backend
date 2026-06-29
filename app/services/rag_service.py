@@ -110,6 +110,7 @@ def _hybrid_config() -> HybridRetrievalConfig:
         min_final_score=settings.AGENT_HYBRID_MIN_FINAL_SCORE,
         max_context_chunks=max_chunks,
         max_chunks_per_section=settings.AGENT_HYBRID_MAX_CHUNKS_PER_SECTION,
+        validate_evidence_enabled=settings.AGENT_HYBRID_VALIDATE_EVIDENCE_ENABLED,
     )
 
 

@@ -121,6 +121,7 @@ class Settings(BaseSettings):
     AGENT_HYBRID_LEXICAL_CANDIDATES: int = 20
     AGENT_HYBRID_MAX_CONTEXT_CHUNKS: int = 12
     AGENT_HYBRID_MAX_CHUNKS_PER_SECTION: int = 2
+    AGENT_HYBRID_VALIDATE_EVIDENCE_ENABLED: bool = False
     # Reranker
     COHERE_API_KEY: str | None = None
     AGENT_RERANKER_ENABLED: bool = True
