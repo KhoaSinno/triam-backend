@@ -145,6 +145,7 @@ async def search_book_hybrid_knowledge(
         log.error(f"RAG Tối ưu hóa: Nhánh Lexical Search bị lỗi: {lexical_result}")
         lexical_result = BOOK_CONTEXT_NOT_FOUND_MESSAGE
 
+    # Build hybrid with Base Reranker
     hybrid_result = build_hybrid_retrieval_result(
         query=query,
         vector_payload=_as_payload_list(vector_result),
@@ -154,6 +155,7 @@ async def search_book_hybrid_knowledge(
     if not hybrid_result.found:
         return BOOK_CONTEXT_NOT_FOUND_MESSAGE
     
+    # Rerank with Cohere
     final_chunks = hybrid_result.chunks
     if settings.AGENT_RERANKER_ENABLED:
         log.info(f"Reranker start: {len(final_chunks)} with Cohere Reranker...")

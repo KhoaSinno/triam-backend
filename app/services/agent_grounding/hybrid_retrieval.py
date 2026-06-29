@@ -9,80 +9,7 @@ from app.services.agent_grounding.query_normalizer import normalize_query, norma
 _ACRONYM_RE = re.compile(r"\b[A-Z][A-Z0-9]{1,}(?:[-_/][A-Z0-9]{2,})*\b")
 _QUOTED_RE = re.compile(r"[\"'“”‘’]([^\"'“”‘’]{2,})[\"'“”‘’]")
 
-_STOPWORDS = {
-    "a",
-    "about",
-    "an",
-    "and",
-    "are",
-    "as",
-    "at",
-    "book",
-    "chapter",
-    "chapters",
-    "content",
-    "detail",
-    "details",
-    "do",
-    "does",
-    "for",
-    "from",
-    "give",
-    "in",
-    "is",
-    "it",
-    "me",
-    "of",
-    "on",
-    "please",
-    "section",
-    "sections",
-    "summary",
-    "tell",
-    "the",
-    "this",
-    "to",
-    "what",
-    "where",
-    "who",
-    "why",
-    "with",
-    "you",
-    "anh",
-    "bai",
-    "ban",
-    "bao",
-    "chuong",
-    "co",
-    "cua",
-    "cuon",
-    "de",
-    "doc",
-    "duoc",
-    "gi",
-    "hay",
-    "hoi",
-    "ke",
-    "la",
-    "lai",
-    "minh",
-    "muc",
-    "nao",
-    "nay",
-    "noi",
-    "noi dung",
-    "phan",
-    "quyen",
-    "sach",
-    "tat",
-    "them",
-    "thong",
-    "tin",
-    "toi",
-    "tom",
-    "trong",
-    "ve",
-}
+from app.core.stopwords import STOPWORDS
 
 
 @dataclass(frozen=True)
@@ -206,27 +133,25 @@ def _token_overlap(query_tokens: set[str], text: str) -> bool:
 def rerank_candidates(
     query: str,
     candidates: list[RetrievalCandidate],
+    vector_payload: list[dict[str, Any]],
+    lexical_payload: list[dict[str, Any]],
     config: HybridRetrievalConfig,
+    k: int = 60,
 ) -> list[RetrievalCandidate]:
-    query_tokens = {token for token in normalize_query(query).tokens if token not in _STOPWORDS}
+    
+    # 1. Xác định thứ hạng (1-indexed) của từng ứng viên trong luồng Vector Search
+    vector_ranks = {_candidate_key(item): idx + 1 for idx, item in enumerate(vector_payload)}
+    
+    # 2. Xác định thứ hạng (1-indexed) của từng ứng viên trong luồng Lexical Search
+    lexical_ranks = {_candidate_key(item): idx + 1 for idx, item in enumerate(lexical_payload)}
+    
+    # 3. Tính điểm RRF cho từng ứng viên theo công thức chuẩn quốc tế
     for candidate in candidates:
-        vector_score = _clamp_score(candidate.vector_score)
-        lexical_score = _clamp_score(candidate.lexical_score)
-        available_weight = 0.0
-        weighted_score = 0.0
-        if candidate.vector_score is not None:
-            available_weight += config.vector_weight
-            weighted_score += config.vector_weight * vector_score
-        if candidate.lexical_score is not None:
-            available_weight += config.lexical_weight
-            weighted_score += config.lexical_weight * lexical_score
-        blended_score = weighted_score / available_weight if available_weight else 0.0
-        final_score = max(vector_score, lexical_score, blended_score)
-        if _token_overlap(query_tokens, f"{candidate.section_path} {candidate.section_title}"):
-            final_score += config.title_match_boost
-        if {"vector", "lexical"}.issubset(candidate.sources):
-            final_score += config.multi_source_boost
-        candidate.final_score = _clamp_score(final_score)
+        c_id = candidate.id
+        term_v = 1.0 / (k + vector_ranks[c_id]) if c_id in vector_ranks else 0.0
+        term_l = 1.0 / (k + lexical_ranks[c_id]) if c_id in lexical_ranks else 0.0
+        candidate.final_score = term_v + term_l
+        
     return sorted(
         candidates,
         key=lambda item: (
@@ -264,12 +189,12 @@ def _important_query_tokens(query: str) -> set[str]:
         token
         for token in normalized.tokens
         if (len(token) >= 5 or any(char.isdigit() for char in token))
-        and token not in _STOPWORDS
+        and token not in STOPWORDS
     }
     for acronym in _ACRONYM_RE.findall(query):
         important.update(tokenize(normalized_key(acronym)))
     for quoted in _QUOTED_RE.findall(query):
-        important.update(token for token in tokenize(normalized_key(quoted)) if token not in _STOPWORDS)
+        important.update(token for token in tokenize(normalized_key(quoted)) if token not in STOPWORDS)
     return important
 
 
@@ -281,8 +206,8 @@ def validate_evidence(
     if not selected_candidates:
         return EvidenceValidationResult(valid=False, reason_code="no_candidates")
 
-    top_score = selected_candidates[0].final_score
-    if top_score < config.min_final_score:
+    top_vector_score = selected_candidates[0].vector_score
+    if top_vector_score is not None and top_vector_score < config.min_final_score:
         return EvidenceValidationResult(valid=False, reason_code="low_confidence")
 
     important_tokens = _important_query_tokens(query)
@@ -331,7 +256,7 @@ def build_hybrid_retrieval_result(
     config: HybridRetrievalConfig,
 ) -> HybridRetrievalResult:
     candidates = merge_candidates(vector_payload, lexical_payload)
-    ranked = rerank_candidates(query, candidates, config)
+    ranked = rerank_candidates(query, candidates, vector_payload, lexical_payload, config)
     selected = select_context_candidates(ranked, config)
     validation = validate_evidence(query, selected, config)
     top_candidate = selected[0] if selected else None

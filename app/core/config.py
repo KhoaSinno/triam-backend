@@ -117,15 +117,15 @@ class Settings(BaseSettings):
     AGENT_HYBRID_TITLE_MATCH_BOOST: float = 0.07
     AGENT_HYBRID_MULTI_SOURCE_BOOST: float = 0.03
     AGENT_HYBRID_MIN_FINAL_SCORE: float = 0.25
-    AGENT_HYBRID_VECTOR_CANDIDATES: int = 12
-    AGENT_HYBRID_LEXICAL_CANDIDATES: int = 12
-    AGENT_HYBRID_MAX_CONTEXT_CHUNKS: int = 6
+    AGENT_HYBRID_VECTOR_CANDIDATES: int = 20
+    AGENT_HYBRID_LEXICAL_CANDIDATES: int = 20
+    AGENT_HYBRID_MAX_CONTEXT_CHUNKS: int = 12
     AGENT_HYBRID_MAX_CHUNKS_PER_SECTION: int = 2
     # Reranker
     COHERE_API_KEY: str | None = None
     AGENT_RERANKER_ENABLED: bool = True
     AGENT_RERANKER_MODEL: str = "rerank-multilingual-v3.0"
-    AGENT_RERANKER_TOP_N: int = 10  # Maximum cadidates Reranker reuturn
+    AGENT_RERANKER_TOP_N: int = 12  # Maximum cadidates Reranker reuturn
     AGENT_RERANKER_CANDIDATES_LIMIT: int = 20  # Maximum cadidates sent to Cohere
     # Upload file
     MAX_FILE_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB
