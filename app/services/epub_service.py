@@ -80,7 +80,7 @@ def _epub_toc_tree(toc_items, documents_by_href: dict[str, bytes], level: int = 
     return sections
 
 
-async def parse_epub_structure(file_obj) -> ParsedDocument:
+def parse_epub_structure_sync(file_obj) -> ParsedDocument:
     file_obj.seek(0)
 
     try:
@@ -97,3 +97,10 @@ async def parse_epub_structure(file_obj) -> ParsedDocument:
         raise DocumentExtractionError("EPUB có mục lục nhưng không trích xuất được text. File có thể bị lỗi hoặc không phải text-based EPUB.")
 
     return ParsedDocument(document_type="epub", sections=sections)
+
+
+async def parse_epub_structure(file_obj) -> ParsedDocument:
+    import asyncio
+    import io
+    file_bytes = file_obj.read()
+    return await asyncio.to_thread(parse_epub_structure_sync, io.BytesIO(file_bytes))

@@ -10,7 +10,7 @@ from app.services.book_section_chunker import (
 def test_normalize_section_text_removes_empty_lines_and_extra_spaces():
     text = "  Dòng   một. \n\n\tDòng hai   \r\n"
 
-    assert normalize_section_text(text) == "Dòng một.\nDòng hai"
+    assert normalize_section_text(text) == "Dòng một.\n\nDòng hai"
 
 
 def test_build_section_chunks_adds_stable_section_metadata_and_hashes():
@@ -78,3 +78,43 @@ def test_build_section_chunks_skips_empty_text():
     )
 
     assert chunks == []
+
+
+def test_normalize_section_text_merges_mid_sentence_lines():
+    text = (
+        "Hệ thống tưới cây thông minh là một giải pháp nhỏ gọn giúp người dùng chăm sóc cây ban công\n"
+        "bằng cảm biến và bộ điều khiển tự động. Hệ thống đo độ ẩm đất, so sánh với ngưỡng cấu hình,\n"
+        "sau đó kích hoạt bơm nước trong thời gian ngắn nếu đất quá khô."
+    )
+    expected = (
+        "Hệ thống tưới cây thông minh là một giải pháp nhỏ gọn giúp người dùng chăm sóc cây ban công "
+        "bằng cảm biến và bộ điều khiển tự động. Hệ thống đo độ ẩm đất, so sánh với ngưỡng cấu hình, "
+        "sau đó kích hoạt bơm nước trong thời gian ngắn nếu đất quá khô."
+    )
+    assert normalize_section_text(text) == expected
+
+
+def test_normalize_section_text_cleans_cids():
+    text = (
+        "(cid:127) Tưới nước thủ công không ổn định theo lịch sinh hoạt.\n"
+        "(cid:127) Khó nhận biết độ ẩm thật của đất."
+    )
+    expected = (
+        "• Tưới nước thủ công không ổn định theo lịch sinh hoạt.\n"
+        "• Khó nhận biết độ ẩm thật của đất."
+    )
+    assert normalize_section_text(text) == expected
+
+
+def test_normalize_section_text_repairs_possessive_spacing():
+    text = (
+        "Lennie, for God sakes don t drink so much.\n"
+        "You ll be sick. You re going to do it again.\n"
+        "George s hat was slung. Curley s wife said."
+    )
+    expected = (
+        "Lennie, for God sakes don't drink so much.\n"
+        "You'll be sick. You're going to do it again.\n"
+        "George's hat was slung. Curley's wife said."
+    )
+    assert normalize_section_text(text) == expected

@@ -16,7 +16,11 @@ from app.services.learning_unit_planner_service import PlannedLearningUnit, fall
 from app.services.pareto_signal_service import extract_pareto_signal_hints, guess_section_language
 from app.services.token_budget_service import estimate_text_budget
 
-client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY, base_url=settings.GEMINI_BASE_URL)
+client = AsyncOpenAI(
+    api_key=settings.GEMINI_API_KEY, 
+    base_url=settings.GEMINI_BASE_URL,
+    timeout=60.0
+)
 
 PARETO_PLANNER_SYSTEM_PROMPT = """
 You are TRIAM's Pareto learning planner.

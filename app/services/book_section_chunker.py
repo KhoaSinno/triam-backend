@@ -22,12 +22,47 @@ class SectionChunk:
     char_count: int
 
 
+
 def normalize_section_text(text: str | None) -> str:
+    """
+    Bộ chuẩn hóa nâng cấp đa ngôn ngữ (Xử lý tối ưu lỗi PDF tiếng Việt và sở hữu cách tiếng Anh)
+    """
     if not text:
         return ""
-    lines = [_WHITESPACE_RE.sub(" ", line).strip() for line in text.splitlines()]
-    compact_lines = [line for line in lines if line]
-    return "\n".join(compact_lines).strip()
+
+    # 1. Đồng nhất xuống dòng
+    text = text.replace("\r\n", "\n")
+
+    # 2. Xóa ký tự rác (cid:xxx)
+    text = re.sub(r"\(cid:\d+\)", "•", text)
+
+    # 3. SỬA LỖI ĐẶC THÙ TIẾNG ANH: Vá các khoảng trắng bị lỗi bẻ đôi do sở hữu cách hoặc viết tắt
+    # Đổi "george s " -> "george's ", "tha s " -> "that's " (hoặc tha's theo ngôn ngữ gốc của truyện)
+    text = re.sub(r"\b(\w+)\s+s\b", r"\1's", text)   # Sửa george s -> george's, curley s -> curley's
+    text = re.sub(r"\b(\w+)\s+ll\b", r"\1'll", text)  # Sửa you ll -> you'll
+    text = re.sub(r"\b(\w+)\s+d\b", r"\1'd", text)    # Sửa you d -> you'd
+    text = re.sub(r"\b(\w+)\s+t\b", r"\1't", text)    # Sửa didn t -> didn't, don t -> don't
+    text = re.sub(r"\b(\w+)\s+re\b", r"\1're", text)  # Sửa you re -> you're
+    text = re.sub(r"\b(\w+)\s+ve\b", r"\1've", text)  # Sửa you ve -> you've
+
+    # 4. Tách Paragraph bằng dấu xuống dòng kép
+    paragraphs = text.split("\n\n")
+    normalized_paragraphs = []
+
+    for paragraph in paragraphs:
+        p_clean = paragraph.strip()
+        if not p_clean:
+            continue
+
+        # 5. Xóa bỏ toàn bộ dấu xuống dòng đơn lẻ nằm giữa các câu liền mạch
+        p_sub = re.sub(r"(?<![•\-\*\d\.])\n(?!\s*[•\-\*\d\.])", " ", p_clean)
+
+        # 6. Gom khoảng trắng thừa
+        p_sub = re.sub(r"[ \t]+", " ", p_sub)
+
+        normalized_paragraphs.append(p_sub.strip())
+
+    return "\n\n".join(normalized_paragraphs)
 
 
 def build_section_search_text(*, section_path: str, section_title: str, content: str) -> str:

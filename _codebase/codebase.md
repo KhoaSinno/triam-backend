@@ -2,7 +2,7 @@
 
 ## Project Statistics
 
-- Total files: 169
+- Total files: 170
 
 ## Folder Structure
 
@@ -62,6 +62,7 @@ app
         9c45d67e8f01_phase_12_allow_session_unit_regeneration.py
         a13f1e2d3c4b_phase_13_calendar_session_actions.py
         a2c9e7f1b5d0_phase_5_document_structure_learning_units.py
+        b14a05b2dfeb_add_shared_book_columns_and_clone_.py
         b14c2d3e4f50_phase_14_drop_legacy_book_knowledge.py
         b8e4f2a7c9d1_add_document_type_and_unique_constraints.py
         c15d3e4f5061_phase_14_1_clean_reading_plan_schedule_config.py
@@ -119,6 +120,7 @@ app
       hybrid_retrieval.py
       intent_router.py
       query_normalizer.py
+      reranker.py
       response_renderer.py
       section_context_builder.py
       section_reference_parser.py
@@ -194,7 +196,6 @@ app
     notification_tasks.py
     __init__.py
   __init__.py
-start.sh
 pyproject.toml
 
 ```
@@ -290,13 +291,14 @@ CurrentUser = Annotated[UserTokenPayload, Depends(get_current_user)]
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 
 from app.api.dependencies.admin import AdminUserDependency
 from app.api.dependencies.auth import CurrentUser
-from app.core.constant import BookStatus, DocumentType, ProcessingJobStatus, ProcessingJobType
+from app.core.constant import BookStatus, DocumentType, PlanMode, ProcessingJobStatus, ProcessingJobType
 from app.db.database import get_session
+from app.models.db_models import Book
 from app.schemas.admin import (
     AdminAuditLogsResponse,
     AdminBookDetailResponse,
@@ -307,6 +309,7 @@ from app.schemas.admin import (
     AdminRetryJobResponse,
     AdminUsersResponse,
 )
+from app.schemas.responses import BookResponse
 from app.services import admin_service
 
 router = APIRouter(prefix="/admin")
@@ -418,6 +421,46 @@ def read_admin_audit_logs(
         admin_user_id=admin_user_id,
     )
 
+
+@router.patch("/books/{book_id}/share", response_model=BookResponse)
+def make_book_shared(
+    book_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+    share: bool = Query(default=True, description="Đặt trạng thái chia sẻ (True = Chia sẻ, False = Hủy chia sẻ)")
+):
+    """
+    Đánh dấu hoặc hủy đánh dấu một cuốn sách mẫu thành sách dùng chung trong thư viện hệ thống.
+    """
+    book = session.get(Book, book_id)
+    if not book:
+        raise HTTPException(status_code=404, detail="Không tìm thấy sách mẫu.")
+    
+    if share and book.status not in ("ready", "partial_ready"):
+        raise HTTPException(status_code=400, detail="Chỉ có thể chia sẻ sách đã hoàn thành xử lý dữ liệu (READY hoặc PARTIAL_READY).")
+
+    book.is_shared = share
+    session.add(book)
+    session.commit()
+    session.refresh(book)
+    return book
+
+
+
+@router.post("/books/{book_id}/process", response_model=AdminRetryJobResponse)
+async def process_admin_book(
+    book_id: uuid.UUID,
+    mode: PlanMode,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+    is_shared: bool = Query(default=True, description="Tự động công khai sách lên thư viện ngay khi xử lý hoàn tất"),
+):
+    """
+    Kích hoạt tiến trình sinh audio + vector RAG cho sách mẫu của Admin.
+    Hoàn toàn bỏ qua việc tạo ReadingPlan và schedule slots cá nhân.
+    """
+    return await admin_service.start_admin_book_processing(session, book_id=book_id, mode=mode.value, admin_user_id=admin_user.user_id, is_shared=is_shared)
+
 ```
 
 ### app\api\v1\routers\audiobooks.py
@@ -427,11 +470,12 @@ import uuid
 from datetime import date
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
-from sqlmodel import Session
+from fastapi import APIRouter, Depends, HTTPException
+from sqlmodel import Session, select
 
 from app.api.dependencies.auth import CurrentUser
 from app.db.database import get_session
+from app.models.db_models import Book
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
 from app.schemas.plan import (
     PlanUpdateRequest,
@@ -452,8 +496,10 @@ from app.services.audiobook_service import (
     get_reading_plan,
     list_books,
     list_reading_plan_slots,
+    list_shared_library,
     pause_reading_plan,
     resume_reading_plan,
+    select_shared_book_to_user,
     switch_book_mode,
     update_book_by_id,
     update_reading_plan,
@@ -466,6 +512,14 @@ router = APIRouter()
 @router.get("/books", response_model=list[BookResponse])
 def read_all_books(current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
     return list_books(session, current_user.sub)
+
+
+@router.get("/books/library", response_model=list[BookResponse])
+def read_shared_library(current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
+    """
+    Lấy danh sách sách mẫu được chia sẻ công khai từ Thư viện Hệ thống.
+    """
+    return list_shared_library(session)
 
 
 @router.get("/books/{book_id}", response_model=BookResponse)
@@ -593,6 +647,36 @@ def update_plan(
         schedule_config=payload.schedule_config,
         reminder_time=payload.reminder_time,
     )
+
+
+@router.post("/books/{shared_book_id}/select", response_model=BookResponse)
+def select_book_from_library(shared_book_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
+    """
+    User chọn một cuốn sách từ thư viện dùng chung.
+    Backend thực hiện nhân bản nhanh toàn bộ cấu trúc để có thể bắt đầu học ngay lập tức.
+    """
+    try:
+        cloned_book = select_shared_book_to_user(session, shared_book_id=shared_book_id, user_id=current_user.sub)
+        
+        # Query modes associated with the cloned learning units to populate has_full_mode/has_pareto_mode
+        from app.models.db_models import LearningUnit
+        rows = session.exec(
+            select(LearningUnit.mode)
+            .where(LearningUnit.book_id == cloned_book.id)
+            .group_by(LearningUnit.mode)
+        ).all()
+        book_modes = {mode.value for mode in rows}
+        
+        book_data = cloned_book.model_dump()
+        return {
+            **book_data,
+            "learning_status": "not_started",
+            "book_progress_percent": 0,
+            "has_full_mode": "full" in book_modes,
+            "has_pareto_mode": "pareto" in book_modes,
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 ```
 
@@ -1282,8 +1366,8 @@ class Settings(BaseSettings):
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-mini"
     OPENAI_REALTIME_VOICE: str = "cedar"
     # Text and local console test behavior
-    VOICE_AGENT_HISTORY_LIMIT: int = 24
-    VOICE_AGENT_RAG_MAX_CHARS: int = 6000
+    VOICE_AGENT_HISTORY_LIMIT: int = 12
+    VOICE_AGENT_RAG_MAX_CHARS: int = 12000
     # Local console fallback only. Production LiveKit rooms must provide
     # thread_id and document_ids through job metadata from the backend token flow.
     VOICE_AGENT_CONSOLE_BOOK_ID: str = "c3f13d07-4494-4995-ba75-30a12589b8fc"
@@ -1309,7 +1393,7 @@ class Settings(BaseSettings):
     VOICE_AGENT_WEB_RESULT_CACHE_TTL_SECONDS: int = 120
     VOICE_AGENT_PERMISSION_CLASSIFIER_ENABLED: bool = True
     VOICE_AGENT_PERMISSION_CLASSIFIER_MODEL: str = "gpt-4o-mini"
-    VOICE_AGENT_PERMISSION_CLASSIFIER_TIMEOUT_SECONDS: float = 2.5
+    VOICE_AGENT_PERMISSION_CLASSIFIER_TIMEOUT_SECONDS: float = 5.0
     VOICE_AGENT_PERMISSION_CLASSIFIER_CONFIDENCE_THRESHOLD: float = 0.72
     VOICE_AGENT_QUERY_GUARD_ENABLED: bool = True
     VOICE_AGENT_QUERY_GUARD_MIN_CHARS: int = 6
@@ -1352,7 +1436,12 @@ class Settings(BaseSettings):
     AGENT_HYBRID_LEXICAL_CANDIDATES: int = 12
     AGENT_HYBRID_MAX_CONTEXT_CHUNKS: int = 6
     AGENT_HYBRID_MAX_CHUNKS_PER_SECTION: int = 2
-
+    # Reranker
+    COHERE_API_KEY: str | None = None
+    AGENT_RERANKER_ENABLED: bool = True
+    AGENT_RERANKER_MODEL: str = "rerank-multilingual-v3.0"
+    AGENT_RERANKER_TOP_N: int = 10  # Maximum cadidates Reranker reuturn
+    AGENT_RERANKER_CANDIDATES_LIMIT: int = 20  # Maximum cadidates sent to Cohere
     # Upload file
     MAX_FILE_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB
     ALLOWED_MIME_TYPES: Set[str] = {
@@ -3747,6 +3836,210 @@ def downgrade() -> None:
 
 ```
 
+### app\db\migrations\versions\b14a05b2dfeb_add_shared_book_columns_and_clone_.py
+
+```py
+"""add_shared_book_columns_and_clone_function
+
+Revision ID: b14a05b2dfeb
+Revises: d16e5f607182
+Create Date: 2026-06-25 12:20:21.950633
+
+"""
+from typing import Sequence, Union
+
+from alembic import op
+import sqlalchemy as sa
+
+
+# revision identifiers, used by Alembic.
+revision: str = 'b14a05b2dfeb'
+down_revision: Union[str, Sequence[str], None] = 'd16e5f607182'
+branch_labels: Union[str, Sequence[str], None] = None
+depends_on: Union[str, Sequence[str], None] = None
+
+
+def upgrade() -> None:
+    # 1. Thêm cột mới vào bảng books
+    op.add_column('books', sa.Column('is_shared', sa.Boolean(), server_default='false', nullable=False))
+    op.create_index(op.f('ix_books_is_shared'), 'books', ['is_shared'], unique=False)
+    op.add_column('books', sa.Column('parent_shared_id', sa.UUID(), nullable=True))
+    op.create_index(op.f('ix_books_parent_shared_id'), 'books', ['parent_shared_id'], unique=False)
+    op.create_foreign_key('fk_books_parent_shared_id', 'books', 'books', ['parent_shared_id'], ['id'], ondelete='SET NULL')
+
+    # 2. Tạo PostgreSQL Stored Function để nhân bản sách (Metadata Cloning)
+    op.execute("""
+    CREATE OR REPLACE FUNCTION clone_shared_book(
+        shared_book_id UUID,
+        new_user_id UUID,
+        new_book_id UUID
+    )
+    RETURNS VOID AS $$
+    BEGIN
+        -- a. Nhân bản bản ghi Book
+        INSERT INTO books (
+            id, user_id, title, author, file_url, document_type, 
+            total_sections, total_units, status, is_shared, parent_shared_id, 
+            created_at, updated_at
+        )
+        SELECT 
+            new_book_id, new_user_id, title, author, file_url, document_type, 
+            total_sections, total_units, 'ready', false, shared_book_id, 
+            now(), now()
+        FROM books 
+        WHERE id = shared_book_id;
+
+        -- b. Tạo bảng tạm map ID của BookSection cũ sang ID mới
+        CREATE TEMP TABLE temp_section_map ON COMMIT DROP AS
+        SELECT 
+            id AS old_section_id, 
+            gen_random_uuid() AS new_section_id
+        FROM book_sections 
+        WHERE book_id = shared_book_id;
+
+        -- c. Nhân bản các BookSection
+        INSERT INTO book_sections (
+            id, book_id, parent_id, section_index, title, level, path, 
+            text_content, text_char_count, page_start, page_end, source_href, source_anchor, 
+            created_at, updated_at
+        )
+        SELECT 
+            m.new_section_id, 
+            new_book_id, 
+            old_sec.parent_id, -- Tạm thời copy old parent_id
+            old_sec.section_index, 
+            old_sec.title, 
+            old_sec.level, 
+            old_sec.path, 
+            old_sec.text_content, 
+            old_sec.text_char_count, 
+            old_sec.page_start, 
+            old_sec.page_end, 
+            old_sec.source_href, 
+            old_sec.source_anchor, 
+            now(), 
+            now()
+        FROM book_sections old_sec
+        JOIN temp_section_map m ON old_sec.id = m.old_section_id;
+
+        -- d. Khôi phục cấu trúc cây phân cấp parent_id của BookSection (Dùng cú pháp an toàn tương thích mọi bản Postgres)
+        UPDATE book_sections
+        SET parent_id = m_parent.new_section_id
+        FROM temp_section_map m_child,
+             temp_section_map m_parent
+        WHERE book_sections.book_id = new_book_id
+          AND book_sections.id = m_child.new_section_id
+          AND book_sections.parent_id = m_parent.old_section_id;
+
+        -- e. Đặt các parent_id không thuộc cuốn sách về NULL
+        UPDATE book_sections
+        SET parent_id = NULL
+        WHERE book_id = new_book_id
+          AND parent_id IS NOT NULL
+          AND parent_id NOT IN (SELECT new_section_id FROM temp_section_map);
+
+        -- f. Nhân bản dữ liệu Vector pgvector (BookSectionKnowledge)
+        INSERT INTO book_section_knowledge (
+            book_id, section_id, chunk_index, content, search_text, content_hash, 
+            embedding_model, embedding_version, char_count, token_count, embedding, 
+            created_at, updated_at
+        )
+        SELECT 
+            new_book_id, 
+            m.new_section_id, 
+            old_kn.chunk_index, 
+            old_kn.content, 
+            old_kn.search_text, 
+            old_kn.content_hash, 
+            old_kn.embedding_model, 
+            old_kn.embedding_version, 
+            old_kn.char_count, 
+            old_kn.token_count, 
+            old_kn.embedding, 
+            now(), 
+            now()
+        FROM book_section_knowledge old_kn
+        JOIN temp_section_map m ON old_kn.section_id = m.old_section_id;
+
+        -- g. Tạo bảng tạm map ID của LearningUnit cũ sang ID mới
+        CREATE TEMP TABLE temp_unit_map ON COMMIT DROP AS
+        SELECT 
+            id AS old_unit_id, 
+            gen_random_uuid() AS new_unit_id
+        FROM learning_units 
+        WHERE book_id = shared_book_id;
+
+        -- h. Nhân bản các LearningUnit
+        INSERT INTO learning_units (
+            id, user_id, book_id, mode, unit_index, title, unit_type, status, 
+            source_text_char_count, estimated_tokens, estimated_audio_seconds, main_segment_count, 
+            review_audio_url, review_text, planner_reason, created_at, updated_at
+        )
+        SELECT 
+            m.new_unit_id, 
+            new_user_id, 
+            new_book_id, 
+            old_unit.mode, 
+            old_unit.unit_index, 
+            old_unit.title, 
+            old_unit.unit_type, 
+            old_unit.status, 
+            old_unit.source_text_char_count, 
+            old_unit.estimated_tokens, 
+            old_unit.estimated_audio_seconds, 
+            old_unit.main_segment_count, 
+            old_unit.review_audio_url, 
+            old_unit.review_text, 
+            old_unit.planner_reason, 
+            now(), 
+            now()
+        FROM learning_units old_unit
+        JOIN temp_unit_map m ON old_unit.id = m.old_unit_id;
+
+        -- i. Nhân bản bảng liên kết LearningUnitSource
+        INSERT INTO learning_unit_sources (
+            learning_unit_id, section_id, source_order
+        )
+        SELECT 
+            mu.new_unit_id, 
+            ms.new_section_id, 
+            old_src.source_order
+        FROM learning_unit_sources old_src
+        JOIN temp_unit_map mu ON old_src.learning_unit_id = mu.old_unit_id
+        JOIN temp_section_map ms ON old_src.section_id = ms.old_section_id;
+
+        -- j. Nhân bản các phân đoạn file mp3 (LearningUnitSegment)
+        INSERT INTO learning_unit_segments (
+            learning_unit_id, segment_index, audio_url, text_content, duration_ms, created_at
+        )
+        SELECT 
+            mu.new_unit_id, 
+            old_seg.segment_index, 
+            old_seg.audio_url, 
+            old_seg.text_content, 
+            old_seg.duration_ms, 
+            now()
+        FROM learning_unit_segments old_seg
+        JOIN temp_unit_map mu ON old_seg.learning_unit_id = mu.old_unit_id;
+
+    END;
+    $$ LANGUAGE plpgsql;
+    """)
+
+
+def downgrade() -> None:
+    # Xóa Stored Function
+    op.execute("DROP FUNCTION IF EXISTS clone_shared_book(UUID, UUID, UUID);")
+    
+    # Xóa cột và index
+    op.drop_constraint('fk_books_parent_shared_id', 'books', type_='foreignkey')
+    op.drop_index(op.f('ix_books_parent_shared_id'), table_name='books')
+    op.drop_column('books', 'parent_shared_id')
+    op.drop_index(op.f('ix_books_is_shared'), table_name='books')
+    op.drop_column('books', 'is_shared')
+
+```
+
 ### app\db\migrations\versions\b14c2d3e4f50_phase_14_drop_legacy_book_knowledge.py
 
 ```py
@@ -5410,6 +5703,8 @@ class Book(SQLModel, table=True):
     document_type: Optional[str] = Field(default=None, sa_column=Column(Text))
     total_sections: Optional[int] = Field(default=None, sa_column=Column(Integer))
     total_units: Optional[int] = Field(default=None, sa_column=Column(Integer))
+    is_shared: bool = Field(default=False, sa_column=Column(Boolean, nullable=False, server_default="false", index=True))
+    parent_shared_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="SET NULL"), nullable=True, index=True))
     status: Optional[str] = Field(default=None, sa_column=Column(Text))
     error_message: Optional[str] = Field(default=None, sa_column=Column(Text))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
@@ -5668,7 +5963,7 @@ class NotificationSettings(SQLModel, table=True):
     reminder_time: str = Field(default="20:00", sa_column=Column(Text, nullable=False))
     quiet_hours_start: str = Field(default="22:00", sa_column=Column(Text, nullable=False))
     quiet_hours_end: str = Field(default="07:00", sa_column=Column(Text, nullable=False))
-    daily_cap: int = Field(default=3, sa_column=Column(Integer, nullable=False))
+    daily_cap: int = Field(default=15, sa_column=Column(Integer, nullable=False))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
@@ -5741,14 +6036,8 @@ class UserDeviceToken(SQLModel, table=True):
     id: uuid.UUID = Field(default_factory=uuid.uuid4, primary_key=True)
     user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), index=True, nullable=False))
     device_token: str = Field(sa_column=Column(Text, unique=True, index=True, nullable=False))
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
-    )
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
-    )
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
 
 class BookSectionKnowledge(SQLModel, table=True):
@@ -6330,42 +6619,48 @@ def cleanup_book_side_effects(session: Session, *, book_id: uuid.UUID, user_id: 
 
 async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uuid.UUID):
     """
-    Xóa sạch assets trong Storage và bản ghi trong Database.
+    Xóa assets vật lý trên Storage (chỉ áp dụng cho sách tự upload)
+    và dọn dẹp sạch bản ghi metadata trong Database.
     """
     book = get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
 
-
     str_book_id = str(book_id)
-    target_buckets = ["audios", "raw_books"]
 
+    # Logic CLone book
+    if book.parent_shared_id is not None:
+        log.info(f"Book {str_book_id} là sách clone. Bỏ qua bước xóa file vật lý trên Storage.")
+        cleanup_book_side_effects(session, book_id=book_id, user_id=user_id)
+        delete_book(session, book_id)
+        log.info(f"Clear Clone Book: {str_book_id}")
+        return
+
+    # --- Normal logic DEL Book + Related object + Storage object ---
+    target_buckets = ["audios", "raw_books"]
     try:
-        # 1. Lấy danh sách file từ tất cả bucket liên quan qua RPC (SELECT)
+        # Lấy danh sách file từ tất cả bucket liên quan qua RPC
         result = supabase.rpc("get_book_asset_paths", {"bucket_names": target_buckets, "book_id_prefix": str_book_id}).execute()
 
-        # 2. Phân loại và xóa file qua Storage API
+        # Xóa file vật lý qua Storage API
         if result.data:
             data_list = result.data if isinstance(result.data, list) else []
             for bucket in target_buckets:
-                # Lọc ra danh sách file thuộc bucket hiện tại
                 paths = [str(item["name"]) for item in data_list if isinstance(item, dict) and item.get("bucket_id") == bucket]
-
                 if paths:
-                    # Xóa hàng loạt file trong bucket này (Đúng quy trình API)
                     supabase.storage.from_(bucket).remove(paths)
                     log.info(f"Đã xóa {len(paths)} files từ bucket: {bucket}")
 
-        # 3. Xóa record trong DB + notification
+        # Xóa record trong DB
         cleanup_book_side_effects(session, book_id=book_id, user_id=user_id)
         delete_book(session, book_id)
-        log.info(f"Đã dọn dẹp sạch sẽ database cho book: {str_book_id}")
+        log.info(f"Đã dọn dẹp sạch database cho book tự upload: {str_book_id}")
 
     except Exception as e:
-        # Rollback session nếu có lỗi ở tầng DB để tránh mất dữ liệu không đồng bộ
         session.rollback()
         log.exception(f"Lỗi nghiêm trọng khi xóa book {str_book_id}: {e}")
         raise StorageOperationError("Không thể xóa tài nguyên sách trong Storage.") from e
+
 
 ```
 
@@ -6689,6 +6984,7 @@ from sqlalchemy.exc import ProgrammingError
 from sqlmodel import Session, col, select
 
 from app.models.db_models import BookSection
+from app.services.book_section_chunker import normalize_section_text
 from app.services.document_structure_types import ParsedDocument, ParsedSection
 
 
@@ -6718,6 +7014,7 @@ def create_book_sections(session: Session, book_id: uuid.UUID, parsed_document: 
     def walk(sections: list[ParsedSection], parent_id: uuid.UUID | None = None) -> None:
         nonlocal section_index
         for section in sections:
+            normalized_text = normalize_section_text(section.text)
             row = BookSection(
                 book_id=book_id,
                 parent_id=parent_id,
@@ -6725,8 +7022,8 @@ def create_book_sections(session: Session, book_id: uuid.UUID, parsed_document: 
                 title=section.title,
                 level=section.level,
                 path=section.path,
-                text_content=section.text or None,
-                text_char_count=len(section.text or ""),
+                text_content=normalized_text or None,
+                text_char_count=len(normalized_text or ""),
                 page_start=section.page_start,
                 page_end=section.page_end,
                 source_href=section.source_href,
@@ -6921,21 +7218,57 @@ def has_playable_uncompleted_unit(
     book_id: uuid.UUID,
     mode: PlanMode,
 ) -> bool:
-    playable_ids = set(list_playable_unit_ids(session, book_id=book_id, mode=mode))
-    if not playable_ids:
-        return False
-
-    completed_ids = set(
-        session.exec(
-            select(LearningUnitProgress.learning_unit_id).where(
-                LearningUnitProgress.user_id == user_id,
-                LearningUnitProgress.book_id == book_id,
-                LearningUnitProgress.mode == mode,
-                LearningUnitProgress.status == LearningProgressStatus.COMPLETED,
-            )
-        ).all()
+    """
+    Kiểm tra xem cuốn sách còn bài học nào có thể phát (playable) mà user chưa hoàn thành không.
+    Tối ưu hóa: Dùng LEFT OUTER JOIN trực tiếp ở tầng DB Engine, giới hạn LIMIT 1, RAM/CPU gần như bằng 0.
+    """
+    statement = (
+        select(LearningUnit.id)
+        # 1. Kết nối với Segment để đảm bảo bài học đó có dữ liệu âm thanh phát được (Playable)
+        .join(LearningUnitSegment, LearningUnitSegment.learning_unit_id == LearningUnit.id)
+        # 2. LEFT OUTER JOIN với bảng tiến độ của User cụ thể để tìm những bài chưa hoàn thành
+        .join(
+            LearningUnitProgress,
+            (LearningUnitProgress.learning_unit_id == LearningUnit.id) & (LearningUnitProgress.user_id == user_id) & (LearningUnitProgress.status == LearningProgressStatus.COMPLETED),
+            isouter=True,  # LEFT OUTER JOIN
+        )
+        # 3. Lọc theo thông tin sách và chế độ học
+        .where(LearningUnit.book_id == book_id, LearningUnit.mode == mode)
+        # 4. Điều kiện chí mạng: Bản ghi tiến độ COMPLETED phải KHÔNG tồn tại (IS NULL)
+        .where(LearningUnitProgress.id.is_(None))
+        # 5. Chỉ cần tìm thấy 1 bài thỏa mãn là đủ kết luận, không quét toàn bộ DB
+        .limit(1)
     )
-    return bool(playable_ids - completed_ids)
+
+    # Thực thi câu lệnh
+    result = session.exec(statement).first()
+
+    # Nếu kết quả khác None nghĩa là tồn tại ít nhất 1 bài playable chưa completed -> True
+    return result is not None
+
+
+# def has_playable_uncompleted_unit(
+#     session: Session,
+#     *,
+#     user_id: uuid.UUID,
+#     book_id: uuid.UUID,
+#     mode: PlanMode,
+# ) -> bool:
+#     playable_ids = set(list_playable_unit_ids(session, book_id=book_id, mode=mode))
+#     if not playable_ids:
+#         return False
+
+#     completed_ids = set(
+#         session.exec(
+#             select(LearningUnitProgress.learning_unit_id).where(
+#                 LearningUnitProgress.user_id == user_id,
+#                 LearningUnitProgress.book_id == book_id,
+#                 LearningUnitProgress.mode == mode,
+#                 LearningUnitProgress.status == LearningProgressStatus.COMPLETED,
+#             )
+#         ).all()
+#     )
+#     return bool(playable_ids - completed_ids)
 
 ```
 
@@ -8537,6 +8870,10 @@ class AdminBookListItem(BaseModel):
     total_sections: int | None = None
     total_units: int | None = None
     error_message: str | None = None
+    is_shared: bool = False
+    parent_shared_id: uuid.UUID | None = None
+    has_full_mode: bool = False
+    has_pareto_mode: bool = False
     created_at: datetime
     updated_at: datetime
 
@@ -8996,6 +9333,10 @@ class BookResponse(BaseModel):
     completed_at: Optional[datetime] = None
     document_type: Optional[DocumentType] = None
     file_url: Optional[str] = None
+    is_shared: Optional[bool] = False
+    parent_shared_id: Optional[uuid.UUID] = None
+    has_full_mode: Optional[bool] = False
+    has_pareto_mode: Optional[bool] = False
     created_at: datetime
     updated_at: datetime
 
@@ -9237,11 +9578,11 @@ class UserTokenPayload(BaseModel):
 import uuid
 from datetime import datetime, timezone
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
-from app.core.constant import ProcessingJobStatus, ProcessingJobType
-from app.core.exceptions import BadRequestError, BookNotFoundError, ExternalServiceError, ProcessingJobNotFoundError, ProcessingJobStatusConflictError
-from app.models.db_models import AdminAuditLog, AdminUser, ProcessingJob
+from app.core.constant import BookStatus, PlanMode, ProcessingJobStatus, ProcessingJobType
+from app.core.exceptions import BadRequestError, BookNotFoundError, BookStatusConflictError, ExternalServiceError, ProcessingJobNotFoundError, ProcessingJobStatusConflictError
+from app.models.db_models import AdminAuditLog, AdminUser, Book, LearningUnit, ProcessingJob
 from app.repositories.admin_repo import (
     count_learning_unit_segments_for_book,
     count_learning_units_by_status,
@@ -9254,11 +9595,13 @@ from app.repositories.admin_repo import (
     list_admin_jobs,
     list_admin_users,
 )
+from app.repositories.learning_unit_repo import create_learning_units
 from app.repositories.processing_job_repo import get_processing_job_by_id
 from app.schemas.admin import (
     AdminAuditLogItem,
     AdminAuditLogsResponse,
     AdminBookDetailResponse,
+    AdminBookListItem,
     AdminBooksResponse,
     AdminDashboardResponse,
     AdminJobListItem,
@@ -9268,6 +9611,7 @@ from app.schemas.admin import (
     AdminUsersResponse,
 )
 from app.schemas.user import UserTokenPayload
+from app.services.upload_service import _planned_units_for_book
 from app.tasks.book_tasks import process_book_task, switch_mode_task
 
 RETRYABLE_JOB_STATUSES = {ProcessingJobStatus.ERROR, ProcessingJobStatus.CANCELLED}
@@ -9311,7 +9655,41 @@ def get_books(
         user_id=user_id,
         q=q,
     )
-    return AdminBooksResponse(total=total, limit=limit, offset=offset, items=books)
+
+    book_ids = [b.id for b in books]
+    modes_map = {}
+    if book_ids:
+        rows = session.exec(
+            select(LearningUnit.book_id, LearningUnit.mode)
+            .where(LearningUnit.book_id.in_(book_ids))
+            .group_by(LearningUnit.book_id, LearningUnit.mode)
+        ).all()
+        for b_id, mode in rows:
+            modes_map.setdefault(b_id, set()).add(mode.value)
+
+    items = []
+    for b in books:
+        book_modes = modes_map.get(b.id, set())
+        items.append(
+            AdminBookListItem(
+                id=b.id,
+                user_id=b.user_id,
+                title=b.title,
+                author=b.author,
+                document_type=b.document_type,
+                status=b.status,
+                total_sections=b.total_sections,
+                total_units=b.total_units,
+                error_message=b.error_message,
+                is_shared=b.is_shared,
+                parent_shared_id=b.parent_shared_id,
+                has_full_mode="full" in book_modes,
+                has_pareto_mode="pareto" in book_modes,
+                created_at=b.created_at,
+                updated_at=b.updated_at,
+            )
+        )
+    return AdminBooksResponse(total=total, limit=limit, offset=offset, items=items)
 
 
 def get_book_detail(session: Session, book_id: uuid.UUID) -> AdminBookDetailResponse:
@@ -9320,8 +9698,31 @@ def get_book_detail(session: Session, book_id: uuid.UUID) -> AdminBookDetailResp
         raise BookNotFoundError()
 
     latest_job = get_latest_admin_job_for_book(session, book_id)
+    
+    # Query modes
+    rows = session.exec(
+        select(LearningUnit.mode)
+        .where(LearningUnit.book_id == book_id)
+        .group_by(LearningUnit.mode)
+    ).all()
+    book_modes = {mode.value for mode in rows}
+
     return AdminBookDetailResponse(
-        **book.model_dump(),
+        id=book.id,
+        user_id=book.user_id,
+        title=book.title,
+        author=book.author,
+        document_type=book.document_type,
+        status=book.status,
+        total_sections=book.total_sections,
+        total_units=book.total_units,
+        error_message=book.error_message,
+        is_shared=book.is_shared,
+        parent_shared_id=book.parent_shared_id,
+        has_full_mode="full" in book_modes,
+        has_pareto_mode="pareto" in book_modes,
+        created_at=book.created_at,
+        updated_at=book.updated_at,
         latest_job=AdminJobListItem.model_validate(latest_job) if latest_job else None,
         learning_units_by_status=count_learning_units_by_status(session, book_id),
         segment_count=count_learning_unit_segments_for_book(session, book_id),
@@ -9463,6 +9864,99 @@ def _audit_log_response(log: AdminAuditLog) -> AdminAuditLogItem:
         metadata=log.metadata_json,
         created_at=log.created_at,
     )
+
+
+async def start_admin_book_processing(
+    session: Session,
+    *,
+    book_id: uuid.UUID,
+    mode: str,
+    admin_user_id: uuid.UUID,
+    is_shared: bool = False
+) -> AdminRetryJobResponse:
+    """
+    Kích hoạt trực tiếp tiến trình băm chữ, tạo RAG vector và sinh audio cho sách mẫu
+    mà không cần bất kỳ lịch trình học cá nhân (ReadingPlan) nào của Admin.
+    """
+
+    book = session.get(Book, book_id)
+    if not book:
+        raise BookNotFoundError()
+
+    # 1. Cho phép xử lý sách mẫu nếu sách ở trạng thái nháp, đang xử lý, đã xong (READY) hoặc lỗi
+    if book.status not in (BookStatus.DRAFT.value, BookStatus.PROCESSING.value, BookStatus.READY.value, BookStatus.ERROR.value):
+        raise BookStatusConflictError(f"Sách đang ở trạng thái '{book.status}', không thể xử lý.")
+
+    requested_mode = PlanMode(mode)
+
+    # 2. Ngăn chặn việc chạy trùng lặp cùng một mode đang xử lý
+    existing_job = session.exec(
+        select(ProcessingJob).where(
+            ProcessingJob.book_id == book_id,
+            ProcessingJob.mode == requested_mode,
+            ProcessingJob.status.in_([ProcessingJobStatus.QUEUED, ProcessingJobStatus.PROCESSING])
+        )
+    ).first()
+    if existing_job:
+        raise BookStatusConflictError(f"Chế độ học tập '{mode}' đang được xử lý cho cuốn sách này.")
+
+    # 3. Sinh cấu trúc bài học dự kiến
+    planned_units = await _planned_units_for_book(session, book_id, requested_mode)
+
+    # 4. Lưu học phần (LearningUnits) vào DB
+    created_units = create_learning_units(
+        session,
+        user_id=admin_user_id,
+        book_id=book_id,
+        mode=requested_mode,
+        planned_units=planned_units,
+    )
+    # Cập nhật thông minh tránh ghi đè số lượng lớn hơn của FULL mode
+    book.total_units = max(book.total_units or 0, len(created_units))
+    book.status = BookStatus.PROCESSING.value
+    if is_shared:
+        book.is_shared = True
+    session.add(book)
+
+    # 5. Tạo ProcessingJob để theo dõi tiến trình
+    job = ProcessingJob(
+        user_id=admin_user_id,
+        book_id=book_id,
+        job_type=ProcessingJobType.GENERATE_PLAN,
+        status=ProcessingJobStatus.QUEUED,
+        mode=requested_mode,
+        total_units=len(planned_units) if planned_units else book.total_units or 0,
+        done_units=0,
+        progress_percent=0,
+        current_step="Đang chờ xử lý sách (Admin).",
+    )
+    session.add(job)
+    session.commit()
+    session.refresh(job)
+    session.refresh(book)
+
+    # 6. Ghi Audit Log hành động của Admin
+    create_admin_audit_log(
+        session,
+        admin_user_id=admin_user_id,
+        action="book.admin_process",
+        target_type="book",
+        target_id=book_id,
+        metadata={"mode": mode, "job_id": str(job.id), "is_shared": is_shared},
+    )
+    session.commit()
+
+    # 7. Kích hoạt Celery Task
+    process_book_task.apply_async(
+        args=[str(book_id), requested_mode.value, str(job.id)],
+        queue="document",
+    )
+
+    return AdminRetryJobResponse(
+        job=AdminJobListItem.model_validate(job),
+        message="Sách đã được đưa vào hàng đợi xử lý âm thanh & vector."
+    )
+
 
 ```
 
@@ -10278,6 +10772,98 @@ def contains_any_phrase(query: NormalizedQuery, phrases: tuple[str, ...] | list[
     return any(contains_phrase(query, phrase) for phrase in phrases)
 
 
+```
+
+### app\services\agent_grounding\reranker.py
+
+```py
+from app.core.logger import log
+from app.core.config import settings
+from typing import Any
+import httpx
+import asyncio
+
+async def rerank_candidates(
+    query: str,
+    candidates: list[dict[str, Any]],
+    *,
+    model: str | None = None,
+    top_n: int | None = None
+) -> list[dict[str, Any]]:
+    """
+    Sử dụng Cohere Multilingual Rerank API v2 để xếp hạng lại (Rerank) các chunks ứng viên.
+    
+    Args:
+        query: Câu hỏi hoặc truy vấn của người dùng.
+        candidates: Danh sách các chunk ứng viên dạng dictionary từ Hybrid Retrieval.
+        model: Model rerank sử dụng (mặc định lấy từ settings).
+        top_n: Số lượng kết quả tối đa muốn giữ lại (mặc định lấy từ settings).
+        
+    Returns:
+        Danh sách các chunk đã được cập nhật score và sắp xếp theo thứ tự giảm dần.
+        Nếu API lỗi hoặc không cấu hình API Key, tự động fallback trả về danh sách gốc.
+    """
+    if not settings.COHERE_API_KEY:
+        log.warning("Reranker: Không tìm thấy COHERE_API_KEY. Bỏ qua Rerank (Fallback mode).")
+        return candidates
+    
+    if not candidates:
+        return []
+
+    limit = settings.AGENT_RERANKER_CANDIDATES_LIMIT
+    input_candidates = candidates[:limit]
+
+    rerank_model = model or settings.AGENT_RERANKER_MODEL
+    rerank_top_n = top_n or settings.AGENT_RERANKER_TOP_N
+
+    # Sử dụng Cohere Rerank API v2 theo đặc tả mới nhất
+    url = "https://api.cohere.com/v2/rerank"
+    headers = {
+        "Authorization": f"Bearer {settings.COHERE_API_KEY}",
+        "Content-Type": "application/json",
+        "accept": "application/json",
+    }
+    
+    payload = {
+        "model": rerank_model,
+        "query": query,
+        "documents": [c.get("content", "") for c in input_candidates],
+        "top_n": min(rerank_top_n, len(input_candidates))
+    }
+
+    try:
+        async with httpx.AsyncClient() as client:
+            response = await client.post(url, json=payload, headers=headers, timeout=8.0)
+            
+            if response.status_code != 200:
+                log.error(f"Reranker: Cohere API v2 trả về mã lỗi {response.status_code}: {response.text}")
+                return candidates  # Fallback
+                
+            results = response.json().get("results", [])
+            
+            reranked_candidates = []
+            for item in results:
+                idx = item["index"]
+                relevance_score = float(item["relevance_score"])
+                
+                candidate = input_candidates[idx].copy()
+                candidate["similarity"] = round(relevance_score, 4)
+                candidate["final_score"] = round(relevance_score, 4)
+                candidate["retrieval_method"] = "cohere-rerank-v2"
+                
+                reranked_candidates.append(candidate)
+                
+            log.info(f"Reranker: Đã Rerank thành công {len(reranked_candidates)} chunks bằng Cohere v2 API.")
+            return reranked_candidates
+
+    except httpx.HTTPError as http_err:
+        log.error(f"Reranker: Lỗi kết nối HTTP tới Cohere API v2: {http_err}")
+    except asyncio.TimeoutError:
+        log.error("Reranker: Gọi Cohere API v2 bị quá hạn (Timeout).")
+    except Exception as e:
+        log.error(f"Reranker: Lỗi không xác định khi thực hiện rerank: {e}")
+        
+    return candidates
 ```
 
 ### app\services\agent_grounding\response_renderer.py
@@ -13591,8 +14177,9 @@ def get_loop_semaphore(name: str, limit: int) -> asyncio.Semaphore:
 import uuid
 from datetime import datetime, timezone
 
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.core.constant import BookStatus, PlanMode, PlanStatus, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import BookNotFoundError, BookStatusConflictError, ExternalServiceError, NoReadingPlanError, ReadingPlanNotFoundError, ReadingPlanScheduleConflictError
@@ -13623,7 +14210,7 @@ from app.services.reading_plan_session_service import (
 from app.tasks.book_tasks import switch_mode_task
 
 
-def _book_to_response_dict(projection: BookListProjection) -> dict:
+def _book_to_response_dict(projection: BookListProjection, modes_map: dict[uuid.UUID, set[str]] | None = None) -> dict:
     book = projection.book
     book_data = book.model_dump()
     learning_status = None
@@ -13633,23 +14220,76 @@ def _book_to_response_dict(projection: BookListProjection) -> dict:
         learning_status = projection.learning_state.status
         book_progress_percent = projection.learning_state.book_progress_percent
         completed_at = projection.learning_state.completed_at
+
+    book_modes = (modes_map or {}).get(book.id, set())
     return {
         **book_data,
         "learning_status": learning_status,
         "book_progress_percent": book_progress_percent,
         "completed_at": completed_at,
+        "has_full_mode": "full" in book_modes,
+        "has_pareto_mode": "pareto" in book_modes,
     }
 
 
 def list_books(session: Session, user_id: uuid.UUID) -> list[dict]:
-    return [_book_to_response_dict(projection) for projection in list_book_library_projections(session, user_id=user_id)]
+    projections = list_book_library_projections(session, user_id=user_id)
+    book_ids = [p.book.id for p in projections]
+    modes_map = {}
+    if book_ids:
+        rows = session.exec(select(LearningUnit.book_id, LearningUnit.mode).where(LearningUnit.book_id.in_(book_ids)).group_by(LearningUnit.book_id, LearningUnit.mode)).all()
+        for b_id, mode in rows:
+            modes_map.setdefault(b_id, set()).add(mode.value)
+    return [_book_to_response_dict(p, modes_map) for p in projections]
 
 
 def get_book(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> dict:
     projection = get_book_library_projection(session, user_id=user_id, book_id=book_id)
     if not projection:
         raise BookNotFoundError()
-    return _book_to_response_dict(projection)
+    rows = session.exec(select(LearningUnit.mode).where(LearningUnit.book_id == book_id).group_by(LearningUnit.mode)).all()
+    book_modes = {mode.value for mode in rows}
+    return _book_to_response_dict(projection, {book_id: book_modes})
+
+
+def list_shared_library(session: Session) -> list[dict]:
+    """
+    Lấy danh sách sách mẫu được chia sẻ công khai kèm thông tin các chế độ học đã bóc tách xong.
+    """
+    books = session.exec(select(Book).where(Book.is_shared == True, Book.status == "ready")).all()
+
+    book_ids = [b.id for b in books]
+    modes_map = {}
+    if book_ids:
+        rows = session.exec(select(LearningUnit.book_id, LearningUnit.mode).where(LearningUnit.book_id.in_(book_ids)).group_by(LearningUnit.book_id, LearningUnit.mode)).all()
+        for b_id, mode in rows:
+            modes_map.setdefault(b_id, set()).add(mode.value)
+
+    items = []
+    for b in books:
+        book_modes = modes_map.get(b.id, set())
+        items.append(
+            {
+                "id": b.id,
+                "title": b.title,
+                "author": b.author,
+                "total_sections": b.total_sections,
+                "total_units": b.total_units,
+                "status": b.status,
+                "learning_status": None,
+                "book_progress_percent": 0,
+                "completed_at": None,
+                "document_type": b.document_type,
+                "file_url": b.file_url,
+                "is_shared": b.is_shared,
+                "parent_shared_id": b.parent_shared_id,
+                "has_full_mode": "full" in book_modes,
+                "has_pareto_mode": "pareto" in book_modes,
+                "created_at": b.created_at,
+                "updated_at": b.updated_at,
+            }
+        )
+    return items
 
 
 def create_new_book(session: Session, user_id: uuid.UUID, payload: BookCreateRequest) -> Book:
@@ -14060,6 +14700,34 @@ def update_reading_plan(
         **_reading_plan_to_dict(session, plan),
     }
 
+
+def select_shared_book_to_user(session: Session, *, shared_book_id: uuid.UUID, user_id: uuid.UUID) -> Book:
+    """
+    Nhân bản toàn bộ metadata của một sách hệ thống (shared) cho một User cụ thể.
+    Sử dụng PostgreSQL Stored Procedure (clone_shared_book) để tối ưu hóa hiệu năng tối đa.
+    """
+
+    # 1. Kiểm tra sách gốc có tồn tại và được chia sẻ không
+    shared_book = session.get(Book, shared_book_id)
+    if not shared_book or not shared_book.is_shared:
+        raise ValueError("Sách hệ thống không tồn tại hoặc chưa được chia sẻ công khai.")
+
+    # 2. Kiểm tra xem user đã chọn sách này trước đây chưa
+    existing = session.exec(select(Book).where(Book.parent_shared_id == shared_book_id, Book.user_id == user_id)).first()
+    if existing:
+        return existing
+
+    # 3. Gọi PostgreSQL Stored Function để nhân bản cực nhanh
+    new_book_id = uuid.uuid4()
+    session.execute(text("SELECT clone_shared_book(:shared_book_id, :new_user_id, :new_book_id)"), {"shared_book_id": shared_book_id, "new_user_id": user_id, "new_book_id": new_book_id})
+    session.commit()
+
+    # 4. Trả về đối tượng Book vừa được clone thành công
+    cloned_book = session.get(Book, new_book_id)
+    if not cloned_book:
+        raise ValueError("Lỗi nhân bản sách từ thư viện.")
+    return cloned_book
+
 ```
 
 ### app\services\book_section_chunker.py
@@ -14089,12 +14757,47 @@ class SectionChunk:
     char_count: int
 
 
+
 def normalize_section_text(text: str | None) -> str:
+    """
+    Bộ chuẩn hóa nâng cấp đa ngôn ngữ (Xử lý tối ưu lỗi PDF tiếng Việt và sở hữu cách tiếng Anh)
+    """
     if not text:
         return ""
-    lines = [_WHITESPACE_RE.sub(" ", line).strip() for line in text.splitlines()]
-    compact_lines = [line for line in lines if line]
-    return "\n".join(compact_lines).strip()
+
+    # 1. Đồng nhất xuống dòng
+    text = text.replace("\r\n", "\n")
+
+    # 2. Xóa ký tự rác (cid:xxx)
+    text = re.sub(r"\(cid:\d+\)", "•", text)
+
+    # 3. SỬA LỖI ĐẶC THÙ TIẾNG ANH: Vá các khoảng trắng bị lỗi bẻ đôi do sở hữu cách hoặc viết tắt
+    # Đổi "george s " -> "george's ", "tha s " -> "that's " (hoặc tha's theo ngôn ngữ gốc của truyện)
+    text = re.sub(r"\b(\w+)\s+s\b", r"\1's", text)   # Sửa george s -> george's, curley s -> curley's
+    text = re.sub(r"\b(\w+)\s+ll\b", r"\1'll", text)  # Sửa you ll -> you'll
+    text = re.sub(r"\b(\w+)\s+d\b", r"\1'd", text)    # Sửa you d -> you'd
+    text = re.sub(r"\b(\w+)\s+t\b", r"\1't", text)    # Sửa didn t -> didn't, don t -> don't
+    text = re.sub(r"\b(\w+)\s+re\b", r"\1're", text)  # Sửa you re -> you're
+    text = re.sub(r"\b(\w+)\s+ve\b", r"\1've", text)  # Sửa you ve -> you've
+
+    # 4. Tách Paragraph bằng dấu xuống dòng kép
+    paragraphs = text.split("\n\n")
+    normalized_paragraphs = []
+
+    for paragraph in paragraphs:
+        p_clean = paragraph.strip()
+        if not p_clean:
+            continue
+
+        # 5. Xóa bỏ toàn bộ dấu xuống dòng đơn lẻ nằm giữa các câu liền mạch
+        p_sub = re.sub(r"(?<![•\-\*\d\.])\n(?!\s*[•\-\*\d\.])", " ", p_clean)
+
+        # 6. Gom khoảng trắng thừa
+        p_sub = re.sub(r"[ \t]+", " ", p_sub)
+
+        normalized_paragraphs.append(p_sub.strip())
+
+    return "\n\n".join(normalized_paragraphs)
 
 
 def build_section_search_text(*, section_path: str, section_title: str, content: str) -> str:
@@ -17633,6 +18336,7 @@ def get_book_processing_status(session: Session, user_id: uuid.UUID, book_id: uu
 ### app\services\rag_service.py
 
 ```py
+from app.services.agent_grounding.reranker import rerank_candidates
 import asyncio
 from typing import Any
 
@@ -17732,13 +18436,17 @@ def _as_payload_list(payload: list[dict[str, Any]] | str) -> list[dict[str, Any]
 
 
 def _hybrid_config() -> HybridRetrievalConfig:
+    max_chunks = settings.AGENT_HYBRID_MAX_CONTEXT_CHUNKS
+    if settings.AGENT_RERANKER_ENABLED:
+        max_chunks = settings.AGENT_RERANKER_CANDIDATES_LIMIT
+
     return HybridRetrievalConfig(
         vector_weight=settings.AGENT_HYBRID_VECTOR_WEIGHT,
         lexical_weight=settings.AGENT_HYBRID_LEXICAL_WEIGHT,
         title_match_boost=settings.AGENT_HYBRID_TITLE_MATCH_BOOST,
         multi_source_boost=settings.AGENT_HYBRID_MULTI_SOURCE_BOOST,
         min_final_score=settings.AGENT_HYBRID_MIN_FINAL_SCORE,
-        max_context_chunks=settings.AGENT_HYBRID_MAX_CONTEXT_CHUNKS,
+        max_context_chunks=max_chunks,
         max_chunks_per_section=settings.AGENT_HYBRID_MAX_CHUNKS_PER_SECTION,
     )
 
@@ -17749,39 +18457,60 @@ async def search_book_hybrid_knowledge(
     *,
     section_ids: list[str] | None = None,
 ) -> list[dict[str, Any]] | str:
-    vector_result = await search_book_section_knowledge(
+
+    cadidates_limit = settings.AGENT_RERANKER_CANDIDATES_LIMIT
+
+    vector_task = search_book_section_knowledge(
         query,
         document_ids,
         section_ids=section_ids,
-        match_count=settings.AGENT_HYBRID_VECTOR_CANDIDATES,
+        match_count=cadidates_limit,
     )
-    lexical_result = await search_book_section_knowledge_lexical(
+    lexical_task = search_book_section_knowledge_lexical(
         query,
         document_ids,
         section_ids=section_ids,
-        match_count=settings.AGENT_HYBRID_LEXICAL_CANDIDATES,
+        match_count=cadidates_limit,
     )
+
+    vector_result, lexical_result = await asyncio.gather(vector_task, lexical_task, return_exceptions=True)
+
+    if isinstance(vector_result, Exception):
+        log.error(f"RAG Tối ưu hóa: Nhánh Vector Search bị lỗi: {vector_result}")
+        vector_result = BOOK_CONTEXT_NOT_FOUND_MESSAGE
+
+    if isinstance(lexical_result, Exception):
+        log.error(f"RAG Tối ưu hóa: Nhánh Lexical Search bị lỗi: {lexical_result}")
+        lexical_result = BOOK_CONTEXT_NOT_FOUND_MESSAGE
+
     hybrid_result = build_hybrid_retrieval_result(
         query=query,
         vector_payload=_as_payload_list(vector_result),
         lexical_payload=_as_payload_list(lexical_result),
         config=_hybrid_config(),
     )
+    if not hybrid_result.found:
+        return BOOK_CONTEXT_NOT_FOUND_MESSAGE
+    
+    final_chunks = hybrid_result.chunks
+    if settings.AGENT_RERANKER_ENABLED:
+        log.info(f"Reranker start: {len(final_chunks)} with Cohere Reranker...")
+        final_chunks = await rerank_candidates(query, final_chunks)
+        final_chunks = final_chunks[:settings.AGENT_RERANKER_TOP_N]
+
     log.info(
         "Hybrid section RAG done | "
         f"found={hybrid_result.found} | "
-        f"reason={hybrid_result.reason_code} | "
         f"candidates={hybrid_result.candidate_count} | "
-        f"chunks={len(hybrid_result.chunks)} | "
-        f"top_id={hybrid_result.top_candidate_id} | "
-        f"top_vector={_round_score(hybrid_result.top_vector_score)} | "
-        f"top_lexical={_round_score(hybrid_result.top_lexical_score)} | "
-        f"top_final={_round_score(hybrid_result.top_final_score)} | "
-        f"missing_token_count={hybrid_result.missing_token_count}"
+        f"final_chunks_count={len(final_chunks)} | "
+        f"top_id={final_chunks[0].get('id') if final_chunks else None} | "
+        f"top_final_score={_round_score(final_chunks[0].get('final_score')) if final_chunks else None}"
     )
-    if not hybrid_result.found:
+
+    if not final_chunks:
         return BOOK_CONTEXT_NOT_FOUND_MESSAGE
-    return hybrid_result.chunks
+    
+    return final_chunks
 
 
 async def search_book_knowledge(query: str, document_ids: list[str]) -> list[dict[str, Any]] | str:
@@ -19428,6 +20157,7 @@ async def generate_audio_and_get_duration(
 ```py
 import os
 import uuid
+from typing import Optional
 
 import aiofiles
 from fastapi import UploadFile
@@ -19448,7 +20178,7 @@ from app.core.exceptions import (
     UnsupportedFileTypeError,
 )
 from app.core.logger import log as logger
-from app.models.db_models import Book, ProcessingJob, ReadingPlan
+from app.models.db_models import Book, LearningUnit, ProcessingJob, ReadingPlan
 from app.repositories.audiobook_repo import update_book_status
 from app.repositories.book_section_repo import create_book_sections, list_book_sections
 from app.repositories.learning_unit_repo import create_learning_units
@@ -19521,8 +20251,10 @@ async def _create_plan_and_job_async(
     slots: list,
     resolved_reminder_time: str,
     plan_status: PlanStatus,
-) -> tuple[ProcessingJob, list, ReadingPlan]:
-    planned_units = await _planned_units_for_book(session, payload.book_id, payload.mode)
+) -> tuple[Optional[ProcessingJob], list, ReadingPlan]:
+
+    # Kiểm tra xem các bài học (LearningUnits) cho chế độ này đã được clone/tạo sẵn chưa
+    existing_units = session.exec(select(LearningUnit).where(LearningUnit.book_id == payload.book_id, LearningUnit.mode == payload.mode)).all()
 
     plan = ReadingPlan(
         book_id=payload.book_id,
@@ -19543,33 +20275,45 @@ async def _create_plan_and_job_async(
     ):
         session.add(slot)
 
-    if planned_units:
-        created_units = create_learning_units(
-            session,
-            user_id=user_id,
-            book_id=payload.book_id,
-            mode=payload.mode,
-            planned_units=planned_units,
-        )
-        book.total_units = len(created_units)
+    planned_units = []
+    # Nếu CHƯA có bài học nào (Sách gốc tự upload), tiến hành lập kế hoạch học phần mới
+    if not existing_units:
+        planned_units = await _planned_units_for_book(session, payload.book_id, payload.mode)
+        if planned_units:
+            created_units = create_learning_units(
+                session,
+                user_id=user_id,
+                book_id=payload.book_id,
+                mode=payload.mode,
+                planned_units=planned_units,
+            )
+            # Cập nhật thông minh tránh ghi đè số lượng lớn hơn của FULL mode
+            book.total_units = max(book.total_units or 0, len(created_units))
+    else:
+        # Have book clone, save it don't change it. Update total_units
+        book.total_units = max(book.total_units or 0, len(existing_units))
 
     if plan.status == PlanStatus.ACTIVE.value:
         ensure_future_sessions_for_plan(session, plan=plan, user_id=user_id, replace_unfinished=True)
 
-    job = ProcessingJob(
-        user_id=user_id,
-        book_id=payload.book_id,
-        job_type=ProcessingJobType.GENERATE_PLAN,
-        status=ProcessingJobStatus.QUEUED,
-        mode=payload.mode,
-        total_units=len(planned_units) if planned_units else book.total_units or 0,
-        done_units=0,
-        progress_percent=0,
-        current_step="Đang chờ xử lý sách.",
-    )
-    session.add(job)
-    book.status = BookStatus.PROCESSING
-    session.add(book)
+    job = None
+    # Chỉ tạo Job xử lý nền và chạy Celery nếu CHƯA có bài học sẵn
+    if not existing_units:
+        job = ProcessingJob(
+            user_id=user_id,
+            book_id=payload.book_id,
+            job_type=ProcessingJobType.GENERATE_PLAN,
+            status=ProcessingJobStatus.QUEUED,
+            mode=payload.mode,
+            total_units=len(planned_units) if planned_units else book.total_units or 0,
+            done_units=0,
+            progress_percent=0,
+            current_step="Đang chờ xử lý sách.",
+        )
+        session.add(job)
+        book.status = BookStatus.PROCESSING
+
+    session.add(book)  # Đảm bảo luôn lưu thay đổi của book (bao gồm cả total_units ở nhánh else)
     return job, planned_units, plan
 
 
@@ -19687,11 +20431,11 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
     Bước 2: Validate trạng thái sách, tạo ReadingPlan, tạo progress job,
     kick-off background processing.
     """
-    # 1. Validate book tồn tại và đang ở trạng thái DRAFT
+    # 1. Validate book tồn tại và đang ở trạng thái DRAFT hoặc là sách clone READY
     book = session.exec(select(Book).where(Book.id == payload.book_id, Book.user_id == user_id)).first()
     if not book:
         raise BookNotFoundError()
-    if book.status not in (BookStatus.DRAFT,):
+    if book.status not in (BookStatus.DRAFT,) and book.parent_shared_id is None:
         raise BookStatusConflictError(f"Sách đang ở trạng thái '{book.status}', không thể tạo plan mới.")
 
     if payload.activate:
@@ -19726,10 +20470,12 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
             plan_status=plan_status,
         )
         session.commit()
-        session.refresh(job)
+        if job:
+            session.refresh(job)
         session.refresh(plan)
 
-        logger.info(f"📋 ReadingPlan created for book {payload.book_id} | mode={payload.mode.value} | job={job.id}")
+        job_id_str = str(job.id) if job else "N/A"
+        logger.info(f"📋 ReadingPlan created for book {payload.book_id} | mode={payload.mode.value} | job={job_id_str}")
     except IntegrityError as e:
         session.rollback()
         raise ReadingPlanScheduleConflictError() from e
@@ -19741,27 +20487,28 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
         logger.error(f"Failed to create reading plan: {e}")
         raise DatabaseError(f"Lỗi lưu ReadingPlan: {str(e)}") from e
 
-    try:
-        process_book_task.apply_async(
-            args=[str(payload.book_id), payload.mode.value, str(job.id)],
-            queue="document",
-        )
-    except Exception as e:
-        update_processing_job(
-            session,
-            job.id,
-            status=ProcessingJobStatus.ERROR,
-            current_step="Không thể đưa sách vào hàng đợi xử lý.",
-            error_message=str(e),
-        )
-        update_book_status(session, payload.book_id, BookStatus.ERROR, "Không thể đưa sách vào hàng đợi xử lý.")
-        raise ExternalServiceError("Không thể đưa sách vào hàng đợi xử lý. Vui lòng thử lại sau.") from e
+    if job:
+        try:
+            process_book_task.apply_async(
+                args=[str(payload.book_id), payload.mode.value, str(job.id)],
+                queue="document",
+            )
+        except Exception as e:
+            update_processing_job(
+                session,
+                job.id,
+                status=ProcessingJobStatus.ERROR,
+                current_step="Không thể đưa sách vào hàng đợi xử lý.",
+                error_message=str(e),
+            )
+            update_book_status(session, payload.book_id, BookStatus.ERROR, "Không thể đưa sách vào hàng đợi xử lý.")
+            raise ExternalServiceError("Không thể đưa sách vào hàng đợi xử lý. Vui lòng thử lại sau.") from e
 
     return {
-        "message": "Kế hoạch học tập đã được tạo! Chúng tôi đang xử lý sách của bạn.",
+        "message": "Kế hoạch học tập đã được tạo! " + ("Chúng tôi đang xử lý sách của bạn." if job else "Sách đã sẵn sàng để học."),
         "book_id": str(payload.book_id),
         "plan_id": str(plan.id),
-        "job_id": str(job.id),
+        "job_id": str(job.id) if job else None,
         "mode": payload.mode.value,
         "plan_status": plan.status,
         "pace": plan.pace,
@@ -19770,8 +20517,8 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
             for slot in list_slots_for_plan(session, plan_id=plan.id, active_only=False)
         ],
         "reminder_time": plan.reminder_time,
-        "status": job.status,
-        "progress_percent": job.progress_percent,
+        "status": job.status if job else "ready",
+        "progress_percent": job.progress_percent if job else 100,
         "active_slots": [_slot_response(slot) for slot in list_slots_for_plan(session, plan_id=plan.id, active_only=True)] if plan.status == PlanStatus.ACTIVE.value else [],
         "session_summary": build_plan_session_summary(session, plan_id=plan.id),
         "planned_units": [
@@ -21098,6 +21845,20 @@ POSITIVE_ACTION_PHRASES = (
     "cho phep di",
     "cho phep lam",
     "duoc phep",
+    "tim tren mang",
+    "tim tren web",
+    "tim google",
+    "tim internet",
+    "dong y tim",
+    "dong y luon",
+    "chap nhan",
+    "dong y nha",
+    "duoc chu",
+    "co chu",
+    "tim giup",
+    "tim ho",
+    "tim di ban",
+    "u tim",
 )
 POSITIVE_SHORT_REPLIES = (
     "co",
@@ -21120,6 +21881,9 @@ POSITIVE_SHORT_REPLIES = (
     "cho phep",
     "vang",
     "da vang",
+    "da",
+    "u",
+    "ua",
 )
 NEGATIVE_PHRASES = (
     "khong phai",
@@ -21146,7 +21910,7 @@ NEGATIVE_PHRASES = (
 )
 
 CONTEXT_SENSITIVE_NEGATIONS = {"khong", "no"}
-CONTEXT_SENSITIVE_CONFIRMATIONS = {"co", "duoc", "dung", "phai", "uh", "um"}
+CONTEXT_SENSITIVE_CONFIRMATIONS = {"co", "duoc", "dung", "phai", "uh", "um", "u", "da", "ua"}
 
 
 @dataclass(frozen=True)
@@ -21677,7 +22441,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from sqlmodel import Session
+from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.core.constant import BookStatus, PlanMode, ProcessingJobStatus
@@ -21741,8 +22505,24 @@ def _update_job(
         )
 
 
-def _set_book_status(book_id: uuid.UUID, status: BookStatus, error_message: str | None = None) -> None:
+def _set_book_status(book_id: uuid.UUID, status: BookStatus, *, current_job_id: uuid.UUID | None = None, error_message: str | None = None) -> None:
     with Session(engine) as session:
+        # Nếu worker muốn đặt trạng thái READY cho sách
+        if status == BookStatus.READY:
+            # Kiểm tra xem còn tiến trình (Job) xử lý nào khác cho sách đang chạy không (loại trừ job hiện tại)
+            query = select(ProcessingJob).where(ProcessingJob.book_id == book_id, ProcessingJob.status.in_([ProcessingJobStatus.QUEUED, ProcessingJobStatus.PROCESSING]))
+            if current_job_id:
+                query = query.where(ProcessingJob.id != current_job_id)
+
+            active_jobs = session.exec(query).all()
+
+            # Nếu còn ít nhất 1 job khác đang chạy (ví dụ chế độ còn lại đang gen)
+            if active_jobs:
+                logger.info(f"Sách {book_id} vẫn còn {len(active_jobs)} job khác đang xử lý. Giữ trạng thái ở mức PARTIAL_READY.")
+                update_book_status(session, book_id, BookStatus.PARTIAL_READY, error_message)
+                return
+
+        # Thiết lập bình thường nếu không vướng job chạy song song
         update_book_status(session, book_id, status, error_message)
 
 
@@ -21922,14 +22702,14 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
     total_units = len(work_items)
     if total_units == 0:
         error_message = "Không có bài học nào có nội dung để xử lý."
-        _set_book_status(book_id, BookStatus.ERROR, error_message)
+        _set_book_status(book_id, BookStatus.ERROR, error_message=error_message)
         _fail_job(job_id, error_message, error_message, progress_percent=0, total_units=0)
         return
 
     hard_limit_error = _hard_limit_error(work_items)
     estimated_input_tokens, estimated_audio_seconds = _total_estimates(work_items)
     if hard_limit_error:
-        _set_book_status(book_id, BookStatus.ERROR, hard_limit_error)
+        _set_book_status(book_id, BookStatus.ERROR, error_message=hard_limit_error)
         _fail_job(job_id, "Tài liệu vượt giới hạn xử lý.", hard_limit_error, progress_percent=0, total_units=total_units)
         return
 
@@ -21962,7 +22742,7 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
         completed += 1
         progress = int(completed * 100 / total_units)
         if completed < total_units:
-            _set_book_status(book_id, BookStatus.PARTIAL_READY)
+            _set_book_status(book_id=book_id, status=BookStatus.PARTIAL_READY, current_job_id=job_id)
             _update_job(
                 job_id,
                 status=ProcessingJobStatus.PARTIAL_READY,
@@ -21992,7 +22772,7 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
         ]
         await _track_progress(tasks, job_id, total_units, book_id, "Đã xử lý {completed}/{total} bài học.", completed_offset=completed)
 
-    _set_book_status(book_id, BookStatus.READY)
+    _set_book_status(book_id=book_id, status=BookStatus.READY, current_job_id=job_id)
     _create_book_ready_notification_safely(book_id, mode_value.value)
     _update_job(
         job_id,
@@ -22009,7 +22789,7 @@ async def run_background_processing(book_id: uuid.UUID, mode: str, job_id: uuid.
     try:
         await _run_unit_pipeline(book_id, mode, job_id)
     except Exception as exc:
-        _set_book_status(book_id, BookStatus.ERROR, str(exc))
+        _set_book_status(book_id, BookStatus.ERROR, error_message=str(exc))
         _fail_job(job_id, "Xử lý sách thất bại.", str(exc))
         logger.error(f"LỖI XỬ LÝ SÁCH {book_id}: {exc}")
 
@@ -22019,7 +22799,7 @@ async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str, job_id: 
         _set_book_status(book_id, BookStatus.PROCESSING)
         await _run_unit_pipeline(book_id, new_mode, job_id)
     except Exception as exc:
-        _set_book_status(book_id, BookStatus.ERROR, str(exc))
+        _set_book_status(book_id, BookStatus.ERROR, error_message=str(exc))
         _fail_job(job_id, f"Sinh audio mode {new_mode} thất bại.", str(exc))
         logger.error(f"LỖI SWITCH MODE SÁCH {book_id}: {exc}")
 
@@ -22028,6 +22808,7 @@ async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str, job_id: 
 ### app\services\workers\learning_unit_tts_worker.py
 
 ```py
+import asyncio
 import os
 import uuid
 from dataclasses import dataclass
@@ -22051,7 +22832,50 @@ class LearningUnitTTSResult:
     review_text: str
     generated_audio_seconds: int = 0
 
+# --- Helper for processing single segment ---
+async def _process_single_script_task(
+    index: int,
+    script: str,
+    book_id: uuid.UUID,
+    learning_unit_id: uuid.UUID,
+    unit_index: int,
+    mode: str,
+    total_scripts: int,
+) -> LearningUnitSegment | None:
+    """
+    Process single segment: Generate audio, upload to cloud storage, and clean up temporary files.
+    """
+    local_file = f"uploads/{uuid.uuid4()}.mp3"
+    os.makedirs("uploads", exist_ok=True)
+    try:
+        logger.info(f"TTS segment start | unit={unit_index + 1} | mode={mode} | segment={index + 1}/{total_scripts} | chars={len(script)}")
+        # 1. Generate audio file
+        duration_ms = await generate_audio_and_get_duration(script, local_file)
 
+        # 2. Upload file to cloud storage
+        storage_path = f"{book_id}/unit_{unit_index + 1}/{mode}/part_{index + 1}.mp3"
+        audio_url = await upload_file_to_supabase(local_file, storage_path, "audios", "audio/mpeg")
+
+        logger.info(f"TTS segment done | unit={unit_index + 1} | mode={mode} | segment={index + 1}/{total_scripts} | duration_ms={duration_ms}")
+
+        # Return segment object
+        return LearningUnitSegment(
+            learning_unit_id=learning_unit_id,
+            segment_index=index,
+            audio_url=audio_url,
+            duration_ms=duration_ms,
+            text_content=script,
+        )
+    except Exception as seg_err:
+        logger.warning(f"Segment {index + 1} unit {unit_index + 1} TTS failed ({len(script)} chars): {seg_err}")
+        return None
+    finally:
+        # Ensure temporary files are deleted immediately after this small task ends
+        if os.path.exists(local_file):
+            os.remove(local_file)
+
+
+# --- Main function
 async def _generate_unit_main_segments(
     book_id: uuid.UUID,
     learning_unit_id: uuid.UUID,
@@ -22059,43 +22883,80 @@ async def _generate_unit_main_segments(
     mode: str,
     main_scripts: list[str],
 ) -> list[LearningUnitSegment]:
-    segments: list[LearningUnitSegment] = []
     total_scripts = len(main_scripts)
     logger.info(f"TTS main segments start | unit={unit_index + 1} | mode={mode} | total_scripts={total_scripts}")
-    for i, script in enumerate(main_scripts):
-        local_file = f"uploads/{uuid.uuid4()}.mp3"
-        os.makedirs("uploads", exist_ok=True)
-        try:
-            logger.info(
-                f"TTS segment start | unit={unit_index + 1} | mode={mode} | "
-                f"segment={i + 1}/{total_scripts} | chars={len(script)}"
-            )
-            duration_ms = await generate_audio_and_get_duration(script, local_file)
-            storage_path = f"{book_id}/unit_{unit_index + 1}/{mode}/part_{i + 1}.mp3"
-            audio_url = await upload_file_to_supabase(local_file, storage_path, "audios", "audio/mpeg")
-            segments.append(
-                LearningUnitSegment(
-                    learning_unit_id=learning_unit_id,
-                    segment_index=i,
-                    audio_url=audio_url,
-                    duration_ms=duration_ms,
-                    text_content=script,
-                )
-            )
-            logger.info(
-                f"TTS segment done | unit={unit_index + 1} | mode={mode} | "
-                f"segment={i + 1}/{total_scripts} | duration_ms={duration_ms}"
-            )
-        except Exception as seg_err:
-            logger.warning(f"Segment {i + 1} unit {unit_index + 1} TTS failed ({len(script)} chars): {seg_err}")
-        finally:
-            if os.path.exists(local_file):
-                os.remove(local_file)
-    logger.info(
-        f"TTS main segments done | unit={unit_index + 1} | mode={mode} | "
-        f"created_segments={len(segments)}/{total_scripts}"
-    )
+
+    # 1. Create a list of coroutine tasks (not yet awaited)
+    tasks = [
+        _process_single_script_task(
+            index=i,
+            script=script,
+            book_id=book_id,
+            learning_unit_id=learning_unit_id,
+            unit_index=unit_index,
+            mode=mode,
+            total_scripts=total_scripts,
+        )
+        for i, script in enumerate(main_scripts)
+    ]
+
+    # 2. Run all tasks in parallel
+    # I/O network tasks (upload) and API (TTS) will interleave, running extremely fast
+    results = await asyncio.gather(*tasks)
+
+    # 3. Filter out None results (failed segments) and preserve order
+    segments = [seg for seg in results if seg is not None]
+
+    # 4. Sort segments in the original index order to ensure correct playback order
+    segments.sort(key=lambda x: x.segment_index)
+
+    logger.info(f"TTS main segments done | unit={unit_index + 1} | mode={mode} | created_segments={len(segments)}/{total_scripts}")
     return segments
+
+# async def _generate_unit_main_segments(
+#     book_id: uuid.UUID,
+#     learning_unit_id: uuid.UUID,
+#     unit_index: int,
+#     mode: str,
+#     main_scripts: list[str],
+# ) -> list[LearningUnitSegment]:
+#     segments: list[LearningUnitSegment] = []
+#     total_scripts = len(main_scripts)
+#     logger.info(f"TTS main segments start | unit={unit_index + 1} | mode={mode} | total_scripts={total_scripts}")
+#     for i, script in enumerate(main_scripts):
+#         local_file = f"uploads/{uuid.uuid4()}.mp3"
+#         os.makedirs("uploads", exist_ok=True)
+#         try:
+#             logger.info(
+#                 f"TTS segment start | unit={unit_index + 1} | mode={mode} | "
+#                 f"segment={i + 1}/{total_scripts} | chars={len(script)}"
+#             )
+#             duration_ms = await generate_audio_and_get_duration(script, local_file)
+#             storage_path = f"{book_id}/unit_{unit_index + 1}/{mode}/part_{i + 1}.mp3"
+#             audio_url = await upload_file_to_supabase(local_file, storage_path, "audios", "audio/mpeg")
+#             segments.append(
+#                 LearningUnitSegment(
+#                     learning_unit_id=learning_unit_id,
+#                     segment_index=i,
+#                     audio_url=audio_url,
+#                     duration_ms=duration_ms,
+#                     text_content=script,
+#                 )
+#             )
+#             logger.info(
+#                 f"TTS segment done | unit={unit_index + 1} | mode={mode} | "
+#                 f"segment={i + 1}/{total_scripts} | duration_ms={duration_ms}"
+#             )
+#         except Exception as seg_err:
+#             logger.warning(f"Segment {i + 1} unit {unit_index + 1} TTS failed ({len(script)} chars): {seg_err}")
+#         finally:
+#             if os.path.exists(local_file):
+#                 os.remove(local_file)
+#     logger.info(
+#         f"TTS main segments done | unit={unit_index + 1} | mode={mode} | "
+#         f"created_segments={len(segments)}/{total_scripts}"
+#     )
+#     return segments
 
 
 async def _generate_unit_review_audio(
@@ -22170,10 +23031,10 @@ async def run_learning_unit_tts_pipeline(
     if not segments:
         raise NoPlayableAudioError("Không tạo được segment audio nào.")
 
-    _store_unit_tts_result(learning_unit_id, mode, review_text, review_url, segments)
-
     total_ms = sum(seg.duration_ms or 0 for seg in segments)
     generated_seconds = int(total_ms / 1000)
+
+    _store_unit_tts_result(learning_unit_id, mode, review_text, review_url, segments)
 
     return LearningUnitTTSResult(
         main_segment_count=len(segments),
@@ -22525,86 +23386,6 @@ def deliver_one_notification(outbox_id: uuid.UUID) -> None:
 
 ```py
 # TRIAM Backend Application
-
-```
-
-### start.sh
-
-```sh
-#!/usr/bin/env bash
-set -euo pipefail
-
-cleanup() {
-  echo "Đang tắt an toàn các tiến trình..."
-  local pids
-  pids="$(jobs -p)" || true
-  if [ -n "$pids" ]; then
-    kill -TERM $pids 2>/dev/null || true
-    wait $pids 2>/dev/null || true
-  fi
-  echo "Đã tắt xong."
-}
-trap cleanup INT TERM EXIT
-
-export PYTHONUNBUFFERED=1
-export UV_NO_SYNC="${UV_NO_SYNC:-1}"
-
-UV_RUN=(uv run --no-sync)
-
-if [ "${RUN_MIGRATIONS_ON_START:-false}" = "true" ]; then
-  echo "Running Alembic migrations..."
-  "${UV_RUN[@]}" alembic upgrade head
-fi
-
-if [ "${ENABLE_VOICE_AGENT:-true}" = "true" ]; then
-  AGENT_MODE="${AGENT_MODE:-start}"
-  echo "Starting realtime voice agent..."
-  "${UV_RUN[@]}" python -m app.services.agent_voice_gpt_realtime "$AGENT_MODE" 2>&1 | tee worker.log &
-else
-  echo "Skipping realtime voice agent because ENABLE_VOICE_AGENT=false"
-fi
-
-if [ "${ENABLE_CELERY_WORKER:-false}" = "true" ]; then
-  echo "Starting Celery document worker..."
-  "${UV_RUN[@]}" celery -A app.core.celery_app.celery_app worker \
-    -Q document \
-    -l "${CELERY_LOG_LEVEL:-info}" \
-    --concurrency "${CELERY_DOCUMENT_CONCURRENCY:-1}" \
-    2>&1 | tee celery_document.log &
-else
-  echo "Skipping Celery document worker because ENABLE_CELERY_WORKER=false"
-fi
-
-if [ "${ENABLE_NOTIFICATION_WORKER:-false}" = "true" ]; then
-  echo "Starting Celery notification worker..."
-  "${UV_RUN[@]}" celery -A app.core.celery_app.celery_app worker \
-    -Q notification,maintenance \
-    -l "${CELERY_LOG_LEVEL:-info}" \
-    --concurrency "${CELERY_NOTIFICATION_CONCURRENCY:-1}" \
-    2>&1 | tee celery_notification.log &
-else
-  echo "Skipping Celery notification worker because ENABLE_NOTIFICATION_WORKER=false"
-fi
-
-if [ "${ENABLE_CELERY_BEAT:-false}" = "true" ]; then
-  echo "Starting Celery Beat..."
-  "${UV_RUN[@]}" celery -A app.core.celery_app.celery_app beat \
-    -l "${CELERY_LOG_LEVEL:-info}" \
-    2>&1 | tee celery_beat.log &
-else
-  echo "Skipping Celery Beat because ENABLE_CELERY_BEAT=false"
-fi
-
-BACKEND_PORT="${BACKEND_PORT:-8000}"
-UVICORN_RELOAD="${UVICORN_RELOAD:-false}"
-
-if [ "$UVICORN_RELOAD" = "true" ]; then
-  echo "Starting FastAPI with reload on port ${BACKEND_PORT}..."
-  "${UV_RUN[@]}" uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload
-else
-  echo "Starting FastAPI on port ${BACKEND_PORT}..."
-  "${UV_RUN[@]}" uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT"
-fi
 
 ```
 

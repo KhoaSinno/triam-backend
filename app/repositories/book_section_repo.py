@@ -5,6 +5,7 @@ from sqlalchemy.exc import ProgrammingError
 from sqlmodel import Session, col, select
 
 from app.models.db_models import BookSection
+from app.services.book_section_chunker import normalize_section_text
 from app.services.document_structure_types import ParsedDocument, ParsedSection
 
 
@@ -34,6 +35,7 @@ def create_book_sections(session: Session, book_id: uuid.UUID, parsed_document: 
     def walk(sections: list[ParsedSection], parent_id: uuid.UUID | None = None) -> None:
         nonlocal section_index
         for section in sections:
+            normalized_text = normalize_section_text(section.text)
             row = BookSection(
                 book_id=book_id,
                 parent_id=parent_id,
@@ -41,8 +43,8 @@ def create_book_sections(session: Session, book_id: uuid.UUID, parsed_document: 
                 title=section.title,
                 level=section.level,
                 path=section.path,
-                text_content=section.text or None,
-                text_char_count=len(section.text or ""),
+                text_content=normalized_text or None,
+                text_char_count=len(normalized_text or ""),
                 page_start=section.page_start,
                 page_end=section.page_end,
                 source_href=section.source_href,

@@ -1,4 +1,5 @@
 import uuid
+import asyncio
 from typing import Optional
 
 from sqlalchemy import or_
@@ -119,7 +120,9 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uui
     target_buckets = ["audios", "raw_books"]
     try:
         # Lấy danh sách file từ tất cả bucket liên quan qua RPC
-        result = supabase.rpc("get_book_asset_paths", {"bucket_names": target_buckets, "book_id_prefix": str_book_id}).execute()
+        result = await asyncio.to_thread(
+            supabase.rpc("get_book_asset_paths", {"bucket_names": target_buckets, "book_id_prefix": str_book_id}).execute
+        )
 
         # Xóa file vật lý qua Storage API
         if result.data:
@@ -127,7 +130,7 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uui
             for bucket in target_buckets:
                 paths = [str(item["name"]) for item in data_list if isinstance(item, dict) and item.get("bucket_id") == bucket]
                 if paths:
-                    supabase.storage.from_(bucket).remove(paths)
+                    await asyncio.to_thread(supabase.storage.from_(bucket).remove, paths)
                     log.info(f"Đã xóa {len(paths)} files từ bucket: {bucket}")
 
         # Xóa record trong DB

@@ -14,7 +14,11 @@ from app.services.token_budget_service import estimate_text_budget, exceeds_hard
 from app.services.tts_script_quality_service import inspect_tts_script_quality, sanitize_tts_script_list, sanitize_tts_script_text
 
 # Sử dụng Gemini qua OpenAI-compatible API
-client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY, base_url=settings.GEMINI_BASE_URL)
+client = AsyncOpenAI(
+    api_key=settings.GEMINI_API_KEY, 
+    base_url=settings.GEMINI_BASE_URL,
+    timeout=60.0
+)
 
 
 @dataclass(frozen=True)

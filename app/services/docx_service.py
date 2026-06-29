@@ -89,7 +89,7 @@ def _is_heading(paragraph) -> bool:
     return style_name in HEADING_STYLE_NAMES or style_name.startswith("heading ") or _has_outline_level(paragraph)
 
 
-async def parse_docx_structure(file_obj) -> ParsedDocument:
+def parse_docx_structure_sync(file_obj) -> ParsedDocument:
     file_obj.seek(0)
 
     try:
@@ -133,3 +133,10 @@ async def parse_docx_structure(file_obj) -> ParsedDocument:
         raise DocumentOutlineRequiredError("DOCX không có Heading/mục lục hợp lệ. Vui lòng dùng Heading 1/Heading 2 cho tên chương.")
 
     return ParsedDocument(document_type="docx", sections=[root.to_parsed() for root in roots])
+
+
+async def parse_docx_structure(file_obj) -> ParsedDocument:
+    import asyncio
+    import io
+    file_bytes = file_obj.read()
+    return await asyncio.to_thread(parse_docx_structure_sync, io.BytesIO(file_bytes))

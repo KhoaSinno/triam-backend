@@ -232,9 +232,10 @@ async def _track_progress(
             job_status = ProcessingJobStatus.PARTIAL_READY if is_partial else ProcessingJobStatus.PROCESSING
 
             if is_partial:
-                _set_book_status(book_id, BookStatus.PARTIAL_READY)
+                await asyncio.to_thread(_set_book_status, book_id, BookStatus.PARTIAL_READY)
 
-            _update_job(
+            await asyncio.to_thread(
+                _update_job,
                 job_id,
                 status=job_status,
                 progress_percent=progress,
@@ -246,17 +247,17 @@ async def _track_progress(
             if not task.done():
                 task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
-        _update_job(job_id, done_units=completed, failed_units=max(1, total_units - completed))
+        await asyncio.to_thread(_update_job, job_id, done_units=completed, failed_units=max(1, total_units - completed))
         raise
 
 
 async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | None) -> None:
-    if _job_is_ready(job_id):
+    if await asyncio.to_thread(_job_is_ready, job_id):
         logger.info(f"Skip book processing because job is already READY | book_id={book_id} | job_id={job_id}")
         return
 
     mode_value = PlanMode(mode)
-    processing_input = _load_book_processing_input(book_id, mode_value, job_id)
+    processing_input = await asyncio.to_thread(_load_book_processing_input, book_id, mode_value, job_id)
     if not processing_input:
         return
 
@@ -265,18 +266,19 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
     total_units = len(work_items)
     if total_units == 0:
         error_message = "Không có bài học nào có nội dung để xử lý."
-        _set_book_status(book_id, BookStatus.ERROR, error_message=error_message)
-        _fail_job(job_id, error_message, error_message, progress_percent=0, total_units=0)
+        await asyncio.to_thread(_set_book_status, book_id, BookStatus.ERROR, error_message=error_message)
+        await asyncio.to_thread(_fail_job, job_id, error_message, error_message, progress_percent=0, total_units=0)
         return
 
     hard_limit_error = _hard_limit_error(work_items)
     estimated_input_tokens, estimated_audio_seconds = _total_estimates(work_items)
     if hard_limit_error:
-        _set_book_status(book_id, BookStatus.ERROR, error_message=hard_limit_error)
-        _fail_job(job_id, "Tài liệu vượt giới hạn xử lý.", hard_limit_error, progress_percent=0, total_units=total_units)
+        await asyncio.to_thread(_set_book_status, book_id, BookStatus.ERROR, error_message=hard_limit_error)
+        await asyncio.to_thread(_fail_job, job_id, "Tài liệu vượt giới hạn xử lý.", hard_limit_error, progress_percent=0, total_units=total_units)
         return
 
-    _update_job(
+    await asyncio.to_thread(
+        _update_job,
         job_id,
         status=ProcessingJobStatus.PROCESSING,
         progress_percent=0,
@@ -305,8 +307,9 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
         completed += 1
         progress = int(completed * 100 / total_units)
         if completed < total_units:
-            _set_book_status(book_id=book_id, status=BookStatus.PARTIAL_READY, current_job_id=job_id)
-            _update_job(
+            await asyncio.to_thread(_set_book_status, book_id=book_id, status=BookStatus.PARTIAL_READY, current_job_id=job_id)
+            await asyncio.to_thread(
+                _update_job,
                 job_id,
                 status=ProcessingJobStatus.PARTIAL_READY,
                 progress_percent=progress,
@@ -335,9 +338,10 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
         ]
         await _track_progress(tasks, job_id, total_units, book_id, "Đã xử lý {completed}/{total} bài học.", completed_offset=completed)
 
-    _set_book_status(book_id=book_id, status=BookStatus.READY, current_job_id=job_id)
+    await asyncio.to_thread(_set_book_status, book_id=book_id, status=BookStatus.READY, current_job_id=job_id)
     _create_book_ready_notification_safely(book_id, mode_value.value)
-    _update_job(
+    await asyncio.to_thread(
+        _update_job,
         job_id,
         status=ProcessingJobStatus.READY,
         progress_percent=100,
@@ -352,16 +356,16 @@ async def run_background_processing(book_id: uuid.UUID, mode: str, job_id: uuid.
     try:
         await _run_unit_pipeline(book_id, mode, job_id)
     except Exception as exc:
-        _set_book_status(book_id, BookStatus.ERROR, error_message=str(exc))
-        _fail_job(job_id, "Xử lý sách thất bại.", str(exc))
+        await asyncio.to_thread(_set_book_status, book_id, BookStatus.ERROR, error_message=str(exc))
+        await asyncio.to_thread(_fail_job, job_id, "Xử lý sách thất bại.", str(exc))
         logger.error(f"LỖI XỬ LÝ SÁCH {book_id}: {exc}")
 
 
 async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str, job_id: uuid.UUID | None = None) -> None:
     try:
-        _set_book_status(book_id, BookStatus.PROCESSING)
+        await asyncio.to_thread(_set_book_status, book_id, BookStatus.PROCESSING)
         await _run_unit_pipeline(book_id, new_mode, job_id)
     except Exception as exc:
-        _set_book_status(book_id, BookStatus.ERROR, error_message=str(exc))
-        _fail_job(job_id, f"Sinh audio mode {new_mode} thất bại.", str(exc))
+        await asyncio.to_thread(_set_book_status, book_id, BookStatus.ERROR, error_message=str(exc))
+        await asyncio.to_thread(_fail_job, job_id, f"Sinh audio mode {new_mode} thất bại.", str(exc))
         logger.error(f"LỖI SWITCH MODE SÁCH {book_id}: {exc}")
