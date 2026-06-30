@@ -22,7 +22,7 @@ actor "Độc giả" as Reader
 rectangle "Phân hệ Quản trị hệ thống" {
   (Xem dashboard) as UC_AdminDashboard
   (Quản lý người dùng) as UC_AdminUser
-  (Quản lý catalog sách) as UC_AdminCatalog
+  (Quản lý sách hệ thống) as UC_AdminCatalog
   (Giám sát và xử lý lỗi) as UC_AdminJob
   (Xem nhật ký hệ thống) as UC_Audit
 }
