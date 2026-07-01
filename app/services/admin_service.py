@@ -36,6 +36,7 @@ from app.schemas.admin import (
 from app.schemas.user import UserTokenPayload
 from app.services.upload_service import _planned_units_for_book
 from app.tasks.book_tasks import process_book_task, switch_mode_task
+from app.repositories.admin_repo import auth_users
 
 RETRYABLE_JOB_STATUSES = {ProcessingJobStatus.ERROR, ProcessingJobStatus.CANCELLED}
 RETRYABLE_JOB_TYPES = {ProcessingJobType.GENERATE_PLAN, ProcessingJobType.SWITCH_MODE}
@@ -54,8 +55,8 @@ def get_dashboard(session: Session) -> AdminDashboardResponse:
     return AdminDashboardResponse(**get_admin_dashboard(session))
 
 
-def get_users(session: Session, *, limit: int, offset: int) -> AdminUsersResponse:
-    items, total = list_admin_users(session, limit=limit, offset=offset)
+def get_users(session: Session, *, limit: int, offset: int, user_id: uuid.UUID | None = None) -> AdminUsersResponse:
+    items, total = list_admin_users(session, limit=limit, offset=offset, user_id=user_id)
     return AdminUsersResponse(total=total, limit=limit, offset=offset, items=items)
 
 
@@ -90,9 +91,28 @@ def get_books(
         for b_id, mode in rows:
             modes_map.setdefault(b_id, set()).add(mode.value)
 
+    user_ids = list(set([b.user_id for b in books if b.user_id]))
+    users_map = {}
+    if user_ids:
+        users_rows = session.exec(
+            select(
+                auth_users.c.id,
+                auth_users.c.email,
+                auth_users.c.raw_user_meta_data
+            ).where(auth_users.c.id.in_(user_ids))
+        ).all()
+        for u_id, email, meta in users_rows:
+            meta_dict = meta if isinstance(meta, dict) else {}
+            users_map[u_id] = {
+                "email": email,
+                "display_name": meta_dict.get("name") or meta_dict.get("full_name"),
+                "avatar_url": meta_dict.get("avatar_url") or meta_dict.get("picture"),
+            }
+
     items = []
     for b in books:
         book_modes = modes_map.get(b.id, set())
+        u_info = users_map.get(b.user_id, {})
         items.append(
             AdminBookListItem(
                 id=b.id,
@@ -108,6 +128,9 @@ def get_books(
                 parent_shared_id=b.parent_shared_id,
                 has_full_mode="full" in book_modes,
                 has_pareto_mode="pareto" in book_modes,
+                user_email=u_info.get("email"),
+                user_display_name=u_info.get("display_name"),
+                user_avatar_url=u_info.get("avatar_url"),
                 created_at=b.created_at,
                 updated_at=b.updated_at,
             )

@@ -49,7 +49,7 @@ def read_admin_users(
     limit: LimitQuery = 50,
     offset: OffsetQuery = 0,
 ):
-    return admin_service.get_users(session, limit=limit, offset=offset)
+    return admin_service.get_users(session, limit=limit, offset=offset, user_id=admin_user.user_id)
 
 
 @router.get("/books", response_model=AdminBooksResponse)

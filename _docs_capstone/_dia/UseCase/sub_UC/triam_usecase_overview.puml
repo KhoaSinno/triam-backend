@@ -30,7 +30,7 @@ rectangle "Hệ thống nền tảng sách nói thông minh" {
   (Quản lý Thư viện sách và Kế hoạch học) as UC_LibraryPlan
   (Nghe sách nói và Quản lý tiến độ) as UC_ListenProgress
   (Tương tác Trợ lý AI theo ngữ cảnh) as UC_AI
-  (Quản lý Workspace và Ôn tập) as UC_Workspace
+  (Quản lý Không gian học tập và Ôn tập) as UC_Workspace
   (Quản trị hệ thống) as UC_AdminSystem
 }
 
@@ -41,4 +41,5 @@ Reader -- UC_AI
 Reader -- UC_Workspace
 
 Admin -- UC_AdminSystem
+Reader <|- Admin
 @enduml

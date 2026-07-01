@@ -18,18 +18,16 @@ left to right direction
 
 actor "Độc giả" as Reader
 
-rectangle "Phân hệ Workspace, Ôn tập và Thông báo" {
-  (Quản lý Workspace) as UC_Workspace
+rectangle "Phân hệ Không gian học, Ôn tập và Thông báo" {
+  (Quản lý Không gian) as UC_Workspace
   (Xem lịch ôn tập) as UC_Review
-  (Cấu hình và nhận thông báo) as UC_Notification
+  (Quản lý thông báo) as UC_Notification
 
-  (CRUD Workspace) as UC_CreateWS
-  (Liên kết sách vào Workspace) as UC_ManageWSBooks
-  (Hội thoại trong Workspace) as UC_WSChat
+  (Liên kết sách vào không gian) as UC_ManageWSBooks
+  (Khởi tạo hội thoại trong không gian) as UC_WSChat
   (Hội thoại trực tiếp với sách) as UC_DirectChat
 
-  ' Các chức năng con của Quản lý Workspace sử dụng quan hệ mở rộng (extend)
-  UC_Workspace <.. UC_CreateWS : <<extend>>
+  ' Các chức năng con của Quản lý không gian sử dụng quan hệ mở rộng (extend)
   UC_Workspace <.. UC_ManageWSBooks : <<extend>>
   UC_Workspace <.. UC_WSChat : <<extend>>
   UC_Workspace <.. UC_DirectChat : <<extend>>

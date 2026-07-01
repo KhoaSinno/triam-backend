@@ -24,7 +24,7 @@ def _get_all_admin_user_ids(client: TestClient) -> set[str]:
             return user_ids
 
 
-def _cleanup(admin_user_id: uuid.UUID, book_ids: list[uuid.UUID], job_ids: list[uuid.UUID]) -> None:
+def _cleanup(admin_user_id: uuid.UUID, book_ids: list[uuid.UUID], job_ids: list[uuid.UUID], auth_user_ids: list[uuid.UUID] = None) -> None:
     with Session(engine) as session:
         for audit_log in session.exec(select(AdminAuditLog).where(AdminAuditLog.admin_user_id == admin_user_id)).all():
             session.delete(audit_log)
@@ -39,6 +39,9 @@ def _cleanup(admin_user_id: uuid.UUID, book_ids: list[uuid.UUID], job_ids: list[
         admin_user = session.get(AdminUser, admin_user_id)
         if admin_user:
             session.delete(admin_user)
+        if auth_user_ids:
+            from app.repositories.admin_repo import auth_users
+            session.execute(auth_users.delete().where(auth_users.c.id.in_(auth_user_ids)))
         session.commit()
 
 
@@ -53,6 +56,10 @@ def test_admin_route_requires_active_admin_user(auth_as):
 
 
 def test_admin_can_view_cross_user_books_and_dashboard(auth_as):
+    from datetime import datetime, timezone
+
+    from app.repositories.admin_repo import auth_users
+
     admin_user_id = uuid.uuid4()
     user_a = uuid.uuid4()
     user_b = uuid.uuid4()
@@ -61,6 +68,23 @@ def test_admin_can_view_cross_user_books_and_dashboard(auth_as):
 
     with Session(engine) as session:
         session.add(AdminUser(user_id=admin_user_id, role="admin"))
+        # Seed user_a and user_b in auth.users table
+        session.execute(
+            auth_users.insert().values(
+                id=user_a,
+                email="user_a@triam.local",
+                created_at=datetime.now(timezone.utc),
+                raw_user_meta_data={"name": "User A"},
+            )
+        )
+        session.execute(
+            auth_users.insert().values(
+                id=user_b,
+                email="user_b@triam.local",
+                created_at=datetime.now(timezone.utc),
+                raw_user_meta_data={"name": "User B"},
+            )
+        )
         book_a = Book(user_id=user_a, title="Admin User A Book", status=BookStatus.DRAFT, document_type=DocumentType.PDF, total_units=1)
         book_b = Book(user_id=user_b, title="Admin User B Book", status=BookStatus.READY, document_type=DocumentType.DOCX, total_units=2)
         session.add(book_a)
@@ -111,7 +135,7 @@ def test_admin_can_view_cross_user_books_and_dashboard(auth_as):
         returned_user_ids = _get_all_admin_user_ids(client)
         assert {str(user_a), str(user_b)}.issubset(returned_user_ids)
     finally:
-        _cleanup(admin_user_id, book_ids, job_ids)
+        _cleanup(admin_user_id, book_ids, job_ids, auth_user_ids=[user_a, user_b])
 
 
 def test_admin_can_retry_failed_generation_job(monkeypatch, auth_as):

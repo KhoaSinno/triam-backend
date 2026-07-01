@@ -39,7 +39,7 @@ async def _embed_query(query: str, *, model: str) -> list[float]:
     query_vector = res.data[0].embedding
     return query_vector
 
-
+# FALLBACK
 async def search_book_section_knowledge(
     query: str,
     document_ids: list[str],
