@@ -27,10 +27,16 @@ class AdminDashboardResponse(BaseModel):
 
 class AdminUserListItem(BaseModel):
     user_id: uuid.UUID
+    email: str | None = None
+    display_name: str | None = None
+    avatar_url: str | None = None
+    account_created_at: datetime | None = None
+    last_sign_in_at: datetime | None = None
     book_count: int = 0
     job_count: int = 0
     notification_count: int = 0
     last_activity_at: datetime | None = None
+
 
 
 class AdminUsersResponse(BaseModel):
@@ -56,6 +62,9 @@ class AdminBookListItem(BaseModel):
     parent_shared_id: uuid.UUID | None = None
     has_full_mode: bool = False
     has_pareto_mode: bool = False
+    user_email: str | None = None
+    user_display_name: str | None = None
+    user_avatar_url: str | None = None
     created_at: datetime
     updated_at: datetime
 

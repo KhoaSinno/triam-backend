@@ -3,12 +3,25 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any
 
-from sqlalchemy import union_all
+from sqlalchemy import Column, DateTime, MetaData, Table, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlmodel import Session, func, select
 
 from app.core.constant import ProcessingJobStatus, ProcessingJobType
 from app.models.db_models import AdminAuditLog, AdminUser, Book, LearningUnit, LearningUnitSegment, ProcessingJob, UserNotification
 
+# Define schema table
+metadata = MetaData()
+auth_users = Table(
+    "users",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True),
+    Column("email", Text),
+    Column("created_at", DateTime(timezone=True)),
+    Column("last_sign_in_at", DateTime(timezone=True)),
+    Column("raw_user_meta_data", JSONB),
+    schema="auth"
+)
 
 def _key(value: object) -> str:
     if isinstance(value, Enum):
@@ -84,34 +97,32 @@ def get_admin_dashboard(session: Session) -> dict[str, Any]:
     }
 
 
-def _admin_user_ids_query():
-    return union_all(
-        select(Book.user_id),
-        select(ProcessingJob.user_id),
-        select(UserNotification.user_id),
-    ).subquery()
+def count_admin_users(session: Session, user_id: uuid.UUID | None = None) -> int:
+    query = select(func.count(auth_users.c.id))
+    if user_id:
+        query = query.where(auth_users.c.id != user_id)
+
+    return int(session.exec(query).one() or 0)
 
 
-def count_admin_users(session: Session) -> int:
-    user_ids = _admin_user_ids_query()
-    grouped_users = select(user_ids.c.user_id).group_by(user_ids.c.user_id).subquery()
-    return int(session.exec(select(func.count()).select_from(grouped_users)).one() or 0)
+def list_admin_users(session: Session, *, limit: int, offset: int, user_id: uuid.UUID | None = None) -> tuple[list[dict[str, Any]], int]:
+    query = select(auth_users.c.id, auth_users.c.email, auth_users.c.created_at, auth_users.c.last_sign_in_at, auth_users.c.raw_user_meta_data)
+    if user_id:
+        query = query.where(auth_users.c.id != user_id)
 
-
-def list_admin_users(session: Session, *, limit: int, offset: int) -> tuple[list[dict[str, Any]], int]:
-    user_ids_query = _admin_user_ids_query()
-    user_ids = list(
+    users_data  = list(
         session.exec(
-            select(user_ids_query.c.user_id)
-            .group_by(user_ids_query.c.user_id)
-            .order_by(user_ids_query.c.user_id)
+            query
+            .order_by(auth_users.c.created_at.desc())
             .offset(offset)
             .limit(limit)
         ).all()
     )
-    total = count_admin_users(session)
-    if not user_ids:
+    total = count_admin_users(session, user_id)
+    if not users_data:
         return [], total
+
+    user_ids = [u.id for u in users_data]
 
     book_stats = {
         user_id: {"book_count": int(book_count), "last_book_at": last_book_at}
@@ -137,7 +148,11 @@ def list_admin_users(session: Session, *, limit: int, offset: int) -> tuple[list
     }
 
     items: list[dict[str, Any]] = []
-    for user_id in user_ids:
+    for user_id, email, created_at, last_sign_in_at, meta in users_data:
+        meta_dict = meta if isinstance(meta, dict) else {}
+        display_name = meta_dict.get("name") or meta_dict.get("full_name")
+        avatar_url = meta_dict.get("avatar_url") or meta_dict.get("picture")
+
         book_data = book_stats.get(user_id, {})
         job_data = job_stats.get(user_id, {})
         notification_data = notification_stats.get(user_id, {})
@@ -149,6 +164,11 @@ def list_admin_users(session: Session, *, limit: int, offset: int) -> tuple[list
         items.append(
             {
                 "user_id": user_id,
+                "email": email,
+                "display_name": display_name,
+                "avatar_url": avatar_url,
+                "account_created_at": created_at,
+                "last_sign_in_at": last_sign_in_at,
                 "book_count": book_data.get("book_count", 0),
                 "job_count": job_data.get("job_count", 0),
                 "notification_count": notification_data.get("notification_count", 0),
