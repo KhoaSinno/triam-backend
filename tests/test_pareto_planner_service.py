@@ -1,7 +1,5 @@
 import uuid
-
 import pytest
-
 from app.models.db_models import BookSection
 from app.services import pareto_planner_service
 from app.services.pareto_planner_service import (
@@ -54,8 +52,8 @@ def test_section_cards_do_not_include_full_source_text(monkeypatch):
     assert cards[0].excerpt
     assert cards[0].excerpt != long_text
     assert len(cards[0].excerpt) <= 120
-    assert cards[0].language == "vi"
-    assert "core_concept" in cards[0].signal_hints
+    # Không còn thuộc tính language, signal_hints rỗng do chưa index DB
+    assert cards[0].signal_hints == []
 
 
 def test_section_cards_include_english_signal_hints(monkeypatch):
@@ -71,10 +69,8 @@ def test_section_cards_include_english_signal_hints(monkeypatch):
     )
 
     cards = build_section_cards([section])
-
-    assert cards[0].language == "en"
-    assert "rule" in cards[0].signal_hints
-    assert "reasoning" in cards[0].signal_hints
+    # Không còn thuộc tính language, signal_hints rỗng do chưa index DB
+    assert cards[0].signal_hints == []
 
 
 @pytest.mark.asyncio
@@ -106,6 +102,11 @@ async def test_llm_structured_output_becomes_pareto_learning_units(monkeypatch):
 
     monkeypatch.setattr(pareto_planner_service, "_call_pareto_llm", fake_call)
 
+    # Mock embeddings loading
+    async def mock_embeddings():
+        return {}
+    monkeypatch.setattr("app.services.pareto_signal_service.get_or_create_anchor_embeddings", mock_embeddings)
+
     units = await plan_pareto_learning_units([root, concept, rule, note])
 
     assert len(units) == 1
@@ -116,30 +117,7 @@ async def test_llm_structured_output_becomes_pareto_learning_units(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_small_outline_uses_deterministic_planner_without_llm_call(monkeypatch):
-    monkeypatch.setattr(pareto_planner_service.settings, "PARETO_PLANNER_LLM_ENABLED", True)
-    monkeypatch.setattr(pareto_planner_service.settings, "PARETO_PLANNER_LLM_MIN_CARDS", 4)
-
-    book_id = uuid.uuid4()
-    sections = [
-        _section(book_id=book_id, section_index=1, title="Chương 1", path="1", level=1, text="nền tảng " * 500),
-        _section(book_id=book_id, section_index=2, title="Chương 2", path="2", level=1, text="phương pháp " * 500),
-        _section(book_id=book_id, section_index=3, title="Chương 3", path="3", level=1, text="ghi chú " * 100),
-    ]
-
-    async def fail_if_called(cards):
-        raise AssertionError("LLM planner should not be called for a small outline")
-
-    monkeypatch.setattr(pareto_planner_service, "_call_pareto_llm", fail_if_called)
-
-    units = await plan_pareto_learning_units(sections)
-
-    assert units
-    assert len(units) <= len(sections)
-
-
-@pytest.mark.asyncio
-async def test_invalid_llm_section_ids_fallback_to_deterministic_planner(monkeypatch):
+async def test_invalid_llm_section_ids_raises_value_error(monkeypatch):
     monkeypatch.setattr(pareto_planner_service.settings, "PARETO_PLANNER_LLM_ENABLED", True)
     monkeypatch.setattr(pareto_planner_service.settings, "PARETO_PLANNER_MAX_UNITS", 3)
     monkeypatch.setattr(pareto_planner_service.settings, "PARETO_PLANNER_LLM_MIN_CARDS", 1)
@@ -164,23 +142,11 @@ async def test_invalid_llm_section_ids_fallback_to_deterministic_planner(monkeyp
 
     monkeypatch.setattr(pareto_planner_service, "_call_pareto_llm", fake_call)
 
-    units = await plan_pareto_learning_units([concept, method])
+    # Mock embeddings loading
+    async def mock_embeddings():
+        return {}
+    monkeypatch.setattr("app.services.pareto_signal_service.get_or_create_anchor_embeddings", mock_embeddings)
 
-    assert units
-    assert {section_id for unit in units for section_id in unit.source_section_ids}.issubset({concept.id, method.id})
-
-
-def test_deterministic_fallback_prefers_core_concept_over_long_minor_note(monkeypatch):
-    monkeypatch.setattr(pareto_planner_service.settings, "PARETO_PLANNER_MAX_UNITS", 1)
-    monkeypatch.setattr(pareto_planner_service.settings, "PARETO_TARGET_COVERAGE_RATIO", 0.9)
-
-    from app.services.learning_unit_planner_service import fallback_pareto_learning_units
-
-    book_id = uuid.uuid4()
-    long_note = _section(book_id=book_id, section_index=1, title="Ghi chú mở rộng", path="1.1", level=1, text="ghi chú phụ " * 3000)
-    core = _section(book_id=book_id, section_index=2, title="Khái niệm nền tảng", path="1.2", level=1, text="khái niệm " * 100)
-
-    units = fallback_pareto_learning_units([long_note, core])
-
-    assert len(units) == 1
-    assert units[0].source_section_ids == [core.id]
+    # Không còn fallback Heuristic, ném trực tiếp ValueError khi LLM trả về IDs sai lệch
+    with pytest.raises(ValueError, match="Pareto planner returned no valid learning units"):
+        await plan_pareto_learning_units([concept, method])

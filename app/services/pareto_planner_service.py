@@ -7,13 +7,18 @@ from dataclasses import dataclass
 
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field, ValidationError, field_validator
+from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.core.logger import log
-from app.models.db_models import BookSection
+from app.db.database import engine
+from app.models.db_models import BookSection, BookSectionKnowledge
 from app.services.async_limiter import get_loop_semaphore
-from app.services.learning_unit_planner_service import PlannedLearningUnit, fallback_pareto_learning_units
-from app.services.pareto_signal_service import extract_pareto_signal_hints, guess_section_language
+from app.services.learning_unit_planner_service import PlannedLearningUnit
+from app.services.pareto_signal_service import (
+    extract_pareto_signal_hints,
+    get_or_create_anchor_embeddings,
+)
 from app.services.token_budget_service import estimate_text_budget
 
 client = AsyncOpenAI(
@@ -55,7 +60,6 @@ class SectionCard:
     text_char_count: int
     estimated_tokens: int
     child_count: int
-    language: str
     signal_hints: list[str]
     excerpt: str
 
@@ -68,7 +72,6 @@ class SectionCard:
             "parent_path": self.parent_path,
             "estimated_tokens": self.estimated_tokens,
             "child_count": self.child_count,
-            "language": self.language,
             "signal_hints": self.signal_hints,
             "excerpt": self.excerpt,
         }
@@ -111,16 +114,35 @@ def _excerpt(text: str | None) -> str:
     return normalized[:limit]
 
 
-def build_section_cards(sections: list[BookSection]) -> list[SectionCard]:
+def build_section_cards(sections: list[BookSection], anchor_vectors: dict[str, list[float]] | None = None) -> list[SectionCard]:
     by_id = {section.id: section for section in sections}
     children = _children_by_parent(sections)
     cards: list[SectionCard] = []
 
+    # 1. Truy vấn một lần duy nhất tất cả embeddings có sẵn của cuốn sách trong database
+    embeddings_map = {}
+    if sections:
+        book_id = sections[0].book_id
+        with Session(engine) as session:
+            rows = session.exec(
+                select(BookSectionKnowledge.section_id, BookSectionKnowledge.embedding)
+                .where(
+                    BookSectionKnowledge.book_id == book_id,
+                    BookSectionKnowledge.embedding_version == settings.BOOK_SECTION_EMBEDDING_VERSION
+                )
+            ).all()
+            embeddings_map = {row[0]: row[1] for row in rows if row[1] is not None}
+
+    # 2. Xây dựng danh sách SectionCard
     for section in sorted(sections, key=lambda item: item.section_index):
         text = section.text_content or ""
         excerpt = _excerpt(text)
         budget = estimate_text_budget(text)
         parent = by_id.get(section.parent_id) if section.parent_id else None
+        
+        # Tìm vector của section hiện tại
+        embedding = embeddings_map.get(section.id)
+        
         cards.append(
             SectionCard(
                 section_id=section.id,
@@ -132,8 +154,9 @@ def build_section_cards(sections: list[BookSection]) -> list[SectionCard]:
                 text_char_count=section.text_char_count,
                 estimated_tokens=budget.estimated_tokens,
                 child_count=len(children.get(section.id, [])),
-                language=guess_section_language(section.title, excerpt),
-                signal_hints=extract_pareto_signal_hints(section.title, excerpt),
+                signal_hints=extract_pareto_signal_hints(
+                    embedding=embedding, anchor_vectors=anchor_vectors
+                ),
                 excerpt=excerpt,
             )
         )
@@ -252,42 +275,27 @@ def _validate_planner_payload(payload: ParetoPlannerPayload, sections: list[Book
     return _trim_to_target(units, total_source_tokens=total_source_tokens)
 
 
-def _should_use_llm_planner(cards: list[SectionCard]) -> tuple[bool, str | None]:
-    min_cards = max(1, settings.PARETO_PLANNER_LLM_MIN_CARDS)
-    if len(cards) < min_cards:
-        return False, "small_outline"
-    return True, None
-
-
 async def plan_pareto_learning_units(sections: list[BookSection]) -> list[PlannedLearningUnit]:
     if not sections:
         return []
 
-    fallback_units = fallback_pareto_learning_units(sections)
-    if not settings.PARETO_PLANNER_LLM_ENABLED:
-        log.info(f"Pareto planner fallback used | reason=disabled | units={len(fallback_units)}")
-        return fallback_units
+    # 1. Tải các Vector Neo bất đồng bộ từ OpenAI (Cache in-memory)
+    anchor_vectors = await get_or_create_anchor_embeddings()
 
-    cards = build_section_cards(sections)
-    should_use_llm, deterministic_reason = _should_use_llm_planner(cards)
-    if not should_use_llm:
-        log.info(
-            "Pareto planner deterministic used | "
-            f"reason={deterministic_reason} | sections={len(sections)} | cards={len(cards)} | units={len(fallback_units)}"
-        )
-        return fallback_units
+    # 2. Tạo section cards truyền kèm anchor_vectors
+    cards = build_section_cards(sections, anchor_vectors)
 
-    try:
-        log.info(f"Pareto planner start | sections={len(sections)} | cards={len(cards)} | model={settings.PARETO_PLANNER_MODEL}")
-        payload = await asyncio.wait_for(_call_pareto_llm(cards), timeout=settings.PARETO_PLANNER_TIMEOUT_SECONDS)
-        planned_units = _validate_planner_payload(payload, sections)
-        if not planned_units:
-            raise ValueError("Pareto planner returned no valid learning units")
-        log.info(f"Pareto planner result | source=llm | units={len(planned_units)}")
-        return planned_units
-    except (asyncio.TimeoutError, ValidationError, ValueError, json.JSONDecodeError) as exc:
-        log.warning(f"Pareto planner fallback used | reason={type(exc).__name__} | units={len(fallback_units)}")
-        return fallback_units
-    except Exception as exc:
-        log.warning(f"Pareto planner fallback used | reason=unexpected:{type(exc).__name__} | units={len(fallback_units)}")
-        return fallback_units
+    # 3. Gọi trực tiếp LLM để lập kế hoạch, nếu lỗi sẽ Fail-fast ném lỗi lên API
+    log.info(f"Pareto planner start | sections={len(sections)} | cards={len(cards)}")
+    
+    payload = await asyncio.wait_for(
+        _call_pareto_llm(cards), 
+        timeout=settings.PARETO_PLANNER_TIMEOUT_SECONDS
+    )
+    
+    planned_units = _validate_planner_payload(payload, sections)
+    if not planned_units:
+        raise ValueError("Pareto planner returned no valid learning units")
+        
+    log.info(f"Pareto planner result | source=llm | units={len(planned_units)}")
+    return planned_units

@@ -6,18 +6,11 @@ from dataclasses import dataclass
 from app.core.config import settings
 from app.core.constant import PlanMode
 from app.models.db_models import BookSection
-from app.services.pareto_signal_service import (
-    extract_pareto_signal_hints,
-    infer_unit_type_from_signals,
-    score_pareto_signals,
-)
 from app.services.token_budget_service import estimate_text_budget
 
 FULL_UNIT_TARGET_TOKENS = 5000
 FULL_UNIT_MAX_TOKENS = 12000
 MIN_UNIT_TOKENS = 300
-PARETO_MAX_UNITS = 8
-PARETO_UNIT_MAX_TOKENS = 8000
 
 
 @dataclass(frozen=True)
@@ -210,85 +203,10 @@ def plan_full_learning_units(sections: list[BookSection]) -> list[PlannedLearnin
     return _merge_tiny_units(units)
 
 
-def _pareto_score(root: BookSection, subtree: list[BookSection]) -> float:
-    subtree_text = _sections_text(subtree)
-    signal_score = score_pareto_signals(root.title, subtree_text)
-    estimated_tokens = estimate_text_budget(subtree_text).estimated_tokens
-    capped_content_score = min(estimated_tokens, 2000) * 0.4
-    hierarchy_score = max(0, 5 - root.level) * 150
-    child_score = len(subtree) * 250
-    return signal_score + capped_content_score + hierarchy_score + child_score
-
-
-def fallback_pareto_learning_units(sections: list[BookSection]) -> list[PlannedLearningUnit]:
-    if not sections:
-        return []
-
-    children = _children_by_parent(sections)
-    roots = _learning_roots(sections) or sorted(sections, key=lambda item: item.section_index)
-    candidates: list[tuple[int, BookSection, list[BookSection]]] = [
-        (_pareto_score(root, _subtree_sections(root, children)), root, _subtree_sections(root, children))
-        for root in roots
-    ]
-    candidates.sort(key=lambda item: item[0], reverse=True)
-
-    total_tokens = sum(estimate_text_budget(section.text_content or "").estimated_tokens for section in sections)
-    target_tokens = max(1, int(total_tokens * settings.PARETO_TARGET_COVERAGE_RATIO))
-    selected: list[tuple[BookSection, list[BookSection]]] = []
-    selected_tokens = 0
-
-    for _, root, subtree in candidates:
-        if len(selected) >= settings.PARETO_PLANNER_MAX_UNITS:
-            break
-        unit_text = _sections_text(subtree)
-        unit_tokens = estimate_text_budget(unit_text).estimated_tokens
-        if not unit_text:
-            continue
-        if selected and selected_tokens >= target_tokens:
-            break
-        selected.append((root, subtree))
-        selected_tokens += unit_tokens
-
-    selected.sort(key=lambda item: item[0].section_index)
-    units: list[PlannedLearningUnit] = []
-    for root, subtree in selected:
-        subtree_text = _sections_text(subtree)
-        hints = extract_pareto_signal_hints(root.title, subtree_text)
-        unit = _make_unit(
-            root.title,
-            infer_unit_type_from_signals(hints),
-            subtree,
-            "Pareto chọn cụm nội dung có nhiều giá trị hoặc đóng vai trò nền tảng.",
-        )
-        if not unit:
-            continue
-        if unit.estimated_tokens > PARETO_UNIT_MAX_TOKENS:
-            units.extend(
-                _split_large_group(
-                    root.title,
-                    subtree,
-                    infer_unit_type_from_signals(hints),
-                    max_tokens=PARETO_UNIT_MAX_TOKENS,
-                )
-            )
-        else:
-            units.append(unit)
-
-    return units[: settings.PARETO_PLANNER_MAX_UNITS]
-
-
-def plan_learning_units(sections: list[BookSection], mode: PlanMode | str) -> list[PlannedLearningUnit]:
-    mode_value = PlanMode(mode)
-    if mode_value == PlanMode.FULL:
-        return plan_full_learning_units(sections)
-    return fallback_pareto_learning_units(sections)
-
-
 async def plan_learning_units_async(sections: list[BookSection], mode: PlanMode | str) -> list[PlannedLearningUnit]:
     mode_value = PlanMode(mode)
     if mode_value == PlanMode.FULL:
         return plan_full_learning_units(sections)
 
     from app.services.pareto_planner_service import plan_pareto_learning_units
-
     return await plan_pareto_learning_units(sections)
