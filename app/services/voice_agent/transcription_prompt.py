@@ -160,12 +160,16 @@ def _collect_dynamic_terms(
 
 
 def _build_prompt(base: str, terms: list[str], *, max_chars: int) -> str:
-    dynamic_suffix = " Session-specific expected terms: " + ", ".join(terms) + "." if terms else ""
+    # Xây dựng câu thoại giả định (Mock Conversation) giúp Whisper học văn phong và thuật ngữ tốt hơn
+    mock_dialogue = ""
+    if terms:
+        mock_dialogue = " Chào bạn! Hôm nay chúng ta sẽ cùng thảo luận về các thuật ngữ " + ", ".join(terms[:12]) + " nhé. Bạn muốn hỏi gì?"
+    
     prompt = (
         base
         + " The user may mix Vietnamese with English book titles, author names, character names, AI terms, and short app commands."
         + " Prefer the exact expected terms when acoustically plausible; do not force them when the audio clearly says something else."
-        + dynamic_suffix
+        + mock_dialogue
     ).strip()
     return _trim_prompt(prompt, max_chars=max_chars)
 

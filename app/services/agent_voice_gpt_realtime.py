@@ -75,6 +75,11 @@ Core rules:
 - If audio is unclear, partial, noisy, silent, or unintelligible, ask the user to repeat in Vietnamese.
 - If the user asks a general/conceptual book question or requests a character/concept summary without specifying a chapter, do not ask them to specify a chapter. Answer directly using the provided context (e.g. from BOOK_CONTEXT_FOUND).
 
+ASR spelling and homophone correction rules:
+- The user's voice inputs are transcribed using Speech-to-Text (ASR) and may contain spelling mistakes, missing diacritics, or homophone errors (e.g., "sạch co máy chương" instead of "sách có mấy chương", "câu hỏi bi thảm" instead of "hậu quả bi thảm").
+- You must dynamically map acoustically similar speech to the correct terms from the "Ngữ cảnh học tập hiện tại" or the recent conversation history.
+- When calling functions like `search_book_knowledge`, always use the corrected spelling of the query (e.g., pass "sách có mấy chương" instead of "sạch co máy chương", and "hậu quả bi thảm" instead of "câu hỏi bi thảm").
+
 Tool rules:
 - For any question about book content, concepts, chapters, learning topics, or study context, ALWAYS call `search_book_knowledge` first.
 - Treat `BOOK_METADATA_FOUND` as authoritative database metadata.
@@ -279,6 +284,14 @@ class TriamAssistant(Agent):
                     book_desc += f" của tác giả {b.author}"
                 books_list.append(book_desc)
             books_str = "\n\nNgữ cảnh học tập hiện tại:\n" + "\n".join(books_list)
+
+            # Trích xuất và nạp danh sách chương cấp 1 động từ GroundingScope để LLM làm điểm tựa sửa lỗi
+            headings_list = []
+            for s in grounding_router.scope.sections:
+                if s.level == 1:  # Chỉ lấy tiêu đề chương chính để tránh quá tải prompt
+                    headings_list.append(f"  + Chương {s.path}: {s.title}")
+            if headings_list:
+                books_str += "\n\nDanh sách các chương trong sách:\n" + "\n".join(headings_list)
 
         super().__init__(instructions=VOICE_AGENT_INSTRUCTIONS + books_str)
         self.document_ids = document_ids
