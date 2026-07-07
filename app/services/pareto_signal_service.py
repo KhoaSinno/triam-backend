@@ -1,180 +1,113 @@
 from __future__ import annotations
 
-import re
-import unicodedata
-from dataclasses import dataclass
+import numpy as np
+from openai import AsyncOpenAI
 
+from app.core.config import settings
 
-@dataclass(frozen=True)
-class ParetoSignal:
-    key: str
-    unit_type: str
-    weight: float
-    vi_terms: tuple[str, ...]
-    en_terms: tuple[str, ...]
-
-
-PARETO_SIGNALS: tuple[ParetoSignal, ...] = (
-    ParetoSignal(
-        key="core_concept",
-        unit_type="pareto_core",
-        weight=1.0,
-        vi_terms=("khái niệm", "nền tảng", "cốt lõi", "tổng quan"),
-        en_terms=(
-            "concept",
-            "concepts",
-            "core concept",
-            "core concepts",
-            "fundamental",
-            "fundamentals",
-            "overview",
-            "overviews",
-            "introduction",
-            "introductions",
-        ),
+# 1. Định nghĩa bộ neo ngữ nghĩa mô tả mẫu (Label Enrichment)
+ENRICHED_ANCHORS: dict[str, str] = {
+    "core_concept": (
+        "Khái niệm nền tảng, tổng quan lý thuyết, giới thiệu tổng thể, định nghĩa cơ bản. "
+        "Foundational core concepts, basic overview, theoretical background, introduction to the topic."
     ),
-    ParetoSignal(
-        key="definition",
-        unit_type="pareto_core",
-        weight=1.0,
-        vi_terms=("định nghĩa",),
-        en_terms=("definition", "define", "defined as"),
+    "definition": (
+        "Định nghĩa thuật ngữ, giải thích ý nghĩa từ ngữ, phát biểu định nghĩa khoa học. "
+        "Scientific definition of terms, formal explanation of meaning, vocabulary terminology."
     ),
-    ParetoSignal(
-        key="principle",
-        unit_type="pareto_core",
-        weight=0.95,
-        vi_terms=("nguyên lý", "nguyên tắc"),
-        en_terms=("principle", "principles", "law", "laws"),
+    "theorem": (
+        "Định lý toán học, bổ đề, hệ quả, định luật khoa học, quy luật tự nhiên đã được chứng minh. "
+        "Mathematical theorems, logic lemmas, scientific laws, corollaries, axioms."
     ),
-    ParetoSignal(
-        key="method",
-        unit_type="pareto_method",
-        weight=0.9,
-        vi_terms=("phương pháp", "cách làm", "kỹ thuật"),
-        en_terms=("method", "methods", "technique", "techniques", "approach"),
+    "formula": (
+        "Công thức toán học, biểu thức số học, phương trình đại số, hệ thức tính toán giá trị. "
+        "Mathematical formulas, equations, arithmetic expressions, calculation rules."
     ),
-    ParetoSignal(
-        key="procedure",
-        unit_type="pareto_method",
-        weight=0.85,
-        vi_terms=("quy trình", "các bước", "hướng dẫn"),
-        en_terms=("procedure", "procedures", "process", "steps", "workflow", "guide", "guides", "tutorial", "tutorials"),
+    "method": (
+        "Phương pháp giải quyết, thuật toán máy tính, kỹ thuật thực hiện, giải pháp công nghệ. "
+        "Problem-solving methods, computer algorithms, techniques, solutions."
     ),
-    ParetoSignal(
-        key="rule",
-        unit_type="pareto_rule",
-        weight=0.9,
-        vi_terms=("quy tắc", "luật", "điều kiện"),
-        en_terms=("rule", "rules", "condition", "conditions", "criteria"),
+    "procedure": (
+        "Quy trình thực hiện, các bước tiến hành, hướng dẫn từng bước, kịch bản nghiệp vụ. "
+        "Step-by-step procedures, execution workflows, guide tutorials, sequential processes."
     ),
-    ParetoSignal(
-        key="formula",
-        unit_type="pareto_formula",
-        weight=0.9,
-        vi_terms=("công thức", "biểu thức"),
-        en_terms=("formula", "formulas", "equation", "equations", "expression", "expressions", "identity", "identities"),
+    "reasoning": (
+        "Suy luận logic, chứng minh toán học, lập luận phản bác, lý luận khoa học chặt chẽ. "
+        "Logical reasoning, mathematical proofs, arguments, deductive inference."
     ),
-    ParetoSignal(
-        key="theorem",
-        unit_type="pareto_rule",
-        weight=0.9,
-        vi_terms=("định lý", "bổ đề", "hệ quả"),
-        en_terms=("theorem", "theorems", "lemma", "lemmas", "corollary"),
-    ),
-    ParetoSignal(
-        key="reasoning",
-        unit_type="pareto_core",
-        weight=0.85,
-        vi_terms=("suy luận", "lập luận", "chứng minh", "logic"),
-        en_terms=("reasoning", "inference", "proof", "argument", "logic"),
-    ),
-    ParetoSignal(
-        key="example",
-        unit_type="pareto_example",
-        weight=0.4,
-        vi_terms=("ví dụ", "minh họa", "bài tập"),
-        en_terms=("example", "examples", "case study", "exercise", "exercises", "illustration"),
-    ),
-)
-
-NOISE_TERMS: tuple[str, ...] = (
-    "phụ lục",
-    "tài liệu tham khảo",
-    "tham khảo",
-    "appendix",
-    "references",
-    "bibliography",
-)
-
-
-def normalize_signal_text(value: str) -> str:
-    lowered = value.casefold()
-    without_accents = "".join(
-        char for char in unicodedata.normalize("NFD", lowered) if unicodedata.category(char) != "Mn"
+    "example": (
+        "Ví dụ thực tế, minh họa cụ thể, bài tập vận dụng mẫu, tình huống nghiên cứu điển hình. "
+        "Practical examples, concrete illustrations, sample exercises, case studies."
     )
-    normalized = without_accents.replace("đ", "d")
-    return re.sub(r"\s+", " ", normalized).strip()
+}
+
+# 2. Siêu dữ liệu cấu hình các tín hiệu trọng tâm (Weights & Unit Types)
+PARETO_SIGNAL_METADATA: dict[str, dict[str, str | float]] = {
+    "core_concept": {"unit_type": "pareto_core", "weight": 1.0},
+    "definition": {"unit_type": "pareto_core", "weight": 1.0},
+    "principle": {"unit_type": "pareto_core", "weight": 0.95},
+    "method": {"unit_type": "pareto_method", "weight": 0.9},
+    "procedure": {"unit_type": "pareto_method", "weight": 0.85},
+    "rule": {"unit_type": "pareto_rule", "weight": 0.9},
+    "formula": {"unit_type": "pareto_formula", "weight": 0.9},
+    "theorem": {"unit_type": "pareto_rule", "weight": 0.9},
+    "reasoning": {"unit_type": "pareto_core", "weight": 0.85},
+    "example": {"unit_type": "pareto_example", "weight": 0.4},
+}
+
+_ANCHOR_VECTORS_CACHE: dict[str, list[float]] = {}
 
 
-def _contains_term(normalized_text: str, normalized_term: str) -> bool:
-    if not normalized_text or not normalized_term:
-        return False
-    pattern = rf"(?<![a-z0-9]){re.escape(normalized_term)}(?![a-z0-9])"
-    return re.search(pattern, normalized_text) is not None
+async def get_or_create_anchor_embeddings() -> dict[str, list[float]]:
+    """Tải và lưu trữ vector neo vào RAM bằng OpenAI embeddings API."""
+    global _ANCHOR_VECTORS_CACHE
+    if _ANCHOR_VECTORS_CACHE:
+        return _ANCHOR_VECTORS_CACHE
+
+    # Sử dụng OpenAI API key chính thức để lấy embeddings cho text-embedding-3-small
+    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    keys = list(ENRICHED_ANCHORS.keys())
+    texts = list(ENRICHED_ANCHORS.values())
+
+    response = await client.embeddings.create(
+        model=settings.BOOK_SECTION_EMBEDDING_MODEL,
+        input=texts
+    )
+    for idx, key in enumerate(keys):
+        _ANCHOR_VECTORS_CACHE[key] = response.data[idx].embedding
+
+    return _ANCHOR_VECTORS_CACHE
 
 
-def _matches_any(normalized_text: str, terms: tuple[str, ...]) -> bool:
-    return any(_contains_term(normalized_text, normalize_signal_text(term)) for term in terms)
+def extract_pareto_signal_hints(
+    embedding: list[float] | None = None,
+    anchor_vectors: dict[str, list[float]] | None = None,
+    threshold: float = 0.20,
+) -> list[str]:
+    """
+    Phân loại tín hiệu dựa trên tích vô hướng vector NumPy (Cosine Similarity).
+    Chỉ trả về 1 nhãn duy nhất có độ khớp cao nhất đạt ngưỡng (Arg-max).
+    Dùng ngưỡng 0.20 theo kiểm nghiệm thực nghiệm tối ưu của OpenAI text-embedding-3-small.
+    """
+    if embedding is None or not anchor_vectors:
+        return []
 
-
-def guess_section_language(title: str, excerpt: str = "") -> str:
-    sample = f"{title} {excerpt[:300]}".casefold()
-    vi_markers = ("đ", "ă", "â", "ê", "ô", "ơ", "ư", "khái", "định", "phương", "quy tắc")
-    en_markers = ("the ", "and ", "of ", "definition", "method", "concept", "principle", "rule")
-
-    vi_score = sum(1 for marker in vi_markers if marker in sample)
-    en_score = sum(1 for marker in en_markers if marker in sample)
-
-    if vi_score and en_score:
-        return "mixed"
-    if vi_score:
-        return "vi"
-    if en_score:
-        return "en"
-    return "unknown"
-
-
-def extract_pareto_signal_hints(title: str, excerpt: str = "") -> list[str]:
-    normalized = normalize_signal_text(f"{title} {excerpt[:300]}")
-    hints: list[str] = []
-    for signal in PARETO_SIGNALS:
-        if _matches_any(normalized, signal.vi_terms + signal.en_terms):
-            hints.append(signal.key)
-    return hints
+    similarities = {}
+    v_sec = np.array(embedding)
+    for key, anchor in anchor_vectors.items():
+        sim = float(np.dot(v_sec, np.array(anchor)))
+        if sim >= threshold:
+            similarities[key] = sim
+            
+    if similarities:
+        best_key = max(similarities, key=similarities.get)
+        return [best_key]
+    return []
 
 
 def infer_unit_type_from_signals(hints: list[str]) -> str:
     for hint in hints:
-        for signal in PARETO_SIGNALS:
-            if signal.key == hint:
-                return signal.unit_type
+        meta = PARETO_SIGNAL_METADATA.get(hint)
+        if meta:
+            return str(meta["unit_type"])
     return "pareto_focus"
-
-
-def score_pareto_signals(title: str, excerpt: str = "") -> float:
-    title_normalized = normalize_signal_text(title)
-    excerpt_normalized = normalize_signal_text(excerpt[:500])
-    score = 0.0
-
-    for signal in PARETO_SIGNALS:
-        terms = signal.vi_terms + signal.en_terms
-        if _matches_any(title_normalized, terms):
-            score += signal.weight * 5000
-            continue
-        if excerpt_normalized and _matches_any(excerpt_normalized, terms):
-            score += signal.weight * 1200
-
-    if _matches_any(title_normalized, NOISE_TERMS):
-        score -= 2500
-    return score

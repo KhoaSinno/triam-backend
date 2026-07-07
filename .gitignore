@@ -37,6 +37,7 @@ script_outputs/
 _docs_implemented/runtime_test_logs
 tests/fixtures/*.wav
 tests/fixtures/agent_eval/*.local.json
+_docs_capstone/admin_img
 
 # Local/generated project material
 _codebase/

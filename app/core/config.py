@@ -197,7 +197,7 @@ class Settings(BaseSettings):
     PARETO_PLANNER_MIN_UNITS: int = 3
     PARETO_PLANNER_LLM_MIN_CARDS: int = 1
     PARETO_TARGET_COVERAGE_RATIO: float = 0.25
-    PARETO_SECTION_EXCERPT_CHARS: int = 700
+    PARETO_SECTION_EXCERPT_CHARS: int = 1400
     PARETO_PLANNER_MAX_SECTION_CARDS: int = 120
 
     # Phase 4.1 notification/reminder workflow
