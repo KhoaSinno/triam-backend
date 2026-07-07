@@ -4,7 +4,6 @@ import re
 from dataclasses import dataclass
 
 from app.services.agent_grounding.contracts import GroundingIntent
-from app.services.agent_grounding.intent_router import detect_section_intent
 from app.services.agent_grounding.query_normalizer import normalize_query, normalized_key, tokenize
 from app.services.agent_grounding.section_reference_parser import parse_section_reference
 from app.services.voice_agent.turn_state import PendingVoiceClarification, VoiceTranscriptSnapshot
@@ -306,13 +305,6 @@ def assess_voice_query(query: str, *, config: VoiceQueryGuardConfig | None = Non
         )
 
     reference = parse_section_reference(normalized)
-    if detect_section_intent(normalized, reference) == GroundingIntent.CLARIFICATION_REQUIRED:
-        return _invalid(
-            "missing_section_reference",
-            _MISSING_SECTION_CLARIFICATION,
-            token_count=token_count,
-            important_token_count=important_token_count,
-        )
 
     return VoiceQueryGuardResult(
         valid=True,
