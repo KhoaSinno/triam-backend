@@ -323,8 +323,87 @@ Chạy pytest để đảm bảo các unit test phân loại hoạt động chí
 ```powershell
 uv run pytest tests/services/agent_grounding/test_intent_router.py
 ```
-
 ### 4.2 Chạy bộ test hệ thống tổng thể
 ```powershell
 uv run pytest tests/services/agent_grounding tests/services/voice_agent -q
+```
+
+---
+
+## 5. Bản Đồ Luồng Dữ Liệu Thực Tế (Detailed Data Flow Trace)
+
+Dưới đây là 3 kịch bản dữ liệu thực tế chạy qua hệ thống để Fresher nắm bắt được chính xác kiểu dữ liệu (Data Type) và giá trị (Value) luân chuyển qua từng hàm.
+
+### 5.1 Kịch bản 1: Học viên nói lệch âm / sai chính tả nhẹ (Acoustic typo)
+*   **Input thô từ Whisper STT**: `"Sạch co máy chương."`
+
+```mermaid
+sequenceDiagram
+    participant GR as GroundingRouter
+    participant QN as query_normalizer
+    participant SC as SemanticClassifier
+    participant RP as section_reference_parser
+
+    GR->>QN: normalize_query("Sạch co máy chương.")
+    QN-->>GR: trả về NormalizedQuery(original="Sạch co máy chương.", normalized="sạch co máy chương", tokens=["sạch", "co", "máy", "chương"])
+    
+    GR->>SC: classify_intent(NormalizedQuery)
+    Note over SC: Tokenize & Embedding -> Vector [1, 384]<br/>Nhân chéo tính Cosine với Prototypes
+    Note over SC: So sánh các độ tương đồng:<br/>- root_section_count: 0.989<br/>- author: 0.303<br/>- title: 0.466
+    SC-->>GR: trả về GroundingIntent.BOOK_METADATA_ROOT_SECTION_COUNT (Vì 0.989 >= 0.65)
+    
+    GR->>RP: parse_section_reference(NormalizedQuery)
+    RP-->>GR: trả về SectionReference(has_target=False, target_type=None, explicit_ordinal=None)
+
+    Note over GR: Route khớp với Metadata -> gọi _resolve_metadata(...)
+    GR-->>GR: Trả về GroundingResult(route=GroundingRoute.BOOK_METADATA, deterministic_answer="Quyển sách này gồm 6 chương chính...")
+```
+
+---
+
+### 5.2 Kịch bản 2: Câu hỏi RAG liên quan đến tác giả (Tránh nhận diện nhầm làm lỗi RAG)
+*   **Input thô từ Whisper STT**: `"Tác giả giải thích khái niệm này như thế nào?"`
+
+```mermaid
+sequenceDiagram
+    participant GR as GroundingRouter
+    participant SC as SemanticClassifier
+    
+    GR->>SC: classify_intent(NormalizedQuery)
+    Note over SC: Nhúng vector câu hỏi & nhân chéo:
+    Note over SC: Cosine cao nhất với nhóm BOOK_METADATA_AUTHOR đạt 0.72 (do có chữ "tác giả")
+    Note over SC: Kiểm duyệt biên (Guard Rule):<br/>- has_content_verb = True ("giải thích" nằm trong AUTHOR_CONTENT_VERBS)<br/>- has_identity_keyword = False (không có "tác giả là ai")
+    Note over SC: Hạ cấp trả về: BOOK_SEMANTIC_QUESTION
+    SC-->>GR: trả về GroundingIntent.BOOK_SEMANTIC_QUESTION
+    
+    Note over GR: Trùng khớp ý định RAG -> chuyển xuống nhánh RAG để lấy tài liệu của sách
+    GR-->>GR: Gọi search_book_hybrid_knowledge và Cohere Reranker
+```
+
+---
+
+### 5.3 Kịch bản 3: Yêu cầu tóm tắt chương có đề mục rõ ràng
+*   **Input thô từ Whisper STT**: `"Tóm tắt chương mười bốn."`
+
+```mermaid
+sequenceDiagram
+    participant GR as GroundingRouter
+    participant QN as query_normalizer
+    participant SC as SemanticClassifier
+    participant RP as section_reference_parser
+
+    GR->>QN: normalize_query("Tóm tắt chương mười bốn.")
+    QN-->>GR: Trả về NormalizedQuery(normalized="tóm tắt chương 14") (Số chữ đã chuẩn hóa sang số điện tử)
+    
+    GR->>SC: classify_intent(NormalizedQuery)
+    Note over SC: Nhân chéo Cosine Similarity:<br/>- BOOK_SECTION_SUMMARY: 0.92
+    SC-->>GR: trả về GroundingIntent.BOOK_SECTION_SUMMARY
+    
+    GR->>RP: parse_section_reference(NormalizedQuery)
+    Note over RP: Khớp Regex từ khóa "chương 14"
+    RP-->>GR: trả về SectionReference(has_target=True, target_type="chapter", explicit_ordinal=14)
+    
+    Note over GR: Kiểm tra Guard Rule:<br/>Ý định là SUMMARY và has_target=True -> Cho phép định tuyến Đề mục
+    GR->>GR: gọi _resolve_section(..., explicit_ordinal=14, GroundingIntent.BOOK_SECTION_SUMMARY)
+    GR-->>GR: Trả về văn bản tóm tắt Chương 14 từ Database
 ```
