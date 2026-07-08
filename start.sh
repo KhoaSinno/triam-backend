@@ -15,24 +15,28 @@ export NUMEXPR_NUM_THREADS=1
 export TORCH_NUM_THREADS=1
 
 
-UV_RUN=(uv run --no-sync)
+# Sử dụng trực tiếp các thực thi trong .venv để tránh tranh chấp lock của uv run
+PYTHON_BIN="./.venv/bin/python"
+CELERY_BIN="./.venv/bin/celery"
+ALEMBIC_BIN="./.venv/bin/alembic"
+UVICORN_BIN="./.venv/bin/uvicorn"
 
 if [ "${RUN_MIGRATIONS_ON_START:-false}" = "true" ]; then
   echo "Running Alembic migrations..."
-  "${UV_RUN[@]}" alembic upgrade head
+  "$ALEMBIC_BIN" upgrade head
 fi
 
 if [ "${ENABLE_VOICE_AGENT:-true}" = "true" ]; then
   AGENT_MODE="${AGENT_MODE:-start}"
   echo "Starting realtime voice agent..."
-  "${UV_RUN[@]}" python -m app.services.agent_voice_gpt_realtime "$AGENT_MODE" 2>&1 | tee worker.log &
+  "$PYTHON_BIN" -m app.services.agent_voice_gpt_realtime "$AGENT_MODE" 2>&1 | tee worker.log &
 else
   echo "Skipping realtime voice agent because ENABLE_VOICE_AGENT=false"
 fi
 
 if [ "${ENABLE_CELERY_WORKER:-false}" = "true" ]; then
   echo "Starting Celery document worker..."
-  "${UV_RUN[@]}" celery -A app.core.celery_app.celery_app worker \
+  "$CELERY_BIN" -A app.core.celery_app.celery_app worker \
     -Q document \
     -l "${CELERY_LOG_LEVEL:-info}" \
     --concurrency "${CELERY_DOCUMENT_CONCURRENCY:-1}" \
@@ -43,7 +47,7 @@ fi
 
 if [ "${ENABLE_NOTIFICATION_WORKER:-false}" = "true" ]; then
   echo "Starting Celery notification worker..."
-  "${UV_RUN[@]}" celery -A app.core.celery_app.celery_app worker \
+  "$CELERY_BIN" -A app.core.celery_app.celery_app worker \
     -Q notification,maintenance \
     -l "${CELERY_LOG_LEVEL:-info}" \
     --concurrency "${CELERY_NOTIFICATION_CONCURRENCY:-1}" \
@@ -54,7 +58,7 @@ fi
 
 if [ "${ENABLE_CELERY_BEAT:-false}" = "true" ]; then
   echo "Starting Celery Beat..."
-  "${UV_RUN[@]}" celery -A app.core.celery_app.celery_app beat \
+  "$CELERY_BIN" -A app.core.celery_app.celery_app beat \
     -l "${CELERY_LOG_LEVEL:-info}" \
     2>&1 | tee celery_beat.log &
 else
@@ -66,8 +70,9 @@ UVICORN_RELOAD="${UVICORN_RELOAD:-false}"
 
 if [ "$UVICORN_RELOAD" = "true" ]; then
   echo "Starting FastAPI with reload on port ${BACKEND_PORT}..."
-  "${UV_RUN[@]}" uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload
+  "$UVICORN_BIN" app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload
 else
   echo "Starting FastAPI on port ${BACKEND_PORT}..."
-  "${UV_RUN[@]}" uvicorn app.main:app --host 0.0.0.0 --port "$BACKEND_PORT"
+  "$UVICORN_BIN" app.main:app --host 0.0.0.0 --port "$BACKEND_PORT"
 fi
+
