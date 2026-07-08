@@ -16,6 +16,15 @@ trap cleanup INT TERM EXIT
 export PYTHONUNBUFFERED=1
 export UV_NO_SYNC="${UV_NO_SYNC:-1}"
 
+# Tối ưu hóa luồng cho PyTorch/MKL trên CPU basic của Hugging Face (tránh nghẽn thread pool)
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+export TORCH_NUM_THREADS=1
+
+
 UV_RUN=(uv run --no-sync)
 
 if [ "${RUN_MIGRATIONS_ON_START:-false}" = "true" ]; then

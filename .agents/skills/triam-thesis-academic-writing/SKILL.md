@@ -17,14 +17,17 @@ Keep the thesis architecture in mind:
 
 When editing a section, preserve the user's thesis direction unless it conflicts with code or evidence. Improve clarity, academic tone, citation quality, and claim precision.
 
+- **Source Code as Ground Truth**: The actual backend codebase is the single source of truth. Since implementation code may have evolved after the thesis draft or specifications were written, the agent MUST search and read the active python code (models, services, workers, repositories, etc.) in the workspace before writing or updating any technical chapter. Ensure that the database structures, algorithms, parameters, function names, and workflows described in the thesis align exactly with the current source code.
+
 ## Default Workflow
 
 1. Read the target file and nearby outline files such as `_docs_capstone/c4_c7_core.md`.
 2. Identify the chapter role: theory, overview, design, implementation, evaluation, or conclusion.
-3. Decide the appropriate depth before rewriting.
-4. For citation work, prefer reputable sources and verify current official docs when technology details may have changed.
-5. Rewrite in Vietnamese academic prose with concise transitions.
-6. Audit for overclaiming: do not state that TRIAM implements a method unless code or project docs support it.
+3. **Cross-reference Source Code**: Before writing any implementation-related content, identify the relevant Python files/directories in `app/` and inspect them to confirm the current implementation details.
+4. Decide the appropriate depth before rewriting.
+5. For citation work, prefer reputable sources and verify current official docs when technology details may have changed.
+6. Rewrite in Vietnamese academic prose with concise transitions.
+7. Audit for overclaiming: do not state that the system implements a method unless code or project docs support it.
 
 ## Theory Chapter Pattern
 
@@ -43,15 +46,22 @@ Avoid deep implementation in Chapter 3:
 
 ## Prose Style
 
-Use formal but natural Vietnamese:
+Use formal, concise, and easy-to-understand Vietnamese in an academic research tone:
 
-- Prefer "hệ thống", "người học", "tài liệu học tập", "trợ lý học tập", "ngữ cảnh", "truy xuất", "lập chỉ mục", "ôn tập".
-- Introduce English terms once with parentheses, then use the Vietnamese term consistently.
-- Use paragraphs of 3-6 sentences. Avoid many one-sentence paragraphs.
-- Prefer synthesis over listing. Use bullets only when they genuinely improve readability.
-- Avoid promotional adjectives such as "mạnh mẽ", "hiện đại", "tối ưu tuyệt đối", "thông minh vượt trội".
-- Avoid repeating "giúp" and "có thể" in every sentence.
-- Use "trong phạm vi hệ thống TRIAM" when grounding a general concept in the project.
+- **Simplicity and Clarity**: 
+  - Write concisely and to the point. Avoid exclamations and conversational/emotional filler.
+  - Avoid overly complex translation-style words like "hoạch định" (use "lập kế hoạch" instead).
+  - Use the word "hệ thống" instead of repeating "hệ thống TRIAM".
+- **Handling English & Abbreviations**:
+  - Keep common English keywords/abbreviations as is (e.g., "Hybrid search", "RAG", "LLM", "Cross-Encoder", "WebRTC", "TTS", "STT"). Do not try to translate them or explain them in parentheses unless they are introduced for the first time.
+  - For new abbreviations, add them directly to the list in `noidung/kihieu.tex` rather than writing inline parenthetical notes.
+- **Avoid Redundant Explanations**: 
+  - Limit parenthetical translations or annotations such as `(race conditions)`, `(commit)`. Avoid redundant, repetitive words.
+- **Structure**:
+  - Use paragraphs of 3-6 sentences. Avoid one-sentence paragraphs.
+  - Prefer synthesis over bullet lists. Use bullets only when they improve readability of dense items.
+  - Avoid promotional adjectives (e.g., "mạnh mẽ", "hiện đại", "tối ưu tuyệt đối", "thông minh vượt trội").
+  - Avoid repeating "giúp" and "có thể" in every sentence.
 
 For detailed style examples and replacement patterns, read `references/style-guide.md`.
 
@@ -84,13 +94,45 @@ Be strict about these distinctions:
 
 ## LaTeX Guidelines
 
-When editing `.tex`:
+When editing or drafting `.tex` files:
 
-- Preserve the existing compiler assumptions: Vietnamese via `fontspec` and `polyglossia` unless the user asks to change the LaTeX stack.
-- Use `\section`, `\subsection`, and `\subsubsection` consistently.
-- Use `\cite{key}` or `\parencite{key}` only after checking the document's citation style. If no bibliography system exists, propose one before scattering citations.
-- Escape special LaTeX characters in prose when needed: `_`, `%`, `&`, `#`.
-- Keep formulas only when they clarify core theory, not as decoration.
+- **Compiler & Styling Assumptions**: 
+  - Standard font size is 13pt (`\changefontsizes{13pt}` via `scrextend`).
+  - Standard font is Times New Roman or TeX Gyre Termes.
+  - Document supports both pdfTeX (using `\usepackage[utf8]{vietnam}`) and XeTeX/LuaTeX (using `\setmainfont` to load `times.ttf` from `tmp/fonts/`).
+  - Line spacing is 1.2 (`\setstretch{1.2}`), paragraph skip is 6pt (`\setlength\parskip{6pt}`), and margins are `top=2cm, bottom=2cm, left=3cm, right=2cm`.
+- **Chapter & Title Formats**:
+  - The thesis has exactly 10 chapters.
+  - Use uppercase centered titles for chapters (`\chapter{...}`).
+  - Use uppercase bold for sections (`\section{...}`).
+  - Use bold normal case for subsections (`\subsection{...}`).
+  - Use bold italic for subsubsections (`\subsubsection{...}`).
+- **Table and Figure Captions**:
+  - Always use the strict position specifier `[H]` for both figures and tables (`\begin{figure}[H]` and `\begin{table}[H]`).
+  - Always declare `\centering` right after `\begin{figure}[H]` or `\begin{table}[H]`.
+  - **Tables**: Place the caption at the TOP of the table (inside `\begin{table}[H]` and before the `tabular` environment). Table caption style is `normalsize, bf, raggedright`. Label should be `\label{tab:tablename}`.
+  - **Figures**: Place the caption and label at the BOTTOM of the figure (inside `\begin{figure}[H]` and after the graphic). Figure caption style is `normalsize, bf, centering`. Label should be `\label{fig:figurename}`. Specify graphic widths as a fraction of text width, e.g., `[width=0.95\textwidth]`.
+- **English & Math Formatting inside LaTeX**:
+  - Format conceptual English terms using `\textit{English term}` (e.g., `\textit{spaced repetition}`, `\textit{flashcard}`, `\textit{idempotency key}`).
+  - Format code entities, model identifiers, folder paths, parameters, or configurations using `\texttt{name}` (e.g., `\texttt{gpt-4o-mini}`, `\texttt{Heading Styles}`, `\texttt{app/main.py}`).
+  - Format all variables and formulas in math mode (e.g., `$q$`, `$d$`, `$Doc$`, `$Size$`, or `\[ ... \]`).
+- **Algorithms (Pseudo-code)**:
+  - Must use the `algorithm2e` package within the `\begin{algorithm}[H]` environment.
+  - Declare parameters with `\KwData{...}` and `\KwResult{...}` at the top.
+  - Enclose the algorithm logic in `\Begin{...}`.
+  - Terminate all pseudo-code instructions with `\;`.
+  - Use `\tcp{...}` for inline/block comments.
+  - Include font scaling macros inside/before the algorithm: `\SetAlFnt{\scriptsize}`, `\SetAlCapFnt{\small}`, `\SetAlCapNameFnt{\small}`.
+- **Cross-Referencing & Labels**:
+  - Chapters: `\label{chap:chaptername}`, referred to as `Chương \ref{chap:chaptername}`.
+  - Sections: `\label{sec:sectionname}`, referred to as `Mục \ref{sec:sectionname}`.
+  - Figures: `\label{fig:figurename}`, referred to as `Hình \ref{fig:figurename}`.
+  - Tables: `\label{tab:tablename}`, referred to as `Bảng \ref{tab:tablename}`.
+  - Algorithms: `\label{alg:algname}`, referred to as `Giải thuật \ref{alg:algname}` or `Thuật toán \ref{alg:algname}`.
+- **Citations & Bibliography**:
+  - Citations use the `vancouver` style (`\bibliographystyle{vancouver}`).
+  - Use `\cite{key}` for citation. Refer to keys defined in `noidung/tailieuthamkhao.bib`.
+  - Escape special LaTeX characters (like `_`, `%`, `&`, `#`) in prose.
 
 ## Useful References
 

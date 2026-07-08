@@ -32,13 +32,15 @@ worker.log
 *.pdf
 *.epub
 *.docx
+*.zip
 _log_extracted_json/
 script_outputs/
 _docs_implemented/runtime_test_logs
 tests/fixtures/*.wav
 tests/fixtures/agent_eval/*.local.json
 _docs_capstone/admin_img
-
+temp_logs
+scratch
 # Local/generated project material
 _codebase/
 scratch_*.py
