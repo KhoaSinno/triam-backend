@@ -1,3 +1,5 @@
+print("--- TRIAM FastAPI starting up... ---", flush=True)
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI

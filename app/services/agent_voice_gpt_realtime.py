@@ -1,3 +1,5 @@
+print("--- TRIAM Voice Agent starting up... ---", flush=True)
+
 import asyncio
 import json
 import os
