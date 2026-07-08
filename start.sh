@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 set -e
 
-echo "--- start.sh script started! ---"
-
 export PYTHONUNBUFFERED=1
 export UV_NO_SYNC="${UV_NO_SYNC:-1}"
 
-# Tối ưu hóa luồng cho PyTorch/MKL trên CPU basic của Hugging Face (tránh nghẽn thread pool)
+# Giới hạn luồng tính toán cho PyTorch/MKL/OpenMP trên CPU basic HF Spaces.
+# Mặc định PyTorch sẽ cố dùng hết tất cả cores vật lý của máy chủ ảo hóa,
+# gây thrashing trên container 2 vCPU và làm container treo khi khởi động.
 export OMP_NUM_THREADS=1
 export MKL_NUM_THREADS=1
 export OPENBLAS_NUM_THREADS=1
@@ -14,8 +14,8 @@ export VECLIB_MAXIMUM_THREADS=1
 export NUMEXPR_NUM_THREADS=1
 export TORCH_NUM_THREADS=1
 
-
-# Sử dụng trực tiếp các thực thi trong .venv để tránh tranh chấp lock của uv run
+# Gọi binary trực tiếp từ .venv (nhanh hơn uv run, tránh lock contention khi
+# nhiều tiến trình khởi động đồng thời). .venv được tạo bởi Dockerfile (uv sync).
 PYTHON_BIN="./.venv/bin/python"
 CELERY_BIN="./.venv/bin/celery"
 ALEMBIC_BIN="./.venv/bin/alembic"
@@ -28,10 +28,10 @@ fi
 
 if [ "${ENABLE_VOICE_AGENT:-true}" = "true" ]; then
   AGENT_MODE="${AGENT_MODE:-start}"
-  echo "Starting realtime voice agent..."
+  echo "Starting realtime voice agent (mode=$AGENT_MODE)..."
   "$PYTHON_BIN" -m app.services.agent_voice_gpt_realtime "$AGENT_MODE" 2>&1 | tee worker.log &
 else
-  echo "Skipping realtime voice agent because ENABLE_VOICE_AGENT=false"
+  echo "Skipping realtime voice agent (ENABLE_VOICE_AGENT=false)"
 fi
 
 if [ "${ENABLE_CELERY_WORKER:-false}" = "true" ]; then
@@ -42,7 +42,7 @@ if [ "${ENABLE_CELERY_WORKER:-false}" = "true" ]; then
     --concurrency "${CELERY_DOCUMENT_CONCURRENCY:-1}" \
     2>&1 | tee celery_document.log &
 else
-  echo "Skipping Celery document worker because ENABLE_CELERY_WORKER=false"
+  echo "Skipping Celery document worker (ENABLE_CELERY_WORKER=false)"
 fi
 
 if [ "${ENABLE_NOTIFICATION_WORKER:-false}" = "true" ]; then
@@ -53,7 +53,7 @@ if [ "${ENABLE_NOTIFICATION_WORKER:-false}" = "true" ]; then
     --concurrency "${CELERY_NOTIFICATION_CONCURRENCY:-1}" \
     2>&1 | tee celery_notification.log &
 else
-  echo "Skipping Celery notification worker because ENABLE_NOTIFICATION_WORKER=false"
+  echo "Skipping Celery notification worker (ENABLE_NOTIFICATION_WORKER=false)"
 fi
 
 if [ "${ENABLE_CELERY_BEAT:-false}" = "true" ]; then
@@ -62,17 +62,16 @@ if [ "${ENABLE_CELERY_BEAT:-false}" = "true" ]; then
     -l "${CELERY_LOG_LEVEL:-info}" \
     2>&1 | tee celery_beat.log &
 else
-  echo "Skipping Celery Beat because ENABLE_CELERY_BEAT=false"
+  echo "Skipping Celery Beat (ENABLE_CELERY_BEAT=false)"
 fi
 
-BACKEND_PORT="${BACKEND_PORT:-8000}"
+BACKEND_PORT="${BACKEND_PORT:-7860}"
 UVICORN_RELOAD="${UVICORN_RELOAD:-false}"
 
 if [ "$UVICORN_RELOAD" = "true" ]; then
   echo "Starting FastAPI with reload on port ${BACKEND_PORT}..."
-  "$UVICORN_BIN" app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload
+  exec "$UVICORN_BIN" app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload
 else
   echo "Starting FastAPI on port ${BACKEND_PORT}..."
-  "$UVICORN_BIN" app.main:app --host 0.0.0.0 --port "$BACKEND_PORT"
+  exec "$UVICORN_BIN" app.main:app --host 0.0.0.0 --port "$BACKEND_PORT"
 fi
-
