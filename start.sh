@@ -1,17 +1,7 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -e
 
-cleanup() {
-  echo "Đang tắt an toàn các tiến trình..."
-  local pids
-  pids="$(jobs -p)" || true
-  if [ -n "$pids" ]; then
-    kill -TERM $pids 2>/dev/null || true
-    wait $pids 2>/dev/null || true
-  fi
-  echo "Đã tắt xong."
-}
-trap cleanup INT TERM EXIT
+echo "--- start.sh script started! ---"
 
 export PYTHONUNBUFFERED=1
 export UV_NO_SYNC="${UV_NO_SYNC:-1}"
