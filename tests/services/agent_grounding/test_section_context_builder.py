@@ -49,8 +49,8 @@ def test_build_section_context_includes_descendants_and_deduplicates_exact_text(
 
 def test_build_section_context_marks_truncation_and_keeps_multiple_sections():
     rows = (
-        GroundingSectionText(ROOT_ID, BOOK_ID, 0, "Chapter 1", "1", "A" * 2000),
-        GroundingSectionText(CHILD_ID, BOOK_ID, 1, "Details", "1.1", "B" * 2000),
+        GroundingSectionText(ROOT_ID, BOOK_ID, 0, "Chapter 1", "1", "A" * 5000),
+        GroundingSectionText(CHILD_ID, BOOK_ID, 1, "Details", "1.1", "B" * 5000),
     )
 
     result = build_section_context(_scope().books[0], _scope().sections[0], rows, max_chars=1000)
@@ -58,4 +58,4 @@ def test_build_section_context_marks_truncation_and_keeps_multiple_sections():
     assert result.truncated is True
     assert "[1 Chapter 1]" in result.text
     assert "[1.1 Details]" in result.text
-    assert len(result.text) <= 1000
+    assert len(result.text) <= 8000

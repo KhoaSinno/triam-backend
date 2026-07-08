@@ -50,7 +50,7 @@ def build_section_context(
     *,
     max_chars: int,
 ) -> SectionContext:
-    max_chars = max(500, max_chars)
+    max_chars = max(8000, max_chars)
     header = f'BOOK_SECTION_CONTEXT\nBook: "{book.title}"\nTarget section: {target.path} - {target.title}\n\n'
     unique_rows = _dedupe_rows(rows)
     if not unique_rows:

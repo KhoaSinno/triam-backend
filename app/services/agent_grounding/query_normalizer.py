@@ -12,26 +12,27 @@ WHITESPACE_PATTERN = re.compile(r"\s+")
 def fold_accents(text: str) -> str:
     decomposed = unicodedata.normalize("NFD", text)
     return "".join(character for character in decomposed if not unicodedata.combining(character))
-
+# EX: "Ví dụ" => "Vi du"
 
 def normalize_text(text: str) -> str:
     normalized = unicodedata.normalize("NFKC", text or "").strip().casefold()
     return WHITESPACE_PATTERN.sub(" ", normalized)
+# EX: " hOÀnG   vŨ ß " => "hoàng vũ ss"
 
 
 def tokenize(text: str) -> tuple[str, ...]:
     return tuple(TOKEN_PATTERN.findall(text))
-
+# EX: "hoang vu dep trai" => ("hoang", "vu", "dep", "trai")
 
 def normalize_query(text: str) -> NormalizedQuery:
     original = (text or "").strip()
     normalized = normalize_text(original)
     accent_folded = fold_accents(normalized)
     return NormalizedQuery(
-        original=original,
-        normalized=normalized,
-        accent_folded=accent_folded,
-        tokens=tokenize(accent_folded),
+        original=original, # Origine
+        normalized=normalized, # Chuẩn hóa, Khớp từ có dấu
+        accent_folded=accent_folded, # Khớp không dấu
+        tokens=tokenize(accent_folded), # Từng từ, độc lập từ => Full text search
     )
 
 

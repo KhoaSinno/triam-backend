@@ -11,7 +11,7 @@ from app.services.agent_grounding.contracts import (
     ResolutionQuality,
     SectionTextLoader,
 )
-from app.services.agent_grounding.intent_router import detect_metadata_intent, detect_section_intent
+from app.services.agent_grounding.intent_router import classify_intent
 from app.services.agent_grounding.query_normalizer import normalize_query
 from app.services.agent_grounding.response_renderer import render_metadata_answer
 from app.services.agent_grounding.section_context_builder import build_section_context, descendant_section_ids
@@ -42,32 +42,48 @@ class GroundingRouter:
         started = time.perf_counter()
         normalized = normalize_query(query)
 
-        metadata_intent = detect_metadata_intent(normalized)
-        if metadata_intent is not None:
-            result = self._resolve_metadata(normalized, metadata_intent)
-        else:
-            reference = parse_section_reference(normalized)
-            section_intent = detect_section_intent(normalized, reference)
+        # 1. Gọi bộ phân loại ý định ngữ nghĩa bất đồng bộ
+        intent = await classify_intent(normalized)
+        reference = parse_section_reference(normalized)
 
-            result = None
-            if section_intent == GroundingIntent.CLARIFICATION_REQUIRED:
-                result = self._clarification("missing_section_reference", "Bạn muốn hỏi chương hoặc đề mục nào?")
-            elif section_intent is not None:
-                result = await self._resolve_section(normalized, reference, section_intent)
-                if result.decision.route == GroundingRoute.CLARIFICATION:
-                    is_explicit = reference.explicit_path is not None or reference.explicit_ordinal is not None
-                    if not is_explicit:
-                        result = None
+        # 2. Luật chặn (Guard Rule): Nếu phân loại là mục lục/tóm tắt chương nhưng không có đề mục cụ thể
+        # thì tự động hạ cấp xuống RAG để tránh lỗi định tuyến
+        if intent in (GroundingIntent.BOOK_SECTION_SUMMARY, GroundingIntent.BOOK_SECTION_CONTENT):
+            if not reference.has_target:
+                intent = GroundingIntent.BOOK_SEMANTIC_QUESTION
 
-            if result is None:
-                result = GroundingResult(
-                    GroundingDecision(
-                        GroundingIntent.BOOK_SEMANTIC_QUESTION,
-                        GroundingRoute.BOOK_RAG,
-                        ResolutionQuality.NOT_FOUND,
-                        "semantic_rag_fallback",
-                    )
+        result = None
+        if intent == GroundingIntent.BOOK_SEMANTIC_QUESTION:
+            result = GroundingResult(
+                GroundingDecision(
+                    GroundingIntent.BOOK_SEMANTIC_QUESTION,
+                    GroundingRoute.BOOK_RAG,
+                    ResolutionQuality.NOT_FOUND,
+                    "semantic_rag_fallback",
                 )
+            )
+        elif intent == GroundingIntent.CLARIFICATION_REQUIRED:
+            result = self._clarification("missing_section_reference", "Bạn muốn hỏi chương hoặc đề mục nào?")
+        elif intent in (GroundingIntent.BOOK_SECTION_SUMMARY, GroundingIntent.BOOK_SECTION_CONTENT):
+            result = await self._resolve_section(normalized, reference, intent)
+            if result.decision.route == GroundingRoute.CLARIFICATION:
+                is_explicit = reference.explicit_path is not None or reference.explicit_ordinal is not None
+                if not is_explicit:
+                    result = None
+        else:
+            # Các nhóm Metadata
+            result = self._resolve_metadata(normalized, intent)
+
+        # Fallback phòng thủ cuối cùng
+        if result is None:
+            result = GroundingResult(
+                GroundingDecision(
+                    GroundingIntent.BOOK_SEMANTIC_QUESTION,
+                    GroundingRoute.BOOK_RAG,
+                    ResolutionQuality.NOT_FOUND,
+                    "semantic_rag_fallback",
+                )
+            )
 
         if tracer is not None:
             self._record_trace(tracer, input_mode, result, int((time.perf_counter() - started) * 1000))
