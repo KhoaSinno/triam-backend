@@ -92,19 +92,25 @@ Use these Vietnamese terms consistently:
 
 - Generative AI: trí tuệ nhân tạo tạo sinh
 - Large Language Model: mô hình ngôn ngữ lớn
-- Retrieval-Augmented Generation: tạo sinh tăng cường truy xuất
+- Retrieval-Augmented Generation: tạo sinh tăng cường truy xuất (RAG)
 - embedding: vector nhúng or biểu diễn vector
 - semantic search: tìm kiếm ngữ nghĩa
 - lexical search: tìm kiếm từ khóa
 - hybrid search: tìm kiếm lai
+- RRF: gộp xếp hạng nghịch đảo RRF
+- Cross-Encoder / Reranker: bộ xếp hạng lại Cross-Encoder / Reranker
+- validation gate: cổng kiểm duyệt / cổng xác thực
+- document structure tree: cây đề mục or cây cấu trúc tài liệu
+- leaf node: nút lá
 - speech-to-text: chuyển giọng nói thành văn bản
 - text-to-speech: chuyển văn bản thành giọng nói
 - real-time communication: truyền thông thời gian thực
 - spaced repetition: lặp lại ngắt quãng or ôn tập ngắt quãng
+- forgetting curve: đường cong lãng quên
 - background task: tác vụ nền
 - transactional outbox: mẫu transactional outbox or hàng đợi thông báo bền vững
 
-Keep English names for product/framework names: FastAPI, Flutter, Next.js, PostgreSQL, pgvector, Supabase, Celery, Redis, WebRTC, LiveKit, Firebase Cloud Messaging, Tavily.
+Keep English names for product/framework names: FastAPI, Flutter, Next.js, PostgreSQL, pgvector, Supabase, Celery, Redis, WebRTC, LiveKit, Firebase Cloud Messaging, Tavily, Cohere.
 
 ## Chapter 3 Depth Limits
 
