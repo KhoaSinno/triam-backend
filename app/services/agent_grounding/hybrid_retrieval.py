@@ -14,10 +14,6 @@ from app.core.stopwords import STOPWORDS
 
 @dataclass(frozen=True)
 class HybridRetrievalConfig:
-    vector_weight: float
-    lexical_weight: float
-    title_match_boost: float
-    multi_source_boost: float
     min_final_score: float
     max_context_chunks: int
     max_chunks_per_section: int
