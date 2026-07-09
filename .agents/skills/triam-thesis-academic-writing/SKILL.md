@@ -18,16 +18,18 @@ Keep the thesis architecture in mind:
 When editing a section, preserve the user's thesis direction unless it conflicts with code or evidence. Improve clarity, academic tone, citation quality, and claim precision.
 
 - **Source Code as Ground Truth**: The actual backend codebase is the single source of truth. Since implementation code may have evolved after the thesis draft or specifications were written, the agent MUST search and read the active python code (models, services, workers, repositories, etc.) in the workspace before writing or updating any technical chapter. Ensure that the database structures, algorithms, parameters, function names, and workflows described in the thesis align exactly with the current source code.
+- **Think and Discuss First**: Before making any actual modifications or additions to the thesis files, the agent MUST formulate a detailed draft, outline, or plan of the proposed edits, present them in the chat, and discuss them with the user. Do not execute file writes/edits until the user has reviewed and explicitly approved the proposed content.
 
 ## Default Workflow
 
 1. Read the target file and nearby outline files such as `_docs_capstone/c4_c7_core.md`.
 2. Identify the chapter role: theory, overview, design, implementation, evaluation, or conclusion.
 3. **Cross-reference Source Code**: Before writing any implementation-related content, identify the relevant Python files/directories in `app/` and inspect them to confirm the current implementation details.
-4. Decide the appropriate depth before rewriting.
-5. For citation work, prefer reputable sources and verify current official docs when technology details may have changed.
-6. Rewrite in Vietnamese academic prose with concise transitions.
-7. Audit for overclaiming: do not state that the system implements a method unless code or project docs support it.
+4. Decide the appropriate depth before drafting.
+5. **Draft & Propose**: Formulate a proposed draft or outline of the edits. Present this proposed content in the chat first.
+6. **Discuss & Obtain Approval**: Explain the reasoning, discuss any points with the user, and wait for their explicit approval.
+7. **Execute and Audit**: Only after user approval, write the changes to the thesis files. Audit for overclaiming and ensure correct LaTeX formatting.
+8. For citation work, prefer reputable sources and verify current official docs when technology details may have changed.
 
 ## Theory Chapter Pattern
 

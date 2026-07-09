@@ -106,10 +106,59 @@ class AdminJobsResponse(BaseModel):
     items: list[AdminJobListItem]
 
 
+class AdminBookOwnerInfo(BaseModel):
+    user_id: uuid.UUID
+    email: str | None = None
+    display_name: str | None = None
+    avatar_url: str | None = None
+    account_created_at: datetime | None = None
+    last_sign_in_at: datetime | None = None
+
+
+class AdminBookSectionListItem(BaseModel):
+    id: uuid.UUID
+    section_index: int
+    title: str
+    level: int
+    path: str
+    text_char_count: int
+    page_start: int | None = None
+    page_end: int | None = None
+    modes: list[str] = []
+    chunk_count: int = 0
+    has_text: bool = False
+
+
+class AdminSectionChunkItem(BaseModel):
+    id: int
+    chunk_index: int
+    content: str
+    search_text: str
+    embedding_model: str
+    embedding_version: str
+    char_count: int
+    token_count: int | None = None
+    has_embedding: bool = False
+
+
+class AdminBookSectionDetailResponse(BaseModel):
+    id: uuid.UUID
+    section_index: int
+    title: str
+    level: int
+    path: str
+    text_content: str | None = None
+    text_char_count: int
+    page_start: int | None = None
+    page_end: int | None = None
+    chunks: list[AdminSectionChunkItem] = []
+
+
 class AdminBookDetailResponse(AdminBookListItem):
     latest_job: AdminJobListItem | None = None
     learning_units_by_status: dict[str, int] = Field(default_factory=dict)
     segment_count: int = 0
+    owner_info: AdminBookOwnerInfo | None = None
 
 
 class AdminRetryJobResponse(BaseModel):
@@ -132,3 +181,31 @@ class AdminAuditLogsResponse(BaseModel):
     limit: int
     offset: int
     items: list[AdminAuditLogItem]
+
+
+class AdminExportChunkItem(BaseModel):
+    chunk_index: int
+    content: str
+    embedding_model: str
+    embedding_version: str
+    token_count: int | None = None
+    has_embedding: bool = False
+
+
+class AdminExportSectionItem(BaseModel):
+    section_index: int
+    title: str
+    level: int
+    path: str
+    page_start: int | None = None
+    page_end: int | None = None
+    modes: list[str] = []
+    chunks: list[AdminExportChunkItem] = []
+
+
+class AdminBookExportResponse(BaseModel):
+    book_id: uuid.UUID
+    title: str
+    author: str | None = None
+    document_type: str | None = None
+    sections: list[AdminExportSectionItem] = []
