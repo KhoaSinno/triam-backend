@@ -1,11 +1,11 @@
 import uuid
 from datetime import datetime, timezone
 
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 
 from app.core.constant import BookStatus, PlanMode, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import BadRequestError, BookNotFoundError, BookStatusConflictError, ExternalServiceError, ProcessingJobNotFoundError, ProcessingJobStatusConflictError
-from app.models.db_models import AdminAuditLog, AdminUser, Book, LearningUnit, ProcessingJob
+from app.models.db_models import AdminAuditLog, AdminUser, Book, LearningUnit, ProcessingJob, BookSection, BookSectionKnowledge
 from app.repositories.admin_repo import (
     count_learning_unit_segments_for_book,
     count_learning_units_by_status,
@@ -32,6 +32,13 @@ from app.schemas.admin import (
     AdminMeResponse,
     AdminRetryJobResponse,
     AdminUsersResponse,
+    AdminBookOwnerInfo,
+    AdminBookSectionListItem,
+    AdminSectionChunkItem,
+    AdminBookSectionDetailResponse,
+    AdminBookExportResponse,
+    AdminExportSectionItem,
+    AdminExportChunkItem,
 )
 from app.schemas.user import UserTokenPayload
 from app.services.upload_service import _planned_units_for_book
@@ -153,6 +160,25 @@ def get_book_detail(session: Session, book_id: uuid.UUID) -> AdminBookDetailResp
     ).all()
     book_modes = {mode.value for mode in rows}
 
+    owner_info = None
+    if book.user_id:
+        from app.repositories.admin_repo import auth_users
+        user_row = session.exec(
+            select(auth_users.c.id, auth_users.c.email, auth_users.c.created_at, auth_users.c.last_sign_in_at, auth_users.c.raw_user_meta_data)
+            .where(auth_users.c.id == book.user_id)
+        ).first()
+        if user_row:
+            u_id, email, c_at, l_in, meta = user_row
+            meta_dict = meta if isinstance(meta, dict) else {}
+            owner_info = AdminBookOwnerInfo(
+                user_id=u_id,
+                email=email,
+                display_name=meta_dict.get("name") or meta_dict.get("full_name"),
+                avatar_url=meta_dict.get("avatar_url") or meta_dict.get("picture"),
+                account_created_at=c_at,
+                last_sign_in_at=l_in
+            )
+
     return AdminBookDetailResponse(
         id=book.id,
         user_id=book.user_id,
@@ -172,6 +198,7 @@ def get_book_detail(session: Session, book_id: uuid.UUID) -> AdminBookDetailResp
         latest_job=AdminJobListItem.model_validate(latest_job) if latest_job else None,
         learning_units_by_status=count_learning_units_by_status(session, book_id),
         segment_count=count_learning_unit_segments_for_book(session, book_id),
+        owner_info=owner_info,
     )
 
 
@@ -401,5 +428,175 @@ async def start_admin_book_processing(
     return AdminRetryJobResponse(
         job=AdminJobListItem.model_validate(job),
         message="Sách đã được đưa vào hàng đợi xử lý âm thanh & vector."
+    )
+
+
+def get_book_sections(session: Session, book_id: uuid.UUID) -> list[AdminBookSectionListItem]:
+    sections = session.exec(
+        select(BookSection)
+        .where(BookSection.book_id == book_id)
+        .order_by(BookSection.section_index.asc())
+    ).all()
+    
+    chunks_count_map = {}
+    if sections:
+        chunk_counts = session.exec(
+            select(BookSectionKnowledge.section_id, func.count(BookSectionKnowledge.id))
+            .where(BookSectionKnowledge.book_id == book_id)
+            .group_by(BookSectionKnowledge.section_id)
+        ).all()
+        chunks_count_map = {s_id: count for s_id, count in chunk_counts}
+
+    # Query modes for sections
+    from app.models.db_models import LearningUnitSource
+    section_modes_map = {}
+    if sections:
+        rows = session.exec(
+            select(LearningUnitSource.section_id, LearningUnit.mode)
+            .join(LearningUnit, LearningUnit.id == LearningUnitSource.learning_unit_id)
+            .where(LearningUnit.book_id == book_id)
+        ).all()
+        for s_id, mode in rows:
+            section_modes_map.setdefault(s_id, set()).add(mode.value)
+
+    return [
+        AdminBookSectionListItem(
+            id=s.id,
+            section_index=s.section_index,
+            title=s.title,
+            level=s.level,
+            path=s.path,
+            text_char_count=s.text_char_count,
+            page_start=s.page_start,
+            page_end=s.page_end,
+            modes=list(section_modes_map.get(s.id, set())),
+            chunk_count=chunks_count_map.get(s.id, 0),
+            has_text=bool(s.text_content and s.text_content.strip())
+        )
+        for s in sections
+    ]
+
+
+def get_book_section_detail(session: Session, book_id: uuid.UUID, section_id: uuid.UUID) -> AdminBookSectionDetailResponse:
+    from fastapi import HTTPException
+    section = session.exec(
+        select(BookSection)
+        .where(BookSection.book_id == book_id, BookSection.id == section_id)
+    ).first()
+    
+    if not section:
+        raise HTTPException(status_code=404, detail="Không tìm thấy mục lục sách.")
+
+    chunks = session.exec(
+        select(BookSectionKnowledge)
+        .where(BookSectionKnowledge.section_id == section_id)
+        .order_by(BookSectionKnowledge.chunk_index.asc())
+    ).all()
+
+    chunk_items = [
+        AdminSectionChunkItem(
+            id=c.id,
+            chunk_index=c.chunk_index,
+            content=c.content,
+            search_text=c.search_text,
+            embedding_model=c.embedding_model,
+            embedding_version=c.embedding_version,
+            char_count=c.char_count,
+            token_count=c.token_count if c.token_count is not None else int(len(c.content.split()) * 1.3),
+            has_embedding=c.embedding is not None
+        )
+        for c in chunks
+    ]
+
+    return AdminBookSectionDetailResponse(
+        id=section.id,
+        section_index=section.section_index,
+        title=section.title,
+        level=section.level,
+        path=section.path,
+        text_content=section.text_content,
+        text_char_count=section.text_char_count,
+        page_start=section.page_start,
+        page_end=section.page_end,
+        chunks=chunk_items
+    )
+
+
+def get_book_jobs(session: Session, book_id: uuid.UUID) -> list[AdminJobListItem]:
+    jobs = session.exec(
+        select(ProcessingJob)
+        .where(ProcessingJob.book_id == book_id)
+        .order_by(ProcessingJob.created_at.desc())
+    ).all()
+    
+    return [AdminJobListItem.model_validate(j) for j in jobs]
+
+
+def export_book_json(session: Session, book_id: uuid.UUID) -> AdminBookExportResponse:
+    from app.models.db_models import LearningUnitSource
+    book = get_admin_book_by_id(session, book_id)
+    if not book:
+        raise BookNotFoundError()
+
+    sections = session.exec(
+        select(BookSection)
+        .where(BookSection.book_id == book_id)
+        .order_by(BookSection.section_index.asc())
+    ).all()
+
+    chunks = session.exec(
+        select(BookSectionKnowledge)
+        .where(BookSectionKnowledge.book_id == book_id)
+        .order_by(BookSectionKnowledge.section_id, BookSectionKnowledge.chunk_index.asc())
+    ).all()
+
+    chunks_by_section = {}
+    for c in chunks:
+        chunks_by_section.setdefault(c.section_id, []).append(c)
+
+    section_modes_map = {}
+    if sections:
+        rows = session.exec(
+            select(LearningUnitSource.section_id, LearningUnit.mode)
+            .join(LearningUnit, LearningUnit.id == LearningUnitSource.learning_unit_id)
+            .where(LearningUnit.book_id == book_id)
+        ).all()
+        for s_id, mode in rows:
+            section_modes_map.setdefault(s_id, set()).add(mode.value)
+
+    section_items = []
+    for s in sections:
+        s_chunks = chunks_by_section.get(s.id, [])
+        chunk_items = [
+            AdminExportChunkItem(
+                chunk_index=c.chunk_index,
+                content=c.content,
+                embedding_model=c.embedding_model,
+                embedding_version=c.embedding_version,
+                token_count=c.token_count if c.token_count is not None else int(len(c.content.split()) * 1.3),
+                has_embedding=c.embedding is not None
+            )
+            for c in s_chunks
+        ]
+        
+        section_items.append(
+            AdminExportSectionItem(
+                section_index=s.section_index,
+                title=s.title,
+                level=s.level,
+                path=s.path,
+                page_start=s.page_start,
+                page_end=s.page_end,
+                modes=list(section_modes_map.get(s.id, set())),
+                chunks=chunk_items
+            )
+        )
+
+    return AdminBookExportResponse(
+        book_id=book.id,
+        title=book.title,
+        author=book.author,
+        document_type=book.document_type,
+        sections=section_items
     )
 

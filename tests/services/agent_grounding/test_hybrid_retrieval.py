@@ -10,10 +10,6 @@ from app.services.agent_grounding.hybrid_retrieval import (
 
 def _config(**overrides):
     values = {
-        "vector_weight": 0.60,
-        "lexical_weight": 0.30,
-        "title_match_boost": 0.07,
-        "multi_source_boost": 0.03,
         "min_final_score": 0.25,
         "max_context_chunks": 6,
         "max_chunks_per_section": 2,
@@ -61,7 +57,7 @@ def test_merge_candidates_deduplicates_vector_and_lexical_hits():
     assert candidates[0].sources == {"vector", "lexical"}
 
 
-def test_rerank_boosts_multi_source_and_title_match():
+def test_rerank_prioritizes_multi_source_hits():
     vector = [_candidate_payload(1, similarity=0.50), _candidate_payload(2, section_title="Other", similarity=0.58)]
     lexical = [_candidate_payload(1, lexical_score=0.60)]
     candidates = merge_candidates(vector, lexical)

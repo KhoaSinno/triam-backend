@@ -5,6 +5,10 @@ from pydantic.v1.env_settings import BaseSettings
 
 load_dotenv(override=True)
 
+import os
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
+
 
 class Settings(BaseSettings):
     OPENAI_API_KEY: str
@@ -29,7 +33,7 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str
 
     # TTS
-    EDGE_TTS_VOICE: str = "vi-VN-HoaiMyNeural"
+    EDGE_TTS_VOICE: str = "en-US-AvaMultilingualNeural"
     TTS_PROVIDER: str = "edge"
     TTS_RECEIVE_TIMEOUT_SECONDS: int = 300
     TTS_RETRY_BASE_SECONDS: int = 3
@@ -51,7 +55,7 @@ class Settings(BaseSettings):
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-mini"
     OPENAI_REALTIME_VOICE: str = "cedar"
     # Text and local console test behavior
-    VOICE_AGENT_HISTORY_LIMIT: int = 12
+    VOICE_AGENT_HISTORY_LIMIT: int = 24
     VOICE_AGENT_RAG_MAX_CHARS: int = 12000
     # Local console fallback only. Production LiveKit rooms must provide
     # thread_id and document_ids through job metadata from the backend token flow.
@@ -69,8 +73,8 @@ class Settings(BaseSettings):
     OPENAI_REALTIME_INPUT_AUDIO_NOISE_REDUCTION: str = "near_field"
 
     VOICE_AGENT_TEXT_LLM_MODEL: str = "gpt-4o-mini"
-    VOICE_AGENT_ENABLE_WEB_SEARCH_BY_DEFAULT: bool = False
-    VOICE_AGENT_LOG_TRANSCRIPT_TEXT: bool = False
+    VOICE_AGENT_ENABLE_WEB_SEARCH_BY_DEFAULT: bool = True
+    VOICE_AGENT_LOG_TRANSCRIPT_TEXT: bool = True
     VOICE_AGENT_DEDUPE_WINDOW_SECONDS: int = 3
     VOICE_AGENT_WEB_PERMISSION_TTL_SECONDS: int = 180
     # Policy websearch
@@ -97,8 +101,8 @@ class Settings(BaseSettings):
 
     # Phase 10.11 Voice Tool Reply Watchdog config
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_ENABLED: bool = True
-    VOICE_AGENT_TOOL_REPLY_WATCHDOG_GRACE_SECONDS: float = 2.0
-    VOICE_AGENT_TOOL_REPLY_WATCHDOG_THINKING_GRACE_SECONDS: float = 4.0
+    VOICE_AGENT_TOOL_REPLY_WATCHDOG_GRACE_SECONDS: float = 4.0
+    VOICE_AGENT_TOOL_REPLY_WATCHDOG_THINKING_GRACE_SECONDS: float = 8.0
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_TOOLS: str = "search_book_knowledge,ask_web_search_permission,execute_web_search"
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_ALLOW_ERROR_OUTPUTS: bool = False
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_FORCE_TOOL_CHOICE_NONE: bool = True
@@ -107,17 +111,13 @@ class Settings(BaseSettings):
     AGENT_TRACE_ENABLED: bool = True
     AGENT_TRACE_SCORE_PRECISION: int = 4
     AGENT_TRACE_LATE_TRANSCRIPT_WINDOW_SECONDS: float = 15.0
-    AGENT_GROUNDING_ROUTER_ENABLED: bool = False
+    AGENT_GROUNDING_ROUTER_ENABLED: bool = True
     AGENT_SHARED_POLICY_ENABLED: bool = True
+    AGENT_INTENT_CLASSIFIER_MODEL: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    AGENT_INTENT_CLASSIFIER_THRESHOLD: float = 0.60
     AGENT_SECTION_CONTEXT_MAX_CHARS: int = 24000
-    # Hybrid RAG
-    AGENT_HYBRID_RAG_ENABLED: bool = True
-    AGENT_HYBRID_VECTOR_WEIGHT: float = 0.60
-    AGENT_HYBRID_LEXICAL_WEIGHT: float = 0.30
-    AGENT_HYBRID_TITLE_MATCH_BOOST: float = 0.07
-    AGENT_HYBRID_MULTI_SOURCE_BOOST: float = 0.03
+
     AGENT_HYBRID_MIN_FINAL_SCORE: float = 0.25
-    AGENT_HYBRID_VECTOR_CANDIDATES: int = 20
     AGENT_HYBRID_LEXICAL_CANDIDATES: int = 20
     AGENT_HYBRID_MAX_CONTEXT_CHUNKS: int = 12
     AGENT_HYBRID_MAX_CHUNKS_PER_SECTION: int = 2
@@ -190,12 +190,10 @@ class Settings(BaseSettings):
     BOOK_SECTION_RAG_MATCH_COUNT: int = 10
 
     # Pareto learning unit planner
-    PARETO_PLANNER_LLM_ENABLED: bool = True
     PARETO_PLANNER_MODEL: str = "gemini-3.5-flash"
     PARETO_PLANNER_TIMEOUT_SECONDS: float = 25.0
     PARETO_PLANNER_MAX_UNITS: int = 8
     PARETO_PLANNER_MIN_UNITS: int = 3
-    PARETO_PLANNER_LLM_MIN_CARDS: int = 1
     PARETO_TARGET_COVERAGE_RATIO: float = 0.25
     PARETO_SECTION_EXCERPT_CHARS: int = 1400
     PARETO_PLANNER_MAX_SECTION_CARDS: int = 120
@@ -216,7 +214,7 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_FILE: str | None = None
 
     # Phase 4.2 production learning loop
-    MAX_ACTIVE_LEARNING_BOOKS_PER_USER: int = 3
+    MAX_ACTIVE_LEARNING_BOOKS_PER_USER: int = 7
     LEARNING_COMPLETION_THRESHOLD_PERCENT: int = 80
     LEARNING_PROGRESS_MIN_DELTA_PERCENT: int = 5
     LEARNING_PROGRESS_STALE_SECONDS: int = 30

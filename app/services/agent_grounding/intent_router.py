@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import torch
 from transformers import AutoTokenizer, AutoModel
+from app.core.config import settings
 from app.services.agent_grounding.contracts import GroundingIntent, NormalizedQuery
 
 # Định nghĩa các câu mẫu đặc trưng đại diện cho từng lớp Ý định (Intent Class)
@@ -87,7 +88,7 @@ def mean_pooling(model_output, attention_mask):
 
 class SemanticIntentClassifier:
     def __init__(self) -> None:
-        self.model_name = "sentence-transformers/all-MiniLM-L6-v2"
+        self.model_name = settings.AGENT_INTENT_CLASSIFIER_MODEL or "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
         self.tokenizer = None
         self.model = None
         self.proto_embeddings = {}
@@ -128,11 +129,12 @@ class SemanticIntentClassifier:
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, self.initialize)
 
-    async def classify(self, query_text: str, threshold: float = 0.65) -> GroundingIntent:
+    async def classify(self, query_text: str, threshold: float | None = None) -> GroundingIntent:
         """
         Tính toán cosine similarity của câu hỏi với các mẫu.
         Nếu điểm số cao nhất dưới threshold, mặc định trả về RAG (BOOK_SEMANTIC_QUESTION).
         """
+        resolved_threshold = threshold if threshold is not None else settings.AGENT_INTENT_CLASSIFIER_THRESHOLD
         await self.initialize_async()
         
         text = query_text.strip().lower()
@@ -156,7 +158,7 @@ class SemanticIntentClassifier:
                     best_score = max_sim
                     best_intent = intent
                     
-            if best_score >= threshold:
+            if best_score >= resolved_threshold:
                 # Kiểm duyệt biên: Nếu hỏi nội dung tác giả viết (RAG) thay vì danh tính tác giả (Metadata)
                 if best_intent == GroundingIntent.BOOK_METADATA_AUTHOR:
                     has_content_verb = any(v in text for v in AUTHOR_CONTENT_VERBS)

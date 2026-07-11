@@ -125,15 +125,14 @@ def classify_voice_reply_intent_fast_path(text: str, *, max_grant_tokens: int = 
     if not normalized:
         return None
 
-    if looks_like_new_question(text, normalized):
-        return VoiceReplyIntentResult("new_question", 0.88, "Explicit question mark detected", "fast_path")
-
-    # Constrain fast path positive/negative matching to short replies only to avoid false positives on long queries
     token_count = len(normalized.split())
+    # Constrain fast path positive/negative matching to short replies only
     if token_count > max(4, max_grant_tokens):
+        if looks_like_new_question(text, normalized):
+            return VoiceReplyIntentResult("new_question", 0.88, "Explicit question mark detected", "fast_path")
         return None
 
-    # For negative check:
+    # 1. Check negative phrases first
     for phrase in NEGATIVE_PHRASES:
         if phrase in CONTEXT_SENSITIVE_NEGATIONS:
             if token_count <= 2 and phrase_in_text(phrase, normalized):
@@ -142,18 +141,21 @@ def classify_voice_reply_intent_fast_path(text: str, *, max_grant_tokens: int = 
             if phrase_in_text(phrase, normalized):
                 return VoiceReplyIntentResult("deny", 0.96, "Matched negative fast path", "fast_path")
 
+    # 2. Check positive action phrases
     if any(phrase_in_text(phrase, normalized) for phrase in POSITIVE_ACTION_PHRASES):
         return VoiceReplyIntentResult("grant", 0.96, "Matched positive action fast path", "fast_path")
 
-    # For positive short replies:
+    # 3. Check positive short replies
     for phrase in POSITIVE_SHORT_REPLIES:
         if phrase in CONTEXT_SENSITIVE_CONFIRMATIONS:
-            # Only match context-sensitive confirmations if it's a very short response (<= 2 tokens)
-            # to avoid false positives on yes/no questions (e.g. "chương này có không")
             if token_count <= 2 and phrase_in_text(phrase, normalized):
                 return VoiceReplyIntentResult("grant", 0.94, "Matched short positive fast path", "fast_path")
         else:
             if phrase_in_text(phrase, normalized):
                 return VoiceReplyIntentResult("grant", 0.94, "Matched short positive fast path", "fast_path")
+
+    # 4. Check if it looks like a new question only if it does not match positive/negative phrases
+    if looks_like_new_question(text, normalized):
+        return VoiceReplyIntentResult("new_question", 0.88, "Explicit question mark detected", "fast_path")
 
     return None

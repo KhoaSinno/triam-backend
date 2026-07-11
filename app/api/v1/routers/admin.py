@@ -18,6 +18,10 @@ from app.schemas.admin import (
     AdminMeResponse,
     AdminRetryJobResponse,
     AdminUsersResponse,
+    AdminBookSectionListItem,
+    AdminBookSectionDetailResponse,
+    AdminJobListItem,
+    AdminBookExportResponse,
 )
 from app.schemas.responses import BookResponse
 from app.services import admin_service
@@ -81,6 +85,43 @@ def read_admin_book_detail(
     session: Annotated[Session, Depends(get_session)],
 ):
     return admin_service.get_book_detail(session, book_id)
+
+
+@router.get("/books/{book_id}/sections", response_model=list[AdminBookSectionListItem])
+def read_admin_book_sections(
+    book_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.get_book_sections(session, book_id)
+
+
+@router.get("/books/{book_id}/sections/{section_id}", response_model=AdminBookSectionDetailResponse)
+def read_admin_book_section_detail(
+    book_id: uuid.UUID,
+    section_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.get_book_section_detail(session, book_id, section_id)
+
+
+@router.get("/books/{book_id}/jobs", response_model=list[AdminJobListItem])
+def read_admin_book_jobs(
+    book_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.get_book_jobs(session, book_id)
+
+
+@router.get("/books/{book_id}/export-json", response_model=AdminBookExportResponse)
+def export_admin_book_json(
+    book_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.export_book_json(session, book_id)
 
 
 @router.get("/jobs", response_model=AdminJobsResponse)

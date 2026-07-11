@@ -99,10 +99,11 @@ def test_safe_model_config_includes_section_rag_runtime_flags():
 
     config = safe_model_config_from_settings(settings)
 
-    assert "AGENT_HYBRID_RAG_ENABLED" in config
     assert "BOOK_SECTION_EMBEDDING_VERSION" in config
     assert "BOOK_SECTION_RAG_MATCH_THRESHOLD" in config
     assert "BOOK_SECTION_RAG_MATCH_COUNT" in config
+    # AGENT_HYBRID_RAG_ENABLED đã bị xóa vì Hybrid RAG luôn bật
+    assert "AGENT_HYBRID_RAG_ENABLED" not in config
 
 
 def test_classify_failure_codes_marks_missing_section_trace_as_trace_coverage():

@@ -103,10 +103,6 @@ def _hybrid_config() -> HybridRetrievalConfig:
         max_chunks = settings.AGENT_RERANKER_CANDIDATES_LIMIT
 
     return HybridRetrievalConfig(
-        vector_weight=settings.AGENT_HYBRID_VECTOR_WEIGHT,
-        lexical_weight=settings.AGENT_HYBRID_LEXICAL_WEIGHT,
-        title_match_boost=settings.AGENT_HYBRID_TITLE_MATCH_BOOST,
-        multi_source_boost=settings.AGENT_HYBRID_MULTI_SOURCE_BOOST,
         min_final_score=settings.AGENT_HYBRID_MIN_FINAL_SCORE,
         max_context_chunks=max_chunks,
         max_chunks_per_section=settings.AGENT_HYBRID_MAX_CHUNKS_PER_SECTION,
@@ -179,7 +175,5 @@ async def search_book_hybrid_knowledge(
 
 
 async def search_book_knowledge(query: str, document_ids: list[str]) -> list[dict[str, Any]] | str:
-    if settings.AGENT_HYBRID_RAG_ENABLED:
-        return await search_book_hybrid_knowledge(query, document_ids)
-
-    return await search_book_section_knowledge(query, document_ids)
+    """Tìm kiếm kiến thức sách bằng Hybrid RAG pipeline (vector + lexical + rerank)."""
+    return await search_book_hybrid_knowledge(query, document_ids)

@@ -740,6 +740,10 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 section_context_max_chars=settings.AGENT_SECTION_CONTEXT_MAX_CHARS,
             )
             log.info(f"Grounding router ready | books={len(grounding_scope.books)} | sections={len(grounding_scope.sections)} | load_ms={int((time.perf_counter() - grounding_started) * 1000)}")
+
+            # Pre-warm local embedding classifiers in the background
+            from app.services.voice_agent.web_permission_intent_classifier import _initialize_permission_prototypes_async
+            asyncio.create_task(_initialize_permission_prototypes_async())
         except Exception:
             log.exception("Failed to initialize grounding router")
             grounding_scope = None
