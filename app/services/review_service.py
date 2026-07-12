@@ -1,13 +1,20 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from sqlmodel import Session
 
-from app.core.constant import PlanMode
+from app.core.constant import PlanMode, ReviewItemStatus
 from app.core.exceptions import BadRequestError, ReviewItemNotFoundError
 from app.models.db_models import Book, LearningUnit, SpacedReviewItem
-from app.repositories.spaced_review_repo import get_review_item_for_user, list_review_items_for_user, mark_review_item_completed, mark_review_item_skipped
+from app.repositories.spaced_review_repo import (
+    create_review_item_once,
+    get_review_item_for_user,
+    list_review_items_for_user,
+    mark_review_item_completed,
+    mark_review_item_skipped,
+)
 from app.schemas.review import ReviewActionResponse, ReviewItemResponse, ReviewListResponse
+from app.services.spaced_review_service import SPACED_REVIEW_INTERVALS
 
 
 def _to_review_item_response(session: Session, item: SpacedReviewItem) -> ReviewItemResponse:
@@ -71,11 +78,41 @@ def get_review_item_detail(session: Session, *, user_id: uuid.UUID, review_item_
     return _to_review_item_response(session, item)
 
 
+def _create_next_review_cycle_if_applicable(
+    session: Session,
+    current_item: SpacedReviewItem,
+    now: datetime,
+) -> SpacedReviewItem | None:
+    next_index = current_item.sequence_index + 1
+    if next_index >= len(SPACED_REVIEW_INTERVALS):
+        return None
+
+    next_interval_days = SPACED_REVIEW_INTERVALS[next_index]
+    
+    next_item = SpacedReviewItem(
+        user_id=current_item.user_id,
+        book_id=current_item.book_id,
+        learning_unit_id=current_item.learning_unit_id,
+        mode=current_item.mode,
+        interval_days=next_interval_days,
+        sequence_index=next_index,
+        due_at=now + timedelta(days=next_interval_days),
+        status=ReviewItemStatus.PENDING,
+        review_text_snapshot=current_item.review_text_snapshot,
+        anchor_completed_at=current_item.anchor_completed_at,
+        source_unit_progress_id=current_item.source_unit_progress_id,
+    )
+    
+    return create_review_item_once(session, next_item)
+
+
 def complete_review_item(session: Session, *, user_id: uuid.UUID, review_item_id: uuid.UUID) -> ReviewActionResponse:
     item = get_review_item_for_user(session, user_id=user_id, review_item_id=review_item_id)
     if not item:
         raise ReviewItemNotFoundError()
-    saved = mark_review_item_completed(session, item, completed_at=datetime.now(timezone.utc))
+    now = datetime.now(timezone.utc)
+    saved = mark_review_item_completed(session, item, completed_at=now)
+    _create_next_review_cycle_if_applicable(session, saved, now)
     return ReviewActionResponse(review_item_id=saved.id, status=saved.status, completed_at=saved.completed_at)
 
 
@@ -83,5 +120,7 @@ def skip_review_item(session: Session, *, user_id: uuid.UUID, review_item_id: uu
     item = get_review_item_for_user(session, user_id=user_id, review_item_id=review_item_id)
     if not item:
         raise ReviewItemNotFoundError()
-    saved = mark_review_item_skipped(session, item, skipped_at=datetime.now(timezone.utc))
+    now = datetime.now(timezone.utc)
+    saved = mark_review_item_skipped(session, item, skipped_at=now)
+    _create_next_review_cycle_if_applicable(session, saved, now)
     return ReviewActionResponse(review_item_id=saved.id, status=saved.status, completed_at=saved.completed_at)

@@ -34,22 +34,21 @@ def create_spaced_reviews_after_unit_completion(
         return []
 
     mode_value = PlanMode(mode)
-    created: list[SpacedReviewItem] = []
-    for index, days in enumerate(SPACED_REVIEW_INTERVALS):
-        item = SpacedReviewItem(
-            user_id=user_id,
-            book_id=book_id,
-            learning_unit_id=learning_unit_id,
-            mode=mode_value,
-            interval_days=days,
-            sequence_index=index,
-            due_at=completed_at + timedelta(days=days),
-            status=ReviewItemStatus.PENDING,
-            review_text_snapshot=clean_review_text,
-            anchor_completed_at=completed_at,
-            source_unit_progress_id=source_unit_progress_id,
-        )
-        created_item = create_review_item_once(session, item)
-        if created_item:
-            created.append(created_item)
-    return created
+    first_interval_days = SPACED_REVIEW_INTERVALS[0]
+    
+    item = SpacedReviewItem(
+        user_id=user_id,
+        book_id=book_id,
+        learning_unit_id=learning_unit_id,
+        mode=mode_value,
+        interval_days=first_interval_days,
+        sequence_index=0,
+        due_at=completed_at + timedelta(days=first_interval_days),
+        status=ReviewItemStatus.PENDING,
+        review_text_snapshot=clean_review_text,
+        anchor_completed_at=completed_at,
+        source_unit_progress_id=source_unit_progress_id,
+    )
+    created_item = create_review_item_once(session, item)
+    return [created_item] if created_item else []
+
