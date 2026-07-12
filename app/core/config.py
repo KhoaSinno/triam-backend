@@ -6,7 +6,9 @@ from pydantic.v1.env_settings import BaseSettings
 load_dotenv(override=True)
 
 import os
-os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
+if "SPACE_ID" not in os.environ and os.environ.get("RUNNING_ON_HF_SPACES") != "true":
+    os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
 
 
 
