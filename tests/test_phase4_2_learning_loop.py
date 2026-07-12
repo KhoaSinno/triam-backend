@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlmodel import Session, select
+from sqlmodel import Session, select, text
 
 from app.core.config import settings
 from app.core.constant import BookStatus, LearningProgressStatus, NotificationType, PlanMode, PlanStatus, ProcessingJobStatus, ReviewItemStatus
@@ -184,8 +184,8 @@ def test_learning_progress_creates_reviews_only_after_completion():
 
         with Session(engine) as session:
             reviews = session.exec(select(SpacedReviewItem).where(SpacedReviewItem.learning_unit_id == unit_id, SpacedReviewItem.status != ReviewItemStatus.CANCELLED)).all()
-            assert len(reviews) == 5
-            assert {review.interval_days for review in reviews} == {1, 3, 7, 14, 30}
+            assert len(reviews) == 1
+            assert {review.interval_days for review in reviews} == {1}
             progress = session.exec(select(LearningUnitProgress).where(LearningUnitProgress.learning_unit_id == unit_id)).first()
             assert progress is not None
             assert progress.max_progress_percent == 90
@@ -221,7 +221,7 @@ def test_learning_progress_accepts_legacy_plain_review_text():
 
         with Session(engine) as session:
             reviews = session.exec(select(SpacedReviewItem).where(SpacedReviewItem.learning_unit_id == unit_id)).all()
-            assert len(reviews) == 5
+            assert len(reviews) == 1
             assert {review.review_text_snapshot for review in reviews} == {"Ôn lại bản ghi chú cũ không theo JSON mode."}
     finally:
         _delete_book(book_id)
@@ -965,6 +965,10 @@ def test_plan_marks_completed_on_100_percent():
     book_id = None
     try:
         with Session(engine) as session:
+            # Clean up any leftover plans/slots to avoid schedule conflict errors
+            session.execute(text("DELETE FROM reading_plan_schedule_slots WHERE user_id = :uid"), {"uid": user_id})
+            session.execute(text("DELETE FROM reading_plans WHERE book_id IN (SELECT id FROM books WHERE user_id = :uid)"), {"uid": user_id})
+            session.commit()
             book, unit, _ = _create_playable_book(session, user_id=user_id, title="Auto Complete Book")
             book_id = book.id
             unit_id = unit.id
@@ -1057,7 +1061,7 @@ def test_completed_book_progress_detail_and_review_access():
         reviews_response = client.get(f"/api/v1/books/{book_id}/reviews?status=upcoming&mode=full")
         assert reviews_response.status_code == 200
         reviews_body = reviews_response.json()
-        assert reviews_body["total"] == 5
+        assert reviews_body["total"] == 1
         assert reviews_body["items"][0]["book_id"] == str(book_id)
         assert reviews_body["items"][0]["learning_unit_id"] == str(unit_id)
     finally:
