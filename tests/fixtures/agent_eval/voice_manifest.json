@@ -68,5 +68,61 @@
     "must_not_include": [],
     "web_search_enabled": true,
     "web_search_allowed": false
+  },
+  {
+    "id": "mice-relationships-vi-voice",
+    "input_mode": "voice",
+    "audio_fixture": "tests/fixtures/voice_relationships.wav",
+    "expected_transcript_meaning": "Trong tác phẩm Of Mice and Men, các nhân vật chính có mối quan hệ với nhau như thế nào?",
+    "transcript_must_include_any": ["mối quan hệ", "quan hệ", "nhân vật"],
+    "expected_intent": "book_semantic_question",
+    "expected_answer_source": "book_rag",
+    "expected_section_paths": ["1", "2", "3", "4", "5", "6"],
+    "must_include": ["George", "Lennie"],
+    "must_not_include": [],
+    "web_search_enabled": false,
+    "web_search_allowed": false
+  },
+  {
+    "id": "mice-animals-vi-voice",
+    "input_mode": "voice",
+    "audio_fixture": "tests/fixtures/voice_animals.wav",
+    "expected_transcript_meaning": "Những con vật nào xuất hiện và có liên quan mật thiết đến các nhân vật trong truyện?",
+    "transcript_must_include_any": ["con vật", "động vật", "nhân vật"],
+    "expected_intent": "book_semantic_question",
+    "expected_answer_source": "book_rag",
+    "expected_section_paths": ["1", "2", "3", "5"],
+    "must_include": ["chó", "chuột"],
+    "must_not_include": [],
+    "web_search_enabled": false,
+    "web_search_allowed": false
+  },
+  {
+    "id": "mice-ending-death-vi-voice",
+    "input_mode": "voice",
+    "audio_fixture": "tests/fixtures/voice_ending_death.wav",
+    "expected_transcript_meaning": "Tại sao trong cảnh cuối cùng của tác phẩm, George lại quyết định bắn chết Lennie?",
+    "transcript_must_include_any": ["cuối cùng", "bắn chết", "chết", "George", "Lennie"],
+    "expected_intent": "book_semantic_question",
+    "expected_answer_source": "book_rag",
+    "expected_section_paths": ["6"],
+    "must_include": ["George", "Lennie", "bắn"],
+    "must_not_include": [],
+    "web_search_enabled": false,
+    "web_search_allowed": false
+  },
+  {
+    "id": "mice-similar-works-vi-voice",
+    "input_mode": "voice",
+    "audio_fixture": "tests/fixtures/voice_similar_works.wav",
+    "expected_transcript_meaning": "Hãy giúp tôi tìm các tác phẩm tương tự có cùng chủ đề hoặc phong cách với cuốn sách hiện tại.",
+    "transcript_must_include_any": ["tương tự", "tác phẩm", "chủ đề"],
+    "expected_intent": "external_current_info",
+    "expected_answer_source": "web",
+    "expected_section_paths": [],
+    "must_include": ["tác phẩm"],
+    "must_not_include": [],
+    "web_search_enabled": true,
+    "web_search_allowed": true
   }
 ]

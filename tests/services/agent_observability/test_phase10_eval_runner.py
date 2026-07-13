@@ -183,8 +183,8 @@ def test_case_isolation_quality_reports_room_only_for_shared_thread_reconnect():
     assert case_isolation_quality({"input_mode": "text"}, args) == "not_applicable"
 
 
-def test_evaluate_case_accepts_clarification_source_as_clarification_intent():
-    result = evaluate_case(
+async def test_evaluate_case_accepts_clarification_source_as_clarification_intent():
+    result = await evaluate_case(
         {
             "id": "ambiguous",
             "input_mode": "voice",
@@ -212,8 +212,8 @@ def test_evaluate_case_accepts_clarification_source_as_clarification_intent():
     assert result["checks"]["expected_answer_source"] is True
 
 
-def test_evaluate_case_marks_minor_stt_warning_without_failing_semantic_success():
-    result = evaluate_case(
+async def test_evaluate_case_marks_minor_stt_warning_without_failing_semantic_success():
+    result = await evaluate_case(
         {
             "id": "author",
             "input_mode": "voice",
