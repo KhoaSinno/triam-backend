@@ -75,6 +75,21 @@ PROTOTYPES = {
         "tổng số mục trong sách",
         "how many sections",
         "section count"
+    ],
+    GroundingIntent.EXTERNAL_CURRENT_INFO: [
+        "giá thị trường hôm nay là bao nhiêu",
+        "tin tức mới nhất hôm nay",
+        "thời tiết hôm nay thế nào",
+        "giá vàng hiện nay",
+        "thời tiết hiện tại",
+        "tin tức thời sự bây giờ",
+        "current market price today",
+        "latest news today",
+        "thời tiết hôm nay ra sao",
+        "tin hot ngày hôm nay",
+        "tìm các tác phẩm tương tự",
+        "các tác phẩm cùng thể loại",
+        "similar books to this one"
     ]
 }
 

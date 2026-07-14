@@ -95,6 +95,22 @@ def setup_logger():
         diagnose=False,
     )
 
+    # 4. Cấu hình log riêng cho phiên chạy console test
+    if "console" in sys.argv:
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        session_log_dir = LOG_DIR / "agent_eval"
+        session_log_dir.mkdir(parents=True, exist_ok=True)
+        logger.add(
+            session_log_dir / f"voice_console_{timestamp}.log",
+            level=app_log_level,
+            format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} - {message}",
+            encoding="utf-8",
+            filter=redact_filter,
+            backtrace=False,
+            diagnose=False,
+        )
+
     # Chuyển hướng log từ standard logging của Python sang loguru
     class InterceptHandler(logging.Handler):
         def emit(self, record):

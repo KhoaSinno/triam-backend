@@ -42,23 +42,23 @@ def get_retrieved_context(chunk_ids: list[str]) -> str:
     if not chunk_ids:
         return ""
 
-    # Chuyển đổi chuỗi UUID sang đối tượng UUID nếu cần
-    uuids = []
+    # Chuyển đổi chuỗi ID sang dạng integer để truy vấn
+    ids = []
     for cid in chunk_ids:
         try:
-            uuids.append(uuid.UUID(cid))
+            ids.append(int(cid))
         except (ValueError, TypeError):
             continue
 
-    if not uuids:
+    if not ids:
         return ""
 
     with Session(engine) as db_session:
-        statement = select(BookSectionKnowledge).where(BookSectionKnowledge.id.in_(uuids))
+        statement = select(BookSectionKnowledge).where(BookSectionKnowledge.id.in_(ids))
         chunks = db_session.exec(statement).all()
         # Sắp xếp các đoạn văn bản theo thứ tự xuất hiện ban đầu của chunk_ids nhận được từ trace
         chunk_map = {c.id: c.content for c in chunks}
-        ordered_contents = [chunk_map[uid] for uid in uuids if uid in chunk_map]
+        ordered_contents = [chunk_map[idx] for idx in ids if idx in chunk_map]
         return "\n\n".join(ordered_contents)
 
 

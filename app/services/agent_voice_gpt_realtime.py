@@ -1073,7 +1073,11 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 payload = json.loads(raw)
                 if payload.get("type") == "toggle_web_search":
                     web_search_policy.set_enabled(bool(payload.get("enabled", False)))
-                    log.info(f"Web search toggle: {'BẬT' if web_search_policy.enabled else 'TẮT'}")
+                    if payload.get("allowed"):
+                        web_search_policy.pre_grant_for_eval()
+                    else:
+                        web_search_policy.clear()
+                    log.info(f"Web search toggle: {'BẬT' if web_search_policy.enabled else 'TẮT'} | allowed={payload.get('allowed')}")
             except json.JSONDecodeError:
                 log.info("lk.control: payload không phải JSON hợp lệ")
             return
@@ -1169,14 +1173,14 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
 
         if item.role == "user":
             tracer.ensure_turn(AgentInputMode.VOICE)
-            log.info(f"User voice speech saved | text_len={len(text)} | thread_id={thread_uuid}")
+            log.info(f"User voice speech saved | text='{text}' | thread_id={thread_uuid}")
             voice_turn_state.record_committed_user_text(text)
             _record_web_permission_reply(text)
             asyncio.create_task(transcript_store.save_and_publish_user(text))
         elif item.role == "assistant":
             tracer.record_assistant(AgentInputMode.VOICE, char_count=len(text))
             tracer.complete_turn(AgentInputMode.VOICE)
-            log.info(f"Assistant voice speech saved | text_len={len(text)} | thread_id={thread_uuid}")
+            log.info(f"Assistant voice speech saved | text='{text}' | thread_id={thread_uuid}")
             asyncio.create_task(transcript_store.save_and_publish_assistant(text))
             if settings.VOICE_AGENT_ASSISTANT_CLARIFICATION_HEURISTIC_ENABLED and agent_instance._looks_like_assistant_clarification(text):
                 voice_turn_state.set_pending_clarification(

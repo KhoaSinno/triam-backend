@@ -1,0 +1,1069 @@
+{
+  "candidate": "baseline",
+  "candidate_description": "Current production defaults for Triam grounded chat and realtime voice.",
+  "environment": "http://127.0.0.1:8000/api/v1",
+  "generated_at": "2026-07-14T00:08:58.120735+07:00",
+  "model_config": {
+    "AGENT_MODEL_PROFILE": "baseline",
+    "VOICE_AGENT_TEXT_LLM_MODEL": "gpt-4o-mini",
+    "OPENAI_STREAM_MODEL_NAME": "gpt-realtime-mini",
+    "OPENAI_REALTIME_TRANSCRIPTION_MODEL": "gpt-4o-transcribe",
+    "VOICE_AGENT_PERMISSION_CLASSIFIER_MODEL": "gpt-4o-mini",
+    "BOOK_SECTION_EMBEDDING_VERSION": "section-v1",
+    "BOOK_SECTION_RAG_MATCH_THRESHOLD": "0.3",
+    "BOOK_SECTION_RAG_MATCH_COUNT": "10",
+    "AGENT_RERANKER_ENABLED": "True",
+    "AGENT_RERANKER_MODEL": "rerank-multilingual-v3.0",
+    "AGENT_RERANKER_TOP_N": "12",
+    "AGENT_HYBRID_MIN_FINAL_SCORE": "0.25",
+    "AGENT_HYBRID_MAX_CONTEXT_CHUNKS": "12"
+  },
+  "runtime_config_applied_by_runner": false,
+  "runtime_config_note": "External server/worker mode: set candidate env before starting server and LiveKit worker.",
+  "snapshot": {
+    "book_id": "c3f13d07-4494-4995-ba75-30a12589b8fc",
+    "thread_id": "07be00b9-c6da-4801-8ba2-7558205b92b2",
+    "book_sections_count": 6,
+    "book_section_knowledge_count": null,
+    "embedding_model": "text-embedding-3-small",
+    "embedding_version": "section-v1",
+    "outline_hash": "0753e4cfbcfd3c20ee2c0c2552e98151db290d69ecfe3e537ad6f5a506a22e43",
+    "app_git_sha": "510a2ba68e918bdc0b161df850cde9a0da2d8607",
+    "database_label": "unknown",
+    "eval_thread_ids": [
+      "07be00b9-c6da-4801-8ba2-7558205b92b2",
+      "1298fd9a-2431-419b-abfd-42bb90fbc982",
+      "4843070c-c08b-45a4-aa7a-48028ae61318",
+      "5698b671-8bc6-46b0-bb2b-87364673892c",
+      "61aa119b-de68-4f2b-b2ee-bf30bf4f7a40",
+      "97e68b9f-d31e-4573-b789-9801be68bdf2",
+      "a99d7dc6-c342-43f2-adb6-abff00c362bc",
+      "b37fb52a-b73b-4a06-b6e6-22a5b23f4fcf",
+      "fd12d38e-a9d0-4bd2-972c-be1d827f8a92",
+      "ff300f2e-b75d-421b-9bc9-65877d4c5717"
+    ]
+  },
+  "voice_isolation": {
+    "enabled": true,
+    "strategy": "case_thread_new_room",
+    "quality": "thread_and_room",
+    "thread_count": 10,
+    "voice_case_count": 9
+  },
+  "ground_truth": {
+    "book_id": "c3f13d07-4494-4995-ba75-30a12589b8fc",
+    "title": "Of Mice and Men",
+    "author": "John Steinbeck",
+    "document_type": "epub",
+    "total_sections": 6,
+    "section_paths": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6"
+    ]
+  },
+  "summary": {
+    "total": 23,
+    "passed": 0,
+    "failed": 23
+  },
+  "metrics": {
+    "strict_case_pass_rate": 0.0,
+    "accuracy": {
+      "content_accuracy": {
+        "passed": 21,
+        "evaluated": 23,
+        "rate": 0.913
+      },
+      "intent_accuracy": {
+        "passed": 0,
+        "evaluated": 0,
+        "rate": 0.0
+      },
+      "answer_source_accuracy": {
+        "passed": 0,
+        "evaluated": 0,
+        "rate": 0.0
+      },
+      "section_resolution_accuracy": {
+        "passed": 0,
+        "evaluated": 0,
+        "rate": 0.0
+      },
+      "web_policy_safety_rate": {
+        "passed": 0,
+        "evaluated": 0,
+        "rate": 0.0
+      },
+      "voice_meaning_preservation_rate": {
+        "passed": 8,
+        "evaluated": 9,
+        "rate": 0.8889
+      },
+      "llm_judge_accuracy": {
+        "passed": 0,
+        "evaluated": 0,
+        "rate": 0.0
+      }
+    },
+    "latency": {
+      "text": {
+        "turn_total": {
+          "samples": 0,
+          "p50_ms": null,
+          "p95_ms": null,
+          "max_ms": null
+        },
+        "retrieval": {
+          "samples": 0,
+          "p50_ms": null,
+          "p95_ms": null,
+          "max_ms": null
+        }
+      },
+      "voice": {
+        "turn_total": {
+          "samples": 0,
+          "p50_ms": null,
+          "p95_ms": null,
+          "max_ms": null
+        },
+        "retrieval": {
+          "samples": 0,
+          "p50_ms": null,
+          "p95_ms": null,
+          "max_ms": null
+        }
+      }
+    },
+    "failure_counts": {
+      "INPUT_STT": 1,
+      "RETRIEVAL_COVERAGE": 2,
+      "TRACE_COVERAGE": 23
+    },
+    "warning_counts": {},
+    "web_permission_violations": 0
+  },
+  "db_message_delta": 56,
+  "results": [
+    {
+      "id": "mice-author-vi-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 48,
+      "user_transcript_char_count": 0,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "07be00b9-c6da-4801-8ba2-7558205b92b2",
+      "eval_room_name": "triam_07be00b9_0964f1",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "not_applicable",
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-title-vi-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 30,
+      "user_transcript_char_count": 0,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "07be00b9-c6da-4801-8ba2-7558205b92b2",
+      "eval_room_name": "triam_07be00b9_0964f1",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "not_applicable",
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-section-count-vi-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 34,
+      "user_transcript_char_count": 0,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "07be00b9-c6da-4801-8ba2-7558205b92b2",
+      "eval_room_name": "triam_07be00b9_0964f1",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "not_applicable",
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-chapter-four-summary-vi-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 667,
+      "user_transcript_char_count": 0,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "07be00b9-c6da-4801-8ba2-7558205b92b2",
+      "eval_room_name": "triam_07be00b9_0964f1",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "not_applicable",
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-chapter-five-summary-vi-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 732,
+      "user_transcript_char_count": 0,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "07be00b9-c6da-4801-8ba2-7558205b92b2",
+      "eval_room_name": "triam_07be00b9_0964f1",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "not_applicable",
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-chapter-six-summary-en-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 653,
+      "user_transcript_char_count": 0,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "07be00b9-c6da-4801-8ba2-7558205b92b2",
+      "eval_room_name": "triam_07be00b9_0964f1",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "not_applicable",
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-crooks-semantic-vi-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 352,
+      "user_transcript_char_count": 0,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "07be00b9-c6da-4801-8ba2-7558205b92b2",
+      "eval_room_name": "triam_07be00b9_0964f1",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "not_applicable",
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-curley-wife-death-vi-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 241,
+      "user_transcript_char_count": 0,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "07be00b9-c6da-4801-8ba2-7558205b92b2",
+      "eval_room_name": "triam_07be00b9_0964f1",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "not_applicable",
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-ambiguous-chapter-vi-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 76,
+      "user_transcript_char_count": 0,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "07be00b9-c6da-4801-8ba2-7558205b92b2",
+      "eval_room_name": "triam_07be00b9_0964f1",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "not_applicable",
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-current-bitcoin-vi-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 120,
+      "user_transcript_char_count": 0,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "07be00b9-c6da-4801-8ba2-7558205b92b2",
+      "eval_room_name": "triam_07be00b9_0964f1",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "not_applicable",
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-relationships-vi-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 427,
+      "user_transcript_char_count": 0,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "07be00b9-c6da-4801-8ba2-7558205b92b2",
+      "eval_room_name": "triam_07be00b9_0964f1",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "not_applicable",
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-animals-vi-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": false,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 76,
+      "user_transcript_char_count": 0,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE",
+        "RETRIEVAL_COVERAGE"
+      ],
+      "eval_thread_id": "07be00b9-c6da-4801-8ba2-7558205b92b2",
+      "eval_room_name": "triam_07be00b9_0964f1",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "not_applicable",
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-ending-death-vi-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 474,
+      "user_transcript_char_count": 0,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "07be00b9-c6da-4801-8ba2-7558205b92b2",
+      "eval_room_name": "triam_07be00b9_0964f1",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "not_applicable",
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-similar-works-vi-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 180,
+      "user_transcript_char_count": 0,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "07be00b9-c6da-4801-8ba2-7558205b92b2",
+      "eval_room_name": "triam_07be00b9_0964f1",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "not_applicable",
+      "transcript_contract": {
+        "user": null,
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-author-vi-voice",
+      "input_mode": "voice",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": false,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 116,
+      "user_transcript_char_count": 25,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE",
+        "INPUT_STT"
+      ],
+      "eval_thread_id": "a99d7dc6-c342-43f2-adb6-abff00c362bc",
+      "eval_room_name": "triam_a99d7dc6_5939a1",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "thread_and_room",
+      "audio": {
+        "path": "tests\\fixtures\\voice_author.wav",
+        "sample_rate": 48000,
+        "channels": 1,
+        "sample_width_bytes": 2,
+        "duration_ms": 2560
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-chapter-four-summary-vi-voice",
+      "input_mode": "voice",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 528,
+      "user_transcript_char_count": 27,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "61aa119b-de68-4f2b-b2ee-bf30bf4f7a40",
+      "eval_room_name": "triam_61aa119b_936a03",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "thread_and_room",
+      "audio": {
+        "path": "tests\\fixtures\\voice_chapter_4_summary.wav",
+        "sample_rate": 48000,
+        "channels": 1,
+        "sample_width_bytes": 2,
+        "duration_ms": 2496
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-chapter-four-idea-vi-voice",
+      "input_mode": "voice",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 403,
+      "user_transcript_char_count": 21,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "b37fb52a-b73b-4a06-b6e6-22a5b23f4fcf",
+      "eval_room_name": "triam_b37fb52a_1e79b7",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "thread_and_room",
+      "audio": {
+        "path": "tests\\fixtures\\voice_chapter_4_idea.wav",
+        "sample_rate": 48000,
+        "channels": 1,
+        "sample_width_bytes": 2,
+        "duration_ms": 2432
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-ambiguous-chapter-vi-voice",
+      "input_mode": "voice",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 428,
+      "user_transcript_char_count": 14,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "ff300f2e-b75d-421b-9bc9-65877d4c5717",
+      "eval_room_name": "triam_ff300f2e_9d9551",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "thread_and_room",
+      "audio": {
+        "path": "tests\\fixtures\\voice_ambiguous_chapter.wav",
+        "sample_rate": 48000,
+        "channels": 1,
+        "sample_width_bytes": 2,
+        "duration_ms": 1792
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-current-bitcoin-vi-voice",
+      "input_mode": "voice",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 124,
+      "user_transcript_char_count": 33,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "4843070c-c08b-45a4-aa7a-48028ae61318",
+      "eval_room_name": "triam_4843070c_a5c0ee",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "thread_and_room",
+      "audio": {
+        "path": "tests\\fixtures\\voice_not_in_book.wav",
+        "sample_rate": 48000,
+        "channels": 1,
+        "sample_width_bytes": 2,
+        "duration_ms": 2795
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-relationships-vi-voice",
+      "input_mode": "voice",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 658,
+      "user_transcript_char_count": 87,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "5698b671-8bc6-46b0-bb2b-87364673892c",
+      "eval_room_name": "triam_5698b671_53e7e2",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "thread_and_room",
+      "audio": {
+        "path": "tests\\fixtures\\voice_relationships.wav",
+        "sample_rate": 48000,
+        "channels": 2,
+        "sample_width_bytes": 2,
+        "duration_ms": 7104
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-animals-vi-voice",
+      "input_mode": "voice",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 509,
+      "user_transcript_char_count": 100,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "97e68b9f-d31e-4573-b789-9801be68bdf2",
+      "eval_room_name": "triam_97e68b9f_6e0417",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "thread_and_room",
+      "audio": {
+        "path": "tests\\fixtures\\voice_animals.wav",
+        "sample_rate": 48000,
+        "channels": 2,
+        "sample_width_bytes": 2,
+        "duration_ms": 7416
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-ending-death-vi-voice",
+      "input_mode": "voice",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 380,
+      "user_transcript_char_count": 80,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE"
+      ],
+      "eval_thread_id": "1298fd9a-2431-419b-abfd-42bb90fbc982",
+      "eval_room_name": "triam_1298fd9a_5048b6",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "thread_and_room",
+      "audio": {
+        "path": "tests\\fixtures\\voice_ending_death.wav",
+        "sample_rate": 48000,
+        "channels": 2,
+        "sample_width_bytes": 2,
+        "duration_ms": 7416
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    },
+    {
+      "id": "mice-similar-works-vi-voice",
+      "input_mode": "voice",
+      "status": "failed",
+      "checks": {
+        "must_include": false,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "trace_available": false,
+        "expected_intent": null,
+        "expected_answer_source": null,
+        "expected_section": null,
+        "web_not_used_without_permission": null,
+        "llm_verdict": null
+      },
+      "response_char_count": 61,
+      "user_transcript_char_count": 96,
+      "trace": null,
+      "failure_codes": [
+        "TRACE_COVERAGE",
+        "RETRIEVAL_COVERAGE"
+      ],
+      "eval_thread_id": "fd12d38e-a9d0-4bd2-972c-be1d827f8a92",
+      "eval_room_name": "triam_fd12d38e_cc66c8",
+      "isolation_strategy": "case_thread_new_room",
+      "case_isolation_quality": "thread_and_room",
+      "audio": {
+        "path": "tests\\fixtures\\voice_similar_works.wav",
+        "sample_rate": 48000,
+        "channels": 2,
+        "sample_width_bytes": 2,
+        "duration_ms": 8472
+      },
+      "transcript_contract": {
+        "user": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        },
+        "assistant": {
+          "valid": true,
+          "errors": [],
+          "has_message_id": true,
+          "has_thread_id": true
+        }
+      }
+    }
+  ]
+}
