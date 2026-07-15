@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, func, select
+from sqlmodel import Session, delete, func, select
 
 from app.core.constant import PlanMode, ReviewItemStatus
 from app.models.db_models import SpacedReviewItem
@@ -198,3 +198,15 @@ def mark_review_item_skipped(session: Session, review_item: SpacedReviewItem, *,
     session.commit()
     session.refresh(review_item)
     return review_item
+
+
+def delete_spaced_review_items(session: Session, *, user_id: uuid.UUID, book_id: uuid.UUID, mode: PlanMode) -> None:
+    """Xóa toàn bộ các thẻ ôn tập ngắt quãng của user đối với sách và mode nhất định."""
+    session.execute(
+        delete(SpacedReviewItem)
+        .where(
+            SpacedReviewItem.user_id == user_id,
+            SpacedReviewItem.book_id == book_id,
+            SpacedReviewItem.mode == mode,
+        )
+    )

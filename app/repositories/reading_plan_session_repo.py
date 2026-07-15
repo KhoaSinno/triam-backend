@@ -2,7 +2,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlmodel import Session, col, func, select
+from sqlmodel import Session, col, delete, func, select
 
 from app.core.constant import PlanMode, ReadingPlanSessionStatus
 from app.models.db_models import ReadingPlanSession, ReadingPlanSessionUnit
@@ -326,3 +326,15 @@ def mark_overdue_sessions_missed(
         row.updated_at = now
         session.add(row)
     return len(rows)
+
+
+def delete_sessions_for_plan(session: Session, *, plan_id: uuid.UUID) -> None:
+    """Xóa toàn bộ các buổi học và chi tiết buổi học của kế hoạch học tập."""
+    session.execute(
+        delete(ReadingPlanSessionUnit)
+        .where(ReadingPlanSessionUnit.plan_id == plan_id)
+    )
+    session.execute(
+        delete(ReadingPlanSession)
+        .where(ReadingPlanSession.plan_id == plan_id)
+    )

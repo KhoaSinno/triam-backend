@@ -7,7 +7,7 @@ from sqlmodel import Session, select
 
 from app.core.constant import BookStatus, PlanMode, PlanStatus, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import BookNotFoundError, BookStatusConflictError, ExternalServiceError, NoReadingPlanError, ReadingPlanNotFoundError, ReadingPlanScheduleConflictError
-from app.models.db_models import Book, LearningUnit, LearningUnitSegment, ProcessingJob, ReadingPlan, ReadingPlanScheduleSlot
+from app.models.db_models import Book, LearningUnit, LearningUnitSegment, ProcessingJob, ReadingPlan, ReadingPlanScheduleSlot, BookLearningState, ReadingPlanSession, SpacedReviewItem
 from app.repositories import audiobook_repo
 from app.repositories.book_read_repo import BookListProjection, get_book_library_projection, list_book_library_projections
 from app.repositories.book_section_repo import BookSectionOutlineRow, list_book_section_outline_rows, list_book_sections
@@ -20,6 +20,11 @@ from app.repositories.learning_unit_repo import (
 from app.repositories.processing_job_repo import create_processing_job, update_processing_job
 from app.repositories.reading_plan_repo import get_current_plan_for_owned_book
 from app.repositories.reading_plan_schedule_repo import list_active_slots, list_slots_for_plan, replace_slots_for_plan, set_slots_active
+from app.repositories.learning_progress_repo import delete_book_progress
+from app.repositories.book_learning_state_repo import reset_book_learning_state
+from app.repositories.reading_plan_session_repo import delete_sessions_for_plan
+from app.repositories.spaced_review_repo import delete_spaced_review_items
+from app.repositories.notification_outbox_repo import delete_pending_outbox_by_keys
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
 from app.services.learning_progress_service import build_book_learning_summary_from_state
 from app.services.learning_unit_planner_service import plan_learning_units_async
@@ -551,3 +556,71 @@ def select_shared_book_to_user(session: Session, *, shared_book_id: uuid.UUID, u
     if not cloned_book:
         raise ValueError("Lỗi nhân bản sách từ thư viện.")
     return cloned_book
+
+
+def reset_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> dict:
+    """
+    Đặt lại toàn bộ tiến độ học tập và lịch biểu của cuốn sách từ đầu cho chế độ học hiện tại.
+    """
+    # 1. Xác thực sách và kế hoạch học tập hiện có
+    book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
+    if not book:
+        raise BookNotFoundError()
+
+    plan = _active_plan(session, book_id, user_id)
+    now = datetime.now(timezone.utc)
+    mode = PlanMode(plan.mode)
+
+    # 2. Thu thập danh sách ID của các buổi học (sessions) cũ
+    sessions = session.exec(
+        select(ReadingPlanSession.id).where(ReadingPlanSession.plan_id == plan.id)
+    ).all()
+    session_ids = [str(sid) for sid in sessions]
+
+    # 3. Thu thập danh sách ID của các thẻ ôn tập (spaced review items) cũ
+    review_items = session.exec(
+        select(SpacedReviewItem.id).where(
+            SpacedReviewItem.user_id == user_id,
+            SpacedReviewItem.book_id == book_id,
+            SpacedReviewItem.mode == mode,
+        )
+    ).all()
+    review_ids = [str(rid) for rid in review_items]
+
+    # 4. Tạo danh sách các idempotency_key tương ứng trong hàng đợi thông báo để xóa
+    keys_to_delete = []
+    for sid in session_ids:
+        keys_to_delete.append(f"plan-session-reminder:{sid}")
+        keys_to_delete.append(f"plan-session-missed:{sid}")
+    for rid in review_ids:
+        keys_to_delete.append(f"spaced-review:{rid}")
+
+    # 5. Gọi các Repo xóa sạch dữ liệu tiến trình & lịch học
+    delete_book_progress(session, user_id=user_id, book_id=book_id, mode=mode)
+    reset_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode)
+    delete_spaced_review_items(session, user_id=user_id, book_id=book_id, mode=mode)
+    delete_sessions_for_plan(session, plan_id=plan.id)
+
+    # 6. Hủy toàn bộ các thông báo đẩy PENDING còn sót lại trong Outbox
+    delete_pending_outbox_by_keys(session, keys=keys_to_delete)
+
+    # Commit trung gian để đồng bộ xóa CSDL tránh xung đột khóa ngoại
+    session.flush()
+
+    # 7. Đặt lại trạng thái kế hoạch học tập ban đầu
+    plan.status = PlanStatus.ACTIVE.value
+    plan.started_at = now
+    plan.paused_at = None
+    plan.completed_at = None
+    plan.updated_at = now
+    session.add(plan)
+    session.flush()
+
+    # 8. Tự động xếp lịch mới bắt đầu từ Bài học thứ nhất
+    ensure_future_sessions_for_plan(session, plan=plan, user_id=user_id, replace_unfinished=True)
+
+    session.commit()
+    return {
+        "message": "Đã đặt lại kế hoạch học tập từ đầu thành công.",
+        **_reading_plan_to_dict(session, plan)
+    }
