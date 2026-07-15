@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlmodel import Session, select
+from sqlmodel import Session, delete, select
 
 from app.core.constant import LearningProgressStatus, PlanMode
 from app.models.db_models import LearningUnit, LearningUnitProgress, LearningUnitSegment
@@ -161,3 +161,15 @@ def has_playable_uncompleted_unit(
 #         ).all()
 #     )
 #     return bool(playable_ids - completed_ids)
+
+
+def delete_book_progress(session: Session, *, user_id: uuid.UUID, book_id: uuid.UUID, mode: PlanMode) -> None:
+    """Xóa toàn bộ tiến độ các bài học của user đối với sách và mode nhất định."""
+    session.execute(
+        delete(LearningUnitProgress)
+        .where(
+            LearningUnitProgress.user_id == user_id,
+            LearningUnitProgress.book_id == book_id,
+            LearningUnitProgress.mode == mode,
+        )
+    )

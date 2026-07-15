@@ -16,7 +16,7 @@ import sys
 import uuid
 import wave
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -28,6 +28,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from app.core.config import settings  # noqa: E402
+from app.services.agent_observability.llm_as_a_judge import get_retrieved_context, judge_answer  # noqa: E402
 from app.services.agent_observability.model_eval_report import (  # noqa: E402
     build_metrics,
     build_snapshot_metadata,
@@ -42,8 +43,8 @@ from app.services.agent_observability.model_eval_report import (  # noqa: E402
 
 DEFAULT_BASE_URL = "http://127.0.0.1:8000/api/v1"
 DEFAULT_LIVEKIT_URL = "wss://tri-am-bmdl413w.livekit.cloud"
-DEFAULT_BOOK_ID = "dae3b3ae-8740-4485-9c16-12e685c6c970"
-DEFAULT_THREAD_ID = "f4726e2c-8407-49de-804f-b45ca8b0c1c2"
+DEFAULT_BOOK_ID = "c3f13d07-4494-4995-ba75-30a12589b8fc"
+DEFAULT_THREAD_ID = "07be00b9-c6da-4801-8ba2-7558205b92b2"
 TEXT_CASES_PATH = Path("tests/fixtures/agent_eval/book_grounding_cases.json")
 VOICE_CASES_PATH = Path("tests/fixtures/agent_eval/voice_manifest.json")
 CANDIDATE_MATRIX_PATH = Path("tests/fixtures/agent_eval/model_candidate_matrix.json")
@@ -241,6 +242,7 @@ def read_trace_events(
     input_mode: str,
     thread_id: str | None = None,
     room_name: str | None = None,
+    start_time: datetime | None = None,
 ) -> dict[str, Any] | None:
     if path is None or not path.exists():
         return None
@@ -249,11 +251,22 @@ def read_trace_events(
         handle.seek(offset)
         lines = handle.readlines()
 
-    events = [
-        (event, payload)
-        for event, payload in _parse_trace_events(lines, input_mode=input_mode)
-        if _trace_matches_context(payload, thread_id=thread_id, room_name=room_name)
-    ]
+    raw_events = _parse_trace_events(lines, input_mode=input_mode)
+    events = []
+    for event, payload in raw_events:
+        if not _trace_matches_context(payload, thread_id=thread_id, room_name=room_name):
+            continue
+        if start_time:
+            started_at_str = payload.get("started_at")
+            if started_at_str:
+                try:
+                    started_at = datetime.fromisoformat(started_at_str.replace("Z", "+00:00"))
+                    if started_at < start_time:
+                        continue
+                except ValueError:
+                    pass
+        events.append((event, payload))
+
     selected = _select_completed_trace(events)
     return _merge_late_transcript(selected, events) if selected else None
 
@@ -418,8 +431,8 @@ async def disconnect_eval_room(session: EvalRoomSession | None, *, grace_seconds
             await asyncio.sleep(grace_seconds)
 
 
-async def send_web_search_toggle(room: rtc.Room, enabled: bool) -> None:
-    payload = json.dumps({"type": "toggle_web_search", "enabled": enabled}).encode("utf-8")
+async def send_web_search_toggle(room: rtc.Room, enabled: bool, allowed: bool = False) -> None:
+    payload = json.dumps({"type": "toggle_web_search", "enabled": enabled, "allowed": allowed}).encode("utf-8")
     await room.local_participant.publish_data(payload, reliable=True, topic="lk.control")
     await asyncio.sleep(0.2)
 
@@ -533,7 +546,7 @@ def voice_stt_minor_warning(checks: dict[str, bool | None]) -> bool:
     return checks.get("voice_transcript_meaning") is False and semantic_behavior_passed(checks)
 
 
-def evaluate_case(
+async def evaluate_case(
     case: dict[str, Any],
     *,
     response_text: str,
@@ -541,8 +554,9 @@ def evaluate_case(
     trace: dict[str, Any] | None,
     section_id_by_path: dict[str, str],
     include_text_preview: bool,
+    llm_judge: bool = False,
 ) -> dict[str, Any]:
-    checks: dict[str, bool | None] = {}
+    checks: dict[str, bool | float | None] = {}
     checks["must_include"] = all(contains(response_text, value) for value in case.get("must_include", []))
     checks["must_not_include"] = all(not contains(response_text, value) for value in case.get("must_not_include", []))
 
@@ -553,12 +567,14 @@ def evaluate_case(
         else None
     )
 
+    llm_judge_data = {}
     if trace is None:
         checks["trace_available"] = False
         checks["expected_intent"] = None
         checks["expected_answer_source"] = None
         checks["expected_section"] = None
         checks["web_not_used_without_permission"] = None
+        checks["llm_verdict"] = None
     else:
         checks["trace_available"] = True
         checks["expected_intent"] = expected_intent_matches(case, trace)
@@ -576,7 +592,30 @@ def evaluate_case(
             else None
         )
 
-    evaluated_checks = [value for value in checks.values() if value is not None]
+        if llm_judge and case.get("expected_answer_source") == "book_rag" and trace.get("answer_source") == "book_rag":
+            chunk_ids = trace.get("retrieval_chunk_ids") or []
+            context = get_retrieved_context(chunk_ids)
+            if context:
+                try:
+                    query = case.get("question") or case.get("expected_transcript_meaning") or ""
+                    score = await judge_answer(query, context, response_text)
+                    checks["llm_verdict"] = score.verdict
+                    llm_judge_data = {
+                        "faithfulness_score": score.faithfulness,
+                        "answer_relevance_score": score.answer_relevance,
+                        "verdict": score.verdict,
+                        "reasoning": score.reasoning,
+                    }
+                except Exception as e:
+                    checks["llm_verdict"] = False
+                    llm_judge_data = {"error": str(e)}
+            else:
+                checks["llm_verdict"] = False
+                llm_judge_data = {"error": "No retrieved context found in database"}
+        else:
+            checks["llm_verdict"] = None
+
+    evaluated_checks = [value for value in checks.values() if value is not None and not isinstance(value, float)]
     warnings: list[str] = []
     if voice_stt_minor_warning(checks):
         warnings.append("INPUT_STT_MINOR")
@@ -591,6 +630,8 @@ def evaluate_case(
         "user_transcript_char_count": len(user_transcript or ""),
         "trace": trace,
     }
+    if llm_judge_data:
+        result["llm_judge"] = llm_judge_data
     if warnings:
         result["warnings"] = warnings
     if include_text_preview:
@@ -611,7 +652,11 @@ async def run_case(
 ) -> tuple[str, str | None, dict[str, Any] | None, dict[str, Any], dict[str, Any]]:
     drain_queue(transcript_queue)
     drain_queue(chat_queue)
-    await send_web_search_toggle(room, bool(case.get("web_search_enabled", False)))
+    await send_web_search_toggle(
+        room,
+        enabled=bool(case.get("web_search_enabled", False)),
+        allowed=bool(case.get("web_search_allowed", False)),
+    )
 
     if case["input_mode"] == "text":
         await room.local_participant.publish_data(
@@ -680,6 +725,7 @@ async def run(args: argparse.Namespace) -> None:
                 }
                 offset = trace_log_offset(trace_log)
                 try:
+                    start_time = datetime.now(timezone.utc)
                     response_text, user_transcript, user_payload, assistant_payload, case_metadata = await run_case(
                         session.room,
                         case,
@@ -694,14 +740,16 @@ async def run(args: argparse.Namespace) -> None:
                         input_mode=case["input_mode"],
                         thread_id=effective_thread_id,
                         room_name=session.room_name,
+                        start_time=start_time,
                     )
-                    result = evaluate_case(
+                    result = await evaluate_case(
                         case,
                         response_text=response_text,
                         user_transcript=user_transcript,
                         trace=trace,
                         section_id_by_path=section_id_by_path,
                         include_text_preview=args.include_text_preview,
+                        llm_judge=args.llm_judge,
                     )
                     result.update(isolation_metadata)
                     result.update(case_metadata)
@@ -809,6 +857,7 @@ def parse_args() -> argparse.Namespace:
         default="shared_thread_new_room",
     )
     parser.add_argument("--case-thread-map", default=os.getenv("AGENT_EVAL_CASE_THREAD_MAP"))
+    parser.add_argument("--llm-judge", action="store_true", help="Enable LLM-as-a-Judge semantic evaluation.")
     return parser.parse_args()
 
 

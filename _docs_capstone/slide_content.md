@@ -1,3 +1,8 @@
+<!--  Lưu ý đọc kỹ phần này
+Quy định tối đa 15 slide
+Slide gổm: Thuyết trình + chiếu video demo trong 15 phút
+ -->
+
 # PHÁT TRIỂN NỀN TẢNG SÁCH NÓI TƯƠNG TÁC THÔNG MINH HỖ TRỢ HỌC TẬP
 
 > **Đề tài:** Thiết kế và Hiện thực Hệ thống Trợ lý Học tập qua Sách nói tương tác sử dụng Voice-to-Voice LLM, Spaced Repetition và Pareto Principle.

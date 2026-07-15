@@ -18,6 +18,11 @@ RUNTIME_CONFIG_KEYS = (
     "BOOK_SECTION_EMBEDDING_VERSION",
     "BOOK_SECTION_RAG_MATCH_THRESHOLD",
     "BOOK_SECTION_RAG_MATCH_COUNT",
+    "AGENT_RERANKER_ENABLED",
+    "AGENT_RERANKER_MODEL",
+    "AGENT_RERANKER_TOP_N",
+    "AGENT_HYBRID_MIN_FINAL_SCORE",
+    "AGENT_HYBRID_MAX_CONTEXT_CHUNKS",
 )
 REPORT_CONFIG_KEYS = MODEL_CONFIG_KEYS + RUNTIME_CONFIG_KEYS
 MODEL_ENV_ALLOWLIST = set(MODEL_CONFIG_KEYS) - {"AGENT_MODEL_PROFILE"}
@@ -168,6 +173,8 @@ def classify_failure_codes(
         if checks.get("expected_answer_source") is False and "WEB_PERMISSION" not in failures:
             failures.append("CONTEXT_VALIDATION")
         failures.extend(_content_failures(checks, actual_source=actual_source, retrieval_count=retrieval_count))
+    if checks.get("llm_verdict") is False:
+        failures.append("LLM_JUDGE")
 
     return list(dict.fromkeys(failures)) or ["UNKNOWN"]
 
@@ -196,6 +203,7 @@ def build_metrics(results: list[dict[str, Any]]) -> dict[str, Any]:
         "section_resolution_accuracy": ("expected_section",),
         "web_policy_safety_rate": ("web_not_used_without_permission",),
         "voice_meaning_preservation_rate": ("voice_transcript_meaning",),
+        "llm_judge_accuracy": ("llm_verdict",),
     }
     accuracy: dict[str, dict[str, int | float]] = {}
     for metric_name, names in check_names.items():

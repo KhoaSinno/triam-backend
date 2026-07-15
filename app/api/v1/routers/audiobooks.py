@@ -30,6 +30,7 @@ from app.services.audiobook_service import (
     list_reading_plan_slots,
     list_shared_library,
     pause_reading_plan,
+    reset_reading_plan,
     resume_reading_plan,
     select_shared_book_to_user,
     switch_book_mode,
@@ -209,3 +210,16 @@ def select_book_from_library(shared_book_id: uuid.UUID, current_user: CurrentUse
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/books/{book_id}/reset", response_model=ReadingPlanResponse)
+def reset_plan(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
+):
+    """
+    Đặt lại kế hoạch học tập của cuốn sách từ đầu.
+    Xóa sạch tiến độ học tập cũ của user và sinh lại các buổi học từ bài 1.
+    """
+    return reset_reading_plan(session, book_id, current_user.sub)

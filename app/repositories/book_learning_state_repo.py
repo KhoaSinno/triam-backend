@@ -63,3 +63,21 @@ def upsert_book_learning_state(
     session.commit()
     session.refresh(state)
     return state
+
+
+def reset_book_learning_state(session: Session, *, user_id: uuid.UUID, book_id: uuid.UUID, mode: PlanMode) -> None:
+    """Đặt lại trạng thái tiến độ tổng quan của sách về ban đầu."""
+    state = get_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode)
+    if state:
+        state.status = "not_started"
+        state.book_progress_percent = 0
+        state.completed_units = 0
+        state.playable_units = 0
+        state.last_learning_unit_id = None
+        state.last_segment_id = None
+        state.last_segment_index = None
+        state.position_ms = 0
+        state.started_at = None
+        state.completed_at = None
+        state.updated_at = datetime.now(timezone.utc)
+        session.add(state)

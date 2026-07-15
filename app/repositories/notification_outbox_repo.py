@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlmodel import Session, delete, select
 
 from app.core.constant import NotificationStatus
 from app.models.db_models import NotificationOutbox
@@ -169,3 +169,14 @@ def count_outbox_for_user_between(
         )
     ).one()
     return int(count or 0)
+
+
+def delete_pending_outbox_by_keys(session: Session, *, keys: list[str]) -> None:
+    """Xóa toàn bộ các thông báo đang chờ gửi (status = PENDING) có idempotency_key thuộc danh sách."""
+    if not keys:
+        return
+    session.execute(
+        delete(NotificationOutbox)
+        .where(NotificationOutbox.status == NotificationStatus.PENDING)
+        .where(NotificationOutbox.idempotency_key.in_(keys))
+    )

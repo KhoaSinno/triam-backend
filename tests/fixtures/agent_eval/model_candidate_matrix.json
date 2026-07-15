@@ -3,7 +3,8 @@
     "name": "baseline",
     "description": "Current production defaults for Triam grounded chat and realtime voice.",
     "env": {
-      "VOICE_AGENT_TEXT_LLM_MODEL": "gpt-4o-mini"
+      "VOICE_AGENT_TEXT_LLM_MODEL": "gpt-4o-mini",
+      "OPENAI_STREAM_MODEL_NAME": "gpt-realtime-mini"
     }
   },
   {

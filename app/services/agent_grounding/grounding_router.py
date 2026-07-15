@@ -47,10 +47,10 @@ class GroundingRouter:
         reference = parse_section_reference(normalized)
 
         # 2. Luật chặn (Guard Rule): Nếu phân loại là mục lục/tóm tắt chương nhưng không có đề mục cụ thể
-        # thì tự động hạ cấp xuống RAG để tránh lỗi định tuyến
+        # thì tự động hạ cấp xuống CLARIFICATION_REQUIRED để tránh lỗi định tuyến
         if intent in (GroundingIntent.BOOK_SECTION_SUMMARY, GroundingIntent.BOOK_SECTION_CONTENT):
             if not reference.has_target:
-                intent = GroundingIntent.BOOK_SEMANTIC_QUESTION
+                intent = GroundingIntent.CLARIFICATION_REQUIRED
 
         result = None
         if intent == GroundingIntent.BOOK_SEMANTIC_QUESTION:
@@ -64,6 +64,15 @@ class GroundingRouter:
             )
         elif intent == GroundingIntent.CLARIFICATION_REQUIRED:
             result = self._clarification("missing_section_reference", "Bạn muốn hỏi chương hoặc đề mục nào?")
+        elif intent == GroundingIntent.EXTERNAL_CURRENT_INFO:
+            result = GroundingResult(
+                GroundingDecision(
+                    GroundingIntent.EXTERNAL_CURRENT_INFO,
+                    GroundingRoute.WEB_POLICY,
+                    ResolutionQuality.EXACT,
+                    "clear_external_current_info",
+                )
+            )
         elif intent in (GroundingIntent.BOOK_SECTION_SUMMARY, GroundingIntent.BOOK_SECTION_CONTENT):
             result = await self._resolve_section(normalized, reference, intent)
             if result.decision.route == GroundingRoute.CLARIFICATION:
