@@ -212,7 +212,7 @@ def select_book_from_library(shared_book_id: uuid.UUID, current_user: CurrentUse
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.post("/books/{book_id}/reset", response_model=ReadingPlanResponse)
+@router.post("/books/{book_id}/reset", response_model=ReadingPlanUpdateResponse)
 def reset_plan(
     book_id: uuid.UUID,
     current_user: CurrentUser,
