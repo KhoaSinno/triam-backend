@@ -27,24 +27,23 @@ graph TD
 ## PHẦN 1: MỞ ĐẦU & ĐẶT VẤN ĐỀ (3 SLIDES)
 
 ### Slide 1: Trang bìa & Định danh Đề tài
-*   **Tiêu đề:** PHÁT TRIỂN NỀN TẢNG SÁCH NÓI TƯƠNG TÁC THÔNG MINH HỖ TRỢ HỌC TẬP (TRI ÂM)
-*   **Gợi ý hình ảnh/Layout:** Slide trang trọng, logo trường Đại học bên góc trái, trung tâm là hình ảnh Mockup ứng dụng TriÂm chạy trên thiết bị di động.
+*   **Tiêu đề tên đề tài:** PHÁT TRIỂN NỀN TẢNG SÁCH NÓI TƯƠNG TÁC THÔNG MINH HỖ TRỢ HỌC TẬP
+*   **Gợi ý hình ảnh/Layout:** Slide trang trọng, logo trường Đại học CTUT, trung tâm là hình ảnh mờ ứng dụng chạy trên thiết bị di động ở phần trợ lý ảo.
 *   **Nội dung hiển thị:**
-    *   **Sinh viên thực hiện:** [Tên của bạn]
+    *   **Sinh viên thực hiện:** Nguyễn Trần Anh Khoa - HTTT2211026, Nguyễn Thành Đạt - HTTT2211003
     *   **Giảng viên hướng dẫn:** TS. Nguyễn Trung Việt
-    *   **Công nghệ cốt lõi:** WebRTC (LiveKit), FastAPI, PostgreSQL, Flutter, RAG.
 *   **Speaker Notes (Lời thoại):** 
-    > "Kính thưa Hội đồng cùng toàn thể các thầy cô giáo. Hôm nay em xin phép được trình bày đề tài tốt nghiệp của mình: *'Phát triển nền tảng sách nói tương tác thông minh hỗ trợ học tập'*. Dự án hướng tới giải quyết bài toán tiếp thu kiến thức thụ động từ sách nói truyền thống, đưa công nghệ AI đàm thoại hai chiều thời gian thực vào quy trình học tập cá nhân hóa."
+    > "Kính thưa Hội đồng cùng toàn thể các thầy cô giáo. Hôm nay chúng em xin phép được trình bày đề tài tốt nghiệp của mình: *'Phát triển nền tảng sách nói tương tác thông minh hỗ trợ học tập'*. Dự án hướng tới giải quyết bài toán tiếp thu kiến thức thụ động từ sách nói truyền thống, đưa công nghệ AI đàm thoại hai chiều thời gian thực vào quy trình học tập cá nhân hóa."
 
 ---
 
 ### Slide 2: Tính cấp thiết của đề tài
 *   **Tiêu đề:** Bối Cảnh Thực Tế & Hạn Chế Sách Nói Truyền Thống
-*   **Gợi ý hình ảnh/Layout:** Chia 2 cột. Bên trái là hình ảnh người dùng nghe sách nói thông thường bị sao nhãng. Bên phải là các gạch đầu dòng phân tích hạn chế.
-*   **Nội dung hiển thị:**
-    *   **Nghịch lý nghe thụ động:** Chỉ tiếp thu 10% kiến thức (theo Tháp học tập Dale) do thiếu hoạt động tương tác/chủ động truy xuất thông tin.
-    *   **Quá tải thông tin:** Sách dài hàng trăm trang, người dùng khó chắt lọc nội dung trọng tâm để ghi nhớ nhanh.
-    *   **Hạn chế công cụ đàm thoại:** Các trợ lý ảo hiện tại (Siri, Google Assistant) chỉ đàm thoại dạng text-to-text hoặc turn-based đơn giản, độ trễ thoại cao và không được bám nguồn theo tri thức của cuốn sách cụ thể.
+*   **Gợi ý hình ảnh/Layout:** Chia 2 cột. Bên trái là hình ảnh người dùng nghe kiến thức đến ngủ quên. Bên phải là các icon bên dưới tương ứng các mục hạn chế.
+*   **Nội dung các mục hạn chế:**
+    *   **Nghe thụ động và dễ xao nhãng:** Người nghe chỉ tiếp thu 10% kiến thức (Tháp Dale). Không thể tương tác, dễ buồn ngủ, gặp chỗ khó hiểu không có ai để hỏi đáp ngay lập tức.
+    *   **Quá tải thông tin và thiếu thời gian:** Giáo trình/Sách tài liệu quá dày (hàng trăm trang), người bận rộn không có thời gian nghe hết nhưng thiếu công cụ chắt lọc kiến thức trọng tâm.
+    *   **Học trước quên sau:** Quên 80% kiến thức sau 48 giờ (Đường cong Ebbinghaus). Sách nói truyền thống không theo dõi tiến độ và không biết khi nào người học cần ôn tập lại.
 *   **Speaker Notes (Lời thoại):** 
     > "Trong kỷ nguyên số, sách nói đang bùng nổ, nhưng hầu hết người dùng đang nghe sách một cách thụ động. Theo nghiên cứu, việc nghe thụ động khiến kiến thức bị quên đi rất nhanh. Người học không thể đặt câu hỏi trực tiếp vào nội dung chương mục đang nghe, và khó lọc ra 20% kiến thức cốt lõi. TriÂm ra đời để biến sách nói từ công cụ giải trí thụ động thành một hệ thống học tập chủ động thông minh."
 
@@ -54,9 +53,9 @@ graph TD
 *   **Tiêu đề:** Mục Tiêu Phát Triển Hệ Thống TriÂm
 *   **Gợi ý hình ảnh/Layout:** Sơ đồ 3 nhánh mục tiêu chính xoay quanh trung tâm là người dùng học tập chủ động.
 *   **Nội dung hiển thị:**
-    *   **Quy trình Ingestion & Chuyển đổi tự động:** Tải tài liệu cá nhân (PDF, EPUB, DOCX), tự động phân tích cấu trúc, sinh bài học và tọng giọng đọc AI tự nhiên theo chế độ học (Full vs Pareto).
-    *   **Hệ thống Nhắc nhở & Ôn tập thông minh:** Tự động lập lịch học ngắt quãng Spaced Repetition kết hợp thông báo đẩy (Push Notifications) để tối ưu hóa trí nhớ dài hạn.
-    *   **Trợ lý thoại Voice-to-Voice thời gian thực:** Trò chuyện hỏi đáp trực tiếp với AI thông qua giọng nói WebRTC, bám sát tri thức sách (Grounding RAG), độ trễ dưới 1.5 giây.
+    *   **Trợ lý thoại Voice-to-Voice thời gian thực:** Đàm thoại hai chiều trực tiếp qua WebRTC, bám sát tri thức sách (Grounding RAG). Người học có thể ngắt lời AI để hỏi và nhận phản hồi tức thì với độ trễ < 1.5s.
+    *   **Ingestion Pipeline và chế độ Pareto (80/20):** Tự động phân tích cấu trúc tài liệu thô, sinh bài giảng âm thanh và cho phép chuyển đổi linh hoạt sang chế độ Pareto (chỉ học 20% cốt lõi để thu về 80% kết quả).
+    *   **Lập lịch ôn tập, thông báo nhắc nhở:** Tự động lập lịch học ngắt quãng Spaced Repetition kết hợp thông báo đẩy để tối ưu hóa trí nhớ dài hạn.
 *   **Speaker Notes (Lời thoại):** 
     > "Để giải quyết các thách thức trên, mục tiêu cốt lõi của đề tài là xây dựng hệ thống TriÂm gồm 3 trụ cột: Thứ nhất, quy trình tự động hóa chuyển đổi tài liệu thô thành bài giảng âm thanh; Thứ hai, hệ thống lập lịch ôn tập ngắt quãng tự động hóa hoàn toàn; Thứ ba, trợ lý đàm thoại thời gian thực WebRTC với tri thức bám nguồn tuyệt đối theo sách."
 
@@ -76,6 +75,11 @@ graph TD
 
 ---
 
+<!-- Thêm slide giải thích về hybrid search: Lexical search và sêmantic search, tại sao dùng nó -->
+
+<!-- Thêm slide nói về RRF và corehere và kiến trúc của corehere, tại sao dùng nó  -->
+
+
 ### Slide 5: Phương pháp Ôn tập ngắt quãng, Đường cong quên lãng, Quy tắc 80/20
 *   **Tiêu đề:** Cơ Sở Khoa Học: Spaced Repetition, Forgetting Curve, Pareto
 *   **Gợi ý hình ảnh/Layout:** Biểu đồ đường cong quên lãng Ebbinghaus (Forgetting Curve) minh họa các điểm ôn tập (Review Points) giúp khôi phục trí nhớ bền vững. Biểu đồ phễu lọc (Pareto Funnel). Đầu vào là 100% nội dung sách thô, đầu ra là 20% kiến thức cốt lõi mang lại 80% giá trị tiếp thu.
@@ -91,23 +95,10 @@ graph TD
 
 ---
 
-### Slide 6: Cơ chế Đàm thoại Realtime & Mô hình Grounding RAG
-*   **Tiêu đề:** Kiến Trúc Đàm Thoại Thời Gian Thực & Grounding
-*   **Gợi ý hình ảnh/Layout:** Sơ đồ luồng tương tác giữa User ⇄ WebRTC ⇄ LLM + RAG Database.
-*   **Nội dung hiển thị:**
-    *   **Realtime Voice (WebRTC):** Thay thế cơ chế HTTP Request/Response truyền thống để truyền tải âm thanh hai chiều trực tiếp với độ trễ tối thiểu (chạy qua giao thức UDP).
-    *   **Retrieval-Augmented Generation (RAG):** Cung cấp tri thức bám nguồn (Grounding) cho LLM bằng cách truy xuất các phân đoạn văn bản liên quan nhất từ cơ sở dữ liệu vector.
-    *   **Lợi ích:** Ngăn chặn tuyệt đối hiện tượng ảo giác (hallucination) của AI và bảo vệ quyền sở hữu trí tuệ của tài liệu học tập.
-*   **Speaker Notes (Lời thoại):** 
-    > "Về mặt công nghệ giao tiếp, chúng em sử dụng mô hình RAG kết hợp giao thức truyền thông thời gian thực WebRTC. Thay vì để LLM tự trả lời bằng tri thức huấn luyện sẵn (vốn dễ bị ảo giác và lỗi thời), RAG sẽ bắt LLM đọc các dữ liệu chương sách được trích xuất động từ DB để làm căn cứ trả lời, đảm bảo tính bám nguồn tuyệt đối của thông tin phản hồi."
-
----
-
-
 
 ## PHẦN 3: PHÂN TÍCH THIẾT KẾ HỆ THỐNG & BẢO MẬT (3 SLIDES)
 
-### Slide 7: Sơ đồ kiến trúc tổng quan hệ thống (REST vs Realtime WebRTC)
+### Slide 7: Sơ đồ kiến trúc tổng quan hệ thống
 *   **Tiêu đề:** Sơ Đồ Kiến Trúc Hệ Thống Tổng Quan 5 Khối
 *   **Gợi ý hình ảnh/Layout:** Diagram chi tiết 5 khối: Client (Flutter), API Gateway (Nginx/FastAPI), Database (Supabase PostgreSQL), Realtime Voice Engine (LiveKit WebRTC Server), và Worker Queue (Celery + Redis).
 *   **Nội dung hiển thị:**
@@ -118,6 +109,8 @@ graph TD
     > "Đây là sơ đồ kiến trúc tổng quan của hệ thống gồm 5 khối. Điểm đặc biệt ở đây là chúng em phân tách hoàn toàn luồng nghiệp vụ REST truyền thống và luồng đàm thoại Realtime qua WebRTC. Luồng đàm thoại thoại được thiết lập kênh truyền riêng qua LiveKit Server nhằm triệt tiêu độ trễ mạng, trong khi các tác vụ xử lý tài liệu nặng được đẩy vào hàng chờ Celery để chạy bất đồng bộ ngầm."
 
 ---
+
+<!-- Bổ sung slide chứa sơ đồ Usecase -->
 
 ### Slide 8: Mô hình dữ liệu cốt lõi & Sơ đồ lớp (Class Diagram)
 *   **Tiêu đề:** Mô Hình Dữ Liệu Cốt Lõi (Core Data Models)
@@ -131,25 +124,21 @@ graph TD
 
 ---
 
-### Slide 9: Bảo mật đa tầng trong kỷ nguyên AI & Trợ lý ảo
-*   **Tiêu đề:** Giải Pháp Bảo Mật Đa Tầng Chủ Động (AI-Era Security)
-*   **Gợi ý hình ảnh/Layout:** Sơ đồ mạng lưới bảo mật 3 tầng bao bọc lấy dữ liệu của User: Tầng ngoài cùng: AI Prompt Guardrail ⇄ Tầng giữa: WebRTC JWT Gateway ➔ Tầng trong cùng: PostgreSQL Database RLS.
+
+<!-- Bố cục lại slide 6 này liên quan đến kiến trúc nên sẽ để vào phần 3 và slide này thiếu rất nhiều thành phần: local embedding, rerank corehere, RRF ,.... -->
+### Slide 6: Cơ chế Đàm thoại Realtime & Mô hình Grounding RAG
+*   **Tiêu đề:** Kiến Trúc Đàm Thoại Thời Gian Thực & Grounding
+*   **Gợi ý hình ảnh/Layout:** Sơ đồ luồng tương tác giữa User ⇄ WebRTC ⇄ LLM + RAG Database.
 *   **Nội dung hiển thị:**
-    *   **Tầng 1 - Chống Prompt Injection & Jailbreak (AI Security):**
-        *   Thiết kế System Instructions nghiêm ngặt bắt buộc LLM chỉ trả lời trong phạm vi tri thức tài liệu (Grounding).
-        *   Tích hợp bộ lọc ngữ cảnh đầu vào (Entity Verification) để từ chối các câu lệnh cố ý tấn công hoặc ghi đè Prompt hệ thống (System Override).
-    *   **Tầng 2 - Chống nghe lén & Tấn công phòng (LiveKit Security):**
-        *   Cấp khóa xác thực WebRTC Token có thời gian sống cực ngắn (TTL 5 phút) có chữ ký số SHA256 mã hóa.
-        *   Giới hạn quyền chặt chẽ: Chỉ được đăng ký/phát âm thanh trong đúng phòng tương ứng với `book_id` sở hữu.
-    *   **Tầng 3 - Phòng thủ dữ liệu vật lý (PostgreSQL RLS):**
-        *   Cấu hình Row Level Security (RLS) trên database. Ngay cả khi AI Agent bị hack bằng Prompt Injection tinh vi yêu cầu lấy tài liệu người khác, DB Engine vẫn chặn đứng ở tầng vật lý nhờ xác thực JWT UID.
+    *   **Realtime Voice (WebRTC):** Thay thế cơ chế HTTP Request/Response truyền thống để truyền tải âm thanh hai chiều trực tiếp với độ trễ tối thiểu (chạy qua giao thức UDP).
+    *   **Retrieval-Augmented Generation (RAG):** Cung cấp tri thức bám nguồn (Grounding) cho LLM bằng cách truy xuất các phân đoạn văn bản liên quan nhất từ cơ sở dữ liệu vector.
+    *   **Lợi ích:** Ngăn chặn tuyệt đối hiện tượng ảo giác (hallucination) của AI và bảo vệ quyền sở hữu trí tuệ của tài liệu học tập.
 *   **Speaker Notes (Lời thoại):** 
-    > "Trong kỷ nguyên AI, bảo mật không chỉ dừng lại ở chặn SQL Injection hay HTTPS. Hệ thống TriÂm áp dụng chiến lược phòng thủ đa tầng chủ động. Ở tầng AI, chúng em thiết kế bộ lọc để chống lại tấn công Prompt Injection - hình thức lừa AI bỏ qua chỉ thị gốc. Ở tầng truyền thông, token WebRTC LiveKit được ký số giới hạn thời gian sống chỉ 5 phút để chống nghe lén. Và cuối cùng là chốt chặn PostgreSQL RLS bảo vệ dữ liệu ở tầng vật lý, đảm bảo an toàn tuyệt đối cho tài liệu cá nhân của người học."
+    > "Về mặt công nghệ giao tiếp, chúng em sử dụng mô hình RAG kết hợp giao thức truyền thông thời gian thực WebRTC. Thay vì để LLM tự trả lời bằng tri thức huấn luyện sẵn (vốn dễ bị ảo giác và lỗi thời), RAG sẽ bắt LLM đọc các dữ liệu chương sách được trích xuất động từ DB để làm căn cứ trả lời, đảm bảo tính bám nguồn tuyệt đối của thông tin phản hồi."
 
 ---
 
-## PHẦN 4: CÁC PHÂN HỆ GIẢI PHÁP CỐT LÕI (6 SLIDES)
-
+<!-- Bố sung phần Pipeline ingestion vào đây, luồng từ file thành audio dựa trên mode và có sự tham gia của LLM để chuẩn hóa văn bản để đưa vào model TTS. Bổ sung thành 1 slide vào đây, tôi sẽ vẽ sơ đồ để vào 1 slide này là xong luồng, bạn mô tả nội sung để tôi có thể trình bày -->
 ### Slide 11: Phân hệ Ingestion Pipeline & Đệ quy DFS
 *   **Tiêu đề:** Quy Trình Ingestion Pipeline & Thuật Toán Đệ Quy DFS
 *   **Gợi ý hình ảnh/Layout:** Sơ đồ khối (Flowchart) của pipeline: File Upload ➔ MIME Validation Gate ➔ PDF/EPUB Parser ➔ DFS Outline Extraction ➔ Chunking & Node Tree Saving.
@@ -160,8 +149,9 @@ graph TD
 *   **Speaker Notes (Lời thoại):** 
     > "Phân hệ cốt lõi đầu tiên là Ingestion Pipeline. Khi người dùng upload một file PDF hoặc EPUB, hệ thống sử dụng thuật toán duyệt cây DFS để bóc tách toàn bộ cấu trúc mục lục chương con. Dữ liệu văn bản thô của từng đề mục sau đó sẽ được cắt nhỏ thành các chunk thông minh có khoảng đè (overlap) để phục vụ cho tìm kiếm ngữ nghĩa sau này."
 
----
 
+---
+<!-- Tôi có dời kiến trúc các tôi làm sao với pareto nguyên lý để chuyển nó thành nghiệp vụ, về phần này tôi cũng sẽ dán sơ đồ vào, sau đó trình bày nó -->
 ### Slide 12: Bộ hoạch định Pareto Planner & Heuristic dự phòng
 *   **Tiêu đề:** Pareto Planner: Cơ Chế Structured Outputs & Fallback
 *   **Gợi ý hình ảnh/Layout:** Lưu đồ thuật toán Pareto Planner: Input text ➔ Gemini LLM (Structured JSON Output) ➔ Lỗi? ➔ Cổng Fallback (Heuristic Parser) ➔ Output JSON hợp lệ ➔ Lưu `LearningUnit`.
@@ -185,48 +175,29 @@ graph TD
 
 ---
 
-### Slide 14: Mô hình Transactional Outbox Pattern
-*   **Tiêu đề:** Đảm Bảo Độ Chắc Chắn Qua Outbox Pattern
-*   **Gợi ý hình ảnh/Layout:** Diagram so sánh. Cách tiếp cận cũ: Viết vào DB + Gửi API FCM trực tiếp (Dễ lỗi mất đồng bộ). Outbox Pattern: Viết vào DB + Gửi vào bảng Outbox trong cùng 1 Transaction ➔ Worker quét Outbox gửi FCM (Đảm bảo nhất quán dữ liệu).
+
+### Slide 9: Bảo mật đa tầng trong kỷ nguyên AI & Trợ lý ảo
+*   **Tiêu đề:** Giải Pháp Bảo Mật Đa Tầng Chủ Động (AI-Era Security)
+*   **Gợi ý hình ảnh/Layout:** Sơ đồ mạng lưới bảo mật 3 tầng bao bọc lấy dữ liệu của User: Tầng ngoài cùng: AI Prompt Guardrail ⇄ Tầng giữa: WebRTC JWT Gateway ➔ Tầng trong cùng: PostgreSQL Database RLS.
 *   **Nội dung hiển thị:**
-    *   **Vấn đề:** Gửi API FCM hoặc Google TTS bị lỗi mạng giữa chừng khiến dữ liệu DB bị sai lệch so với thực tế thiết bị người dùng.
-    *   **Transactional Outbox Pattern:**
-        *   Tất cả thay đổi tiến độ và sự kiện thông báo được ghi vào bảng `Outbox` chung một Database Transaction với bản ghi nghiệp vụ chính.
-        *   Một worker độc lập chuyên trách đọc bảng Outbox để thực hiện gửi dữ liệu lên Firebase, tự động thử lại khi mất mạng.
-    *   **Kết quả:** Đạt được tính nhất quán cuối cùng (Eventual Consistency) và chịu lỗi mạng vượt trội.
+    *   **Tầng 1 - Chống Prompt Injection & Jailbreak (AI Security):**
+        *   Thiết kế System Instructions nghiêm ngặt bắt buộc LLM chỉ trả lời trong phạm vi tri thức tài liệu (Grounding).
+        *   Tích hợp bộ lọc ngữ cảnh đầu vào (Entity Verification) để từ chối các câu lệnh cố ý tấn công hoặc ghi đè Prompt hệ thống (System Override).
+    *   **Tầng 2 - Chống nghe lén & Tấn công phòng (LiveKit Security):**
+        *   Cấp khóa xác thực WebRTC Token có thời gian sống cực ngắn (TTL 5 phút) có chữ ký số SHA256 mã hóa.
+        *   Giới hạn quyền chặt chẽ: Chỉ được đăng ký/phát âm thanh trong đúng phòng tương ứng với `book_id` sở hữu.
+    *   **Tầng 3 - Phòng thủ dữ liệu vật lý (PostgreSQL RLS):**
+        *   Cấu hình Row Level Security (RLS) trên database. Ngay cả khi AI Agent bị hack bằng Prompt Injection tinh vi yêu cầu lấy tài liệu người khác, DB Engine vẫn chặn đứng ở tầng vật lý nhờ xác thực JWT UID.
 *   **Speaker Notes (Lời thoại):** 
-    > "Trong môi trường di động, việc kết nối mạng không ổn định là bình thường. Để giải quyết vấn đề này, chúng em áp dụng Transactional Outbox Pattern. Khi người dùng hoàn thành bài học, sự kiện này được ghi vào bảng Outbox cùng một transaction với tiến độ. Worker chạy nền sẽ chịu trách nhiệm đồng bộ bảng Outbox lên máy chủ Firebase, đảm bảo không bao giờ bị mất mát dữ liệu tiến độ."
+    > "Trong kỷ nguyên AI, bảo mật không chỉ dừng lại ở chặn SQL Injection hay HTTPS. Hệ thống TriÂm áp dụng chiến lược phòng thủ đa tầng chủ động. Ở tầng AI, chúng em thiết kế bộ lọc để chống lại tấn công Prompt Injection - hình thức lừa AI bỏ qua chỉ thị gốc. Ở tầng truyền thông, token WebRTC LiveKit được ký số giới hạn thời gian sống chỉ 5 phút để chống nghe lén. Và cuối cùng là chốt chặn PostgreSQL RLS bảo vệ dữ liệu ở tầng vật lý, đảm bảo an toàn tuyệt đối cho tài liệu cá nhân của người học."
 
----
-
-### Slide 15: Kiến trúc Trợ lý thoại Voice Agent hai lớp
-*   **Tiêu đề:** Trợ Lý Thoại Hai Lớp (LiveKit WebRTC & HTTP API)
-*   **Gợi ý hình ảnh/Layout:** Sơ đồ 2 lớp giao tiếp. Lớp 1: HTTP API dùng để xác thực, lấy thông tin cơ bản, lưu lịch sử trò chuyện. Lớp 2: Kênh LiveKit WebRTC truyền âm thanh trực tiếp độ trễ thấp ⇄ VAD (Voice Activity Detection) ➔ TTS/LLM.
-*   **Nội dung hiển thị:**
-    *   **Lớp 1 - HTTP API (Metadata & State Control):** Dùng để truy xuất danh sách hội thoại cũ, đổi tên thread và cấp token bảo mật WebRTC.
-    *   **Lớp 2 - LiveKit Voice Agent (Realtime Media):** Chạy luồng kết nối WebRTC truyền nhận audio. Tích hợp bộ phát hiện giọng nói (VAD Silero) để tự động ngắt Agent khi phát hiện người dùng nói xen vào (Interruption).
-    *   **Watchdog Guardrail:** Giám sát thời gian chạy công cụ của Agent để tự động ngắt kết nối hoặc trả về câu thoại khẩn cấp khi API LLM bị nghẽn.
-*   **Speaker Notes (Lời thoại):** 
-    > "Kiến trúc Trợ lý thoại của chúng em được chia làm hai lớp. Lớp điều khiển qua HTTP để quản lý cấu hình và token bảo mật. Lớp truyền thông qua WebRTC để đàm thoại trực tiếp. Trợ lý được tích hợp bộ lọc ngắt lời (Interruption Filter) giúp nhận biết khi nào người dùng đang nói để dừng phát âm thanh ngay lập tức, mang lại trải nghiệm trò chuyện tự nhiên như người thật."
-
----
-
-### Slide 16: Tìm kiếm lai (Hybrid RAG) & Cơ chế Evidence Validation
-*   **Tiêu đề:** Tìm Kiếm Lai Hybrid RAG & Evidence Validation
-*   **Gợi ý hình ảnh/Layout:** Sơ đồ tính điểm Blended Score. Nhánh 1: Dense Retrieval (Vector embedding similarity) ➔ Nhánh 2: Sparse Retrieval (Postgres BM25/FTS) ➔ Kết hợp điểm bằng thuật toán xếp hạng lại (Cohere Rerank) ➔ Evidence Validation ➔ LLM.
-*   **Nội dung hiển thị:**
-    *   **Hybrid Search:** Kết hợp độ chính xác theo từ khóa của Tìm kiếm từ vựng (Lexical Search) với độ hiểu ngữ cảnh của Tìm kiếm ngữ nghĩa (Vector Search).
-    *   **Cohere Rerank:** Xếp hạng lại top 20 ứng viên tốt nhất để chọn ra 12 ứng viên chất lượng cao nhất đưa vào Prompt.
-    *   **Evidence Validation Gate:** Giải thuật so khớp thực thể (Entity Matching) để kiểm tra xem câu trả lời của LLM có chứa các thực thể/từ khóa cốt lõi từ văn bản gốc của sách hay không, nếu không sẽ tự động loại bỏ để chống ảo giác.
-*   **Speaker Notes (Lời thoại):** 
-    > "Để trợ lý đàm thoại trả lời chính xác, chúng em sử dụng giải thuật Hybrid Search RAG. Chúng em kết hợp tìm kiếm từ khóa FTS truyền thống và tìm kiếm vector ngữ nghĩa. Kết quả được xếp hạng lại thông qua Cohere Reranker. Cuối cùng, chúng em thiết kế bộ lọc kiểm định bằng chứng (Evidence Validation) để so sánh chéo thực thể giữa câu trả lời của AI và đoạn văn gốc của sách để chặn hoàn toàn ảo giác kiến thức."
 
 ---
 
 ## PHẦN 5: HIỆN THỰC & ĐÁNH GIÁ THỰC NGHIỆM (4 SLIDES)
 
-### Slide 17: Minh họa giao diện thực tế ứng dụng di động TriÂm
-*   **Tiêu đề:** Minh Họa Giao Diện Ứng Dụng Di Động TriÂm
+### Slide 17: Minh họa vài giao diện cốt lõi trên app ứng dụng di động 
+*   **Tiêu đề:** Vài Giao Diện Cốt Lõi Trên Ứng Dụng
 *   **Gợi ý hình ảnh/Layout:** Slide trình bày 3 ảnh chụp màn hình (screenshots) ứng dụng Flutter thực tế của TriÂm:
     1.  Màn hình chính "Hôm nay" hiển thị buổi học trong ngày.
     2.  Giao diện Máy nghe nhạc (Audio Player) học tập tích hợp nút đàm thoại.
