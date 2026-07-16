@@ -6,6 +6,7 @@ from hashlib import sha256
 
 import firebase_admin
 from firebase_admin import credentials, messaging
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.core.config import settings
@@ -155,11 +156,27 @@ def register_user_device_token(session: Session, user_id: uuid.UUID, device_toke
             session.refresh(existing)
             return existing
 
-    new_token = UserDeviceToken(user_id=user_id, device_token=device_token)
-    session.add(new_token)
-    session.commit()
-    session.refresh(new_token)
-    return new_token
+    try:
+        new_token = UserDeviceToken(user_id=user_id, device_token=device_token)
+        session.add(new_token)
+        session.commit()
+        session.refresh(new_token)
+        return new_token
+    except IntegrityError:
+        session.rollback()
+        # Nếu gặp lỗi UniqueViolation do luồng khác vừa commit trước đó vài mili-giây,
+        # ta truy vấn lại và cập nhật sở hữu cho user hiện tại.
+        existing = session.exec(select(UserDeviceToken).where(UserDeviceToken.device_token == device_token)).first()
+        if existing:
+            if existing.user_id != user_id:
+                log.info(f"Chuyển device_token (sau khi giải quyết tranh chấp) từ user {existing.user_id} sang user {user_id}")
+                existing.user_id = user_id
+                existing.updated_at = datetime.now(timezone.utc)
+                session.add(existing)
+                session.commit()
+                session.refresh(existing)
+            return existing
+        raise
 
 
 def unregister_user_device_token(session: Session, user_id: uuid.UUID, device_token: str) -> bool:
