@@ -49,6 +49,7 @@ def create_db_engine(database_url: str | None = None, *, pool_mode: str | None =
     common_args: dict[str, Any] = {
         "echo": settings.DATABASE_ECHO,
         "connect_args": _connect_args_for(database_url),
+        "pool_pre_ping": settings.DATABASE_POOL_PRE_PING,
     }
 
     if should_use_null_pool(database_url, pool_mode):
@@ -65,7 +66,6 @@ def create_db_engine(database_url: str | None = None, *, pool_mode: str | None =
         max_overflow=settings.DATABASE_MAX_OVERFLOW,
         pool_timeout=settings.DATABASE_POOL_TIMEOUT,
         pool_recycle=settings.DATABASE_POOL_RECYCLE,
-        pool_pre_ping=settings.DATABASE_POOL_PRE_PING,
         pool_use_lifo=settings.DATABASE_POOL_USE_LIFO,
         **common_args,
     )

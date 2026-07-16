@@ -181,7 +181,7 @@ class Settings(BaseSettings):
     # Provider concurrency
     LEARNING_UNIT_PROCESSING_CONCURRENCY: int = 2
     LLM_NORMALIZE_CONCURRENCY: int = 1
-    TTS_GENERATION_CONCURRENCY: int = 4
+    TTS_GENERATION_CONCURRENCY: int = 8
     BOOK_SECTION_INDEXING_ENABLED: bool = True
     BOOK_SECTION_EMBEDDING_MODEL: str = "text-embedding-3-small"
     BOOK_SECTION_EMBEDDING_VERSION: str = "section-v1"
@@ -193,7 +193,7 @@ class Settings(BaseSettings):
 
     # Pareto learning unit planner
     PARETO_PLANNER_MODEL: str = "gemini-3.5-flash"
-    PARETO_PLANNER_TIMEOUT_SECONDS: float = 25.0
+    PARETO_PLANNER_TIMEOUT_SECONDS: float = 90.0
     PARETO_PLANNER_MAX_UNITS: int = 8
     PARETO_PLANNER_MIN_UNITS: int = 3
     PARETO_TARGET_COVERAGE_RATIO: float = 0.25

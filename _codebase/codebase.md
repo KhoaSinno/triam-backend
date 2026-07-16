@@ -2,11 +2,13 @@
 
 ## Project Statistics
 
-- Total files: 170
+- Total files: 174
 
 ## Folder Structure
 
 ```
+Makefile
+start.sh
 app
   api
     dependencies
@@ -36,6 +38,7 @@ app
     exceptions.py
     logger.py
     security.py
+    stopwords.py
     supabase.py
     __init__.py
   db
@@ -128,6 +131,7 @@ app
       __init__.py
     agent_observability
       contracts.py
+      llm_as_a_judge.py
       model_eval_report.py
       turn_trace.py
       __init__.py
@@ -197,6 +201,123 @@ app
     __init__.py
   __init__.py
 pyproject.toml
+
+```
+
+### Makefile
+
+```makefile
+login_get_AT: 
+	uv run python -m scripts.auth_script_test_supabase.test_login
+
+get_supabase_user: 
+	uv run python -m scripts.auth_script_test_supabase.test_supabase_sdk
+
+clean: 
+	./clean.sh
+
+gat:
+	uv run python scripts/get_supabase_access_token.py
+
+t1:
+	uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+t2:
+	uv run celery -A app.core.celery_app.celery_app worker -Q document -l info --pool=solo --concurrency 1
+
+t3:
+	uv run celery -A app.core.celery_app.celery_app worker -Q notification,maintenance -l info --pool=solo --concurrency 1
+
+t4:
+	uv run celery -A app.core.celery_app.celery_app beat -l info
+
+t5:
+	uv run python -m app.services.agent_voice_gpt_realtime start
+
+t5c:
+	uv run python -m app.services.agent_voice_gpt_realtime console
+```
+
+### start.sh
+
+```sh
+#!/usr/bin/env bash
+set -e
+
+export PYTHONUNBUFFERED=1
+export UV_NO_SYNC="${UV_NO_SYNC:-1}"
+
+# Giới hạn luồng tính toán cho PyTorch/MKL/OpenMP trên CPU basic HF Spaces.
+# Mặc định PyTorch sẽ cố dùng hết tất cả cores vật lý của máy chủ ảo hóa,
+# gây thrashing trên container 2 vCPU và làm container treo khi khởi động.
+export OMP_NUM_THREADS=1
+export MKL_NUM_THREADS=1
+export OPENBLAS_NUM_THREADS=1
+export VECLIB_MAXIMUM_THREADS=1
+export NUMEXPR_NUM_THREADS=1
+export TORCH_NUM_THREADS=1
+
+# Gọi binary trực tiếp từ .venv (nhanh hơn uv run, tránh lock contention khi
+# nhiều tiến trình khởi động đồng thời). .venv được tạo bởi Dockerfile (uv sync).
+PYTHON_BIN="./.venv/bin/python"
+CELERY_BIN="./.venv/bin/celery"
+ALEMBIC_BIN="./.venv/bin/alembic"
+UVICORN_BIN="./.venv/bin/uvicorn"
+
+if [ "${RUN_MIGRATIONS_ON_START:-false}" = "true" ]; then
+  echo "Running Alembic migrations..."
+  "$ALEMBIC_BIN" upgrade head
+fi
+
+if [ "${ENABLE_VOICE_AGENT:-true}" = "true" ]; then
+  AGENT_MODE="${AGENT_MODE:-start}"
+  echo "Starting realtime voice agent (mode=$AGENT_MODE)..."
+  "$PYTHON_BIN" -m app.services.agent_voice_gpt_realtime "$AGENT_MODE" 2>&1 | tee worker.log &
+else
+  echo "Skipping realtime voice agent (ENABLE_VOICE_AGENT=false)"
+fi
+
+if [ "${ENABLE_CELERY_WORKER:-false}" = "true" ]; then
+  echo "Starting Celery document worker..."
+  "$CELERY_BIN" -A app.core.celery_app.celery_app worker \
+    -Q document \
+    -l "${CELERY_LOG_LEVEL:-info}" \
+    --concurrency "${CELERY_DOCUMENT_CONCURRENCY:-1}" \
+    2>&1 | tee celery_document.log &
+else
+  echo "Skipping Celery document worker (ENABLE_CELERY_WORKER=false)"
+fi
+
+if [ "${ENABLE_NOTIFICATION_WORKER:-false}" = "true" ]; then
+  echo "Starting Celery notification worker..."
+  "$CELERY_BIN" -A app.core.celery_app.celery_app worker \
+    -Q notification,maintenance \
+    -l "${CELERY_LOG_LEVEL:-info}" \
+    --concurrency "${CELERY_NOTIFICATION_CONCURRENCY:-1}" \
+    2>&1 | tee celery_notification.log &
+else
+  echo "Skipping Celery notification worker (ENABLE_NOTIFICATION_WORKER=false)"
+fi
+
+if [ "${ENABLE_CELERY_BEAT:-false}" = "true" ]; then
+  echo "Starting Celery Beat..."
+  "$CELERY_BIN" -A app.core.celery_app.celery_app beat \
+    -l "${CELERY_LOG_LEVEL:-info}" \
+    2>&1 | tee celery_beat.log &
+else
+  echo "Skipping Celery Beat (ENABLE_CELERY_BEAT=false)"
+fi
+
+BACKEND_PORT="${BACKEND_PORT:-7860}"
+UVICORN_RELOAD="${UVICORN_RELOAD:-false}"
+
+if [ "$UVICORN_RELOAD" = "true" ]; then
+  echo "Starting FastAPI with reload on port ${BACKEND_PORT}..."
+  exec "$UVICORN_BIN" app.main:app --host 0.0.0.0 --port "$BACKEND_PORT" --reload
+else
+  echo "Starting FastAPI on port ${BACKEND_PORT}..."
+  exec "$UVICORN_BIN" app.main:app --host 0.0.0.0 --port "$BACKEND_PORT"
+fi
 
 ```
 
@@ -308,6 +429,10 @@ from app.schemas.admin import (
     AdminMeResponse,
     AdminRetryJobResponse,
     AdminUsersResponse,
+    AdminBookSectionListItem,
+    AdminBookSectionDetailResponse,
+    AdminJobListItem,
+    AdminBookExportResponse,
 )
 from app.schemas.responses import BookResponse
 from app.services import admin_service
@@ -339,7 +464,7 @@ def read_admin_users(
     limit: LimitQuery = 50,
     offset: OffsetQuery = 0,
 ):
-    return admin_service.get_users(session, limit=limit, offset=offset)
+    return admin_service.get_users(session, limit=limit, offset=offset, user_id=admin_user.user_id)
 
 
 @router.get("/books", response_model=AdminBooksResponse)
@@ -371,6 +496,43 @@ def read_admin_book_detail(
     session: Annotated[Session, Depends(get_session)],
 ):
     return admin_service.get_book_detail(session, book_id)
+
+
+@router.get("/books/{book_id}/sections", response_model=list[AdminBookSectionListItem])
+def read_admin_book_sections(
+    book_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.get_book_sections(session, book_id)
+
+
+@router.get("/books/{book_id}/sections/{section_id}", response_model=AdminBookSectionDetailResponse)
+def read_admin_book_section_detail(
+    book_id: uuid.UUID,
+    section_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.get_book_section_detail(session, book_id, section_id)
+
+
+@router.get("/books/{book_id}/jobs", response_model=list[AdminJobListItem])
+def read_admin_book_jobs(
+    book_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.get_book_jobs(session, book_id)
+
+
+@router.get("/books/{book_id}/export-json", response_model=AdminBookExportResponse)
+def export_admin_book_json(
+    book_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.export_book_json(session, book_id)
 
 
 @router.get("/jobs", response_model=AdminJobsResponse)
@@ -498,6 +660,7 @@ from app.services.audiobook_service import (
     list_reading_plan_slots,
     list_shared_library,
     pause_reading_plan,
+    reset_reading_plan,
     resume_reading_plan,
     select_shared_book_to_user,
     switch_book_mode,
@@ -677,6 +840,19 @@ def select_book_from_library(shared_book_id: uuid.UUID, current_user: CurrentUse
         }
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.post("/books/{book_id}/reset", response_model=ReadingPlanResponse)
+def reset_plan(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
+):
+    """
+    Đặt lại kế hoạch học tập của cuốn sách từ đầu.
+    Xóa sạch tiến độ học tập cũ của user và sinh lại các buổi học từ bài 1.
+    """
+    return reset_reading_plan(session, book_id, current_user.sub)
 
 ```
 
@@ -1320,6 +1496,12 @@ from pydantic.v1.env_settings import BaseSettings
 
 load_dotenv(override=True)
 
+import os
+
+if "SPACE_ID" not in os.environ and os.environ.get("RUNNING_ON_HF_SPACES") != "true":
+    os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
+
+
 
 class Settings(BaseSettings):
     OPENAI_API_KEY: str
@@ -1344,7 +1526,7 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_ROLE_KEY: str
 
     # TTS
-    EDGE_TTS_VOICE: str = "vi-VN-HoaiMyNeural"
+    EDGE_TTS_VOICE: str = "en-US-AvaMultilingualNeural"
     TTS_PROVIDER: str = "edge"
     TTS_RECEIVE_TIMEOUT_SECONDS: int = 300
     TTS_RETRY_BASE_SECONDS: int = 3
@@ -1366,7 +1548,7 @@ class Settings(BaseSettings):
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-mini"
     OPENAI_REALTIME_VOICE: str = "cedar"
     # Text and local console test behavior
-    VOICE_AGENT_HISTORY_LIMIT: int = 12
+    VOICE_AGENT_HISTORY_LIMIT: int = 24
     VOICE_AGENT_RAG_MAX_CHARS: int = 12000
     # Local console fallback only. Production LiveKit rooms must provide
     # thread_id and document_ids through job metadata from the backend token flow.
@@ -1384,8 +1566,8 @@ class Settings(BaseSettings):
     OPENAI_REALTIME_INPUT_AUDIO_NOISE_REDUCTION: str = "near_field"
 
     VOICE_AGENT_TEXT_LLM_MODEL: str = "gpt-4o-mini"
-    VOICE_AGENT_ENABLE_WEB_SEARCH_BY_DEFAULT: bool = False
-    VOICE_AGENT_LOG_TRANSCRIPT_TEXT: bool = False
+    VOICE_AGENT_ENABLE_WEB_SEARCH_BY_DEFAULT: bool = True
+    VOICE_AGENT_LOG_TRANSCRIPT_TEXT: bool = True
     VOICE_AGENT_DEDUPE_WINDOW_SECONDS: int = 3
     VOICE_AGENT_WEB_PERMISSION_TTL_SECONDS: int = 180
     # Policy websearch
@@ -1412,8 +1594,8 @@ class Settings(BaseSettings):
 
     # Phase 10.11 Voice Tool Reply Watchdog config
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_ENABLED: bool = True
-    VOICE_AGENT_TOOL_REPLY_WATCHDOG_GRACE_SECONDS: float = 2.0
-    VOICE_AGENT_TOOL_REPLY_WATCHDOG_THINKING_GRACE_SECONDS: float = 4.0
+    VOICE_AGENT_TOOL_REPLY_WATCHDOG_GRACE_SECONDS: float = 4.0
+    VOICE_AGENT_TOOL_REPLY_WATCHDOG_THINKING_GRACE_SECONDS: float = 8.0
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_TOOLS: str = "search_book_knowledge,ask_web_search_permission,execute_web_search"
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_ALLOW_ERROR_OUTPUTS: bool = False
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_FORCE_TOOL_CHOICE_NONE: bool = True
@@ -1422,25 +1604,22 @@ class Settings(BaseSettings):
     AGENT_TRACE_ENABLED: bool = True
     AGENT_TRACE_SCORE_PRECISION: int = 4
     AGENT_TRACE_LATE_TRANSCRIPT_WINDOW_SECONDS: float = 15.0
-    AGENT_GROUNDING_ROUTER_ENABLED: bool = False
+    AGENT_GROUNDING_ROUTER_ENABLED: bool = True
     AGENT_SHARED_POLICY_ENABLED: bool = True
-    AGENT_SECTION_CONTEXT_MAX_CHARS: int = 16000
-    # Hybrid RAG
-    AGENT_HYBRID_RAG_ENABLED: bool = True
-    AGENT_HYBRID_VECTOR_WEIGHT: float = 0.60
-    AGENT_HYBRID_LEXICAL_WEIGHT: float = 0.30
-    AGENT_HYBRID_TITLE_MATCH_BOOST: float = 0.07
-    AGENT_HYBRID_MULTI_SOURCE_BOOST: float = 0.03
+    AGENT_INTENT_CLASSIFIER_MODEL: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+    AGENT_INTENT_CLASSIFIER_THRESHOLD: float = 0.60
+    AGENT_SECTION_CONTEXT_MAX_CHARS: int = 24000
+
     AGENT_HYBRID_MIN_FINAL_SCORE: float = 0.25
-    AGENT_HYBRID_VECTOR_CANDIDATES: int = 12
-    AGENT_HYBRID_LEXICAL_CANDIDATES: int = 12
-    AGENT_HYBRID_MAX_CONTEXT_CHUNKS: int = 6
+    AGENT_HYBRID_LEXICAL_CANDIDATES: int = 20
+    AGENT_HYBRID_MAX_CONTEXT_CHUNKS: int = 12
     AGENT_HYBRID_MAX_CHUNKS_PER_SECTION: int = 2
+    AGENT_HYBRID_VALIDATE_EVIDENCE_ENABLED: bool = False
     # Reranker
     COHERE_API_KEY: str | None = None
     AGENT_RERANKER_ENABLED: bool = True
     AGENT_RERANKER_MODEL: str = "rerank-multilingual-v3.0"
-    AGENT_RERANKER_TOP_N: int = 10  # Maximum cadidates Reranker reuturn
+    AGENT_RERANKER_TOP_N: int = 12  # Maximum cadidates Reranker reuturn
     AGENT_RERANKER_CANDIDATES_LIMIT: int = 20  # Maximum cadidates sent to Cohere
     # Upload file
     MAX_FILE_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB
@@ -1493,7 +1672,7 @@ class Settings(BaseSettings):
     # Provider concurrency
     LEARNING_UNIT_PROCESSING_CONCURRENCY: int = 2
     LLM_NORMALIZE_CONCURRENCY: int = 1
-    TTS_GENERATION_CONCURRENCY: int = 4
+    TTS_GENERATION_CONCURRENCY: int = 8
     BOOK_SECTION_INDEXING_ENABLED: bool = True
     BOOK_SECTION_EMBEDDING_MODEL: str = "text-embedding-3-small"
     BOOK_SECTION_EMBEDDING_VERSION: str = "section-v1"
@@ -1504,14 +1683,12 @@ class Settings(BaseSettings):
     BOOK_SECTION_RAG_MATCH_COUNT: int = 10
 
     # Pareto learning unit planner
-    PARETO_PLANNER_LLM_ENABLED: bool = True
     PARETO_PLANNER_MODEL: str = "gemini-3.5-flash"
-    PARETO_PLANNER_TIMEOUT_SECONDS: float = 25.0
+    PARETO_PLANNER_TIMEOUT_SECONDS: float = 90.0
     PARETO_PLANNER_MAX_UNITS: int = 8
     PARETO_PLANNER_MIN_UNITS: int = 3
-    PARETO_PLANNER_LLM_MIN_CARDS: int = 1
     PARETO_TARGET_COVERAGE_RATIO: float = 0.25
-    PARETO_SECTION_EXCERPT_CHARS: int = 700
+    PARETO_SECTION_EXCERPT_CHARS: int = 1400
     PARETO_PLANNER_MAX_SECTION_CARDS: int = 120
 
     # Phase 4.1 notification/reminder workflow
@@ -1530,7 +1707,7 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_FILE: str | None = None
 
     # Phase 4.2 production learning loop
-    MAX_ACTIVE_LEARNING_BOOKS_PER_USER: int = 3
+    MAX_ACTIVE_LEARNING_BOOKS_PER_USER: int = 7
     LEARNING_COMPLETION_THRESHOLD_PERCENT: int = 80
     LEARNING_PROGRESS_MIN_DELTA_PERCENT: int = 5
     LEARNING_PROGRESS_STALE_SECONDS: int = 30
@@ -1961,6 +2138,22 @@ def setup_logger():
         diagnose=False,
     )
 
+    # 4. Cấu hình log riêng cho phiên chạy console test
+    if "console" in sys.argv:
+        import datetime
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        session_log_dir = LOG_DIR / "agent_eval"
+        session_log_dir.mkdir(parents=True, exist_ok=True)
+        logger.add(
+            session_log_dir / f"voice_console_{timestamp}.log",
+            level=app_log_level,
+            format="{time:YYYY-MM-DD HH:mm:ss.SSS} | {level: <8} | {name}:{function}:{line} - {message}",
+            encoding="utf-8",
+            filter=redact_filter,
+            backtrace=False,
+            diagnose=False,
+        )
+
     # Chuyển hướng log từ standard logging của Python sang loguru
     class InterceptHandler(logging.Handler):
         def emit(self, record):
@@ -2004,6 +2197,90 @@ log = setup_logger()
 
 ```py
 # Xử lý JWT, Auth (sau này)
+
+```
+
+### app\core\stopwords.py
+
+```py
+ENGLISH_STOPWORDS = {
+    "a",
+    "about",
+    "an",
+    "and",
+    "are",
+    "as",
+    "at",
+    "book",
+    "chapter",
+    "chapters",
+    "content",
+    "detail",
+    "details",
+    "do",
+    "does",
+    "for",
+    "from",
+    "give",
+    "in",
+    "is",
+    "it",
+    "me",
+    "of",
+    "on",
+    "please",
+    "section",
+    "sections",
+    "summary",
+    "tell",
+    "the",
+    "this",
+    "to",
+    "what",
+    "where",
+    "who",
+    "why",
+    "with",
+    "you",
+}
+
+VIETNAMESE_STOPWORDS = {
+    "anh",
+    "bai",
+    "ban",
+    "bao",
+    "chuong",
+    "co",
+    "cua",
+    "cuon",
+    "de",
+    "doc",
+    "duoc",
+    "gi",
+    "hay",
+    "hoi",
+    "ke",
+    "la",
+    "lai",
+    "minh",
+    "muc",
+    "nao",
+    "nay",
+    "noi",
+    "phan",
+    "quyen",
+    "sach",
+    "tat",
+    "them",
+    "thong",
+    "tin",
+    "toi",
+    "tom",
+    "trong",
+    "ve",
+}
+
+STOPWORDS = ENGLISH_STOPWORDS | VIETNAMESE_STOPWORDS
 
 ```
 
@@ -2087,6 +2364,7 @@ def create_db_engine(database_url: str | None = None, *, pool_mode: str | None =
     common_args: dict[str, Any] = {
         "echo": settings.DATABASE_ECHO,
         "connect_args": _connect_args_for(database_url),
+        "pool_pre_ping": settings.DATABASE_POOL_PRE_PING,
     }
 
     if should_use_null_pool(database_url, pool_mode):
@@ -2103,7 +2381,6 @@ def create_db_engine(database_url: str | None = None, *, pool_mode: str | None =
         max_overflow=settings.DATABASE_MAX_OVERFLOW,
         pool_timeout=settings.DATABASE_POOL_TIMEOUT,
         pool_recycle=settings.DATABASE_POOL_RECYCLE,
-        pool_pre_ping=settings.DATABASE_POOL_PRE_PING,
         pool_use_lifo=settings.DATABASE_POOL_USE_LIFO,
         **common_args,
     )
@@ -6131,12 +6408,25 @@ from datetime import datetime, timedelta, timezone
 from enum import Enum
 from typing import Any
 
-from sqlalchemy import union_all
+from sqlalchemy import Column, DateTime, MetaData, Table, Text
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlmodel import Session, func, select
 
 from app.core.constant import ProcessingJobStatus, ProcessingJobType
 from app.models.db_models import AdminAuditLog, AdminUser, Book, LearningUnit, LearningUnitSegment, ProcessingJob, UserNotification
 
+# Define schema table
+metadata = MetaData()
+auth_users = Table(
+    "users",
+    metadata,
+    Column("id", UUID(as_uuid=True), primary_key=True),
+    Column("email", Text),
+    Column("created_at", DateTime(timezone=True)),
+    Column("last_sign_in_at", DateTime(timezone=True)),
+    Column("raw_user_meta_data", JSONB),
+    schema="auth"
+)
 
 def _key(value: object) -> str:
     if isinstance(value, Enum):
@@ -6212,34 +6502,32 @@ def get_admin_dashboard(session: Session) -> dict[str, Any]:
     }
 
 
-def _admin_user_ids_query():
-    return union_all(
-        select(Book.user_id),
-        select(ProcessingJob.user_id),
-        select(UserNotification.user_id),
-    ).subquery()
+def count_admin_users(session: Session, user_id: uuid.UUID | None = None) -> int:
+    query = select(func.count(auth_users.c.id))
+    if user_id:
+        query = query.where(auth_users.c.id != user_id)
+
+    return int(session.exec(query).one() or 0)
 
 
-def count_admin_users(session: Session) -> int:
-    user_ids = _admin_user_ids_query()
-    grouped_users = select(user_ids.c.user_id).group_by(user_ids.c.user_id).subquery()
-    return int(session.exec(select(func.count()).select_from(grouped_users)).one() or 0)
+def list_admin_users(session: Session, *, limit: int, offset: int, user_id: uuid.UUID | None = None) -> tuple[list[dict[str, Any]], int]:
+    query = select(auth_users.c.id, auth_users.c.email, auth_users.c.created_at, auth_users.c.last_sign_in_at, auth_users.c.raw_user_meta_data)
+    if user_id:
+        query = query.where(auth_users.c.id != user_id)
 
-
-def list_admin_users(session: Session, *, limit: int, offset: int) -> tuple[list[dict[str, Any]], int]:
-    user_ids_query = _admin_user_ids_query()
-    user_ids = list(
+    users_data  = list(
         session.exec(
-            select(user_ids_query.c.user_id)
-            .group_by(user_ids_query.c.user_id)
-            .order_by(user_ids_query.c.user_id)
+            query
+            .order_by(auth_users.c.created_at.desc())
             .offset(offset)
             .limit(limit)
         ).all()
     )
-    total = count_admin_users(session)
-    if not user_ids:
+    total = count_admin_users(session, user_id)
+    if not users_data:
         return [], total
+
+    user_ids = [u.id for u in users_data]
 
     book_stats = {
         user_id: {"book_count": int(book_count), "last_book_at": last_book_at}
@@ -6265,7 +6553,11 @@ def list_admin_users(session: Session, *, limit: int, offset: int) -> tuple[list
     }
 
     items: list[dict[str, Any]] = []
-    for user_id in user_ids:
+    for user_id, email, created_at, last_sign_in_at, meta in users_data:
+        meta_dict = meta if isinstance(meta, dict) else {}
+        display_name = meta_dict.get("name") or meta_dict.get("full_name")
+        avatar_url = meta_dict.get("avatar_url") or meta_dict.get("picture")
+
         book_data = book_stats.get(user_id, {})
         job_data = job_stats.get(user_id, {})
         notification_data = notification_stats.get(user_id, {})
@@ -6277,6 +6569,11 @@ def list_admin_users(session: Session, *, limit: int, offset: int) -> tuple[list
         items.append(
             {
                 "user_id": user_id,
+                "email": email,
+                "display_name": display_name,
+                "avatar_url": avatar_url,
+                "account_created_at": created_at,
+                "last_sign_in_at": last_sign_in_at,
                 "book_count": book_data.get("book_count", 0),
                 "job_count": job_data.get("job_count", 0),
                 "notification_count": notification_data.get("notification_count", 0),
@@ -6520,6 +6817,7 @@ def load_scoped_section_texts(
 
 ```py
 import uuid
+import asyncio
 from typing import Optional
 
 from sqlalchemy import or_
@@ -6640,7 +6938,9 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uui
     target_buckets = ["audios", "raw_books"]
     try:
         # Lấy danh sách file từ tất cả bucket liên quan qua RPC
-        result = supabase.rpc("get_book_asset_paths", {"bucket_names": target_buckets, "book_id_prefix": str_book_id}).execute()
+        result = await asyncio.to_thread(
+            supabase.rpc("get_book_asset_paths", {"bucket_names": target_buckets, "book_id_prefix": str_book_id}).execute
+        )
 
         # Xóa file vật lý qua Storage API
         if result.data:
@@ -6648,7 +6948,7 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uui
             for bucket in target_buckets:
                 paths = [str(item["name"]) for item in data_list if isinstance(item, dict) and item.get("bucket_id") == bucket]
                 if paths:
-                    supabase.storage.from_(bucket).remove(paths)
+                    await asyncio.to_thread(supabase.storage.from_(bucket).remove, paths)
                     log.info(f"Đã xóa {len(paths)} files từ bucket: {bucket}")
 
         # Xóa record trong DB
@@ -6732,6 +7032,24 @@ def upsert_book_learning_state(
     session.commit()
     session.refresh(state)
     return state
+
+
+def reset_book_learning_state(session: Session, *, user_id: uuid.UUID, book_id: uuid.UUID, mode: PlanMode) -> None:
+    """Đặt lại trạng thái tiến độ tổng quan của sách về ban đầu."""
+    state = get_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode)
+    if state:
+        state.status = "not_started"
+        state.book_progress_percent = 0
+        state.completed_units = 0
+        state.playable_units = 0
+        state.last_learning_unit_id = None
+        state.last_segment_id = None
+        state.last_segment_index = None
+        state.position_ms = 0
+        state.started_at = None
+        state.completed_at = None
+        state.updated_at = datetime.now(timezone.utc)
+        session.add(state)
 
 ```
 
@@ -7109,7 +7427,7 @@ def list_book_sections_by_ids(session: Session, section_ids: list[uuid.UUID]) ->
 import uuid
 from datetime import datetime
 
-from sqlmodel import Session, select
+from sqlmodel import Session, delete, select
 
 from app.core.constant import LearningProgressStatus, PlanMode
 from app.models.db_models import LearningUnit, LearningUnitProgress, LearningUnitSegment
@@ -7269,6 +7587,18 @@ def has_playable_uncompleted_unit(
 #         ).all()
 #     )
 #     return bool(playable_ids - completed_ids)
+
+
+def delete_book_progress(session: Session, *, user_id: uuid.UUID, book_id: uuid.UUID, mode: PlanMode) -> None:
+    """Xóa toàn bộ tiến độ các bài học của user đối với sách và mode nhất định."""
+    session.execute(
+        delete(LearningUnitProgress)
+        .where(
+            LearningUnitProgress.user_id == user_id,
+            LearningUnitProgress.book_id == book_id,
+            LearningUnitProgress.mode == mode,
+        )
+    )
 
 ```
 
@@ -7468,7 +7798,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, select
+from sqlmodel import Session, delete, select
 
 from app.core.constant import NotificationStatus
 from app.models.db_models import NotificationOutbox
@@ -7634,6 +7964,17 @@ def count_outbox_for_user_between(
         )
     ).one()
     return int(count or 0)
+
+
+def delete_pending_outbox_by_keys(session: Session, *, keys: list[str]) -> None:
+    """Xóa toàn bộ các thông báo đang chờ gửi (status = PENDING) có idempotency_key thuộc danh sách."""
+    if not keys:
+        return
+    session.execute(
+        delete(NotificationOutbox)
+        .where(NotificationOutbox.status == NotificationStatus.PENDING)
+        .where(NotificationOutbox.idempotency_key.in_(keys))
+    )
 
 ```
 
@@ -7992,7 +8333,7 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlmodel import Session, col, func, select
+from sqlmodel import Session, col, delete, func, select
 
 from app.core.constant import PlanMode, ReadingPlanSessionStatus
 from app.models.db_models import ReadingPlanSession, ReadingPlanSessionUnit
@@ -8317,6 +8658,18 @@ def mark_overdue_sessions_missed(
         session.add(row)
     return len(rows)
 
+
+def delete_sessions_for_plan(session: Session, *, plan_id: uuid.UUID) -> None:
+    """Xóa toàn bộ các buổi học và chi tiết buổi học của kế hoạch học tập."""
+    session.execute(
+        delete(ReadingPlanSessionUnit)
+        .where(ReadingPlanSessionUnit.plan_id == plan_id)
+    )
+    session.execute(
+        delete(ReadingPlanSession)
+        .where(ReadingPlanSession.plan_id == plan_id)
+    )
+
 ```
 
 ### app\repositories\spaced_review_repo.py
@@ -8326,7 +8679,7 @@ import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy.exc import IntegrityError
-from sqlmodel import Session, func, select
+from sqlmodel import Session, delete, func, select
 
 from app.core.constant import PlanMode, ReviewItemStatus
 from app.models.db_models import SpacedReviewItem
@@ -8522,6 +8875,18 @@ def mark_review_item_skipped(session: Session, review_item: SpacedReviewItem, *,
     session.commit()
     session.refresh(review_item)
     return review_item
+
+
+def delete_spaced_review_items(session: Session, *, user_id: uuid.UUID, book_id: uuid.UUID, mode: PlanMode) -> None:
+    """Xóa toàn bộ các thẻ ôn tập ngắt quãng của user đối với sách và mode nhất định."""
+    session.execute(
+        delete(SpacedReviewItem)
+        .where(
+            SpacedReviewItem.user_id == user_id,
+            SpacedReviewItem.book_id == book_id,
+            SpacedReviewItem.mode == mode,
+        )
+    )
 
 ```
 
@@ -8845,10 +9210,16 @@ class AdminDashboardResponse(BaseModel):
 
 class AdminUserListItem(BaseModel):
     user_id: uuid.UUID
+    email: str | None = None
+    display_name: str | None = None
+    avatar_url: str | None = None
+    account_created_at: datetime | None = None
+    last_sign_in_at: datetime | None = None
     book_count: int = 0
     job_count: int = 0
     notification_count: int = 0
     last_activity_at: datetime | None = None
+
 
 
 class AdminUsersResponse(BaseModel):
@@ -8874,6 +9245,9 @@ class AdminBookListItem(BaseModel):
     parent_shared_id: uuid.UUID | None = None
     has_full_mode: bool = False
     has_pareto_mode: bool = False
+    user_email: str | None = None
+    user_display_name: str | None = None
+    user_avatar_url: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -8915,10 +9289,59 @@ class AdminJobsResponse(BaseModel):
     items: list[AdminJobListItem]
 
 
+class AdminBookOwnerInfo(BaseModel):
+    user_id: uuid.UUID
+    email: str | None = None
+    display_name: str | None = None
+    avatar_url: str | None = None
+    account_created_at: datetime | None = None
+    last_sign_in_at: datetime | None = None
+
+
+class AdminBookSectionListItem(BaseModel):
+    id: uuid.UUID
+    section_index: int
+    title: str
+    level: int
+    path: str
+    text_char_count: int
+    page_start: int | None = None
+    page_end: int | None = None
+    modes: list[str] = []
+    chunk_count: int = 0
+    has_text: bool = False
+
+
+class AdminSectionChunkItem(BaseModel):
+    id: int
+    chunk_index: int
+    content: str
+    search_text: str
+    embedding_model: str
+    embedding_version: str
+    char_count: int
+    token_count: int | None = None
+    has_embedding: bool = False
+
+
+class AdminBookSectionDetailResponse(BaseModel):
+    id: uuid.UUID
+    section_index: int
+    title: str
+    level: int
+    path: str
+    text_content: str | None = None
+    text_char_count: int
+    page_start: int | None = None
+    page_end: int | None = None
+    chunks: list[AdminSectionChunkItem] = []
+
+
 class AdminBookDetailResponse(AdminBookListItem):
     latest_job: AdminJobListItem | None = None
     learning_units_by_status: dict[str, int] = Field(default_factory=dict)
     segment_count: int = 0
+    owner_info: AdminBookOwnerInfo | None = None
 
 
 class AdminRetryJobResponse(BaseModel):
@@ -8941,6 +9364,34 @@ class AdminAuditLogsResponse(BaseModel):
     limit: int
     offset: int
     items: list[AdminAuditLogItem]
+
+
+class AdminExportChunkItem(BaseModel):
+    chunk_index: int
+    content: str
+    embedding_model: str
+    embedding_version: str
+    token_count: int | None = None
+    has_embedding: bool = False
+
+
+class AdminExportSectionItem(BaseModel):
+    section_index: int
+    title: str
+    level: int
+    path: str
+    page_start: int | None = None
+    page_end: int | None = None
+    modes: list[str] = []
+    chunks: list[AdminExportChunkItem] = []
+
+
+class AdminBookExportResponse(BaseModel):
+    book_id: uuid.UUID
+    title: str
+    author: str | None = None
+    document_type: str | None = None
+    sections: list[AdminExportSectionItem] = []
 
 ```
 
@@ -9578,11 +10029,11 @@ class UserTokenPayload(BaseModel):
 import uuid
 from datetime import datetime, timezone
 
-from sqlmodel import Session, select
+from sqlmodel import Session, select, func
 
 from app.core.constant import BookStatus, PlanMode, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import BadRequestError, BookNotFoundError, BookStatusConflictError, ExternalServiceError, ProcessingJobNotFoundError, ProcessingJobStatusConflictError
-from app.models.db_models import AdminAuditLog, AdminUser, Book, LearningUnit, ProcessingJob
+from app.models.db_models import AdminAuditLog, AdminUser, Book, LearningUnit, ProcessingJob, BookSection, BookSectionKnowledge
 from app.repositories.admin_repo import (
     count_learning_unit_segments_for_book,
     count_learning_units_by_status,
@@ -9609,10 +10060,18 @@ from app.schemas.admin import (
     AdminMeResponse,
     AdminRetryJobResponse,
     AdminUsersResponse,
+    AdminBookOwnerInfo,
+    AdminBookSectionListItem,
+    AdminSectionChunkItem,
+    AdminBookSectionDetailResponse,
+    AdminBookExportResponse,
+    AdminExportSectionItem,
+    AdminExportChunkItem,
 )
 from app.schemas.user import UserTokenPayload
 from app.services.upload_service import _planned_units_for_book
 from app.tasks.book_tasks import process_book_task, switch_mode_task
+from app.repositories.admin_repo import auth_users
 
 RETRYABLE_JOB_STATUSES = {ProcessingJobStatus.ERROR, ProcessingJobStatus.CANCELLED}
 RETRYABLE_JOB_TYPES = {ProcessingJobType.GENERATE_PLAN, ProcessingJobType.SWITCH_MODE}
@@ -9631,8 +10090,8 @@ def get_dashboard(session: Session) -> AdminDashboardResponse:
     return AdminDashboardResponse(**get_admin_dashboard(session))
 
 
-def get_users(session: Session, *, limit: int, offset: int) -> AdminUsersResponse:
-    items, total = list_admin_users(session, limit=limit, offset=offset)
+def get_users(session: Session, *, limit: int, offset: int, user_id: uuid.UUID | None = None) -> AdminUsersResponse:
+    items, total = list_admin_users(session, limit=limit, offset=offset, user_id=user_id)
     return AdminUsersResponse(total=total, limit=limit, offset=offset, items=items)
 
 
@@ -9667,9 +10126,28 @@ def get_books(
         for b_id, mode in rows:
             modes_map.setdefault(b_id, set()).add(mode.value)
 
+    user_ids = list(set([b.user_id for b in books if b.user_id]))
+    users_map = {}
+    if user_ids:
+        users_rows = session.exec(
+            select(
+                auth_users.c.id,
+                auth_users.c.email,
+                auth_users.c.raw_user_meta_data
+            ).where(auth_users.c.id.in_(user_ids))
+        ).all()
+        for u_id, email, meta in users_rows:
+            meta_dict = meta if isinstance(meta, dict) else {}
+            users_map[u_id] = {
+                "email": email,
+                "display_name": meta_dict.get("name") or meta_dict.get("full_name"),
+                "avatar_url": meta_dict.get("avatar_url") or meta_dict.get("picture"),
+            }
+
     items = []
     for b in books:
         book_modes = modes_map.get(b.id, set())
+        u_info = users_map.get(b.user_id, {})
         items.append(
             AdminBookListItem(
                 id=b.id,
@@ -9685,6 +10163,9 @@ def get_books(
                 parent_shared_id=b.parent_shared_id,
                 has_full_mode="full" in book_modes,
                 has_pareto_mode="pareto" in book_modes,
+                user_email=u_info.get("email"),
+                user_display_name=u_info.get("display_name"),
+                user_avatar_url=u_info.get("avatar_url"),
                 created_at=b.created_at,
                 updated_at=b.updated_at,
             )
@@ -9707,6 +10188,25 @@ def get_book_detail(session: Session, book_id: uuid.UUID) -> AdminBookDetailResp
     ).all()
     book_modes = {mode.value for mode in rows}
 
+    owner_info = None
+    if book.user_id:
+        from app.repositories.admin_repo import auth_users
+        user_row = session.exec(
+            select(auth_users.c.id, auth_users.c.email, auth_users.c.created_at, auth_users.c.last_sign_in_at, auth_users.c.raw_user_meta_data)
+            .where(auth_users.c.id == book.user_id)
+        ).first()
+        if user_row:
+            u_id, email, c_at, l_in, meta = user_row
+            meta_dict = meta if isinstance(meta, dict) else {}
+            owner_info = AdminBookOwnerInfo(
+                user_id=u_id,
+                email=email,
+                display_name=meta_dict.get("name") or meta_dict.get("full_name"),
+                avatar_url=meta_dict.get("avatar_url") or meta_dict.get("picture"),
+                account_created_at=c_at,
+                last_sign_in_at=l_in
+            )
+
     return AdminBookDetailResponse(
         id=book.id,
         user_id=book.user_id,
@@ -9726,6 +10226,7 @@ def get_book_detail(session: Session, book_id: uuid.UUID) -> AdminBookDetailResp
         latest_job=AdminJobListItem.model_validate(latest_job) if latest_job else None,
         learning_units_by_status=count_learning_units_by_status(session, book_id),
         segment_count=count_learning_unit_segments_for_book(session, book_id),
+        owner_info=owner_info,
     )
 
 
@@ -9958,6 +10459,176 @@ async def start_admin_book_processing(
     )
 
 
+def get_book_sections(session: Session, book_id: uuid.UUID) -> list[AdminBookSectionListItem]:
+    sections = session.exec(
+        select(BookSection)
+        .where(BookSection.book_id == book_id)
+        .order_by(BookSection.section_index.asc())
+    ).all()
+    
+    chunks_count_map = {}
+    if sections:
+        chunk_counts = session.exec(
+            select(BookSectionKnowledge.section_id, func.count(BookSectionKnowledge.id))
+            .where(BookSectionKnowledge.book_id == book_id)
+            .group_by(BookSectionKnowledge.section_id)
+        ).all()
+        chunks_count_map = {s_id: count for s_id, count in chunk_counts}
+
+    # Query modes for sections
+    from app.models.db_models import LearningUnitSource
+    section_modes_map = {}
+    if sections:
+        rows = session.exec(
+            select(LearningUnitSource.section_id, LearningUnit.mode)
+            .join(LearningUnit, LearningUnit.id == LearningUnitSource.learning_unit_id)
+            .where(LearningUnit.book_id == book_id)
+        ).all()
+        for s_id, mode in rows:
+            section_modes_map.setdefault(s_id, set()).add(mode.value)
+
+    return [
+        AdminBookSectionListItem(
+            id=s.id,
+            section_index=s.section_index,
+            title=s.title,
+            level=s.level,
+            path=s.path,
+            text_char_count=s.text_char_count,
+            page_start=s.page_start,
+            page_end=s.page_end,
+            modes=list(section_modes_map.get(s.id, set())),
+            chunk_count=chunks_count_map.get(s.id, 0),
+            has_text=bool(s.text_content and s.text_content.strip())
+        )
+        for s in sections
+    ]
+
+
+def get_book_section_detail(session: Session, book_id: uuid.UUID, section_id: uuid.UUID) -> AdminBookSectionDetailResponse:
+    from fastapi import HTTPException
+    section = session.exec(
+        select(BookSection)
+        .where(BookSection.book_id == book_id, BookSection.id == section_id)
+    ).first()
+    
+    if not section:
+        raise HTTPException(status_code=404, detail="Không tìm thấy mục lục sách.")
+
+    chunks = session.exec(
+        select(BookSectionKnowledge)
+        .where(BookSectionKnowledge.section_id == section_id)
+        .order_by(BookSectionKnowledge.chunk_index.asc())
+    ).all()
+
+    chunk_items = [
+        AdminSectionChunkItem(
+            id=c.id,
+            chunk_index=c.chunk_index,
+            content=c.content,
+            search_text=c.search_text,
+            embedding_model=c.embedding_model,
+            embedding_version=c.embedding_version,
+            char_count=c.char_count,
+            token_count=c.token_count if c.token_count is not None else int(len(c.content.split()) * 1.3),
+            has_embedding=c.embedding is not None
+        )
+        for c in chunks
+    ]
+
+    return AdminBookSectionDetailResponse(
+        id=section.id,
+        section_index=section.section_index,
+        title=section.title,
+        level=section.level,
+        path=section.path,
+        text_content=section.text_content,
+        text_char_count=section.text_char_count,
+        page_start=section.page_start,
+        page_end=section.page_end,
+        chunks=chunk_items
+    )
+
+
+def get_book_jobs(session: Session, book_id: uuid.UUID) -> list[AdminJobListItem]:
+    jobs = session.exec(
+        select(ProcessingJob)
+        .where(ProcessingJob.book_id == book_id)
+        .order_by(ProcessingJob.created_at.desc())
+    ).all()
+    
+    return [AdminJobListItem.model_validate(j) for j in jobs]
+
+
+def export_book_json(session: Session, book_id: uuid.UUID) -> AdminBookExportResponse:
+    from app.models.db_models import LearningUnitSource
+    book = get_admin_book_by_id(session, book_id)
+    if not book:
+        raise BookNotFoundError()
+
+    sections = session.exec(
+        select(BookSection)
+        .where(BookSection.book_id == book_id)
+        .order_by(BookSection.section_index.asc())
+    ).all()
+
+    chunks = session.exec(
+        select(BookSectionKnowledge)
+        .where(BookSectionKnowledge.book_id == book_id)
+        .order_by(BookSectionKnowledge.section_id, BookSectionKnowledge.chunk_index.asc())
+    ).all()
+
+    chunks_by_section = {}
+    for c in chunks:
+        chunks_by_section.setdefault(c.section_id, []).append(c)
+
+    section_modes_map = {}
+    if sections:
+        rows = session.exec(
+            select(LearningUnitSource.section_id, LearningUnit.mode)
+            .join(LearningUnit, LearningUnit.id == LearningUnitSource.learning_unit_id)
+            .where(LearningUnit.book_id == book_id)
+        ).all()
+        for s_id, mode in rows:
+            section_modes_map.setdefault(s_id, set()).add(mode.value)
+
+    section_items = []
+    for s in sections:
+        s_chunks = chunks_by_section.get(s.id, [])
+        chunk_items = [
+            AdminExportChunkItem(
+                chunk_index=c.chunk_index,
+                content=c.content,
+                embedding_model=c.embedding_model,
+                embedding_version=c.embedding_version,
+                token_count=c.token_count if c.token_count is not None else int(len(c.content.split()) * 1.3),
+                has_embedding=c.embedding is not None
+            )
+            for c in s_chunks
+        ]
+        
+        section_items.append(
+            AdminExportSectionItem(
+                section_index=s.section_index,
+                title=s.title,
+                level=s.level,
+                path=s.path,
+                page_start=s.page_start,
+                page_end=s.page_end,
+                modes=list(section_modes_map.get(s.id, set())),
+                chunks=chunk_items
+            )
+        )
+
+    return AdminBookExportResponse(
+        book_id=book.id,
+        title=book.title,
+        author=book.author,
+        document_type=book.document_type,
+        sections=section_items
+    )
+
+
 ```
 
 ### app\services\agent_grounding\contracts.py
@@ -10128,7 +10799,7 @@ from app.services.agent_grounding.contracts import (
     ResolutionQuality,
     SectionTextLoader,
 )
-from app.services.agent_grounding.intent_router import detect_metadata_intent, detect_section_intent
+from app.services.agent_grounding.intent_router import classify_intent
 from app.services.agent_grounding.query_normalizer import normalize_query
 from app.services.agent_grounding.response_renderer import render_metadata_answer
 from app.services.agent_grounding.section_context_builder import build_section_context, descendant_section_ids
@@ -10159,32 +10830,57 @@ class GroundingRouter:
         started = time.perf_counter()
         normalized = normalize_query(query)
 
-        metadata_intent = detect_metadata_intent(normalized)
-        if metadata_intent is not None:
-            result = self._resolve_metadata(normalized, metadata_intent)
-        else:
-            reference = parse_section_reference(normalized)
-            section_intent = detect_section_intent(normalized, reference)
+        # 1. Gọi bộ phân loại ý định ngữ nghĩa bất đồng bộ
+        intent = await classify_intent(normalized)
+        reference = parse_section_reference(normalized)
 
-            result = None
-            if section_intent == GroundingIntent.CLARIFICATION_REQUIRED:
-                result = self._clarification("missing_section_reference", "Bạn muốn hỏi chương hoặc đề mục nào?")
-            elif section_intent is not None:
-                result = await self._resolve_section(normalized, reference, section_intent)
-                if result.decision.route == GroundingRoute.CLARIFICATION:
-                    is_explicit = reference.explicit_path is not None or reference.explicit_ordinal is not None
-                    if not is_explicit:
-                        result = None
+        # 2. Luật chặn (Guard Rule): Nếu phân loại là mục lục/tóm tắt chương nhưng không có đề mục cụ thể
+        # thì tự động hạ cấp xuống CLARIFICATION_REQUIRED để tránh lỗi định tuyến
+        if intent in (GroundingIntent.BOOK_SECTION_SUMMARY, GroundingIntent.BOOK_SECTION_CONTENT):
+            if not reference.has_target:
+                intent = GroundingIntent.CLARIFICATION_REQUIRED
 
-            if result is None:
-                result = GroundingResult(
-                    GroundingDecision(
-                        GroundingIntent.BOOK_SEMANTIC_QUESTION,
-                        GroundingRoute.BOOK_RAG,
-                        ResolutionQuality.NOT_FOUND,
-                        "semantic_rag_fallback",
-                    )
+        result = None
+        if intent == GroundingIntent.BOOK_SEMANTIC_QUESTION:
+            result = GroundingResult(
+                GroundingDecision(
+                    GroundingIntent.BOOK_SEMANTIC_QUESTION,
+                    GroundingRoute.BOOK_RAG,
+                    ResolutionQuality.NOT_FOUND,
+                    "semantic_rag_fallback",
                 )
+            )
+        elif intent == GroundingIntent.CLARIFICATION_REQUIRED:
+            result = self._clarification("missing_section_reference", "Bạn muốn hỏi chương hoặc đề mục nào?")
+        elif intent == GroundingIntent.EXTERNAL_CURRENT_INFO:
+            result = GroundingResult(
+                GroundingDecision(
+                    GroundingIntent.EXTERNAL_CURRENT_INFO,
+                    GroundingRoute.WEB_POLICY,
+                    ResolutionQuality.EXACT,
+                    "clear_external_current_info",
+                )
+            )
+        elif intent in (GroundingIntent.BOOK_SECTION_SUMMARY, GroundingIntent.BOOK_SECTION_CONTENT):
+            result = await self._resolve_section(normalized, reference, intent)
+            if result.decision.route == GroundingRoute.CLARIFICATION:
+                is_explicit = reference.explicit_path is not None or reference.explicit_ordinal is not None
+                if not is_explicit:
+                    result = None
+        else:
+            # Các nhóm Metadata
+            result = self._resolve_metadata(normalized, intent)
+
+        # Fallback phòng thủ cuối cùng
+        if result is None:
+            result = GroundingResult(
+                GroundingDecision(
+                    GroundingIntent.BOOK_SEMANTIC_QUESTION,
+                    GroundingRoute.BOOK_RAG,
+                    ResolutionQuality.NOT_FOUND,
+                    "semantic_rag_fallback",
+                )
+            )
 
         if tracer is not None:
             self._record_trace(tracer, input_mode, result, int((time.perf_counter() - started) * 1000))
@@ -10279,91 +10975,15 @@ from app.services.agent_grounding.query_normalizer import normalize_query, norma
 _ACRONYM_RE = re.compile(r"\b[A-Z][A-Z0-9]{1,}(?:[-_/][A-Z0-9]{2,})*\b")
 _QUOTED_RE = re.compile(r"[\"'“”‘’]([^\"'“”‘’]{2,})[\"'“”‘’]")
 
-_STOPWORDS = {
-    "a",
-    "about",
-    "an",
-    "and",
-    "are",
-    "as",
-    "at",
-    "book",
-    "chapter",
-    "chapters",
-    "content",
-    "detail",
-    "details",
-    "do",
-    "does",
-    "for",
-    "from",
-    "give",
-    "in",
-    "is",
-    "it",
-    "me",
-    "of",
-    "on",
-    "please",
-    "section",
-    "sections",
-    "summary",
-    "tell",
-    "the",
-    "this",
-    "to",
-    "what",
-    "where",
-    "who",
-    "why",
-    "with",
-    "you",
-    "anh",
-    "bai",
-    "ban",
-    "bao",
-    "chuong",
-    "co",
-    "cua",
-    "cuon",
-    "de",
-    "doc",
-    "duoc",
-    "gi",
-    "hay",
-    "hoi",
-    "ke",
-    "la",
-    "lai",
-    "minh",
-    "muc",
-    "nao",
-    "nay",
-    "noi",
-    "noi dung",
-    "phan",
-    "quyen",
-    "sach",
-    "tat",
-    "them",
-    "thong",
-    "tin",
-    "toi",
-    "tom",
-    "trong",
-    "ve",
-}
+from app.core.stopwords import STOPWORDS
 
 
 @dataclass(frozen=True)
 class HybridRetrievalConfig:
-    vector_weight: float
-    lexical_weight: float
-    title_match_boost: float
-    multi_source_boost: float
     min_final_score: float
     max_context_chunks: int
     max_chunks_per_section: int
+    validate_evidence_enabled: bool = True
 
 
 @dataclass
@@ -10476,27 +11096,25 @@ def _token_overlap(query_tokens: set[str], text: str) -> bool:
 def rerank_candidates(
     query: str,
     candidates: list[RetrievalCandidate],
+    vector_payload: list[dict[str, Any]],
+    lexical_payload: list[dict[str, Any]],
     config: HybridRetrievalConfig,
+    k: int = 60,
 ) -> list[RetrievalCandidate]:
-    query_tokens = {token for token in normalize_query(query).tokens if token not in _STOPWORDS}
+    
+    # 1. Xác định thứ hạng (1-indexed) của từng ứng viên trong luồng Vector Search
+    vector_ranks = {_candidate_key(item): idx + 1 for idx, item in enumerate(vector_payload)}
+    
+    # 2. Xác định thứ hạng (1-indexed) của từng ứng viên trong luồng Lexical Search
+    lexical_ranks = {_candidate_key(item): idx + 1 for idx, item in enumerate(lexical_payload)}
+    
+    # 3. Tính điểm RRF cho từng ứng viên theo công thức chuẩn quốc tế
     for candidate in candidates:
-        vector_score = _clamp_score(candidate.vector_score)
-        lexical_score = _clamp_score(candidate.lexical_score)
-        available_weight = 0.0
-        weighted_score = 0.0
-        if candidate.vector_score is not None:
-            available_weight += config.vector_weight
-            weighted_score += config.vector_weight * vector_score
-        if candidate.lexical_score is not None:
-            available_weight += config.lexical_weight
-            weighted_score += config.lexical_weight * lexical_score
-        blended_score = weighted_score / available_weight if available_weight else 0.0
-        final_score = max(vector_score, lexical_score, blended_score)
-        if _token_overlap(query_tokens, f"{candidate.section_path} {candidate.section_title}"):
-            final_score += config.title_match_boost
-        if {"vector", "lexical"}.issubset(candidate.sources):
-            final_score += config.multi_source_boost
-        candidate.final_score = _clamp_score(final_score)
+        c_id = candidate.id
+        term_v = 1.0 / (k + vector_ranks[c_id]) if c_id in vector_ranks else 0.0
+        term_l = 1.0 / (k + lexical_ranks[c_id]) if c_id in lexical_ranks else 0.0
+        candidate.final_score = term_v + term_l
+        
     return sorted(
         candidates,
         key=lambda item: (
@@ -10534,12 +11152,12 @@ def _important_query_tokens(query: str) -> set[str]:
         token
         for token in normalized.tokens
         if (len(token) >= 5 or any(char.isdigit() for char in token))
-        and token not in _STOPWORDS
+        and token not in STOPWORDS
     }
     for acronym in _ACRONYM_RE.findall(query):
         important.update(tokenize(normalized_key(acronym)))
     for quoted in _QUOTED_RE.findall(query):
-        important.update(token for token in tokenize(normalized_key(quoted)) if token not in _STOPWORDS)
+        important.update(token for token in tokenize(normalized_key(quoted)) if token not in STOPWORDS)
     return important
 
 
@@ -10551,8 +11169,11 @@ def validate_evidence(
     if not selected_candidates:
         return EvidenceValidationResult(valid=False, reason_code="no_candidates")
 
-    top_score = selected_candidates[0].final_score
-    if top_score < config.min_final_score:
+    if not config.validate_evidence_enabled:
+        return EvidenceValidationResult(valid=True, reason_code="valid")
+
+    top_vector_score = selected_candidates[0].vector_score
+    if top_vector_score is not None and top_vector_score < config.min_final_score:
         return EvidenceValidationResult(valid=False, reason_code="low_confidence")
 
     important_tokens = _important_query_tokens(query)
@@ -10601,7 +11222,7 @@ def build_hybrid_retrieval_result(
     config: HybridRetrievalConfig,
 ) -> HybridRetrievalResult:
     candidates = merge_candidates(vector_payload, lexical_payload)
-    ranked = rerank_candidates(query, candidates, config)
+    ranked = rerank_candidates(query, candidates, vector_payload, lexical_payload, config)
     selected = select_context_candidates(ranked, config)
     validation = validate_evidence(query, selected, config)
     top_candidate = selected[0] if selected else None
@@ -10638,78 +11259,198 @@ def build_hybrid_retrieval_result(
 ```py
 from __future__ import annotations
 
-from app.services.agent_grounding.contracts import GroundingIntent, NormalizedQuery, SectionReference
-from app.services.agent_grounding.query_normalizer import contains_any_phrase
+import asyncio
+import torch
+from transformers import AutoTokenizer, AutoModel
+from app.core.config import settings
+from app.services.agent_grounding.contracts import GroundingIntent, NormalizedQuery
 
-AUTHOR_MARKERS = ("tác giả", "người viết", "ai viết", "author", "who wrote", "written by")
-AUTHOR_CONTENT_ACTIONS = ("giải thích", "trình bày", "cho rằng", "nói gì", "quan điểm", "explain", "argue", "describe")
-TITLE_MARKERS = (
-    "tên sách",
-    "tựa sách",
-    "tên của quyển sách",
-    "book title",
-    "title of the book",
-    "sách gì",
-    "sách nào",
-    "quyển sách gì",
-    "quyển sách nào",
-    "đang học quyển nào",
-    "đang học sách nào",
-    "đang học sách gì",
-    "đang đọc sách nào",
-    "đang đọc quyển nào",
-)
-DOCUMENT_TYPE_MARKERS = ("loại tài liệu", "định dạng tài liệu", "file gì", "document type", "file format")
-ROOT_SECTION_COUNT_MARKERS = (
-    "bao nhiêu phần chính",
-    "bao nhiêu chương chính",
-    "bao nhiêu chương",
-    "how many main sections",
-    "how many chapters",
-)
-SECTION_COUNT_MARKERS = ("bao nhiêu đề mục", "bao nhiêu mục", "tổng số đề mục", "how many sections", "section count")
-STATUS_MARKERS = ("trạng thái sách", "sách xử lý xong chưa", "book status", "processing status")
-SUMMARY_MARKERS = (
-    "tóm tắt",
-    "đại ý",
-    "ý chính",
-    "ý chương",
-    "tổng quan",
-    "xảy ra chuyện gì",
-    "summarize",
-    "summary",
-    "main idea",
-    "central idea",
-    "what happens",
-    "overview",
-)
-SECTION_CONTENT_MARKERS = ("nội dung", "giải thích", "trình bày", "explain", "what is in", "content")
+# Định nghĩa các câu mẫu đặc trưng đại diện cho từng lớp Ý định (Intent Class)
+PROTOTYPES = {
+    GroundingIntent.BOOK_METADATA_ROOT_SECTION_COUNT: [
+        "sách có bao nhiêu chương chính",
+        "quyển sách này gồm bao nhiêu chương",
+        "sách có mấy chương",
+        "sách gồm mấy phần",
+        "tổng số chương chính",
+        "how many chapters",
+        "how many main sections"
+    ],
+    GroundingIntent.BOOK_METADATA_AUTHOR: [
+        "ai là tác giả cuốn sách này",
+        "tác giả quyển sách này là ai",
+        "ai viết tác phẩm này",
+        "sách này được soạn bởi ai",
+        "author của cuốn sách này",
+        "who wrote this book",
+        "written by"
+    ],
+    GroundingIntent.BOOK_METADATA_TITLE: [
+        "tên sách là gì",
+        "tựa đề quyển sách này",
+        "đang đọc quyển sách nào",
+        "tên của quyển sách đang học",
+        "quyển sách này tên là gì",
+        "book title"
+    ],
+    GroundingIntent.BOOK_SECTION_SUMMARY: [
+        "tóm tắt chương 1",
+        "đại ý của chương hai",
+        "tổng quan chương 3",
+        "kể tóm lược phần 4",
+        "ý chương bốn là gì",
+        "ý chính của chương này",
+        "ý nghĩa của chương",
+        "đại ý chương",
+        "summarize",
+        "summary of chapter"
+    ],
+    GroundingIntent.BOOK_SECTION_CONTENT: [
+        "nội dung chương 1 là gì",
+        "giải thích chương 2",
+        "đọc nội dung phần ba",
+        "trình bày chi tiết mục 1.1",
+        "nội dung phần",
+        "what is in section"
+    ],
+    GroundingIntent.BOOK_METADATA_DOCUMENT_TYPE: [
+        "định dạng tài liệu này là gì",
+        "đây là loại file gì",
+        "đây là tài liệu pdf hay word",
+        "loại tài liệu hiện tại",
+        "document type",
+        "file format"
+    ],
+    GroundingIntent.BOOK_METADATA_STATUS: [
+        "sách đã xử lý xong chưa",
+        "trạng thái xử lý của sách",
+        "sách đã được nạp thành công chưa",
+        "tiến trình nạp sách thế nào",
+        "sach da ingest thanh cong chua"
+    ],
+    GroundingIntent.BOOK_METADATA_SECTION_COUNT: [
+        "bao nhiêu đề mục",
+        "quyển này có bao nhiêu mục tất cả",
+        "tổng số mục trong sách",
+        "how many sections",
+        "section count"
+    ],
+    GroundingIntent.EXTERNAL_CURRENT_INFO: [
+        "giá thị trường hôm nay là bao nhiêu",
+        "tin tức mới nhất hôm nay",
+        "thời tiết hôm nay thế nào",
+        "giá vàng hiện nay",
+        "thời tiết hiện tại",
+        "tin tức thời sự bây giờ",
+        "current market price today",
+        "latest news today",
+        "thời tiết hôm nay ra sao",
+        "tin hot ngày hôm nay",
+        "tìm các tác phẩm tương tự",
+        "các tác phẩm cùng thể loại",
+        "similar books to this one"
+    ]
+}
 
+AUTHOR_CONTENT_VERBS = ("giải thích", "trình bày", "cho rằng", "nói gì", "quan điểm", "nghĩ gì")
+AUTHOR_IDENTITY_KEYWORDS = ("ai viết", "who wrote", "written by", "tên của tác giả", "tác giả là ai")
 
-def detect_metadata_intent(query: NormalizedQuery) -> GroundingIntent | None:
-    if contains_any_phrase(query, AUTHOR_MARKERS):
-        if not contains_any_phrase(query, AUTHOR_CONTENT_ACTIONS) or contains_any_phrase(query, ("ai viết", "who wrote", "written by")):
-            return GroundingIntent.BOOK_METADATA_AUTHOR
-    if contains_any_phrase(query, TITLE_MARKERS):
-        return GroundingIntent.BOOK_METADATA_TITLE
-    if contains_any_phrase(query, DOCUMENT_TYPE_MARKERS):
-        return GroundingIntent.BOOK_METADATA_DOCUMENT_TYPE
-    if contains_any_phrase(query, ROOT_SECTION_COUNT_MARKERS):
-        return GroundingIntent.BOOK_METADATA_ROOT_SECTION_COUNT
-    if contains_any_phrase(query, SECTION_COUNT_MARKERS):
-        return GroundingIntent.BOOK_METADATA_SECTION_COUNT
-    if contains_any_phrase(query, STATUS_MARKERS):
-        return GroundingIntent.BOOK_METADATA_STATUS
-    return None
+def mean_pooling(model_output, attention_mask):
+    token_embeddings = model_output[0]
+    input_mask_expanded = attention_mask.unsqueeze(-1).expand(token_embeddings.size()).float()
+    return torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
 
+class SemanticIntentClassifier:
+    def __init__(self) -> None:
+        self.model_name = settings.AGENT_INTENT_CLASSIFIER_MODEL or "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+        self.tokenizer = None
+        self.model = None
+        self.proto_embeddings = {}
+        self._lock = asyncio.Lock()
+        self._initialized = False
 
-def detect_section_intent(query: NormalizedQuery, reference: SectionReference) -> GroundingIntent | None:
-    summary_requested = contains_any_phrase(query, SUMMARY_MARKERS)
-    if reference.has_target:
-        return GroundingIntent.BOOK_SECTION_SUMMARY if summary_requested else GroundingIntent.BOOK_SECTION_CONTENT
-    return None
+    def initialize(self) -> None:
+        """
+        Nạp tokenizer, weights và tính toán trước vector nhúng của các câu mẫu.
+        Phương thức này chạy đồng bộ (blocking CPU) nên cần được bao bọc khi gọi từ async loop.
+        """
+        if self._initialized:
+            return
+        
+        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+        self.model = AutoModel.from_pretrained(self.model_name)
+        self.model.eval()
+        
+        with torch.no_grad():
+            for intent, phrases in PROTOTYPES.items():
+                inputs = self.tokenizer(phrases, padding=True, truncation=True, return_tensors="pt")
+                outputs = self.model(**inputs)
+                embeddings = mean_pooling(outputs, inputs['attention_mask'])
+                embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
+                self.proto_embeddings[intent] = embeddings
+                
+        self._initialized = True
 
+    async def initialize_async(self) -> None:
+        """
+        Khởi tạo an toàn bất đồng bộ. Đẩy tác vụ nạp model nặng sang Executor Thread
+        để không chặn Event Loop chính của LiveKit.
+        """
+        if self._initialized:
+            return
+        async with self._lock:
+            if not self._initialized:
+                loop = asyncio.get_running_loop()
+                await loop.run_in_executor(None, self.initialize)
 
+    async def classify(self, query_text: str, threshold: float | None = None) -> GroundingIntent:
+        """
+        Tính toán cosine similarity của câu hỏi với các mẫu.
+        Nếu điểm số cao nhất dưới threshold, mặc định trả về RAG (BOOK_SEMANTIC_QUESTION).
+        """
+        resolved_threshold = threshold if threshold is not None else settings.AGENT_INTENT_CLASSIFIER_THRESHOLD
+        await self.initialize_async()
+        
+        text = query_text.strip().lower()
+        if not text:
+            return GroundingIntent.BOOK_SEMANTIC_QUESTION
+
+        with torch.no_grad():
+            inputs = self.tokenizer([text], padding=True, truncation=True, return_tensors="pt")
+            outputs = self.model(**inputs)
+            query_emb = mean_pooling(outputs, inputs['attention_mask'])
+            query_emb = torch.nn.functional.normalize(query_emb, p=2, dim=1)
+            
+            best_intent = GroundingIntent.BOOK_SEMANTIC_QUESTION
+            best_score = -1.0
+            
+            for intent, proto_embs in self.proto_embeddings.items():
+                # Nhân ma trận tính khoảng cách Cosine nhanh trên Pytorch
+                sims = torch.matmul(query_emb, proto_embs.T).squeeze(0)
+                max_sim = torch.max(sims).item()
+                if max_sim > best_score:
+                    best_score = max_sim
+                    best_intent = intent
+                    
+            if best_score >= resolved_threshold:
+                # Kiểm duyệt biên: Nếu hỏi nội dung tác giả viết (RAG) thay vì danh tính tác giả (Metadata)
+                if best_intent == GroundingIntent.BOOK_METADATA_AUTHOR:
+                    has_content_verb = any(v in text for v in AUTHOR_CONTENT_VERBS)
+                    has_identity_keyword = any(k in text for k in AUTHOR_IDENTITY_KEYWORDS)
+                    if has_content_verb and not has_identity_keyword:
+                        return GroundingIntent.BOOK_SEMANTIC_QUESTION
+                return best_intent
+                
+            return GroundingIntent.BOOK_SEMANTIC_QUESTION
+
+# Đối tượng Singleton dùng chung trong suốt phiên hoạt động của module
+_classifier = SemanticIntentClassifier()
+
+async def classify_intent(query: NormalizedQuery) -> GroundingIntent:
+    """
+    Hàm giao tiếp hướng ngoại tương thích với các module gọi ngoài.
+    """
+    return await _classifier.classify(query.normalized)
 
 ```
 
@@ -10730,26 +11471,27 @@ WHITESPACE_PATTERN = re.compile(r"\s+")
 def fold_accents(text: str) -> str:
     decomposed = unicodedata.normalize("NFD", text)
     return "".join(character for character in decomposed if not unicodedata.combining(character))
-
+# EX: "Ví dụ" => "Vi du"
 
 def normalize_text(text: str) -> str:
     normalized = unicodedata.normalize("NFKC", text or "").strip().casefold()
     return WHITESPACE_PATTERN.sub(" ", normalized)
+# EX: " hOÀnG   vŨ ß " => "hoàng vũ ss"
 
 
 def tokenize(text: str) -> tuple[str, ...]:
     return tuple(TOKEN_PATTERN.findall(text))
-
+# EX: "hoang vu dep trai" => ("hoang", "vu", "dep", "trai")
 
 def normalize_query(text: str) -> NormalizedQuery:
     original = (text or "").strip()
     normalized = normalize_text(original)
     accent_folded = fold_accents(normalized)
     return NormalizedQuery(
-        original=original,
-        normalized=normalized,
-        accent_folded=accent_folded,
-        tokens=tokenize(accent_folded),
+        original=original, # Origine
+        normalized=normalized, # Chuẩn hóa, Khớp từ có dấu
+        accent_folded=accent_folded, # Khớp không dấu
+        tokens=tokenize(accent_folded), # Từng từ, độc lập từ => Full text search
     )
 
 
@@ -10976,7 +11718,7 @@ def build_section_context(
     *,
     max_chars: int,
 ) -> SectionContext:
-    max_chars = max(500, max_chars)
+    max_chars = max(8000, max_chars)
     header = f'BOOK_SECTION_CONTEXT\nBook: "{book.title}"\nTarget section: {target.path} - {target.title}\n\n'
     unique_rows = _dedupe_rows(rows)
     if not unique_rows:
@@ -11545,6 +12287,117 @@ class AgentTurnTrace:
 
 ```
 
+### app\services\agent_observability\llm_as_a_judge.py
+
+```py
+from __future__ import annotations
+
+import uuid
+
+from openai import AsyncOpenAI
+from pydantic import BaseModel, Field
+from sqlmodel import Session, select
+
+from app.core.config import settings
+from app.db.database import engine
+from app.models.db_models import BookSectionKnowledge
+
+
+class LLMJudgeScore(BaseModel):
+    faithfulness: float = Field(
+        ...,
+        description="Điểm trung thực của câu trả lời sinh ra so với phần ngữ cảnh được truy xuất (từ 0.0 đến 1.0). "
+                    "Điểm 1.0 nghĩa là toàn bộ thông tin trong câu trả lời đều được hỗ trợ bởi ngữ cảnh. "
+                    "Điểm 0.0 nghĩa là câu trả lời chứa các khẳng định sai lệch hoàn toàn so với ngữ cảnh."
+    )
+    answer_relevance: float = Field(
+        ...,
+        description="Điểm độ liên quan của câu trả lời đối với câu hỏi gốc của người học (từ 0.0 đến 1.0). "
+                    "Điểm 1.0 nghĩa là câu trả lời đi thẳng vào trọng tâm câu hỏi và giải đáp chính xác. "
+                    "Điểm 0.0 nghĩa là câu trả lời hoàn toàn lạc đề hoặc không liên quan gì đến câu hỏi."
+    )
+    verdict: bool = Field(
+        ...,
+        description="True nếu câu trả lời đạt yêu cầu chất lượng (Faithfulness >= 0.8 và Answer Relevance >= 0.8), "
+                    "ngược lại nhận giá trị False nếu bị ảo giác thông tin hoặc trả lời không đúng trọng tâm."
+    )
+    reasoning: str = Field(
+        ...,
+        description="Lập luận chi tiết bằng tiếng Việt giải thích cho điểm số trên, chỉ rõ các luận điểm đúng hoặc sai lệch."
+    )
+
+
+def get_retrieved_context(chunk_ids: list[str]) -> str:
+    """
+    Truy vấn nội dung văn bản gốc của các đoạn tri thức RAG từ PostgreSQL dựa trên danh sách chunk_ids.
+    """
+    if not chunk_ids:
+        return ""
+
+    # Chuyển đổi chuỗi ID sang dạng integer để truy vấn
+    ids = []
+    for cid in chunk_ids:
+        try:
+            ids.append(int(cid))
+        except (ValueError, TypeError):
+            continue
+
+    if not ids:
+        return ""
+
+    with Session(engine) as db_session:
+        statement = select(BookSectionKnowledge).where(BookSectionKnowledge.id.in_(ids))
+        chunks = db_session.exec(statement).all()
+        # Sắp xếp các đoạn văn bản theo thứ tự xuất hiện ban đầu của chunk_ids nhận được từ trace
+        chunk_map = {c.id: c.content for c in chunks}
+        ordered_contents = [chunk_map[idx] for idx in ids if idx in chunk_map]
+        return "\n\n".join(ordered_contents)
+
+
+async def judge_answer(
+    query: str,
+    context: str,
+    answer: str,
+    *,
+    model: str = "gpt-4o-mini",
+) -> LLMJudgeScore:
+    """
+    Gọi API OpenAI để đóng vai trò làm trọng tài (LLM-as-a-Judge) chấm điểm
+    độ trung thực (faithfulness) và độ liên quan (answer_relevance) của câu trả lời.
+    """
+    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+
+    system_prompt = (
+        "Bạn là một chuyên gia kiểm định chất lượng học liệu số trong hệ thống trợ lý học tập TRIAM.\n"
+        "Nhiệm vụ của bạn là đánh giá chất lượng câu trả lời của trợ lý ảo dựa trên câu hỏi của người học "
+        "và phần ngữ cảnh sách (context) đã được truy xuất.\n"
+        "Bạn cần phân tích kỹ lường xem câu trả lời có bám sát ngữ cảnh không (Faithfulness) "
+        "và có trả lời trực tiếp câu hỏi không (Answer Relevance).\n"
+        "Hãy cực kỳ nghiêm khắc với hiện tượng ảo giác (hallucination) — bất kỳ tuyên bố nào không có bằng chứng "
+        "rõ ràng trong ngữ cảnh đều phải bị trừ điểm trung thực nặng."
+    )
+
+    user_prompt = (
+        f"--- CÂU HỎI NGƯỜI HỌC ---\n{query}\n\n"
+        f"--- NGỮ CẢNH TRÍ THỨC TRUY XUẤT ---\n{context}\n\n"
+        f"--- CÂU TRẢ LỜI CỦA TRỢ LÝ ---\n{answer}\n"
+    )
+
+    # Sử dụng tính năng Structured Outputs của OpenAI SDK
+    completion = await client.beta.chat.completions.parse(
+        model=model,
+        messages=[
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": user_prompt}
+        ],
+        response_format=LLMJudgeScore,
+        temperature=0.0
+    )
+
+    return completion.choices[0].message.parsed
+
+```
+
 ### app\services\agent_observability\model_eval_report.py
 
 ```py
@@ -11565,10 +12418,14 @@ MODEL_CONFIG_KEYS = (
     "VOICE_AGENT_PERMISSION_CLASSIFIER_MODEL",
 )
 RUNTIME_CONFIG_KEYS = (
-    "AGENT_HYBRID_RAG_ENABLED",
     "BOOK_SECTION_EMBEDDING_VERSION",
     "BOOK_SECTION_RAG_MATCH_THRESHOLD",
     "BOOK_SECTION_RAG_MATCH_COUNT",
+    "AGENT_RERANKER_ENABLED",
+    "AGENT_RERANKER_MODEL",
+    "AGENT_RERANKER_TOP_N",
+    "AGENT_HYBRID_MIN_FINAL_SCORE",
+    "AGENT_HYBRID_MAX_CONTEXT_CHUNKS",
 )
 REPORT_CONFIG_KEYS = MODEL_CONFIG_KEYS + RUNTIME_CONFIG_KEYS
 MODEL_ENV_ALLOWLIST = set(MODEL_CONFIG_KEYS) - {"AGENT_MODEL_PROFILE"}
@@ -11719,6 +12576,8 @@ def classify_failure_codes(
         if checks.get("expected_answer_source") is False and "WEB_PERMISSION" not in failures:
             failures.append("CONTEXT_VALIDATION")
         failures.extend(_content_failures(checks, actual_source=actual_source, retrieval_count=retrieval_count))
+    if checks.get("llm_verdict") is False:
+        failures.append("LLM_JUDGE")
 
     return list(dict.fromkeys(failures)) or ["UNKNOWN"]
 
@@ -11747,6 +12606,7 @@ def build_metrics(results: list[dict[str, Any]]) -> dict[str, Any]:
         "section_resolution_accuracy": ("expected_section",),
         "web_policy_safety_rate": ("web_not_used_without_permission",),
         "voice_meaning_preservation_rate": ("voice_transcript_meaning",),
+        "llm_judge_accuracy": ("llm_verdict",),
     }
     accuracy: dict[str, dict[str, int | float]] = {}
     for metric_name, names in check_names.items():
@@ -12886,6 +13746,11 @@ Core rules:
 - If audio is unclear, partial, noisy, silent, or unintelligible, ask the user to repeat in Vietnamese.
 - If the user asks a general/conceptual book question or requests a character/concept summary without specifying a chapter, do not ask them to specify a chapter. Answer directly using the provided context (e.g. from BOOK_CONTEXT_FOUND).
 
+ASR spelling and homophone correction rules:
+- The user's voice inputs are transcribed using Speech-to-Text (ASR) and may contain spelling mistakes, missing diacritics, or homophone errors (e.g., "sạch co máy chương" instead of "sách có mấy chương", "câu hỏi bi thảm" instead of "hậu quả bi thảm").
+- You must dynamically map acoustically similar speech to the correct terms from the "Ngữ cảnh học tập hiện tại" or the recent conversation history.
+- When calling functions like `search_book_knowledge`, always use the corrected spelling of the query (e.g., pass "sách có mấy chương" instead of "sạch co máy chương", and "hậu quả bi thảm" instead of "câu hỏi bi thảm").
+
 Tool rules:
 - For any question about book content, concepts, chapters, learning topics, or study context, ALWAYS call `search_book_knowledge` first.
 - Treat `BOOK_METADATA_FOUND` as authoritative database metadata.
@@ -13090,6 +13955,14 @@ class TriamAssistant(Agent):
                     book_desc += f" của tác giả {b.author}"
                 books_list.append(book_desc)
             books_str = "\n\nNgữ cảnh học tập hiện tại:\n" + "\n".join(books_list)
+
+            # Trích xuất và nạp danh sách chương cấp 1 động từ GroundingScope để LLM làm điểm tựa sửa lỗi
+            headings_list = []
+            for s in grounding_router.scope.sections:
+                if s.level == 1:  # Chỉ lấy tiêu đề chương chính để tránh quá tải prompt
+                    headings_list.append(f"  + Chương {s.path}: {s.title}")
+            if headings_list:
+                books_str += "\n\nDanh sách các chương trong sách:\n" + "\n".join(headings_list)
 
         super().__init__(instructions=VOICE_AGENT_INSTRUCTIONS + books_str)
         self.document_ids = document_ids
@@ -13538,6 +14411,10 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 section_context_max_chars=settings.AGENT_SECTION_CONTEXT_MAX_CHARS,
             )
             log.info(f"Grounding router ready | books={len(grounding_scope.books)} | sections={len(grounding_scope.sections)} | load_ms={int((time.perf_counter() - grounding_started) * 1000)}")
+
+            # Pre-warm local embedding classifiers in the background
+            from app.services.voice_agent.web_permission_intent_classifier import _initialize_permission_prototypes_async
+            asyncio.create_task(_initialize_permission_prototypes_async())
         except Exception:
             log.exception("Failed to initialize grounding router")
             grounding_scope = None
@@ -13867,7 +14744,11 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 payload = json.loads(raw)
                 if payload.get("type") == "toggle_web_search":
                     web_search_policy.set_enabled(bool(payload.get("enabled", False)))
-                    log.info(f"Web search toggle: {'BẬT' if web_search_policy.enabled else 'TẮT'}")
+                    if payload.get("allowed"):
+                        web_search_policy.pre_grant_for_eval()
+                    else:
+                        web_search_policy.clear()
+                    log.info(f"Web search toggle: {'BẬT' if web_search_policy.enabled else 'TẮT'} | allowed={payload.get('allowed')}")
             except json.JSONDecodeError:
                 log.info("lk.control: payload không phải JSON hợp lệ")
             return
@@ -13963,14 +14844,14 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
 
         if item.role == "user":
             tracer.ensure_turn(AgentInputMode.VOICE)
-            log.info(f"User voice speech saved | text_len={len(text)} | thread_id={thread_uuid}")
+            log.info(f"User voice speech saved | text='{text}' | thread_id={thread_uuid}")
             voice_turn_state.record_committed_user_text(text)
             _record_web_permission_reply(text)
             asyncio.create_task(transcript_store.save_and_publish_user(text))
         elif item.role == "assistant":
             tracer.record_assistant(AgentInputMode.VOICE, char_count=len(text))
             tracer.complete_turn(AgentInputMode.VOICE)
-            log.info(f"Assistant voice speech saved | text_len={len(text)} | thread_id={thread_uuid}")
+            log.info(f"Assistant voice speech saved | text='{text}' | thread_id={thread_uuid}")
             asyncio.create_task(transcript_store.save_and_publish_assistant(text))
             if settings.VOICE_AGENT_ASSISTANT_CLARIFICATION_HEURISTIC_ENABLED and agent_instance._looks_like_assistant_clarification(text):
                 voice_turn_state.set_pending_clarification(
@@ -14183,7 +15064,7 @@ from sqlmodel import Session, select
 
 from app.core.constant import BookStatus, PlanMode, PlanStatus, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import BookNotFoundError, BookStatusConflictError, ExternalServiceError, NoReadingPlanError, ReadingPlanNotFoundError, ReadingPlanScheduleConflictError
-from app.models.db_models import Book, LearningUnit, LearningUnitSegment, ProcessingJob, ReadingPlan, ReadingPlanScheduleSlot
+from app.models.db_models import Book, LearningUnit, LearningUnitSegment, ProcessingJob, ReadingPlan, ReadingPlanScheduleSlot, BookLearningState, ReadingPlanSession, SpacedReviewItem
 from app.repositories import audiobook_repo
 from app.repositories.book_read_repo import BookListProjection, get_book_library_projection, list_book_library_projections
 from app.repositories.book_section_repo import BookSectionOutlineRow, list_book_section_outline_rows, list_book_sections
@@ -14196,6 +15077,11 @@ from app.repositories.learning_unit_repo import (
 from app.repositories.processing_job_repo import create_processing_job, update_processing_job
 from app.repositories.reading_plan_repo import get_current_plan_for_owned_book
 from app.repositories.reading_plan_schedule_repo import list_active_slots, list_slots_for_plan, replace_slots_for_plan, set_slots_active
+from app.repositories.learning_progress_repo import delete_book_progress
+from app.repositories.book_learning_state_repo import reset_book_learning_state
+from app.repositories.reading_plan_session_repo import delete_sessions_for_plan
+from app.repositories.spaced_review_repo import delete_spaced_review_items
+from app.repositories.notification_outbox_repo import delete_pending_outbox_by_keys
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
 from app.services.learning_progress_service import build_book_learning_summary_from_state
 from app.services.learning_unit_planner_service import plan_learning_units_async
@@ -14727,6 +15613,74 @@ def select_shared_book_to_user(session: Session, *, shared_book_id: uuid.UUID, u
     if not cloned_book:
         raise ValueError("Lỗi nhân bản sách từ thư viện.")
     return cloned_book
+
+
+def reset_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> dict:
+    """
+    Đặt lại toàn bộ tiến độ học tập và lịch biểu của cuốn sách từ đầu cho chế độ học hiện tại.
+    """
+    # 1. Xác thực sách và kế hoạch học tập hiện có
+    book = audiobook_repo.get_book_by_id_and_user(session, book_id, user_id)
+    if not book:
+        raise BookNotFoundError()
+
+    plan = _active_plan(session, book_id, user_id)
+    now = datetime.now(timezone.utc)
+    mode = PlanMode(plan.mode)
+
+    # 2. Thu thập danh sách ID của các buổi học (sessions) cũ
+    sessions = session.exec(
+        select(ReadingPlanSession.id).where(ReadingPlanSession.plan_id == plan.id)
+    ).all()
+    session_ids = [str(sid) for sid in sessions]
+
+    # 3. Thu thập danh sách ID của các thẻ ôn tập (spaced review items) cũ
+    review_items = session.exec(
+        select(SpacedReviewItem.id).where(
+            SpacedReviewItem.user_id == user_id,
+            SpacedReviewItem.book_id == book_id,
+            SpacedReviewItem.mode == mode,
+        )
+    ).all()
+    review_ids = [str(rid) for rid in review_items]
+
+    # 4. Tạo danh sách các idempotency_key tương ứng trong hàng đợi thông báo để xóa
+    keys_to_delete = []
+    for sid in session_ids:
+        keys_to_delete.append(f"plan-session-reminder:{sid}")
+        keys_to_delete.append(f"plan-session-missed:{sid}")
+    for rid in review_ids:
+        keys_to_delete.append(f"spaced-review:{rid}")
+
+    # 5. Gọi các Repo xóa sạch dữ liệu tiến trình & lịch học
+    delete_book_progress(session, user_id=user_id, book_id=book_id, mode=mode)
+    reset_book_learning_state(session, user_id=user_id, book_id=book_id, mode=mode)
+    delete_spaced_review_items(session, user_id=user_id, book_id=book_id, mode=mode)
+    delete_sessions_for_plan(session, plan_id=plan.id)
+
+    # 6. Hủy toàn bộ các thông báo đẩy PENDING còn sót lại trong Outbox
+    delete_pending_outbox_by_keys(session, keys=keys_to_delete)
+
+    # Commit trung gian để đồng bộ xóa CSDL tránh xung đột khóa ngoại
+    session.flush()
+
+    # 7. Đặt lại trạng thái kế hoạch học tập ban đầu
+    plan.status = PlanStatus.ACTIVE.value
+    plan.started_at = now
+    plan.paused_at = None
+    plan.completed_at = None
+    plan.updated_at = now
+    session.add(plan)
+    session.flush()
+
+    # 8. Tự động xếp lịch mới bắt đầu từ Bài học thứ nhất
+    ensure_future_sessions_for_plan(session, plan=plan, user_id=user_id, replace_unfinished=True)
+
+    session.commit()
+    return {
+        "message": "Đã đặt lại kế hoạch học tập từ đầu thành công.",
+        **_reading_plan_to_dict(session, plan)
+    }
 
 ```
 
@@ -15424,7 +16378,7 @@ def _is_heading(paragraph) -> bool:
     return style_name in HEADING_STYLE_NAMES or style_name.startswith("heading ") or _has_outline_level(paragraph)
 
 
-async def parse_docx_structure(file_obj) -> ParsedDocument:
+def parse_docx_structure_sync(file_obj) -> ParsedDocument:
     file_obj.seek(0)
 
     try:
@@ -15468,6 +16422,13 @@ async def parse_docx_structure(file_obj) -> ParsedDocument:
         raise DocumentOutlineRequiredError("DOCX không có Heading/mục lục hợp lệ. Vui lòng dùng Heading 1/Heading 2 cho tên chương.")
 
     return ParsedDocument(document_type="docx", sections=[root.to_parsed() for root in roots])
+
+
+async def parse_docx_structure(file_obj) -> ParsedDocument:
+    import asyncio
+    import io
+    file_bytes = file_obj.read()
+    return await asyncio.to_thread(parse_docx_structure_sync, io.BytesIO(file_bytes))
 
 ```
 
@@ -15556,7 +16517,7 @@ def _epub_toc_tree(toc_items, documents_by_href: dict[str, bytes], level: int = 
     return sections
 
 
-async def parse_epub_structure(file_obj) -> ParsedDocument:
+def parse_epub_structure_sync(file_obj) -> ParsedDocument:
     file_obj.seek(0)
 
     try:
@@ -15573,6 +16534,13 @@ async def parse_epub_structure(file_obj) -> ParsedDocument:
         raise DocumentExtractionError("EPUB có mục lục nhưng không trích xuất được text. File có thể bị lỗi hoặc không phải text-based EPUB.")
 
     return ParsedDocument(document_type="epub", sections=sections)
+
+
+async def parse_epub_structure(file_obj) -> ParsedDocument:
+    import asyncio
+    import io
+    file_bytes = file_obj.read()
+    return await asyncio.to_thread(parse_epub_structure_sync, io.BytesIO(file_bytes))
 
 ```
 
@@ -16336,18 +17304,11 @@ from dataclasses import dataclass
 from app.core.config import settings
 from app.core.constant import PlanMode
 from app.models.db_models import BookSection
-from app.services.pareto_signal_service import (
-    extract_pareto_signal_hints,
-    infer_unit_type_from_signals,
-    score_pareto_signals,
-)
 from app.services.token_budget_service import estimate_text_budget
 
 FULL_UNIT_TARGET_TOKENS = 5000
 FULL_UNIT_MAX_TOKENS = 12000
 MIN_UNIT_TOKENS = 300
-PARETO_MAX_UNITS = 8
-PARETO_UNIT_MAX_TOKENS = 8000
 
 
 @dataclass(frozen=True)
@@ -16540,87 +17501,12 @@ def plan_full_learning_units(sections: list[BookSection]) -> list[PlannedLearnin
     return _merge_tiny_units(units)
 
 
-def _pareto_score(root: BookSection, subtree: list[BookSection]) -> float:
-    subtree_text = _sections_text(subtree)
-    signal_score = score_pareto_signals(root.title, subtree_text)
-    estimated_tokens = estimate_text_budget(subtree_text).estimated_tokens
-    capped_content_score = min(estimated_tokens, 2000) * 0.4
-    hierarchy_score = max(0, 5 - root.level) * 150
-    child_score = len(subtree) * 250
-    return signal_score + capped_content_score + hierarchy_score + child_score
-
-
-def fallback_pareto_learning_units(sections: list[BookSection]) -> list[PlannedLearningUnit]:
-    if not sections:
-        return []
-
-    children = _children_by_parent(sections)
-    roots = _learning_roots(sections) or sorted(sections, key=lambda item: item.section_index)
-    candidates: list[tuple[int, BookSection, list[BookSection]]] = [
-        (_pareto_score(root, _subtree_sections(root, children)), root, _subtree_sections(root, children))
-        for root in roots
-    ]
-    candidates.sort(key=lambda item: item[0], reverse=True)
-
-    total_tokens = sum(estimate_text_budget(section.text_content or "").estimated_tokens for section in sections)
-    target_tokens = max(1, int(total_tokens * settings.PARETO_TARGET_COVERAGE_RATIO))
-    selected: list[tuple[BookSection, list[BookSection]]] = []
-    selected_tokens = 0
-
-    for _, root, subtree in candidates:
-        if len(selected) >= settings.PARETO_PLANNER_MAX_UNITS:
-            break
-        unit_text = _sections_text(subtree)
-        unit_tokens = estimate_text_budget(unit_text).estimated_tokens
-        if not unit_text:
-            continue
-        if selected and selected_tokens >= target_tokens:
-            break
-        selected.append((root, subtree))
-        selected_tokens += unit_tokens
-
-    selected.sort(key=lambda item: item[0].section_index)
-    units: list[PlannedLearningUnit] = []
-    for root, subtree in selected:
-        subtree_text = _sections_text(subtree)
-        hints = extract_pareto_signal_hints(root.title, subtree_text)
-        unit = _make_unit(
-            root.title,
-            infer_unit_type_from_signals(hints),
-            subtree,
-            "Pareto chọn cụm nội dung có nhiều giá trị hoặc đóng vai trò nền tảng.",
-        )
-        if not unit:
-            continue
-        if unit.estimated_tokens > PARETO_UNIT_MAX_TOKENS:
-            units.extend(
-                _split_large_group(
-                    root.title,
-                    subtree,
-                    infer_unit_type_from_signals(hints),
-                    max_tokens=PARETO_UNIT_MAX_TOKENS,
-                )
-            )
-        else:
-            units.append(unit)
-
-    return units[: settings.PARETO_PLANNER_MAX_UNITS]
-
-
-def plan_learning_units(sections: list[BookSection], mode: PlanMode | str) -> list[PlannedLearningUnit]:
-    mode_value = PlanMode(mode)
-    if mode_value == PlanMode.FULL:
-        return plan_full_learning_units(sections)
-    return fallback_pareto_learning_units(sections)
-
-
 async def plan_learning_units_async(sections: list[BookSection], mode: PlanMode | str) -> list[PlannedLearningUnit]:
     mode_value = PlanMode(mode)
     if mode_value == PlanMode.FULL:
         return plan_full_learning_units(sections)
 
     from app.services.pareto_planner_service import plan_pareto_learning_units
-
     return await plan_pareto_learning_units(sections)
 
 ```
@@ -16718,7 +17604,11 @@ from app.services.token_budget_service import estimate_text_budget, exceeds_hard
 from app.services.tts_script_quality_service import inspect_tts_script_quality, sanitize_tts_script_list, sanitize_tts_script_text
 
 # Sử dụng Gemini qua OpenAI-compatible API
-client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY, base_url=settings.GEMINI_BASE_URL)
+client = AsyncOpenAI(
+    api_key=settings.GEMINI_API_KEY, 
+    base_url=settings.GEMINI_BASE_URL,
+    timeout=60.0
+)
 
 
 @dataclass(frozen=True)
@@ -17637,16 +18527,25 @@ from dataclasses import dataclass
 
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field, ValidationError, field_validator
+from sqlmodel import Session, select
 
 from app.core.config import settings
 from app.core.logger import log
-from app.models.db_models import BookSection
+from app.db.database import engine
+from app.models.db_models import BookSection, BookSectionKnowledge
 from app.services.async_limiter import get_loop_semaphore
-from app.services.learning_unit_planner_service import PlannedLearningUnit, fallback_pareto_learning_units
-from app.services.pareto_signal_service import extract_pareto_signal_hints, guess_section_language
+from app.services.learning_unit_planner_service import PlannedLearningUnit
+from app.services.pareto_signal_service import (
+    extract_pareto_signal_hints,
+    get_or_create_anchor_embeddings,
+)
 from app.services.token_budget_service import estimate_text_budget
 
-client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY, base_url=settings.GEMINI_BASE_URL)
+client = AsyncOpenAI(
+    api_key=settings.GEMINI_API_KEY, 
+    base_url=settings.GEMINI_BASE_URL,
+    timeout=60.0
+)
 
 PARETO_PLANNER_SYSTEM_PROMPT = """
 You are TRIAM's Pareto learning planner.
@@ -17681,7 +18580,6 @@ class SectionCard:
     text_char_count: int
     estimated_tokens: int
     child_count: int
-    language: str
     signal_hints: list[str]
     excerpt: str
 
@@ -17694,7 +18592,6 @@ class SectionCard:
             "parent_path": self.parent_path,
             "estimated_tokens": self.estimated_tokens,
             "child_count": self.child_count,
-            "language": self.language,
             "signal_hints": self.signal_hints,
             "excerpt": self.excerpt,
         }
@@ -17737,16 +18634,35 @@ def _excerpt(text: str | None) -> str:
     return normalized[:limit]
 
 
-def build_section_cards(sections: list[BookSection]) -> list[SectionCard]:
+def build_section_cards(sections: list[BookSection], anchor_vectors: dict[str, list[float]] | None = None) -> list[SectionCard]:
     by_id = {section.id: section for section in sections}
     children = _children_by_parent(sections)
     cards: list[SectionCard] = []
 
+    # 1. Truy vấn một lần duy nhất tất cả embeddings có sẵn của cuốn sách trong database
+    embeddings_map = {}
+    if sections:
+        book_id = sections[0].book_id
+        with Session(engine) as session:
+            rows = session.exec(
+                select(BookSectionKnowledge.section_id, BookSectionKnowledge.embedding)
+                .where(
+                    BookSectionKnowledge.book_id == book_id,
+                    BookSectionKnowledge.embedding_version == settings.BOOK_SECTION_EMBEDDING_VERSION
+                )
+            ).all()
+            embeddings_map = {row[0]: row[1] for row in rows if row[1] is not None}
+
+    # 2. Xây dựng danh sách SectionCard
     for section in sorted(sections, key=lambda item: item.section_index):
         text = section.text_content or ""
         excerpt = _excerpt(text)
         budget = estimate_text_budget(text)
         parent = by_id.get(section.parent_id) if section.parent_id else None
+        
+        # Tìm vector của section hiện tại
+        embedding = embeddings_map.get(section.id)
+        
         cards.append(
             SectionCard(
                 section_id=section.id,
@@ -17758,8 +18674,9 @@ def build_section_cards(sections: list[BookSection]) -> list[SectionCard]:
                 text_char_count=section.text_char_count,
                 estimated_tokens=budget.estimated_tokens,
                 child_count=len(children.get(section.id, [])),
-                language=guess_section_language(section.title, excerpt),
-                signal_hints=extract_pareto_signal_hints(section.title, excerpt),
+                signal_hints=extract_pareto_signal_hints(
+                    embedding=embedding, anchor_vectors=anchor_vectors
+                ),
                 excerpt=excerpt,
             )
         )
@@ -17878,45 +18795,30 @@ def _validate_planner_payload(payload: ParetoPlannerPayload, sections: list[Book
     return _trim_to_target(units, total_source_tokens=total_source_tokens)
 
 
-def _should_use_llm_planner(cards: list[SectionCard]) -> tuple[bool, str | None]:
-    min_cards = max(1, settings.PARETO_PLANNER_LLM_MIN_CARDS)
-    if len(cards) < min_cards:
-        return False, "small_outline"
-    return True, None
-
-
 async def plan_pareto_learning_units(sections: list[BookSection]) -> list[PlannedLearningUnit]:
     if not sections:
         return []
 
-    fallback_units = fallback_pareto_learning_units(sections)
-    if not settings.PARETO_PLANNER_LLM_ENABLED:
-        log.info(f"Pareto planner fallback used | reason=disabled | units={len(fallback_units)}")
-        return fallback_units
+    # 1. Tải các Vector Neo bất đồng bộ từ OpenAI (Cache in-memory)
+    anchor_vectors = await get_or_create_anchor_embeddings()
 
-    cards = build_section_cards(sections)
-    should_use_llm, deterministic_reason = _should_use_llm_planner(cards)
-    if not should_use_llm:
-        log.info(
-            "Pareto planner deterministic used | "
-            f"reason={deterministic_reason} | sections={len(sections)} | cards={len(cards)} | units={len(fallback_units)}"
-        )
-        return fallback_units
+    # 2. Tạo section cards truyền kèm anchor_vectors
+    cards = build_section_cards(sections, anchor_vectors)
 
-    try:
-        log.info(f"Pareto planner start | sections={len(sections)} | cards={len(cards)} | model={settings.PARETO_PLANNER_MODEL}")
-        payload = await asyncio.wait_for(_call_pareto_llm(cards), timeout=settings.PARETO_PLANNER_TIMEOUT_SECONDS)
-        planned_units = _validate_planner_payload(payload, sections)
-        if not planned_units:
-            raise ValueError("Pareto planner returned no valid learning units")
-        log.info(f"Pareto planner result | source=llm | units={len(planned_units)}")
-        return planned_units
-    except (asyncio.TimeoutError, ValidationError, ValueError, json.JSONDecodeError) as exc:
-        log.warning(f"Pareto planner fallback used | reason={type(exc).__name__} | units={len(fallback_units)}")
-        return fallback_units
-    except Exception as exc:
-        log.warning(f"Pareto planner fallback used | reason=unexpected:{type(exc).__name__} | units={len(fallback_units)}")
-        return fallback_units
+    # 3. Gọi trực tiếp LLM để lập kế hoạch, nếu lỗi sẽ Fail-fast ném lỗi lên API
+    log.info(f"Pareto planner start | sections={len(sections)} | cards={len(cards)}")
+    
+    payload = await asyncio.wait_for(
+        _call_pareto_llm(cards), 
+        timeout=settings.PARETO_PLANNER_TIMEOUT_SECONDS
+    )
+    
+    planned_units = _validate_planner_payload(payload, sections)
+    if not planned_units:
+        raise ValueError("Pareto planner returned no valid learning units")
+        
+    log.info(f"Pareto planner result | source=llm | units={len(planned_units)}")
+    return planned_units
 
 ```
 
@@ -17925,184 +18827,117 @@ async def plan_pareto_learning_units(sections: list[BookSection]) -> list[Planne
 ```py
 from __future__ import annotations
 
-import re
-import unicodedata
-from dataclasses import dataclass
+import numpy as np
+from openai import AsyncOpenAI
 
+from app.core.config import settings
 
-@dataclass(frozen=True)
-class ParetoSignal:
-    key: str
-    unit_type: str
-    weight: float
-    vi_terms: tuple[str, ...]
-    en_terms: tuple[str, ...]
-
-
-PARETO_SIGNALS: tuple[ParetoSignal, ...] = (
-    ParetoSignal(
-        key="core_concept",
-        unit_type="pareto_core",
-        weight=1.0,
-        vi_terms=("khái niệm", "nền tảng", "cốt lõi", "tổng quan"),
-        en_terms=(
-            "concept",
-            "concepts",
-            "core concept",
-            "core concepts",
-            "fundamental",
-            "fundamentals",
-            "overview",
-            "overviews",
-            "introduction",
-            "introductions",
-        ),
+# 1. Định nghĩa bộ neo ngữ nghĩa mô tả mẫu (Label Enrichment)
+ENRICHED_ANCHORS: dict[str, str] = {
+    "core_concept": (
+        "Khái niệm nền tảng, tổng quan lý thuyết, giới thiệu tổng thể, định nghĩa cơ bản. "
+        "Foundational core concepts, basic overview, theoretical background, introduction to the topic."
     ),
-    ParetoSignal(
-        key="definition",
-        unit_type="pareto_core",
-        weight=1.0,
-        vi_terms=("định nghĩa",),
-        en_terms=("definition", "define", "defined as"),
+    "definition": (
+        "Định nghĩa thuật ngữ, giải thích ý nghĩa từ ngữ, phát biểu định nghĩa khoa học. "
+        "Scientific definition of terms, formal explanation of meaning, vocabulary terminology."
     ),
-    ParetoSignal(
-        key="principle",
-        unit_type="pareto_core",
-        weight=0.95,
-        vi_terms=("nguyên lý", "nguyên tắc"),
-        en_terms=("principle", "principles", "law", "laws"),
+    "theorem": (
+        "Định lý toán học, bổ đề, hệ quả, định luật khoa học, quy luật tự nhiên đã được chứng minh. "
+        "Mathematical theorems, logic lemmas, scientific laws, corollaries, axioms."
     ),
-    ParetoSignal(
-        key="method",
-        unit_type="pareto_method",
-        weight=0.9,
-        vi_terms=("phương pháp", "cách làm", "kỹ thuật"),
-        en_terms=("method", "methods", "technique", "techniques", "approach"),
+    "formula": (
+        "Công thức toán học, biểu thức số học, phương trình đại số, hệ thức tính toán giá trị. "
+        "Mathematical formulas, equations, arithmetic expressions, calculation rules."
     ),
-    ParetoSignal(
-        key="procedure",
-        unit_type="pareto_method",
-        weight=0.85,
-        vi_terms=("quy trình", "các bước", "hướng dẫn"),
-        en_terms=("procedure", "procedures", "process", "steps", "workflow", "guide", "guides", "tutorial", "tutorials"),
+    "method": (
+        "Phương pháp giải quyết, thuật toán máy tính, kỹ thuật thực hiện, giải pháp công nghệ. "
+        "Problem-solving methods, computer algorithms, techniques, solutions."
     ),
-    ParetoSignal(
-        key="rule",
-        unit_type="pareto_rule",
-        weight=0.9,
-        vi_terms=("quy tắc", "luật", "điều kiện"),
-        en_terms=("rule", "rules", "condition", "conditions", "criteria"),
+    "procedure": (
+        "Quy trình thực hiện, các bước tiến hành, hướng dẫn từng bước, kịch bản nghiệp vụ. "
+        "Step-by-step procedures, execution workflows, guide tutorials, sequential processes."
     ),
-    ParetoSignal(
-        key="formula",
-        unit_type="pareto_formula",
-        weight=0.9,
-        vi_terms=("công thức", "biểu thức"),
-        en_terms=("formula", "formulas", "equation", "equations", "expression", "expressions", "identity", "identities"),
+    "reasoning": (
+        "Suy luận logic, chứng minh toán học, lập luận phản bác, lý luận khoa học chặt chẽ. "
+        "Logical reasoning, mathematical proofs, arguments, deductive inference."
     ),
-    ParetoSignal(
-        key="theorem",
-        unit_type="pareto_rule",
-        weight=0.9,
-        vi_terms=("định lý", "bổ đề", "hệ quả"),
-        en_terms=("theorem", "theorems", "lemma", "lemmas", "corollary"),
-    ),
-    ParetoSignal(
-        key="reasoning",
-        unit_type="pareto_core",
-        weight=0.85,
-        vi_terms=("suy luận", "lập luận", "chứng minh", "logic"),
-        en_terms=("reasoning", "inference", "proof", "argument", "logic"),
-    ),
-    ParetoSignal(
-        key="example",
-        unit_type="pareto_example",
-        weight=0.4,
-        vi_terms=("ví dụ", "minh họa", "bài tập"),
-        en_terms=("example", "examples", "case study", "exercise", "exercises", "illustration"),
-    ),
-)
-
-NOISE_TERMS: tuple[str, ...] = (
-    "phụ lục",
-    "tài liệu tham khảo",
-    "tham khảo",
-    "appendix",
-    "references",
-    "bibliography",
-)
-
-
-def normalize_signal_text(value: str) -> str:
-    lowered = value.casefold()
-    without_accents = "".join(
-        char for char in unicodedata.normalize("NFD", lowered) if unicodedata.category(char) != "Mn"
+    "example": (
+        "Ví dụ thực tế, minh họa cụ thể, bài tập vận dụng mẫu, tình huống nghiên cứu điển hình. "
+        "Practical examples, concrete illustrations, sample exercises, case studies."
     )
-    normalized = without_accents.replace("đ", "d")
-    return re.sub(r"\s+", " ", normalized).strip()
+}
+
+# 2. Siêu dữ liệu cấu hình các tín hiệu trọng tâm (Weights & Unit Types)
+PARETO_SIGNAL_METADATA: dict[str, dict[str, str | float]] = {
+    "core_concept": {"unit_type": "pareto_core", "weight": 1.0},
+    "definition": {"unit_type": "pareto_core", "weight": 1.0},
+    "principle": {"unit_type": "pareto_core", "weight": 0.95},
+    "method": {"unit_type": "pareto_method", "weight": 0.9},
+    "procedure": {"unit_type": "pareto_method", "weight": 0.85},
+    "rule": {"unit_type": "pareto_rule", "weight": 0.9},
+    "formula": {"unit_type": "pareto_formula", "weight": 0.9},
+    "theorem": {"unit_type": "pareto_rule", "weight": 0.9},
+    "reasoning": {"unit_type": "pareto_core", "weight": 0.85},
+    "example": {"unit_type": "pareto_example", "weight": 0.4},
+}
+
+_ANCHOR_VECTORS_CACHE: dict[str, list[float]] = {}
 
 
-def _contains_term(normalized_text: str, normalized_term: str) -> bool:
-    if not normalized_text or not normalized_term:
-        return False
-    pattern = rf"(?<![a-z0-9]){re.escape(normalized_term)}(?![a-z0-9])"
-    return re.search(pattern, normalized_text) is not None
+async def get_or_create_anchor_embeddings() -> dict[str, list[float]]:
+    """Tải và lưu trữ vector neo vào RAM bằng OpenAI embeddings API."""
+    global _ANCHOR_VECTORS_CACHE
+    if _ANCHOR_VECTORS_CACHE:
+        return _ANCHOR_VECTORS_CACHE
+
+    # Sử dụng OpenAI API key chính thức để lấy embeddings cho text-embedding-3-small
+    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
+    keys = list(ENRICHED_ANCHORS.keys())
+    texts = list(ENRICHED_ANCHORS.values())
+
+    response = await client.embeddings.create(
+        model=settings.BOOK_SECTION_EMBEDDING_MODEL,
+        input=texts
+    )
+    for idx, key in enumerate(keys):
+        _ANCHOR_VECTORS_CACHE[key] = response.data[idx].embedding
+
+    return _ANCHOR_VECTORS_CACHE
 
 
-def _matches_any(normalized_text: str, terms: tuple[str, ...]) -> bool:
-    return any(_contains_term(normalized_text, normalize_signal_text(term)) for term in terms)
+def extract_pareto_signal_hints(
+    embedding: list[float] | None = None,
+    anchor_vectors: dict[str, list[float]] | None = None,
+    threshold: float = 0.20,
+) -> list[str]:
+    """
+    Phân loại tín hiệu dựa trên tích vô hướng vector NumPy (Cosine Similarity).
+    Chỉ trả về 1 nhãn duy nhất có độ khớp cao nhất đạt ngưỡng (Arg-max).
+    Dùng ngưỡng 0.20 theo kiểm nghiệm thực nghiệm tối ưu của OpenAI text-embedding-3-small.
+    """
+    if embedding is None or not anchor_vectors:
+        return []
 
-
-def guess_section_language(title: str, excerpt: str = "") -> str:
-    sample = f"{title} {excerpt[:300]}".casefold()
-    vi_markers = ("đ", "ă", "â", "ê", "ô", "ơ", "ư", "khái", "định", "phương", "quy tắc")
-    en_markers = ("the ", "and ", "of ", "definition", "method", "concept", "principle", "rule")
-
-    vi_score = sum(1 for marker in vi_markers if marker in sample)
-    en_score = sum(1 for marker in en_markers if marker in sample)
-
-    if vi_score and en_score:
-        return "mixed"
-    if vi_score:
-        return "vi"
-    if en_score:
-        return "en"
-    return "unknown"
-
-
-def extract_pareto_signal_hints(title: str, excerpt: str = "") -> list[str]:
-    normalized = normalize_signal_text(f"{title} {excerpt[:300]}")
-    hints: list[str] = []
-    for signal in PARETO_SIGNALS:
-        if _matches_any(normalized, signal.vi_terms + signal.en_terms):
-            hints.append(signal.key)
-    return hints
+    similarities = {}
+    v_sec = np.array(embedding)
+    for key, anchor in anchor_vectors.items():
+        sim = float(np.dot(v_sec, np.array(anchor)))
+        if sim >= threshold:
+            similarities[key] = sim
+            
+    if similarities:
+        best_key = max(similarities, key=similarities.get)
+        return [best_key]
+    return []
 
 
 def infer_unit_type_from_signals(hints: list[str]) -> str:
     for hint in hints:
-        for signal in PARETO_SIGNALS:
-            if signal.key == hint:
-                return signal.unit_type
+        meta = PARETO_SIGNAL_METADATA.get(hint)
+        if meta:
+            return str(meta["unit_type"])
     return "pareto_focus"
-
-
-def score_pareto_signals(title: str, excerpt: str = "") -> float:
-    title_normalized = normalize_signal_text(title)
-    excerpt_normalized = normalize_signal_text(excerpt[:500])
-    score = 0.0
-
-    for signal in PARETO_SIGNALS:
-        terms = signal.vi_terms + signal.en_terms
-        if _matches_any(title_normalized, terms):
-            score += signal.weight * 5000
-            continue
-        if excerpt_normalized and _matches_any(excerpt_normalized, terms):
-            score += signal.weight * 1200
-
-    if _matches_any(title_normalized, NOISE_TERMS):
-        score -= 2500
-    return score
 
 ```
 
@@ -18267,7 +19102,7 @@ def _extract_section_text_from_pdf(pdf, current_section: ParsedSection, next_sec
     return text, section_page_end
 
 
-async def parse_pdf_structure(file_obj) -> ParsedDocument:
+def parse_pdf_structure_sync(file_obj) -> ParsedDocument:
     file_obj.seek(0)
     outline_tree = _read_pdf_outline_tree(file_obj)
     outline_items = flatten_sections(outline_tree)
@@ -18304,6 +19139,13 @@ async def parse_pdf_structure(file_obj) -> ParsedDocument:
         )
 
     return ParsedDocument(document_type="pdf", sections=sections)
+
+
+async def parse_pdf_structure(file_obj) -> ParsedDocument:
+    import asyncio
+    import io
+    file_bytes = file_obj.read()
+    return await asyncio.to_thread(parse_pdf_structure_sync, io.BytesIO(file_bytes))
 
 ```
 
@@ -18377,7 +19219,7 @@ async def _embed_query(query: str, *, model: str) -> list[float]:
     query_vector = res.data[0].embedding
     return query_vector
 
-
+# FALLBACK
 async def search_book_section_knowledge(
     query: str,
     document_ids: list[str],
@@ -18441,13 +19283,10 @@ def _hybrid_config() -> HybridRetrievalConfig:
         max_chunks = settings.AGENT_RERANKER_CANDIDATES_LIMIT
 
     return HybridRetrievalConfig(
-        vector_weight=settings.AGENT_HYBRID_VECTOR_WEIGHT,
-        lexical_weight=settings.AGENT_HYBRID_LEXICAL_WEIGHT,
-        title_match_boost=settings.AGENT_HYBRID_TITLE_MATCH_BOOST,
-        multi_source_boost=settings.AGENT_HYBRID_MULTI_SOURCE_BOOST,
         min_final_score=settings.AGENT_HYBRID_MIN_FINAL_SCORE,
         max_context_chunks=max_chunks,
         max_chunks_per_section=settings.AGENT_HYBRID_MAX_CHUNKS_PER_SECTION,
+        validate_evidence_enabled=settings.AGENT_HYBRID_VALIDATE_EVIDENCE_ENABLED,
     )
 
 
@@ -18483,6 +19322,7 @@ async def search_book_hybrid_knowledge(
         log.error(f"RAG Tối ưu hóa: Nhánh Lexical Search bị lỗi: {lexical_result}")
         lexical_result = BOOK_CONTEXT_NOT_FOUND_MESSAGE
 
+    # Build hybrid with Base Reranker
     hybrid_result = build_hybrid_retrieval_result(
         query=query,
         vector_payload=_as_payload_list(vector_result),
@@ -18492,9 +19332,14 @@ async def search_book_hybrid_knowledge(
     if not hybrid_result.found:
         return BOOK_CONTEXT_NOT_FOUND_MESSAGE
     
+    # Rerank with Cohere
     final_chunks = hybrid_result.chunks
     if settings.AGENT_RERANKER_ENABLED:
-        log.info(f"Reranker start: {len(final_chunks)} with Cohere Reranker...")
+        log.info(f"Reranker start: {len(final_chunks)} candidates with Cohere Reranker for query='{query}'")
+        for idx, chunk in enumerate(final_chunks):
+            content_full = str(chunk.get("content") or "").replace("\n", " ")
+            log.info(f"  [Pre-Rerank Rank {idx + 1}] ID: {chunk.get('id')} | Score: {_round_score(chunk.get('final_score') or chunk.get('similarity'))} | Content: {content_full}")
+        
         final_chunks = await rerank_candidates(query, final_chunks)
         final_chunks = final_chunks[:settings.AGENT_RERANKER_TOP_N]
 
@@ -18507,6 +19352,11 @@ async def search_book_hybrid_knowledge(
         f"top_final_score={_round_score(final_chunks[0].get('final_score')) if final_chunks else None}"
     )
 
+    for idx, chunk in enumerate(final_chunks):
+        content_full = str(chunk.get("content") or "").replace("\n", " ")
+        section_path = chunk.get("section_path") or chunk.get("section_title") or "unknown"
+        log.info(f"  [Post-Rerank Rank {idx + 1}] ID: {chunk.get('id')} | Section: {section_path} | Score: {_round_score(chunk.get('final_score') or chunk.get('similarity'))} | Content: {content_full}")
+
     if not final_chunks:
         return BOOK_CONTEXT_NOT_FOUND_MESSAGE
     
@@ -18514,10 +19364,8 @@ async def search_book_hybrid_knowledge(
 
 
 async def search_book_knowledge(query: str, document_ids: list[str]) -> list[dict[str, Any]] | str:
-    if settings.AGENT_HYBRID_RAG_ENABLED:
-        return await search_book_hybrid_knowledge(query, document_ids)
-
-    return await search_book_section_knowledge(query, document_ids)
+    """Tìm kiếm kiến thức sách bằng Hybrid RAG pipeline (vector + lexical + rerank)."""
+    return await search_book_hybrid_knowledge(query, document_ids)
 
 ```
 
@@ -19388,15 +20236,22 @@ def reminder_due_at_for_today(
 
 ```py
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from sqlmodel import Session
 
-from app.core.constant import PlanMode
+from app.core.constant import PlanMode, ReviewItemStatus
 from app.core.exceptions import BadRequestError, ReviewItemNotFoundError
 from app.models.db_models import Book, LearningUnit, SpacedReviewItem
-from app.repositories.spaced_review_repo import get_review_item_for_user, list_review_items_for_user, mark_review_item_completed, mark_review_item_skipped
+from app.repositories.spaced_review_repo import (
+    create_review_item_once,
+    get_review_item_for_user,
+    list_review_items_for_user,
+    mark_review_item_completed,
+    mark_review_item_skipped,
+)
 from app.schemas.review import ReviewActionResponse, ReviewItemResponse, ReviewListResponse
+from app.services.spaced_review_service import SPACED_REVIEW_INTERVALS
 
 
 def _to_review_item_response(session: Session, item: SpacedReviewItem) -> ReviewItemResponse:
@@ -19460,11 +20315,41 @@ def get_review_item_detail(session: Session, *, user_id: uuid.UUID, review_item_
     return _to_review_item_response(session, item)
 
 
+def _create_next_review_cycle_if_applicable(
+    session: Session,
+    current_item: SpacedReviewItem,
+    now: datetime,
+) -> SpacedReviewItem | None:
+    next_index = current_item.sequence_index + 1
+    if next_index >= len(SPACED_REVIEW_INTERVALS):
+        return None
+
+    next_interval_days = SPACED_REVIEW_INTERVALS[next_index]
+    
+    next_item = SpacedReviewItem(
+        user_id=current_item.user_id,
+        book_id=current_item.book_id,
+        learning_unit_id=current_item.learning_unit_id,
+        mode=current_item.mode,
+        interval_days=next_interval_days,
+        sequence_index=next_index,
+        due_at=now + timedelta(days=next_interval_days),
+        status=ReviewItemStatus.PENDING,
+        review_text_snapshot=current_item.review_text_snapshot,
+        anchor_completed_at=current_item.anchor_completed_at,
+        source_unit_progress_id=current_item.source_unit_progress_id,
+    )
+    
+    return create_review_item_once(session, next_item)
+
+
 def complete_review_item(session: Session, *, user_id: uuid.UUID, review_item_id: uuid.UUID) -> ReviewActionResponse:
     item = get_review_item_for_user(session, user_id=user_id, review_item_id=review_item_id)
     if not item:
         raise ReviewItemNotFoundError()
-    saved = mark_review_item_completed(session, item, completed_at=datetime.now(timezone.utc))
+    now = datetime.now(timezone.utc)
+    saved = mark_review_item_completed(session, item, completed_at=now)
+    _create_next_review_cycle_if_applicable(session, saved, now)
     return ReviewActionResponse(review_item_id=saved.id, status=saved.status, completed_at=saved.completed_at)
 
 
@@ -19472,7 +20357,9 @@ def skip_review_item(session: Session, *, user_id: uuid.UUID, review_item_id: uu
     item = get_review_item_for_user(session, user_id=user_id, review_item_id=review_item_id)
     if not item:
         raise ReviewItemNotFoundError()
-    saved = mark_review_item_skipped(session, item, skipped_at=datetime.now(timezone.utc))
+    now = datetime.now(timezone.utc)
+    saved = mark_review_item_skipped(session, item, skipped_at=now)
+    _create_next_review_cycle_if_applicable(session, saved, now)
     return ReviewActionResponse(review_item_id=saved.id, status=saved.status, completed_at=saved.completed_at)
 
 ```
@@ -19516,25 +20403,24 @@ def create_spaced_reviews_after_unit_completion(
         return []
 
     mode_value = PlanMode(mode)
-    created: list[SpacedReviewItem] = []
-    for index, days in enumerate(SPACED_REVIEW_INTERVALS):
-        item = SpacedReviewItem(
-            user_id=user_id,
-            book_id=book_id,
-            learning_unit_id=learning_unit_id,
-            mode=mode_value,
-            interval_days=days,
-            sequence_index=index,
-            due_at=completed_at + timedelta(days=days),
-            status=ReviewItemStatus.PENDING,
-            review_text_snapshot=clean_review_text,
-            anchor_completed_at=completed_at,
-            source_unit_progress_id=source_unit_progress_id,
-        )
-        created_item = create_review_item_once(session, item)
-        if created_item:
-            created.append(created_item)
-    return created
+    first_interval_days = SPACED_REVIEW_INTERVALS[0]
+    
+    item = SpacedReviewItem(
+        user_id=user_id,
+        book_id=book_id,
+        learning_unit_id=learning_unit_id,
+        mode=mode_value,
+        interval_days=first_interval_days,
+        sequence_index=0,
+        due_at=completed_at + timedelta(days=first_interval_days),
+        status=ReviewItemStatus.PENDING,
+        review_text_snapshot=clean_review_text,
+        anchor_completed_at=completed_at,
+        source_unit_progress_id=source_unit_progress_id,
+    )
+    created_item = create_review_item_once(session, item)
+    return [created_item] if created_item else []
+
 
 ```
 
@@ -19584,7 +20470,8 @@ async def upload_file_to_supabase(
         try:
             async with aiofiles.open(local_path, "rb") as f:
                 file_bytes = await f.read()
-            supabase.storage.from_(bucket).upload(
+            await asyncio.to_thread(
+                supabase.storage.from_(bucket).upload,
                 path=storage_path,
                 file=file_bytes,
                 file_options={
@@ -20601,7 +21488,6 @@ import re
 from dataclasses import dataclass
 
 from app.services.agent_grounding.contracts import GroundingIntent
-from app.services.agent_grounding.intent_router import detect_section_intent
 from app.services.agent_grounding.query_normalizer import normalize_query, normalized_key, tokenize
 from app.services.agent_grounding.section_reference_parser import parse_section_reference
 from app.services.voice_agent.turn_state import PendingVoiceClarification, VoiceTranscriptSnapshot
@@ -20903,13 +21789,6 @@ def assess_voice_query(query: str, *, config: VoiceQueryGuardConfig | None = Non
         )
 
     reference = parse_section_reference(normalized)
-    if detect_section_intent(normalized, reference) == GroundingIntent.CLARIFICATION_REQUIRED:
-        return _invalid(
-            "missing_section_reference",
-            _MISSING_SECTION_CLARIFICATION,
-            token_count=token_count,
-            important_token_count=important_token_count,
-        )
 
     return VoiceQueryGuardResult(
         valid=True,
@@ -21487,12 +22366,16 @@ def _collect_dynamic_terms(
 
 
 def _build_prompt(base: str, terms: list[str], *, max_chars: int) -> str:
-    dynamic_suffix = " Session-specific expected terms: " + ", ".join(terms) + "." if terms else ""
+    # Xây dựng câu thoại giả định (Mock Conversation) giúp Whisper học văn phong và thuật ngữ tốt hơn
+    mock_dialogue = ""
+    if terms:
+        mock_dialogue = " Chào bạn! Hôm nay chúng ta sẽ cùng thảo luận về các thuật ngữ " + ", ".join(terms[:12]) + " nhé. Bạn muốn hỏi gì?"
+    
     prompt = (
         base
         + " The user may mix Vietnamese with English book titles, author names, character names, AI terms, and short app commands."
         + " Prefer the exact expected terms when acoustically plausible; do not force them when the audio clearly says something else."
-        + dynamic_suffix
+        + mock_dialogue
     ).strip()
     return _trim_prompt(prompt, max_chars=max_chars)
 
@@ -21942,15 +22825,14 @@ def classify_voice_reply_intent_fast_path(text: str, *, max_grant_tokens: int = 
     if not normalized:
         return None
 
-    if looks_like_new_question(text, normalized):
-        return VoiceReplyIntentResult("new_question", 0.88, "Explicit question mark detected", "fast_path")
-
-    # Constrain fast path positive/negative matching to short replies only to avoid false positives on long queries
     token_count = len(normalized.split())
+    # Constrain fast path positive/negative matching to short replies only
     if token_count > max(4, max_grant_tokens):
+        if looks_like_new_question(text, normalized):
+            return VoiceReplyIntentResult("new_question", 0.88, "Explicit question mark detected", "fast_path")
         return None
 
-    # For negative check:
+    # 1. Check negative phrases first
     for phrase in NEGATIVE_PHRASES:
         if phrase in CONTEXT_SENSITIVE_NEGATIONS:
             if token_count <= 2 and phrase_in_text(phrase, normalized):
@@ -21959,19 +22841,22 @@ def classify_voice_reply_intent_fast_path(text: str, *, max_grant_tokens: int = 
             if phrase_in_text(phrase, normalized):
                 return VoiceReplyIntentResult("deny", 0.96, "Matched negative fast path", "fast_path")
 
+    # 2. Check positive action phrases
     if any(phrase_in_text(phrase, normalized) for phrase in POSITIVE_ACTION_PHRASES):
         return VoiceReplyIntentResult("grant", 0.96, "Matched positive action fast path", "fast_path")
 
-    # For positive short replies:
+    # 3. Check positive short replies
     for phrase in POSITIVE_SHORT_REPLIES:
         if phrase in CONTEXT_SENSITIVE_CONFIRMATIONS:
-            # Only match context-sensitive confirmations if it's a very short response (<= 2 tokens)
-            # to avoid false positives on yes/no questions (e.g. "chương này có không")
             if token_count <= 2 and phrase_in_text(phrase, normalized):
                 return VoiceReplyIntentResult("grant", 0.94, "Matched short positive fast path", "fast_path")
         else:
             if phrase_in_text(phrase, normalized):
                 return VoiceReplyIntentResult("grant", 0.94, "Matched short positive fast path", "fast_path")
+
+    # 4. Check if it looks like a new question only if it does not match positive/negative phrases
+    if looks_like_new_question(text, normalized):
+        return VoiceReplyIntentResult("new_question", 0.88, "Explicit question mark detected", "fast_path")
 
     return None
 ```
@@ -21981,141 +22866,176 @@ def classify_voice_reply_intent_fast_path(text: str, *, max_grant_tokens: int = 
 ```py
 from __future__ import annotations
 
+import os
+import torch
 import asyncio
-import json
 from typing import Any
-
-from openai import AsyncOpenAI
 
 from app.core.logger import log
 from app.services.voice_agent.contracts import WebPermissionIntent, WebPermissionIntentResult
 from app.services.voice_agent.voice_intent_classifier import (
     classify_voice_reply_intent_fast_path,
     normalize_voice_intent_text,
+    looks_like_new_question,
 )
+# Re-use the singleton model loader from intent_router to avoid double RAM allocation
+from app.services.agent_grounding.intent_router import _classifier, mean_pooling
 
-CLASSIFIER_SYSTEM_PROMPT = """
-Classify whether the user is answering a web-search permission question.
-Return only valid JSON:
-{"intent":"grant|deny|unclear|new_question","confidence":0.0,"reason":"short"}
-
-Rules:
-- grant: user agrees to search the web for the pending query.
-- deny: user refuses or asks to skip.
-- unclear: ambiguous reply.
-- new_question: user asks something else instead of answering.
-- Support Vietnamese, English, and mixed replies.
-""".strip()
-
-
+# Expose normalize_intent_text for policy layer
 normalize_intent_text = normalize_voice_intent_text
 
+L12_WEB_PERMISSION_PROTOTYPES = {
+    "grant": [
+        "đồng ý cho tìm kiếm", "ừ tìm trên internet đi", "cho phép tra cứu google",
+        "tìm giúp mình trên mạng", "search hộ mình thông tin này", "đồng ý nha",
+        "được chứ tìm đi", "yes search it", "go ahead and search", "nhất trí tìm đi"
+    ],
+    "deny": [
+        "không cần tìm đâu", "đừng tra cứu internet", "thôi khỏi cần",
+        "bỏ qua đi bạn", "không muốn tìm trên web", "đừng tìm kiếm",
+        "no don't search", "cancel web search", "thôi bỏ qua đi"
+    ],
+    "unclear": [
+        "chưa biết nữa", "để tính sau đi", "tùy bạn thôi", "cái đó khó nói",
+        "sao cũng được", "maybe later", "chưa chắc nữa", "để mình suy nghĩ tí"
+    ]
+}
+
+_proto_embeddings: dict[str, torch.Tensor] = {}
+_lock = asyncio.Lock()
+_initialized = False
+
+def _initialize_permission_prototypes() -> None:
+    global _proto_embeddings, _initialized
+    if _initialized:
+        return
+        
+    # Ensure the intent router model is initialized
+    _classifier.initialize()
+    tokenizer = _classifier.tokenizer
+    model = _classifier.model
+
+    with torch.no_grad():
+        for intent, phrases in L12_WEB_PERMISSION_PROTOTYPES.items():
+            inputs = tokenizer(phrases, padding=True, truncation=True, return_tensors="pt")
+            outputs = model(**inputs)
+            embeddings = mean_pooling(outputs, inputs['attention_mask'])
+            embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
+            _proto_embeddings[intent] = embeddings
+            
+    _initialized = True
+
+async def _initialize_permission_prototypes_async() -> None:
+    global _initialized
+    if _initialized:
+        return
+    async with _lock:
+        if not _initialized:
+            # First ensure the intent router model is initialized async/sync
+            await _classifier.initialize_async()
+            loop = asyncio.get_running_loop()
+            await loop.run_in_executor(None, _initialize_permission_prototypes)
 
 def classify_web_permission_intent_fast_path(user_reply: str) -> WebPermissionIntentResult | None:
-    result = classify_voice_reply_intent_fast_path(user_reply)
-    if result is None:
+    normalized = normalize_voice_intent_text(user_reply)
+    if not normalized:
         return None
-    return WebPermissionIntentResult(result.intent, result.confidence, result.reason, result.source)
 
-
-def _coerce_intent(value: Any) -> WebPermissionIntent:
-    if value in {"grant", "deny", "unclear", "new_question"}:
-        return value
-    return "unclear"
-
-
-def _coerce_confidence(value: Any) -> float:
-    try:
-        confidence = float(value)
-    except (TypeError, ValueError):
-        return 0.0
-    return min(max(confidence, 0.0), 1.0)
-
-
-async def _classify_with_openai(
-    *,
-    pending_query: str,
-    user_reply: str,
-    model: str,
-    timeout_seconds: float,
-) -> WebPermissionIntentResult:
-    from app.core.config import settings
-
-    client = AsyncOpenAI(api_key=settings.OPENAI_API_KEY)
-    user_prompt = (
-        f"Pending web query:\n{pending_query}\n\n"
-        f"User reply:\n{user_reply}\n"
-    )
-
-    response = await asyncio.wait_for(
-        client.chat.completions.create(
-            model=model,
-            temperature=0,
-            response_format={"type": "json_object"},
-            messages=[
-                {"role": "system", "content": CLASSIFIER_SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
-            ],
-        ),
-        timeout=timeout_seconds,
-    )
-    content = response.choices[0].message.content or "{}"
-    try:
-        payload = json.loads(content)
-    except json.JSONDecodeError:
-        log.info("Web permission classifier returned invalid JSON")
-        return WebPermissionIntentResult("unclear", 0.0, "Invalid classifier JSON")
-
-    return WebPermissionIntentResult(
-        intent=_coerce_intent(payload.get("intent")),
-        confidence=_coerce_confidence(payload.get("confidence")),
-        reason=str(payload.get("reason") or "")[:160],
-        source="openai",
-    )
-
+    # Layer 1 (Fast-Path): Only apply to very short replies <= 2 words
+    token_count = len(normalized.split())
+    if token_count <= 2:
+        result = classify_voice_reply_intent_fast_path(user_reply)
+        if result is not None:
+            return WebPermissionIntentResult(
+                intent=result.intent,
+                confidence=result.confidence,
+                reason=result.reason,
+                source=result.source,
+            )
+    return None
 
 async def classify_web_permission_intent(
     *,
     pending_query: str,
     user_reply: str,
-    use_llm: bool | None = None,
-    model: str | None = None,
-    timeout_seconds: float | None = None,
+    use_llm: bool | None = None, # Left for backward compatibility, unused
+    model: str | None = None, # Left for backward compatibility, unused
+    timeout_seconds: float | None = None, # Left for backward compatibility, unused
     confidence_threshold: float | None = None,
 ) -> WebPermissionIntentResult:
-    fast_path_result = classify_web_permission_intent_fast_path(user_reply)
-    if fast_path_result is not None:
-        return fast_path_result
+    """
+    Classifies the user reply regarding web search permission using a local multilingual L12 model.
+    """
+    # 1. Run Fast-path Layer 1:
+    fast_result = classify_web_permission_intent_fast_path(user_reply)
+    if fast_result is not None:
+        return fast_result
 
-    from app.core.config import settings
+    # Layer 2: Local Embedding
+    # 2. Run Local Embedding Cosine Similarity Layer 2
+    normalized = normalize_voice_intent_text(user_reply)
 
-    llm_enabled = settings.VOICE_AGENT_PERMISSION_CLASSIFIER_ENABLED if use_llm is None else use_llm
-    if not llm_enabled:
-        return WebPermissionIntentResult("unclear", 0.0, "Classifier disabled")
-
-    resolved_model = model or settings.VOICE_AGENT_PERMISSION_CLASSIFIER_MODEL
-    resolved_timeout = timeout_seconds or settings.VOICE_AGENT_PERMISSION_CLASSIFIER_TIMEOUT_SECONDS
-    threshold = confidence_threshold or settings.VOICE_AGENT_PERMISSION_CLASSIFIER_CONFIDENCE_THRESHOLD
+    # Fast-check if query looks like a new question (e.g. contains question marks or keywords)
+    if looks_like_new_question(user_reply, normalized):
+        return WebPermissionIntentResult(
+            intent="new_question",
+            confidence=1.0,
+            reason="looks_like_new_question",
+            source="local_embedding",
+        )
 
     try:
-        result = await _classify_with_openai(
-            pending_query=pending_query,
-            user_reply=user_reply,
-            model=resolved_model,
-            timeout_seconds=resolved_timeout,
-        )
+        # Load prototypes asynchronously to prevent event loop blocking
+        await _initialize_permission_prototypes_async()
+        
+        tokenizer = _classifier.tokenizer
+        model_obj = _classifier.model
+
+        with torch.no_grad():
+            inputs = tokenizer([user_reply.strip().lower()], padding=True, truncation=True, return_tensors="pt")
+            outputs = model_obj(**inputs)
+            query_emb = mean_pooling(outputs, inputs['attention_mask'])
+            query_emb = torch.nn.functional.normalize(query_emb, p=2, dim=1)
+
+            best_intent: WebPermissionIntent = "unclear"
+            best_score = -1.0
+
+            for intent, proto_embs in _proto_embeddings.items():
+                sims = torch.matmul(query_emb, proto_embs.T).squeeze(0)
+                max_sim = torch.max(sims).item()
+                if max_sim > best_score:
+                    best_score = max_sim
+                    best_intent = intent  # type: ignore[assignment]
+
+            # Use threshold from arguments or default
+            from app.core.config import settings
+            # We default to 0.55 for web permission classification as evaluated
+            resolved_threshold = confidence_threshold or 0.55
+
+            if best_score < resolved_threshold:
+                log.info(f"Web permission cosine score {best_score:.2f} below threshold {resolved_threshold} | Fallback to new_question")
+                return WebPermissionIntentResult(
+                    intent="new_question",
+                    confidence=best_score,
+                    reason="Below similarity threshold",
+                    source="local_embedding",
+                )
+
+            return WebPermissionIntentResult(
+                intent=best_intent,
+                confidence=best_score,
+                reason="Classified by local L12 Cosine",
+                source="local_embedding",
+            )
+            
     except Exception as exc:
-        log.info(f"Web permission classifier failed: {type(exc).__name__}")
-        return WebPermissionIntentResult("unclear", 0.0, "Classifier failed")
-
-    if result.confidence < threshold:
+        log.error(f"Web permission local classifier failed: {exc} | Fallback to unclear")
         return WebPermissionIntentResult(
-            "unclear",
-            result.confidence,
-            f"Low confidence: {result.reason}",
+            intent="unclear",
+            confidence=0.0,
+            reason=f"Classifier error: {exc}",
+            source="local_embedding",
         )
-
-    return result
 
 ```
 
@@ -22290,12 +23210,19 @@ class WebSearchPermissionPolicy:
 
         return WebSearchPermissionDecision(unclear=True)
 
+    def pre_grant_for_eval(self) -> None:
+        self.state.granted_query = "eval_pre_granted"
+        self.state.granted_at = datetime.now(timezone.utc)
+
     def can_execute(self, query: str) -> tuple[bool, str]:
         if not self.state.enabled:
             return False, "Tính năng tìm kiếm internet hiện đang tắt."
 
         if not self.state.granted_query or not self.state.granted_at:
             return False, "WEB_SEARCH_PERMISSION_REQUIRED: Hãy xin phép user trước khi tìm kiếm internet."
+
+        if self.state.granted_query == "eval_pre_granted":
+            return True, ""
 
         if datetime.now(timezone.utc) - self.state.granted_at > self._grant_ttl:
             self.clear()
@@ -22669,9 +23596,10 @@ async def _track_progress(
             job_status = ProcessingJobStatus.PARTIAL_READY if is_partial else ProcessingJobStatus.PROCESSING
 
             if is_partial:
-                _set_book_status(book_id, BookStatus.PARTIAL_READY)
+                await asyncio.to_thread(_set_book_status, book_id, BookStatus.PARTIAL_READY)
 
-            _update_job(
+            await asyncio.to_thread(
+                _update_job,
                 job_id,
                 status=job_status,
                 progress_percent=progress,
@@ -22683,17 +23611,17 @@ async def _track_progress(
             if not task.done():
                 task.cancel()
         await asyncio.gather(*tasks, return_exceptions=True)
-        _update_job(job_id, done_units=completed, failed_units=max(1, total_units - completed))
+        await asyncio.to_thread(_update_job, job_id, done_units=completed, failed_units=max(1, total_units - completed))
         raise
 
 
 async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | None) -> None:
-    if _job_is_ready(job_id):
+    if await asyncio.to_thread(_job_is_ready, job_id):
         logger.info(f"Skip book processing because job is already READY | book_id={book_id} | job_id={job_id}")
         return
 
     mode_value = PlanMode(mode)
-    processing_input = _load_book_processing_input(book_id, mode_value, job_id)
+    processing_input = await asyncio.to_thread(_load_book_processing_input, book_id, mode_value, job_id)
     if not processing_input:
         return
 
@@ -22702,18 +23630,19 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
     total_units = len(work_items)
     if total_units == 0:
         error_message = "Không có bài học nào có nội dung để xử lý."
-        _set_book_status(book_id, BookStatus.ERROR, error_message=error_message)
-        _fail_job(job_id, error_message, error_message, progress_percent=0, total_units=0)
+        await asyncio.to_thread(_set_book_status, book_id, BookStatus.ERROR, error_message=error_message)
+        await asyncio.to_thread(_fail_job, job_id, error_message, error_message, progress_percent=0, total_units=0)
         return
 
     hard_limit_error = _hard_limit_error(work_items)
     estimated_input_tokens, estimated_audio_seconds = _total_estimates(work_items)
     if hard_limit_error:
-        _set_book_status(book_id, BookStatus.ERROR, error_message=hard_limit_error)
-        _fail_job(job_id, "Tài liệu vượt giới hạn xử lý.", hard_limit_error, progress_percent=0, total_units=total_units)
+        await asyncio.to_thread(_set_book_status, book_id, BookStatus.ERROR, error_message=hard_limit_error)
+        await asyncio.to_thread(_fail_job, job_id, "Tài liệu vượt giới hạn xử lý.", hard_limit_error, progress_percent=0, total_units=total_units)
         return
 
-    _update_job(
+    await asyncio.to_thread(
+        _update_job,
         job_id,
         status=ProcessingJobStatus.PROCESSING,
         progress_percent=0,
@@ -22742,8 +23671,9 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
         completed += 1
         progress = int(completed * 100 / total_units)
         if completed < total_units:
-            _set_book_status(book_id=book_id, status=BookStatus.PARTIAL_READY, current_job_id=job_id)
-            _update_job(
+            await asyncio.to_thread(_set_book_status, book_id=book_id, status=BookStatus.PARTIAL_READY, current_job_id=job_id)
+            await asyncio.to_thread(
+                _update_job,
                 job_id,
                 status=ProcessingJobStatus.PARTIAL_READY,
                 progress_percent=progress,
@@ -22772,9 +23702,10 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
         ]
         await _track_progress(tasks, job_id, total_units, book_id, "Đã xử lý {completed}/{total} bài học.", completed_offset=completed)
 
-    _set_book_status(book_id=book_id, status=BookStatus.READY, current_job_id=job_id)
+    await asyncio.to_thread(_set_book_status, book_id=book_id, status=BookStatus.READY, current_job_id=job_id)
     _create_book_ready_notification_safely(book_id, mode_value.value)
-    _update_job(
+    await asyncio.to_thread(
+        _update_job,
         job_id,
         status=ProcessingJobStatus.READY,
         progress_percent=100,
@@ -22789,18 +23720,18 @@ async def run_background_processing(book_id: uuid.UUID, mode: str, job_id: uuid.
     try:
         await _run_unit_pipeline(book_id, mode, job_id)
     except Exception as exc:
-        _set_book_status(book_id, BookStatus.ERROR, error_message=str(exc))
-        _fail_job(job_id, "Xử lý sách thất bại.", str(exc))
+        await asyncio.to_thread(_set_book_status, book_id, BookStatus.ERROR, error_message=str(exc))
+        await asyncio.to_thread(_fail_job, job_id, "Xử lý sách thất bại.", str(exc))
         logger.error(f"LỖI XỬ LÝ SÁCH {book_id}: {exc}")
 
 
 async def run_switch_mode_processing(book_id: uuid.UUID, new_mode: str, job_id: uuid.UUID | None = None) -> None:
     try:
-        _set_book_status(book_id, BookStatus.PROCESSING)
+        await asyncio.to_thread(_set_book_status, book_id, BookStatus.PROCESSING)
         await _run_unit_pipeline(book_id, new_mode, job_id)
     except Exception as exc:
-        _set_book_status(book_id, BookStatus.ERROR, error_message=str(exc))
-        _fail_job(job_id, f"Sinh audio mode {new_mode} thất bại.", str(exc))
+        await asyncio.to_thread(_set_book_status, book_id, BookStatus.ERROR, error_message=str(exc))
+        await asyncio.to_thread(_fail_job, job_id, f"Sinh audio mode {new_mode} thất bại.", str(exc))
         logger.error(f"LỖI SWITCH MODE SÁCH {book_id}: {exc}")
 
 ```
@@ -23087,6 +24018,45 @@ def _cleanup_failed_unit(learning_unit_id: uuid.UUID, unit_index: int, error_mes
     logger.info(f"Cleaned failed side effects for learning unit {unit_index + 1}.")
 
 
+def _pre_check_and_update_unit_db(
+    unit_id: uuid.UUID,
+    raw_text_char_count: int,
+    estimated_tokens: int,
+    estimated_audio_seconds: int
+) -> tuple[bool, int]:
+    with Session(engine) as session:
+        current_unit = session.get(LearningUnit, unit_id)
+        if current_unit and current_unit.status == ProcessingJobStatus.READY and unit_segments_exist(session, unit_id):
+            return True, current_unit.main_segment_count or 0
+        if current_unit:
+            update_learning_unit_processing(
+                session,
+                current_unit,
+                status=ProcessingJobStatus.PROCESSING,
+                raw_text_char_count=raw_text_char_count,
+                estimated_tokens=estimated_tokens,
+                estimated_audio_seconds=estimated_audio_seconds,
+            )
+        return False, 0
+
+
+def _post_update_unit_db(
+    unit_id: uuid.UUID,
+    main_segment_count: int,
+    generated_audio_seconds: int
+) -> None:
+    with Session(engine) as session:
+        current_unit = session.get(LearningUnit, unit_id)
+        if current_unit:
+            update_learning_unit_processing(
+                session,
+                current_unit,
+                status=ProcessingJobStatus.READY,
+                main_segment_count=main_segment_count,
+                estimated_audio_seconds=generated_audio_seconds,
+            )
+
+
 async def process_learning_unit(
     user_id: uuid.UUID,
     book_id: uuid.UUID,
@@ -23105,24 +24075,20 @@ async def process_learning_unit(
             f"estimated_tokens={estimated_tokens} | estimated_audio_seconds={estimated_audio_seconds}"
         )
 
-        with Session(engine) as session:
-            current_unit = session.get(LearningUnit, unit.id)
-            if current_unit and current_unit.status == ProcessingJobStatus.READY and unit_segments_exist(session, unit.id):
-                logger.info(f"Learning unit {unit.unit_index + 1} already READY, skip.")
-                return LearningUnitProcessingResult(
-                    learning_unit_id=unit.id,
-                    main_segment_count=current_unit.main_segment_count,
-                    skipped=True,
-                )
-            if current_unit:
-                update_learning_unit_processing(
-                    session,
-                    current_unit,
-                    status=ProcessingJobStatus.PROCESSING,
-                    raw_text_char_count=raw_text_char_count,
-                    estimated_tokens=estimated_tokens,
-                    estimated_audio_seconds=estimated_audio_seconds,
-                )
+        is_ready, segment_count = await asyncio.to_thread(
+            _pre_check_and_update_unit_db,
+            unit.id,
+            raw_text_char_count,
+            estimated_tokens,
+            estimated_audio_seconds
+        )
+        if is_ready:
+            logger.info(f"Learning unit {unit.unit_index + 1} already READY, skip.")
+            return LearningUnitProcessingResult(
+                learning_unit_id=unit.id,
+                main_segment_count=segment_count,
+                skipped=True,
+            )
 
         pipeline_tasks: list[asyncio.Task] = []
         try:
@@ -23139,16 +24105,12 @@ async def process_learning_unit(
                 )
             ]
             tts_result = (await asyncio.gather(*pipeline_tasks))[0]
-            with Session(engine) as session:
-                current_unit = session.get(LearningUnit, unit.id)
-                if current_unit:
-                    update_learning_unit_processing(
-                        session,
-                        current_unit,
-                        status=ProcessingJobStatus.READY,
-                        main_segment_count=tts_result.main_segment_count,
-                        estimated_audio_seconds=tts_result.generated_audio_seconds,
-                    )
+            await asyncio.to_thread(
+                _post_update_unit_db,
+                unit.id,
+                tts_result.main_segment_count,
+                tts_result.generated_audio_seconds
+            )
             logger.info(f"Learning unit {unit.unit_index + 1} READY | segments={tts_result.main_segment_count}")
             return LearningUnitProcessingResult(unit.id, tts_result.main_segment_count)
 
@@ -23156,7 +24118,12 @@ async def process_learning_unit(
             logger.warning(f"Learning unit {unit.unit_index + 1} bị hủy vì book job thất bại.")
             try:
                 await _cancel_pending_tasks(pipeline_tasks)
-                _cleanup_failed_unit(unit.id, unit.unit_index, "Learning unit processing cancelled because the book job failed.")
+                await asyncio.to_thread(
+                    _cleanup_failed_unit,
+                    unit.id,
+                    unit.unit_index,
+                    "Learning unit processing cancelled because the book job failed."
+                )
             except Exception as rollback_err:
                 logger.error(f"Failed to clean cancelled learning unit {unit.unit_index + 1}: {rollback_err}")
             raise
@@ -23164,7 +24131,12 @@ async def process_learning_unit(
             logger.error(f"Learning unit {unit.unit_index + 1} thất bại: {exc}")
             try:
                 await _cancel_pending_tasks(pipeline_tasks)
-                _cleanup_failed_unit(unit.id, unit.unit_index, str(exc))
+                await asyncio.to_thread(
+                    _cleanup_failed_unit,
+                    unit.id,
+                    unit.unit_index,
+                    str(exc)
+                )
             except Exception as rollback_err:
                 logger.error(f"Failed to clean failed learning unit {unit.unit_index + 1}: {rollback_err}")
             raise
