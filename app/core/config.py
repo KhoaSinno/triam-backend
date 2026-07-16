@@ -20,10 +20,10 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     # hardening DB pool/config
     DATABASE_ECHO: bool = False
-    DATABASE_POOL_MODE: str = "auto"
-    DATABASE_POOL_SIZE: int = 3
-    DATABASE_MAX_OVERFLOW: int = 2
-    DATABASE_POOL_TIMEOUT: int = 5
+    DATABASE_POOL_MODE: str = "queue"
+    DATABASE_POOL_SIZE: int = 20
+    DATABASE_MAX_OVERFLOW: int = 10
+    DATABASE_POOL_TIMEOUT: int = 30
     DATABASE_POOL_RECYCLE: int = 900
     DATABASE_POOL_PRE_PING: bool = True
     DATABASE_POOL_USE_LIFO: bool = True
