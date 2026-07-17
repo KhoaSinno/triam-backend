@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime
 
+from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, delete, select
 
 from app.core.constant import LearningProgressStatus, PlanMode
@@ -22,10 +23,39 @@ def get_progress(
 
 
 def save_progress(session: Session, progress: LearningUnitProgress) -> LearningUnitProgress:
-    session.add(progress)
-    session.commit()
-    session.refresh(progress)
-    return progress
+    try:
+        session.add(progress)
+        session.commit()
+        session.refresh(progress)
+        return progress
+    except IntegrityError:
+        session.rollback()
+        # Race condition: hai luồng cùng tạo progress cho cùng một unit.
+        # Lấy bản ghi đã tồn tại và ghi đè các field trạng thái lên bản ghi đó.
+        existing = session.exec(
+            select(LearningUnitProgress).where(
+                LearningUnitProgress.user_id == progress.user_id,
+                LearningUnitProgress.learning_unit_id == progress.learning_unit_id,
+            )
+        ).first()
+        if not existing:
+            raise
+        existing.current_segment_id = progress.current_segment_id
+        existing.last_segment_index = progress.last_segment_index
+        existing.position_ms = progress.position_ms
+        existing.listened_ms = max(existing.listened_ms, progress.listened_ms)
+        existing.total_duration_ms = progress.total_duration_ms
+        existing.progress_percent = progress.progress_percent
+        existing.max_progress_percent = max(existing.max_progress_percent, progress.max_progress_percent)
+        existing.status = progress.status
+        existing.last_activity_at = progress.last_activity_at
+        existing.updated_at = progress.updated_at
+        if existing.completed_at is None and progress.completed_at is not None:
+            existing.completed_at = progress.completed_at
+        session.add(existing)
+        session.commit()
+        session.refresh(existing)
+        return existing
 
 
 def list_book_progress(

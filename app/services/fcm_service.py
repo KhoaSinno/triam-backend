@@ -7,6 +7,7 @@ from hashlib import sha256
 import firebase_admin
 from firebase_admin import credentials, messaging
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm.exc import StaleDataError
 from sqlmodel import Session, select
 
 from app.core.config import settings
@@ -141,20 +142,25 @@ def register_user_device_token(session: Session, user_id: uuid.UUID, device_toke
     existing = session.exec(select(UserDeviceToken).where(UserDeviceToken.device_token == device_token)).first()
 
     if existing:
-        if existing.user_id == user_id:
-            existing.updated_at = datetime.now(timezone.utc)
-            session.add(existing)
-            session.commit()
-            session.refresh(existing)
-            return existing
-        else:
-            log.info(f"Chuyển device_token từ user {existing.user_id} sang user {user_id}")
-            existing.user_id = user_id
-            existing.updated_at = datetime.now(timezone.utc)
-            session.add(existing)
-            session.commit()
-            session.refresh(existing)
-            return existing
+        try:
+            if existing.user_id == user_id:
+                existing.updated_at = datetime.now(timezone.utc)
+                session.add(existing)
+                session.commit()
+                session.refresh(existing)
+                return existing
+            else:
+                log.info(f"Chuyển device_token từ user {existing.user_id} sang user {user_id}")
+                existing.user_id = user_id
+                existing.updated_at = datetime.now(timezone.utc)
+                session.add(existing)
+                session.commit()
+                session.refresh(existing)
+                return existing
+        except StaleDataError:
+            session.rollback()
+            log.info("Bản ghi device_token đã bị xóa song song bởi luồng khác. Tiến hành tạo mới.")
+            # Fall through to the insertion block below
 
     try:
         new_token = UserDeviceToken(user_id=user_id, device_token=device_token)
@@ -188,6 +194,11 @@ def unregister_user_device_token(session: Session, user_id: uuid.UUID, device_to
     if not token_record:
         return False
 
-    session.delete(token_record)
-    session.commit()
-    return True
+    try:
+        session.delete(token_record)
+        session.commit()
+        return True
+    except StaleDataError:
+        session.rollback()
+        log.info("Bản ghi device_token đã được xóa trước đó bởi luồng khác.")
+        return True
