@@ -22,9 +22,9 @@ class NotificationSettingsRequest(BaseModel):
     reminders_enabled: bool = True
     spaced_review_enabled: bool = True
     reminder_time: str = "20:00"
-    quiet_hours_start: str = "22:00"
-    quiet_hours_end: str = "07:00"
-    daily_cap: int = Field(default=3, ge=0, le=10)
+    quiet_hours_start: str = "23:00"
+    quiet_hours_end: str = "06:00"
+    daily_cap: int = Field(default=30, ge=0, le=30)
 
     @field_validator("timezone")
     @classmethod

@@ -8,7 +8,7 @@ from app.core.config import settings
 from app.models.db_models import NotificationSettings
 
 MIN_DAILY_CAP = 0
-MAX_DAILY_CAP = 10
+MAX_DAILY_CAP = 30
 
 
 def _normalize_notification_settings(session: Session, notification_settings: NotificationSettings) -> NotificationSettings:
