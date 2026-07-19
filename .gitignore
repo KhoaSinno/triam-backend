@@ -22,7 +22,8 @@ env/
 
 # Large files and logs
 uploads/
-logs/
+logs/*
+!logs/pareto_log/
 _logs/
 KMS/
 worker.log
@@ -45,6 +46,8 @@ scratch
 _codebase/
 scratch_*.py
 .codegraph/
+
+!logs/pareto_log/**
 
 triam-notification-firebase-adminsdk-fbsvc-77f3e9eac6.json
 

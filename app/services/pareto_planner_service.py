@@ -46,6 +46,7 @@ Rules:
 - Do not create audio script content.
 - Do not include sections that are only decorative, repetitive, or minor examples unless they are necessary to understand a core idea.
 - Each unit must explain why it was selected.
+- Select source sections such that the sum of their estimated_tokens is close to or under the requested target_tokens in the user payload.
 """.strip()
 
 
@@ -246,20 +247,62 @@ def _make_planned_unit_from_payload(
 
 
 def _trim_to_target(units: list[PlannedLearningUnit], *, total_source_tokens: int) -> list[PlannedLearningUnit]:
+    # 1. Bảo toàn số lượng bài học tối thiểu (3 bài)
     if len(units) <= settings.PARETO_PLANNER_MIN_UNITS:
         return units
 
-    target_tokens = max(1, int(total_source_tokens * settings.PARETO_TARGET_COVERAGE_RATIO))
-    selected: list[PlannedLearningUnit] = []
+    # Tính toán các ngưỡng token mục tiêu
+    target_tokens = int(total_source_tokens * settings.PARETO_TARGET_COVERAGE_RATIO)
+    total_planned_tokens = sum(u.estimated_tokens for u in units)
+
+    # 2. Nếu tổng token do LLM chọn nằm dưới ngưỡng cho phép (có sai số 15% để tránh cắt tỉa khi vượt nhẹ), giữ nguyên toàn bộ
+    allowed_ceiling = int(target_tokens * 1.15)
+    if total_planned_tokens <= allowed_ceiling:
+        log.info(f"Keep all planned units | total_planned={total_planned_tokens} <= allowed_ceiling={allowed_ceiling} (target={target_tokens})")
+        return units
+
+    log.info(f"Start value-based trimming | total_planned={total_planned_tokens} > allowed_ceiling={allowed_ceiling} (target={target_tokens})")
+
+    # 3. Tiến hành cắt tỉa dựa trên giá trị (Value-Based)
+    # Lưu lại chỉ số gốc (index) đại diện cho thứ tự xuất hiện gốc trong sách
+    indexed_units = [(i, unit) for i, unit in enumerate(units)]
+    
+    # Hàm trích xuất điểm quan trọng từ planner_reason (ví dụ: "Điểm quan trọng: X/5")
+    def get_importance_score(unit: PlannedLearningUnit) -> int:
+        try:
+            if "Điểm quan trọng: " in unit.planner_reason:
+                return int(unit.planner_reason.split("Điểm quan trọng: ")[1].split("/")[0])
+        except Exception as exc:
+            log.warning(f"Failed to parse importance score from planner_reason: {exc}")
+        return 3  # Điểm mặc định trung bình nếu lỗi parse
+
+    # Sắp xếp theo: 
+    # Tiêu chí 1: Importance Score giảm dần (ưu tiên bài quan trọng nhất)
+    # Tiêu chí 2: Chỉ số index gốc tăng dần (nếu cùng quan trọng, ưu tiên bài xuất hiện trước trong sách)
+    indexed_units.sort(key=lambda item: (-get_importance_score(item[1]), item[0]))
+
+    selected_indexed: list[tuple[int, PlannedLearningUnit]] = []
     selected_tokens = 0
 
-    for unit in units[: settings.PARETO_PLANNER_MAX_UNITS]:
-        selected.append(unit)
-        selected_tokens += unit.estimated_tokens
-        if len(selected) >= settings.PARETO_PLANNER_MIN_UNITS and selected_tokens >= target_tokens:
+    # Gom các bài học tốt nhất theo ngân sách
+    for index, unit in indexed_units:
+        # Nếu cộng thêm unit này mà vượt quá 40% ngân sách và chúng ta đã đạt số lượng tối thiểu (3 bài),
+        # thì dừng lại để không vượt quá ngưỡng 40%.
+        if len(selected_indexed) >= settings.PARETO_PLANNER_MIN_UNITS and (selected_tokens + unit.estimated_tokens) > target_tokens:
             break
+            
+        selected_indexed.append((index, unit))
+        selected_tokens += unit.estimated_tokens
 
-    return selected
+    # 4. Trả các bài học đã chọn về thứ tự đọc tự nhiên của sách (sắp xếp lại theo index gốc)
+    selected_indexed.sort(key=lambda item: item[0])
+    
+    final_units = [unit for _, unit in selected_indexed]
+    log.info(
+        f"Trimming complete | retained_units={len(final_units)} "
+        f"| retained_tokens={sum(u.estimated_tokens for u in final_units)}/{total_source_tokens}"
+    )
+    return final_units
 
 
 def _validate_planner_payload(payload: ParetoPlannerPayload, sections: list[BookSection]) -> list[PlannedLearningUnit]:

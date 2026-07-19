@@ -63,7 +63,7 @@ Global rules:
 - If the exact expansion is uncertain, explain the term's role neutrally instead of guessing.
 - After a term has been explained once in the same learning unit, you may use the short form to keep audio concise.
 - The review script may be heard separately later, so explain essential abbreviations again there.
-- Split main_scripts into coherent spoken paragraphs of about 3-5 sentences or one complete idea each. Do not prefix them with labels such as "Segment", "Part", or "Next".
+- Split main_scripts into coherent spoken paragraphs of about 6-10 sentences (roughly 600 to 1000 characters, targeting 30 to 60 seconds of spoken audio) or one complete idea each. Do not prefix them with labels such as "Segment", "Part", or "Next".
 - Ensure the scripts sound continuous when played in order.
 
 Return only a valid JSON object:

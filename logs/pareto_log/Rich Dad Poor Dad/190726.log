@@ -1,0 +1,609 @@
+-- Log main:
+2026-07-19 18:21:46.596 | INFO     | app.services.upload_service:handle_upload_document:222 - ☁️  PDF uploaded to Storage: 2baeb5b3-ce77-4a2f-93f4-732d5de31898/original.pdf
+2026-07-19 18:21:48.269 | INFO     | app.services.upload_service:handle_upload_document:253 - 📘 Created DRAFT book 2baeb5b3-ce77-4a2f-93f4-732d5de31898 | 12 sections | file_url saved
+2026-07-19 18:21:49.205 | INFO     | logging:callHandlers:1762 - 127.0.0.1:64914 - "POST /api/v1/upload HTTP/1.1" 200
+2026-07-19 18:24:35.315 | WARNING  | app.main:app_exception_handler:40 - AppException: Lịch học bị trùng vào Thứ ba lúc 19:00. Hãy chọn ngày hoặc giờ khác. - Status Code: 409
+2026-07-19 18:24:35.315 | INFO     | logging:callHandlers:1762 - 127.0.0.1:64549 - "POST /api/v1/generate-plan HTTP/1.1" 409
+2026-07-19 18:24:46.744 | WARNING  | app.main:app_exception_handler:40 - AppException: Lịch học bị trùng vào Thứ hai lúc 19:00. Hãy chọn ngày hoặc giờ khác. - Status Code: 409
+2026-07-19 18:24:46.745 | INFO     | logging:callHandlers:1762 - 127.0.0.1:64576 - "POST /api/v1/generate-plan HTTP/1.1" 409
+2026-07-19 18:25:01.842 | WARNING  | app.main:app_exception_handler:40 - AppException: Lịch học bị trùng vào Thứ bảy lúc 19:00. Hãy chọn ngày hoặc giờ khác. - Status Code: 409
+2026-07-19 18:25:01.843 | INFO     | logging:callHandlers:1762 - 127.0.0.1:65531 - "POST /api/v1/generate-plan HTTP/1.1" 409
+2026-07-19 18:25:14.637 | INFO     | app.services.pareto_planner_service:plan_pareto_learning_units:331 - Pareto planner start | sections=12 | cards=12
+2026-07-19 18:25:24.504 | INFO     | app.services.pareto_planner_service:_trim_to_target:263 - Start value-based trimming | total_planned=30176 > target=29894 (40%)
+2026-07-19 18:25:24.505 | INFO     | app.services.pareto_planner_service:_trim_to_target:300 - Trimming complete | retained_units=4 | retained_tokens=22266/74736
+2026-07-19 18:25:24.505 | INFO     | app.services.pareto_planner_service:plan_pareto_learning_units:342 - Pareto planner result | source=llm | units=4
+2026-07-19 18:25:26.912 | INFO     | app.services.upload_service:handle_generate_plan:321 - 📋 ReadingPlan created for book 2baeb5b3-ce77-4a2f-93f4-732d5de31898 | mode=pareto | job=ecd43921-071d-48af-9102-89f67b747722
+2026-07-19 18:25:27.526 | INFO     | logging:callHandlers:1762 - 127.0.0.1:49166 - "POST /api/v1/generate-plan HTTP/1.1" 200
+2026-07-19 18:31:15.464 | INFO     | logging:callHandlers:1762 - 127.0.0.1:56916 - "GET /api/v1/books/2baeb5b3-ce77-4a2f-93f4-732d5de31898/outline HTTP/1.1" 200
+2026-07-19 18:32:08.948 | INFO     | logging:callHandlers:1762 - 127.0.0.1:57027 - "GET /api/v1/books/2baeb5b3-ce77-4a2f-93f4-732d5de31898/details?mode=pareto HTTP/1.1" 200
+
+-- Log worker handle
+2026-07-19 18:21:49.334 | INFO     | app.tasks.book_tasks:index_book_sections_task:65 - Celery index_book_sections_task started | book_id=2baeb5b3-ce77-4a2f-93f4-732d5de31898
+2026-07-19 18:22:16.850 | INFO     | app.services.book_section_knowledge_indexer:index_book_sections:157 - BookSectionKnowledge index done | book_id=2baeb5b3-ce77-4a2f-93f4-732d5de31898 | sections=12 | indexed=12 | skipped=0 | chunks_created=113 | version=section-v1
+2026-07-19 18:22:16.851 | INFO     | app.tasks.book_tasks:index_book_sections_task:68 - Celery index_book_sections_task done | book_id=2baeb5b3-ce77-4a2f-93f4-732d5de31898 | sections=12 | indexed=12 | skipped=0 | chunks=113
+[2026-07-19 18:22:16,852: INFO/MainProcess] Task triam.books.index_sections[b2cbce50-ab62-42ff-816d-f9e5c77bd1c6] succeeded in 27.51600000000326s: None
+[2026-07-19 18:25:27,209: INFO/MainProcess] Task triam.books.process[4559712e-5512-4847-83db-c19c115846fc] received
+2026-07-19 18:25:27.209 | INFO     | app.tasks.book_tasks:process_book_task:24 - Celery process_book_task started | book_id=2baeb5b3-ce77-4a2f-93f4-732d5de31898 | mode=pareto | job_id=ecd43921-071d-48af-9102-89f67b747722
+2026-07-19 18:25:29.194 | INFO     | app.services.workers.learning_unit_worker:process_learning_unit:91 - Learning unit processing start | unit=1 | mode=pareto | title=The Tale of Two Fathers: Contrasting Financial Mindsets | chars=12746 | estimated_tokens=2753 | estimated_audio_seconds=1064
+2026-07-19 18:25:29.813 | INFO     | app.services.workers.learning_unit_tts_worker:run_learning_unit_tts_pipeline:204 - TTS pipeline start | unit=1 | mode=pareto | title=The Tale of Two Fathers: Contrasting Financial Mindsets | raw_chars=12746
+2026-07-19 18:25:29.816 | INFO     | app.services.llm_service:normalize_text_for_speech:239 - Normalize preflight | mode=pareto | title=The Tale of Two Fathers: Contrasting Financial Mindsets | chars=12746 | estimated_tokens=2753 | estimated_audio_seconds=1064
+2026-07-19 18:25:29.816 | INFO     | app.services.llm_service:normalize_text_for_speech:248 - Normalize strategy | mode=pareto | strategy=single_call | title=The Tale of Two Fathers: Contrasting Financial Mindsets   
+2026-07-19 18:25:29.817 | INFO     | app.services.llm_service:_call_normalize_llm:199 - LLM normalize start | mode=pareto | context=single | chars=12746 | attempt=1/2
+2026-07-19 18:25:44.383 | INFO     | app.services.llm_service:_call_normalize_llm:214 - LLM normalize done | mode=pareto | context=single | scripts=4 | review_chars=436
+2026-07-19 18:25:44.384 | INFO     | app.services.workers.learning_unit_tts_worker:run_learning_unit_tts_pipeline:211 - TTS pipeline normalized | unit=1 | mode=pareto | main_scripts=4 | review_chars=436
+2026-07-19 18:25:44.384 | INFO     | app.services.workers.learning_unit_tts_worker:_generate_unit_main_segments:77 - TTS main segments start | unit=1 | mode=pareto | total_scripts=4
+2026-07-19 18:25:44.385 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=1 | mode=pareto | segment=1/4 | chars=467
+2026-07-19 18:25:44.401 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=1 | mode=pareto | segment=2/4 | chars=592
+2026-07-19 18:25:44.415 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=1 | mode=pareto | segment=3/4 | chars=477
+2026-07-19 18:25:44.431 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=1 | mode=pareto | segment=4/4 | chars=417
+2026-07-19 18:25:55.016 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=417 | bytes=559 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:25:55.975 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=1 | mode=pareto | segment=4/4 | duration_ms=23832
+2026-07-19 18:26:00.107 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=477 | bytes=646 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:26:00.439 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=1 | mode=pareto | segment=3/4 | duration_ms=25896
+2026-07-19 18:26:00.790 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=467 | bytes=620 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:26:01.150 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=1 | mode=pareto | segment=1/4 | duration_ms=27120
+2026-07-19 18:26:06.526 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=592 | bytes=793 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:26:07.188 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=1 | mode=pareto | segment=2/4 | duration_ms=33864
+2026-07-19 18:26:07.189 | INFO     | app.services.workers.learning_unit_tts_worker:_generate_unit_main_segments:103 - TTS main segments done | unit=1 | mode=pareto | created_segments=4/4
+2026-07-19 18:26:07.190 | INFO     | app.services.workers.learning_unit_tts_worker:_generate_unit_review_audio:164 - TTS review start | unit=1 | mode=pareto | chars=436
+2026-07-19 18:26:17.684 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=436 | bytes=575 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:26:18.333 | INFO     | app.services.workers.learning_unit_tts_worker:_generate_unit_review_audio:168 - TTS review done | unit=1 | mode=pareto
+2026-07-19 18:26:18.334 | INFO     | app.services.workers.learning_unit_tts_worker:_store_unit_tts_result:185 - TTS DB store start | learning_unit_id=3f8cdd5f-5da4-401d-ad50-ccc727867c51 | mode=pareto | segments=4 | review_audio=True
+2026-07-19 18:26:19.314 | INFO     | app.services.workers.learning_unit_tts_worker:_store_unit_tts_result:193 - TTS DB store done | learning_unit_id=3f8cdd5f-5da4-401d-ad50-ccc727867c51 | mode=pareto
+2026-07-19 18:26:19.946 | INFO     | app.services.workers.learning_unit_worker:process_learning_unit:133 - Learning unit 1 READY | segments=4
+2026-07-19 18:26:21.663 | INFO     | app.services.workers.book_pipeline:_create_first_playable_notification_safely:156 - Content-ready first-playable event | book_id=2baeb5b3-ce77-4a2f-93f4-732d5de31898 | mode=pareto | created=True
+2026-07-19 18:26:21.753 | INFO     | app.services.workers.learning_unit_worker:process_learning_unit:91 - Learning unit processing start | unit=2 | mode=pareto | title=The Golden Rule of Financial Literacy: Assets vs. Liabilities | chars=41746 | estimated_tokens=8962 | estimated_audio_seconds=3390
+2026-07-19 18:26:21.753 | INFO     | app.services.workers.learning_unit_worker:process_learning_unit:91 - Learning unit processing start | unit=3 | mode=pareto | title=Minding Your Own Business and the Power of Corporations | chars=37855 | estimated_tokens=8100 | estimated_audio_seconds=3140
+2026-07-19 18:26:22.433 | INFO     | app.services.workers.learning_unit_tts_worker:run_learning_unit_tts_pipeline:204 - TTS pipeline start | unit=2 | mode=pareto | title=The Golden Rule of Financial Literacy: Assets vs. Liabilities | raw_chars=41746
+2026-07-19 18:26:22.438 | INFO     | app.services.llm_service:normalize_text_for_speech:239 - Normalize preflight | mode=pareto | title=The Golden Rule of Financial Literacy: Assets vs. Liabilities | chars=41746 | estimated_tokens=8962 | estimated_audio_seconds=3390
+2026-07-19 18:26:22.439 | INFO     | app.services.llm_service:normalize_text_for_speech:248 - Normalize strategy | mode=pareto | strategy=single_call | title=The Golden Rule of Financial Literacy: Assets vs. Liabilities
+2026-07-19 18:26:22.439 | INFO     | app.services.llm_service:_call_normalize_llm:199 - LLM normalize start | mode=pareto | context=single | chars=41746 | attempt=1/2
+2026-07-19 18:26:22.794 | INFO     | app.services.workers.learning_unit_tts_worker:run_learning_unit_tts_pipeline:204 - TTS pipeline start | unit=3 | mode=pareto | title=Minding Your Own Business and the Power of Corporations | raw_chars=37855
+2026-07-19 18:26:22.798 | INFO     | app.services.llm_service:normalize_text_for_speech:239 - Normalize preflight | mode=pareto | title=Minding Your Own Business and the Power of Corporations | chars=37855 | estimated_tokens=8100 | estimated_audio_seconds=3140
+2026-07-19 18:26:22.798 | INFO     | app.services.llm_service:normalize_text_for_speech:248 - Normalize strategy | mode=pareto | strategy=single_call | title=Minding Your Own Business and the Power of Corporations   
+2026-07-19 18:26:51.485 | INFO     | app.services.llm_service:_call_normalize_llm:214 - LLM normalize done | mode=pareto | context=single | scripts=11 | review_chars=615
+2026-07-19 18:26:51.486 | INFO     | app.services.workers.learning_unit_tts_worker:run_learning_unit_tts_pipeline:211 - TTS pipeline normalized | unit=2 | mode=pareto | main_scripts=11 | review_chars=615
+2026-07-19 18:26:51.486 | INFO     | app.services.workers.learning_unit_tts_worker:_generate_unit_main_segments:77 - TTS main segments start | unit=2 | mode=pareto | total_scripts=11
+2026-07-19 18:26:51.486 | INFO     | app.services.llm_service:_call_normalize_llm:199 - LLM normalize start | mode=pareto | context=single | chars=37855 | attempt=1/2
+2026-07-19 18:26:51.489 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=2 | mode=pareto | segment=1/11 | chars=526
+2026-07-19 18:26:51.505 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=2 | mode=pareto | segment=2/11 | chars=498
+2026-07-19 18:26:51.520 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=2 | mode=pareto | segment=3/11 | chars=383
+2026-07-19 18:26:51.534 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=2 | mode=pareto | segment=4/11 | chars=484
+2026-07-19 18:26:51.548 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=2 | mode=pareto | segment=5/11 | chars=409
+2026-07-19 18:26:51.549 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=2 | mode=pareto | segment=6/11 | chars=451
+2026-07-19 18:26:51.549 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=2 | mode=pareto | segment=7/11 | chars=479
+2026-07-19 18:26:51.549 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=2 | mode=pareto | segment=8/11 | chars=470
+2026-07-19 18:26:51.550 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=2 | mode=pareto | segment=9/11 | chars=466
+2026-07-19 18:26:51.550 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=2 | mode=pareto | segment=10/11 | chars=453
+2026-07-19 18:26:51.551 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=2 | mode=pareto | segment=11/11 | chars=404
+2026-07-19 18:27:00.363 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=383 | bytes=510 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:01.931 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=2 | mode=pareto | segment=3/11 | duration_ms=21096
+2026-07-19 18:27:06.326 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=526 | bytes=703 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:07.597 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=2 | mode=pareto | segment=1/11 | duration_ms=32040
+2026-07-19 18:27:08.481 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=484 | bytes=642 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:09.621 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=2 | mode=pareto | segment=4/11 | duration_ms=27288
+2026-07-19 18:27:12.515 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=498 | bytes=660 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:13.585 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=2 | mode=pareto | segment=2/11 | duration_ms=28368
+2026-07-19 18:27:17.527 | INFO     | app.services.llm_service:_log_tts_quality_report:186 - LLM normalize quality warnings | mode=pareto | context=single | chars=37855 | markdown_artifacts=0 | unexplained_acronyms=['MBA']
+2026-07-19 18:27:17.528 | INFO     | app.services.llm_service:_call_normalize_llm:214 - LLM normalize done | mode=pareto | context=single | scripts=7 | review_chars=618
+2026-07-19 18:27:17.529 | INFO     | app.services.workers.learning_unit_tts_worker:run_learning_unit_tts_pipeline:211 - TTS pipeline normalized | unit=3 | mode=pareto | main_scripts=7 | review_chars=618
+2026-07-19 18:27:17.529 | INFO     | app.services.workers.learning_unit_tts_worker:_generate_unit_main_segments:77 - TTS main segments start | unit=3 | mode=pareto | total_scripts=7
+2026-07-19 18:27:17.530 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=3 | mode=pareto | segment=1/7 | chars=655
+2026-07-19 18:27:17.530 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=3 | mode=pareto | segment=2/7 | chars=467
+2026-07-19 18:27:17.531 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=3 | mode=pareto | segment=3/7 | chars=785
+2026-07-19 18:27:17.531 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=3 | mode=pareto | segment=4/7 | chars=388
+2026-07-19 18:27:17.532 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=3 | mode=pareto | segment=5/7 | chars=453
+2026-07-19 18:27:17.532 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=3 | mode=pareto | segment=6/7 | chars=420
+2026-07-19 18:27:17.533 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=3 | mode=pareto | segment=7/7 | chars=523
+2026-07-19 18:27:17.954 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=409 | bytes=563 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:18.691 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=2 | mode=pareto | segment=5/11 | duration_ms=26016
+2026-07-19 18:27:22.316 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=479 | bytes=633 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:22.343 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=451 | bytes=592 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:23.356 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=470 | bytes=624 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:23.544 | WARNING  | app.services.storage_service:upload_file_to_supabase:57 - Upload failed (attempt 1/3), retrying in 1s...
+2026-07-19 18:27:23.545 | WARNING  | app.services.storage_service:upload_file_to_supabase:57 - Upload failed (attempt 1/3), retrying in 1s...
+2026-07-19 18:27:23.545 | WARNING  | app.services.storage_service:upload_file_to_supabase:57 - Upload failed (attempt 1/3), retrying in 1s...
+2026-07-19 18:27:26.372 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=2 | mode=pareto | segment=6/11 | duration_ms=27048
+2026-07-19 18:27:26.374 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=2 | mode=pareto | segment=8/11 | duration_ms=25368
+2026-07-19 18:27:26.374 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=2 | mode=pareto | segment=7/11 | duration_ms=27408
+2026-07-19 18:27:31.004 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=466 | bytes=627 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:32.486 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=2 | mode=pareto | segment=9/11 | duration_ms=25536
+2026-07-19 18:27:35.693 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=404 | bytes=540 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:36.488 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=2 | mode=pareto | segment=11/11 | duration_ms=23856
+2026-07-19 18:27:40.463 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=655 | bytes=840 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:41.741 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=3 | mode=pareto | segment=1/7 | duration_ms=39432
+2026-07-19 18:27:43.039 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=467 | bytes=618 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:43.832 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=3 | mode=pareto | segment=2/7 | duration_ms=25248
+2026-07-19 18:27:43.886 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=453 | bytes=609 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:44.850 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=2 | mode=pareto | segment=10/11 | duration_ms=26616
+2026-07-19 18:27:44.851 | INFO     | app.services.workers.learning_unit_tts_worker:_generate_unit_main_segments:103 - TTS main segments done | unit=2 | mode=pareto | created_segments=11/11
+2026-07-19 18:27:44.852 | INFO     | app.services.workers.learning_unit_tts_worker:_generate_unit_review_audio:164 - TTS review start | unit=2 | mode=pareto | chars=615
+2026-07-19 18:27:52.368 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=388 | bytes=525 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:53.383 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=3 | mode=pareto | segment=4/7 | duration_ms=24984
+2026-07-19 18:27:53.708 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=420 | bytes=561 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:54.180 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=3 | mode=pareto | segment=6/7 | duration_ms=24720
+2026-07-19 18:27:54.650 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=453 | bytes=601 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:55.134 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=3 | mode=pareto | segment=5/7 | duration_ms=25512
+2026-07-19 18:27:59.305 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=785 | bytes=1043 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:27:59.970 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=3 | mode=pareto | segment=3/7 | duration_ms=45600
+2026-07-19 18:28:03.661 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=523 | bytes=692 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:28:04.258 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=3 | mode=pareto | segment=7/7 | duration_ms=27864
+2026-07-19 18:28:04.259 | INFO     | app.services.workers.learning_unit_tts_worker:_generate_unit_main_segments:103 - TTS main segments done | unit=3 | mode=pareto | created_segments=7/7
+2026-07-19 18:28:04.260 | INFO     | app.services.workers.learning_unit_tts_worker:_generate_unit_review_audio:164 - TTS review start | unit=3 | mode=pareto | chars=618
+2026-07-19 18:28:10.390 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=615 | bytes=818 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:28:11.169 | INFO     | app.services.workers.learning_unit_tts_worker:_generate_unit_review_audio:168 - TTS review done | unit=2 | mode=pareto
+2026-07-19 18:28:11.171 | INFO     | app.services.workers.learning_unit_tts_worker:_store_unit_tts_result:185 - TTS DB store start | learning_unit_id=b088d4ad-7367-41d6-b9ce-789e1fae6dbb | mode=pareto | segments=11 | review_audio=True
+2026-07-19 18:28:12.166 | INFO     | app.services.workers.learning_unit_tts_worker:_store_unit_tts_result:193 - TTS DB store done | learning_unit_id=b088d4ad-7367-41d6-b9ce-789e1fae6dbb | mode=pareto
+2026-07-19 18:28:12.877 | INFO     | app.services.workers.learning_unit_worker:process_learning_unit:133 - Learning unit 2 READY | segments=11
+2026-07-19 18:28:12.878 | INFO     | app.services.workers.learning_unit_worker:process_learning_unit:91 - Learning unit processing start | unit=4 | mode=pareto | title=Financial Intelligence: How the Rich Invent Money | chars=11390 | estimated_tokens=2451 | estimated_audio_seconds=944
+2026-07-19 18:28:13.507 | INFO     | app.services.workers.learning_unit_tts_worker:run_learning_unit_tts_pipeline:204 - TTS pipeline start | unit=4 | mode=pareto | title=Financial Intelligence: How the Rich Invent Money | raw_chars=11390
+2026-07-19 18:28:13.509 | INFO     | app.services.llm_service:normalize_text_for_speech:239 - Normalize preflight | mode=pareto | title=Financial Intelligence: How the Rich Invent Money | chars=11390 | estimated_tokens=2451 | estimated_audio_seconds=944
+2026-07-19 18:28:13.510 | INFO     | app.services.llm_service:normalize_text_for_speech:248 - Normalize strategy | mode=pareto | strategy=single_call | title=Financial Intelligence: How the Rich Invent Money
+2026-07-19 18:28:13.510 | INFO     | app.services.llm_service:_call_normalize_llm:199 - LLM normalize start | mode=pareto | context=single | chars=11390 | attempt=1/2
+2026-07-19 18:28:28.086 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=618 | bytes=826 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:28:28.989 | INFO     | app.services.workers.learning_unit_tts_worker:_generate_unit_review_audio:168 - TTS review done | unit=3 | mode=pareto
+2026-07-19 18:28:28.989 | INFO     | app.services.workers.learning_unit_tts_worker:_store_unit_tts_result:185 - TTS DB store start | learning_unit_id=cba5d79b-1f0a-4b1e-8c2f-4b93f3b26b16 | mode=pareto | segments=7 | review_audio=True
+2026-07-19 18:28:29.931 | INFO     | app.services.workers.learning_unit_tts_worker:_store_unit_tts_result:193 - TTS DB store done | learning_unit_id=cba5d79b-1f0a-4b1e-8c2f-4b93f3b26b16 | mode=pareto
+2026-07-19 18:28:30.602 | INFO     | app.services.workers.learning_unit_worker:process_learning_unit:133 - Learning unit 3 READY | segments=7
+2026-07-19 18:28:38.185 | INFO     | app.services.llm_service:_log_tts_quality_report:186 - LLM normalize quality warnings | mode=pareto | context=single | chars=11390 | markdown_artifacts=0 | unexplained_acronyms=['CASHFLOW']
+2026-07-19 18:28:38.187 | INFO     | app.services.llm_service:_call_normalize_llm:214 - LLM normalize done | mode=pareto | context=single | scripts=7 | review_chars=572
+2026-07-19 18:28:38.187 | INFO     | app.services.workers.learning_unit_tts_worker:run_learning_unit_tts_pipeline:211 - TTS pipeline normalized | unit=4 | mode=pareto | main_scripts=7 | review_chars=572
+2026-07-19 18:28:38.188 | INFO     | app.services.workers.learning_unit_tts_worker:_generate_unit_main_segments:77 - TTS main segments start | unit=4 | mode=pareto | total_scripts=7
+2026-07-19 18:28:38.188 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=4 | mode=pareto | segment=1/7 | chars=546
+2026-07-19 18:28:38.204 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=4 | mode=pareto | segment=2/7 | chars=539
+2026-07-19 18:28:38.219 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=4 | mode=pareto | segment=3/7 | chars=497
+2026-07-19 18:28:38.234 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=4 | mode=pareto | segment=4/7 | chars=480
+2026-07-19 18:28:38.248 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=4 | mode=pareto | segment=5/7 | chars=497
+2026-07-19 18:28:38.249 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=4 | mode=pareto | segment=6/7 | chars=527
+2026-07-19 18:28:38.249 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:41 - TTS segment start | unit=4 | mode=pareto | segment=7/7 | chars=382
+2026-07-19 18:28:50.682 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=497 | bytes=662 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:28:51.342 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=4 | mode=pareto | segment=3/7 | duration_ms=29448
+2026-07-19 18:28:55.146 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=539 | bytes=712 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:28:55.356 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=480 | bytes=637 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:28:55.579 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=4 | mode=pareto | segment=2/7 | duration_ms=30624
+2026-07-19 18:28:55.810 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=4 | mode=pareto | segment=4/7 | duration_ms=30288
+2026-07-19 18:28:57.543 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=546 | bytes=725 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:28:57.984 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=4 | mode=pareto | segment=1/7 | duration_ms=32688
+2026-07-19 18:29:06.748 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=382 | bytes=501 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:29:06.868 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=497 | bytes=657 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:29:07.679 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=4 | mode=pareto | segment=7/7 | duration_ms=22056
+2026-07-19 18:29:07.680 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=4 | mode=pareto | segment=5/7 | duration_ms=29088
+2026-07-19 18:29:08.947 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=527 | bytes=684 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:29:09.462 | INFO     | app.services.workers.learning_unit_tts_worker:_process_single_script_task:49 - TTS segment done | unit=4 | mode=pareto | segment=6/7 | duration_ms=32112
+2026-07-19 18:29:09.463 | INFO     | app.services.workers.learning_unit_tts_worker:_generate_unit_main_segments:103 - TTS main segments done | unit=4 | mode=pareto | created_segments=7/7
+2026-07-19 18:29:09.463 | INFO     | app.services.workers.learning_unit_tts_worker:_generate_unit_review_audio:164 - TTS review start | unit=4 | mode=pareto | chars=572
+2026-07-19 18:29:27.675 | INFO     | app.services.tts_service:generate_audio_and_get_duration:162 - Edge TTS generated | chars=572 | bytes=749 | voice=en-US-AvaMultilingualNeural
+2026-07-19 18:29:28.395 | INFO     | app.services.workers.learning_unit_tts_worker:_generate_unit_review_audio:168 - TTS review done | unit=4 | mode=pareto
+2026-07-19 18:29:28.396 | INFO     | app.services.workers.learning_unit_tts_worker:_store_unit_tts_result:185 - TTS DB store start | learning_unit_id=3a7175b3-9b1b-44f5-8e60-8c6ff35f52cf | mode=pareto | segments=7 | review_audio=True
+2026-07-19 18:29:29.372 | INFO     | app.services.workers.learning_unit_tts_worker:_store_unit_tts_result:193 - TTS DB store done | learning_unit_id=3a7175b3-9b1b-44f5-8e60-8c6ff35f52cf | mode=pareto
+2026-07-19 18:29:30.042 | INFO     | app.services.workers.learning_unit_worker:process_learning_unit:133 - Learning unit 4 READY | segments=7
+2026-07-19 18:29:31.999 | INFO     | app.services.workers.book_pipeline:_create_book_ready_notification_safely:175 - Content-ready book-ready event | book_id=2baeb5b3-ce77-4a2f-93f4-732d5de31898 | mode=pareto | created=True
+2026-07-19 18:29:32.751 | INFO     | app.services.workers.book_pipeline:_run_unit_pipeline:352 - Book 2baeb5b3-ce77-4a2f-93f4-732d5de31898 READY | processed_units=4 | mode=pareto
+[2026-07-19 18:29:32,753: INFO/MainProcess] Task triam.books.process[4559712e-5512-4847-83db-c19c115846fc] succeeded in 245.54700000000594s: None
+
+-- Outline
+
+{
+  "book_id": "2baeb5b3-ce77-4a2f-93f4-732d5de31898",
+  "total_sections": 12,
+  "outline_tree": [
+    {
+      "id": "11601991-4169-42f5-958b-9b4cb28a1ddf",
+      "title": "INTRODUCTION",
+      "level": 1,
+      "path": "1",
+      "page_start": 2,
+      "page_end": 9,
+      "text_char_count": 22573,
+      "children": []
+    },
+    {
+      "id": "3faeb198-af54-424e-98ba-e826ac185fad",
+      "title": "CHAPTER ONE",
+      "level": 1,
+      "path": "2",
+      "page_start": 10,
+      "page_end": 14,
+      "text_char_count": 12746,
+      "children": []
+    },
+    {
+      "id": "a5649393-ab86-4c4f-b2d2-2c9b671238df",
+      "title": "CHAPTER TWO",
+      "level": 1,
+      "path": "3",
+      "page_start": 15,
+      "page_end": 38,
+      "text_char_count": 65893,
+      "children": []
+    },
+    {
+      "id": "b5ad0d5e-7311-438b-a9f0-fdaada2c01f9",
+      "title": "CHAPTER THREE",
+      "level": 1,
+      "path": "4",
+      "page_start": 39,
+      "page_end": 53,
+      "text_char_count": 41746,
+      "children": []
+    },
+    {
+      "id": "242cd2cc-efa6-43da-b625-af4b12545cc5",
+      "title": "CHAPTER FOUR",
+      "level": 1,
+      "path": "5",
+      "page_start": 54,
+      "page_end": 58,
+      "text_char_count": 14883,
+      "children": []
+    },
+    {
+      "id": "fbb31b08-ec7a-4766-b74e-7bea4519b5cf",
+      "title": "CHAPTER FIVE",
+      "level": 1,
+      "path": "6",
+      "page_start": 59,
+      "page_end": 65,
+      "text_char_count": 22970,
+      "children": []
+    },
+    {
+      "id": "40139d22-61b0-479d-a9bd-d3fc626a77f9",
+      "title": "CHAPTER SIX",
+      "level": 1,
+      "path": "7",
+      "page_start": 66,
+      "page_end": 69,
+      "text_char_count": 11390,
+      "children": []
+    },
+    {
+      "id": "de82694f-7f63-4ce0-832f-976dec998e09",
+      "title": "CHAPTER SEVEN",
+      "level": 1,
+      "path": "8",
+      "page_start": 70,
+      "page_end": 77,
+      "text_char_count": 30029,
+      "children": []
+    },
+    {
+      "id": "2b4cd872-c40e-4c84-8033-932f2ddb0faf",
+      "title": "CHAPTER EIGHT",
+      "level": 1,
+      "path": "9",
+      "page_start": 78,
+      "page_end": 88,
+      "text_char_count": 34215,
+      "children": []
+    },
+    {
+      "id": "bed99c94-4fe3-4767-819a-fe111cd91c5e",
+      "title": "CHAPTER NINE",
+      "level": 1,
+      "path": "10",
+      "page_start": 89,
+      "page_end": 103,
+      "text_char_count": 45754,
+      "children": []
+    },
+    {
+      "id": "7a6cc0a4-e486-4b7d-befa-b6b12bdd4fc4",
+      "title": "CHAPTER TEN",
+      "level": 1,
+      "path": "11",
+      "page_start": 104,
+      "page_end": 110,
+      "text_char_count": 20856,
+      "children": []
+    },
+    {
+      "id": "e4fb25cd-caed-40eb-86c3-0d8c9bcf53f3",
+      "title": "EPILOGUE",
+      "level": 1,
+      "path": "12",
+      "page_start": 111,
+      "page_end": 114,
+      "text_char_count": 11176,
+      "children": []
+    }
+  ]
+}
+
+-- Content pareto mode
+
+{
+  "book_id": "2baeb5b3-ce77-4a2f-93f4-732d5de31898",
+  "book_status": "ready",
+  "mode": "pareto",
+  "total_sections": 12,
+  "total_units": 4,
+  "learning_summary": {
+    "book_id": "2baeb5b3-ce77-4a2f-93f4-732d5de31898",
+    "mode": "pareto",
+    "learning_status": "not_started",
+    "is_completed": false,
+    "can_resume": false,
+    "can_review": false,
+    "book_progress_percent": 0,
+    "completed_units": 0,
+    "playable_units": 0,
+    "last_learning_unit_id": null,
+    "last_segment_id": null,
+    "last_segment_index": null,
+    "position_ms": null,
+    "started_at": null,
+    "last_activity_at": null,
+    "completed_at": null,
+    "due_reviews_count": 0,
+    "upcoming_reviews_count": 0
+  },
+  "units": [
+    {
+      "id": "3f8cdd5f-5da4-401d-ad50-ccc727867c51",
+      "title": "The Tale of Two Fathers: Contrasting Financial Mindsets",
+      "status": "ready",
+      "unit_index": 0,
+      "unit_type": "Conceptual Foundation",
+      "source_text_char_count": 12746,
+      "estimated_audio_seconds": 110,
+      "main_segment_count": 4,
+      "review_text": "Tóm lại, tác giả Robert Kiyosaki đã học được những bài học quý giá từ hai người cha có quan điểm tài chính đối lập. Ông nhận ra rằng giáo dục tài chính quan trọng hơn bằng cấp học thuật và việc rèn luyện tư duy, thay vì nói \"Tôi không đủ khả năng\", hãy hỏi \"Làm thế nào để tôi có thể mua nó?\". Cuốn sách này sẽ cung cấp sáu bài học cốt lõi để giúp bạn hiểu cách tiền bạc hoạt động và làm việc cho bạn, thay vì bạn làm việc cho tiền bạc.",
+      "review_audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_1/pareto/review.mp3",
+      "planner_reason": "This chapter establishes the core premise of the book, contrasting the traditional academic mindset with the financial mindset required to build wealth. Mục tiêu học: Understand the fundamental differences in attitude, language, and approach toward money between the rich dad and the poor dad. Điểm quan trọng: 4/5.",
+      "segments": [
+        {
+          "id": 5926,
+          "segment_index": 0,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_1/pareto/part_1.mp3",
+          "text_content": "Tác giả Robert Kiyosaki kể rằng ông có hai người cha, một người giàu và một người nghèo. Một người có học vấn cao, là tiến sĩ, nhưng cả đời chật vật về tài chính. Người cha còn lại chưa học hết lớp tám, nhưng lại trở thành một trong những người giàu nhất Hawaii. Cả hai đều thành công trong sự nghiệp và kiếm được thu nhập đáng kể, nhưng kết cục tài chính của họ lại hoàn toàn trái ngược. Điều này đã buộc tác giả phải suy nghĩ, so sánh và tự mình lựa chọn con đường.",
+          "duration_ms": 27120
+        },
+        {
+          "id": 5927,
+          "segment_index": 1,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_1/pareto/part_2.mp3",
+          "text_content": "Hai người cha có những quan điểm đối lập sâu sắc về tiền bạc. Ví dụ, một người nói \"Tình yêu tiền bạc là cội rễ của mọi tội lỗi\", còn người kia lại nói \"Thiếu tiền bạc là cội rễ của mọi tội lỗi\". Một người thường nói \"Tôi không đủ khả năng mua nó\", trong khi người kia cấm dùng câu đó và thay vào đó là \"Làm thế nào để tôi có thể mua nó?\". Người cha giàu giải thích rằng câu nói \"Tôi không đủ khả năng\" khiến não ngừng hoạt động, còn câu hỏi \"Làm thế nào để tôi có thể mua nó?\" buộc não phải tư duy và tìm giải pháp. Ông tin rằng việc rèn luyện trí óc là vô cùng quan trọng để tạo ra của cải.",
+          "duration_ms": 33864
+        },
+        {
+          "id": 5928,
+          "segment_index": 2,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_1/pareto/part_3.mp3",
+          "text_content": "Tác giả nhận thấy rằng người giàu ngày càng giàu, người nghèo ngày càng nghèo, và tầng lớp trung lưu chật vật với nợ nần, phần lớn là vì kiến thức về tiền bạc không được dạy ở trường mà chủ yếu từ gia đình. Trường học tập trung vào kỹ năng học thuật và chuyên môn, chứ không phải kỹ năng tài chính. Điều này lý giải tại sao nhiều người thông minh, có học vấn cao vẫn gặp khó khăn về tiền bạc. Năm chín tuổi, tác giả đã quyết định học hỏi về tiền bạc từ người cha giàu của mình.",
+          "duration_ms": 25896
+        },
+        {
+          "id": 5929,
+          "segment_index": 3,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_1/pareto/part_4.mp3",
+          "text_content": "Qua kinh nghiệm này, tác giả nhận ra rằng tiền bạc là một dạng quyền lực, nhưng giáo dục tài chính còn mạnh mẽ hơn. Tiền có thể đến rồi đi, nhưng nếu bạn hiểu cách tiền hoạt động, bạn sẽ có quyền kiểm soát nó và bắt đầu xây dựng sự giàu có. Cuốn sách này sẽ chia sẻ sáu bài học chính mà người cha giàu đã dạy tác giả, như những kim chỉ nam giúp bạn và con cái bạn trở nên giàu có hơn trong một thế giới đầy biến động.",
+          "duration_ms": 23832
+        }
+      ]
+    },
+    {
+      "id": "b088d4ad-7367-41d6-b9ce-789e1fae6dbb",
+      "title": "The Golden Rule of Financial Literacy: Assets vs. Liabilities",
+      "status": "ready",
+      "unit_index": 1,
+      "unit_type": "Core Principle",
+      "source_text_char_count": 41746,
+      "estimated_audio_seconds": 290,
+      "main_segment_count": 11,
+      "review_text": "Tóm lại, bài học quan trọng nhất là phải có kiến thức tài chính. Hãy hiểu rõ sự khác biệt giữa tài sản và tiêu sản. Tài sản là thứ bỏ tiền vào túi bạn, còn tiêu sản là thứ lấy tiền ra khỏi túi bạn. Người giàu tập trung mua tài sản, trong khi người nghèo và trung lưu thường mua tiêu sản mà họ lầm tưởng là tài sản, ví dụ như một ngôi nhà quá đắt. Sự giàu có được định nghĩa là khả năng bạn có thể sống sót bao nhiêu ngày mà không cần làm việc, dựa trên dòng tiền từ tài sản của bạn. Hãy học cách khiến tiền làm việc cho bạn, thay vì chỉ làm việc vì tiền và luôn đặt câu hỏi về các lời khuyên tài chính thông thường.",
+      "review_audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_2/pareto/review.mp3",
+      "planner_reason": "This is the most critical lesson in the book. It introduces the fundamental definitions of assets and liabilities and explains how the middle class gets trapped in the 'Rat Race'. Mục tiêu học: Define and distinguish between assets and liabilities, and understand why cash flow is more critical than a high salary. Điểm quan trọng: 5/5.",
+      "segments": [
+        {
+          "id": 5930,
+          "segment_index": 0,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_2/pareto/part_1.mp3",
+          "text_content": "Bắt đầu từ năm một nghìn chín trăm chín mươi, người bạn thân nhất của tôi là Mike đã tiếp quản đế chế của cha mình và thậm chí còn làm tốt hơn. Chúng tôi gặp nhau mỗi năm một hoặc hai lần. Mike và vợ anh ấy giàu có hơn bạn có thể tưởng tượng. Năm một nghìn chín trăm chín mươi tư, tôi nghỉ hưu ở tuổi bốn mươi bảy, còn vợ tôi, Kim, ba mươi bảy tuổi. Đối với chúng tôi, nghỉ hưu có nghĩa là chúng tôi có thể làm việc hoặc không, và tài sản của chúng tôi vẫn tự động tăng trưởng, vượt xa lạm phát. Điều này có nghĩa là sự tự do.",
+          "duration_ms": 32040
+        },
+        {
+          "id": 5931,
+          "segment_index": 1,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_2/pareto/part_2.mp3",
+          "text_content": "Khi tôi nói chuyện với các nhóm người, họ thường hỏi tôi nên khuyên gì hoặc họ có thể làm gì để bắt đầu. Họ muốn biết bí quyết thành công, cách kiếm hàng triệu đô la, hoặc cách chuẩn bị cho con cái. Tôi luôn nhớ đến một bài báo về những doanh nhân giàu có nhất năm một nghìn chín trăm hai mươi ba. Hai mươi lăm năm sau, nhiều người trong số họ đã chết trong cảnh túng quẫn, phá sản, hoặc tự sát. Điều này cho thấy tiền bạc không giải quyết được mọi vấn đề, và trí thông minh mới là thứ tạo ra tiền.",
+          "duration_ms": 28368
+        },
+        {
+          "id": 5932,
+          "segment_index": 2,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_2/pareto/part_3.mp3",
+          "text_content": "Chúng ta đang sống trong thời đại thay đổi nhanh chóng hơn nhiều so với những người đàn ông đó. Tôi lo ngại rằng quá nhiều người chỉ tập trung vào tiền bạc mà không chú trọng đến tài sản lớn nhất của họ, đó là giáo dục. Nếu mọi người sẵn sàng linh hoạt, cởi mở và học hỏi, họ sẽ ngày càng giàu có hơn qua những thay đổi. Tiền bạc mà không có trí thông minh tài chính sẽ sớm biến mất.",
+          "duration_ms": 21096
+        },
+        {
+          "id": 5933,
+          "segment_index": 3,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_2/pareto/part_4.mp3",
+          "text_content": "Hầu hết mọi người không nhận ra rằng trong cuộc sống, điều quan trọng không phải là bạn kiếm được bao nhiêu tiền, mà là bạn giữ được bao nhiêu tiền. Khi mọi người hỏi 'Tôi nên bắt đầu từ đâu?' hoặc 'Hãy nói cho tôi biết cách làm giàu nhanh chóng', tôi chỉ đơn giản trả lời như người cha giàu đã nói với tôi khi còn nhỏ: 'Nếu con muốn giàu có, con cần phải có kiến thức tài chính.' Đây là quy tắc số một và duy nhất: bạn phải biết sự khác biệt giữa tài sản và tiêu sản, và mua tài sản.",
+          "duration_ms": 27288
+        },
+        {
+          "id": 5934,
+          "segment_index": 4,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_2/pareto/part_5.mp3",
+          "text_content": "Người cha giàu đã tạo ra một cách đơn giản để dạy chúng tôi về tài chính. Ông chỉ vẽ hình và dùng lời nói. Đối với ông, điều định nghĩa một tài sản không phải là từ ngữ mà là những con số. Nếu bạn không thể đọc được các con số, bạn không thể phân biệt tài sản với một cái hố. Ông tóm gọn: 'Tài sản là thứ bỏ tiền vào túi bạn, còn tiêu sản là thứ lấy tiền ra khỏi túi bạn.' Đây là tất cả những gì bạn cần biết.",
+          "duration_ms": 26016
+        },
+        {
+          "id": 5935,
+          "segment_index": 5,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_2/pareto/part_6.mp3",
+          "text_content": "Người giàu mua tài sản. Người nghèo và tầng lớp trung lưu mua tiêu sản nhưng lại nghĩ chúng là tài sản. Ví dụ, một người nghèo có thu nhập từ công việc và chi tiêu cho các nhu cầu cơ bản. Một người thuộc tầng lớp trung lưu cũng có thu nhập từ công việc, nhưng chi phí của họ bao gồm cả khoản vay mua nhà, vay tiêu dùng và thẻ tín dụng, khiến họ mắc nợ. Ngược lại, người giàu có tài sản như cổ phiếu, trái phiếu, bất động sản, tạo ra thu nhập thụ động.",
+          "duration_ms": 27048
+        },
+        {
+          "id": 5936,
+          "segment_index": 6,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_2/pareto/part_7.mp3",
+          "text_content": "Tầng lớp trung lưu thường mắc kẹt trong 'vòng luẩn quẩn' tài chính. Khi thu nhập tăng, chi phí và các khoản nợ của họ cũng tăng theo, đặc biệt là khi họ mua một ngôi nhà lớn hơn hoặc những món đồ mới. Ngôi nhà, đối với nhiều người, không phải là tài sản mà là một tiêu sản lớn, vì nó liên tục lấy tiền ra khỏi túi bạn thông qua các khoản vay, thuế tài sản và chi phí bảo trì. Việc tập trung quá nhiều tiền vào nhà ở có thể dẫn đến mất cơ hội đầu tư vào các tài sản sinh lời khác.",
+          "duration_ms": 27408
+        },
+        {
+          "id": 5937,
+          "segment_index": 7,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_2/pareto/part_8.mp3",
+          "text_content": "Người cha giàu của tôi thường nói về ba sức mạnh mà người Nhật nhận thức được: sức mạnh của thanh kiếm, sức mạnh của viên ngọc và sức mạnh của chiếc gương. Ông tin rằng sức mạnh của chiếc gương, tức là tự nhận thức, là quý giá nhất. Thay vì đi theo đám đông và lặp lại những lời khuyên thông thường như 'ngôi nhà của bạn là một tài sản' hay 'hãy tìm một công việc an toàn', chúng ta cần nhìn vào gương và tin tưởng vào trí tuệ bên trong mình để tìm ra sự thật tài chính.",
+          "duration_ms": 25368
+        },
+        {
+          "id": 5938,
+          "segment_index": 8,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_2/pareto/part_9.mp3",
+          "text_content": "Hệ thống trường học của chúng ta, được tạo ra từ thời nông nghiệp, vẫn chưa dạy về nền tảng tài chính vững chắc. Hầu hết mọi người tốt nghiệp mà không có kiến thức tài chính, dẫn đến việc họ làm việc chăm chỉ nhưng không thể thoát khỏi khó khăn. Vấn đề không phải là cách kiếm tiền, mà là cách quản lý tiền sau khi kiếm được, cách giữ tiền và cách khiến tiền làm việc cho mình. Một người có thể rất học thức, thành công trong sự nghiệp nhưng lại mù chữ về tài chính.",
+          "duration_ms": 25536
+        },
+        {
+          "id": 5939,
+          "segment_index": 9,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_2/pareto/part_10.mp3",
+          "text_content": "Để đo lường sự giàu có, tôi sử dụng định nghĩa của Buckminster Fuller: sự giàu có là khả năng một người có thể sống sót trong bao nhiêu ngày tới nếu ngừng làm việc hôm nay. Nó được đo bằng dòng tiền từ cột tài sản so với cột chi phí. Mục tiêu là có dòng tiền từ tài sản đủ để trang trải mọi chi phí hàng tháng, đạt được sự độc lập tài chính. Sau đó, tái đầu tư dòng tiền dư thừa vào cột tài sản để nó tiếp tục phát triển, giúp bạn ngày càng giàu có hơn.",
+          "duration_ms": 26616
+        },
+        {
+          "id": 5940,
+          "segment_index": 10,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_2/pareto/part_11.mp3",
+          "text_content": "Hãy nhớ một điều đơn giản: người giàu mua tài sản. Người nghèo chỉ có chi phí. Tầng lớp trung lưu mua tiêu sản mà họ nghĩ là tài sản. Để bắt đầu quản lý công việc kinh doanh của riêng mình, hãy tập trung vào việc mua các tài sản tạo ra thu nhập và giữ cho các khoản nợ và chi phí ở mức thấp. Điều này sẽ giúp bạn có thêm tiền để tiếp tục đầu tư vào cột tài sản, xây dựng một nền tảng tài chính vững chắc.",
+          "duration_ms": 23856
+        }
+      ]
+    },
+    {
+      "id": "cba5d79b-1f0a-4b1e-8c2f-4b93f3b26b16",
+      "title": "Minding Your Own Business and the Power of Corporations",
+      "status": "ready",
+      "unit_index": 2,
+      "unit_type": "Financial Strategy",
+      "source_text_char_count": 37855,
+      "estimated_audio_seconds": 213,
+      "main_segment_count": 7,
+      "review_text": "Bài học quan trọng là hãy tự lo việc kinh doanh của mình. Phân biệt rõ giữa nghề nghiệp và việc kinh doanh riêng. Người giàu tập trung xây dựng cột tài sản tạo ra thu nhập, thay vì chỉ dựa vào lương. Tài sản là những thứ tạo ra tiền hoặc tăng giá trị, còn tiêu sản làm bạn tốn tiền. Trí tuệ tài chính bao gồm kế toán, đầu tư, hiểu biết thị trường và luật pháp. Người giàu sử dụng công ty để hưởng lợi thế về thuế và bảo vệ tài sản. Thuế ban đầu nhắm vào người giàu nhưng cuối cùng lại đè nặng lên tầng lớp trung lưu. Hiểu biết về luật pháp và tài chính giúp bạn không bị hệ thống chèn ép và đạt được độc lập tài chính.",
+      "review_audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_3/pareto/review.mp3",
+      "planner_reason": "These two chapters are merged because they represent the practical execution of financial literacy: keeping your day job while building assets, and utilizing legal corporate structures to minimize tax burdens. Mục tiêu học: Learn the importance of building an asset column separate from your profession, and how corporations protect wealth through tax advantages. Điểm quan trọng: 5/5.",
+      "segments": [
+        {
+          "id": 5941,
+          "segment_index": 0,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_3/pareto/part_1.mp3",
+          "text_content": "Năm 1974, Ray Kroc, người sáng lập McDonald's, đã nói chuyện với lớp MBA tại Đại học Texas. Ông hỏi các sinh viên rằng ông đang kinh doanh gì. Sau khi họ trả lời là kinh doanh bánh hamburger, Ray Kroc tiết lộ rằng thực ra ông đang kinh doanh bất động sản. Ông giải thích rằng trọng tâm chính của McDonald's là bán nhượng quyền bánh hamburger, nhưng ông không bao giờ quên vị trí của mỗi cửa hàng. Bất động sản và vị trí là yếu tố quan trọng nhất cho sự thành công của mỗi nhượng quyền. Người mua nhượng quyền cũng đang trả tiền cho mảnh đất dưới cửa hàng của họ, cho tổ chức của Ray Kroc. Ngày nay, McDonald's là chủ sở hữu bất động sản lớn nhất thế giới.",
+          "duration_ms": 39432
+        },
+        {
+          "id": 5942,
+          "segment_index": 1,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_3/pareto/part_2.mp3",
+          "text_content": "Bài học này chính là bí mật thứ ba của người giàu: 'Hãy tự lo việc kinh doanh của mình.' Đấu tranh tài chính thường là kết quả trực tiếp của việc mọi người làm việc cả đời cho người khác. Hầu hết mọi người làm việc cho chủ công ty, sau đó cho chính phủ thông qua thuế, và cuối cùng là cho ngân hàng sở hữu khoản vay thế chấp của họ. Người giàu tập trung vào cột tài sản để tạo ra thu nhập, trong khi hầu hết mọi người chỉ tập trung vào nghề nghiệp để tạo ra thu nhập.",
+          "duration_ms": 25248
+        },
+        {
+          "id": 5943,
+          "segment_index": 2,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_3/pareto/part_3.mp3",
+          "text_content": "Có sự khác biệt lớn giữa nghề nghiệp và việc kinh doanh của bạn. Nghề nghiệp của bạn có thể là một nhân viên ngân hàng, nhưng bạn vẫn cần có việc kinh doanh riêng. Nghề nghiệp của Ray Kroc là người bán hàng, nhưng việc kinh doanh của ông là tích lũy bất động sản tạo ra thu nhập. Để an toàn về tài chính, bạn cần tập trung vào cột tài sản của mình, không phải cột thu nhập. Quy tắc số một là biết sự khác biệt giữa tài sản và tiêu sản, và mua tài sản. Tài sản thực sự là những thứ tạo ra thu nhập hoặc tăng giá trị, như doanh nghiệp không cần sự có mặt của bạn, cổ phiếu, trái phiếu, quỹ tương hỗ, bất động sản tạo thu nhập, hoặc bản quyền. Tiêu sản là những thứ mất giá trị hoặc làm bạn tốn tiền, ví dụ một chiếc xe mới mất gần hai mươi lăm phần trăm giá trị ngay khi rời khỏi đại lý.",
+          "duration_ms": 45600
+        },
+        {
+          "id": 5944,
+          "segment_index": 3,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_3/pareto/part_4.mp3",
+          "text_content": "Người giàu mua những món đồ xa xỉ cuối cùng, sau khi tài sản của họ đã tạo ra đủ thu nhập để chi trả. Ngược lại, người nghèo và trung lưu thường mua đồ xa xỉ trước bằng tín dụng, khiến họ mắc nợ sâu hơn. Để đạt được sự giàu có, cần có trí tuệ tài chính, hay còn gọi là IQ tài chính. IQ tài chính bao gồm kiến thức từ bốn lĩnh vực chính: kế toán, đầu tư, hiểu biết thị trường và luật pháp.",
+          "duration_ms": 24984
+        },
+        {
+          "id": 5945,
+          "segment_index": 4,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_3/pareto/part_5.mp3",
+          "text_content": "Câu chuyện Robin Hood, cướp của người giàu chia cho người nghèo, đã gây ra nhiều đau khổ nhất cho tầng lớp trung lưu. Thuế ban đầu được áp dụng tạm thời để chi trả cho các cuộc chiến tranh. Sau đó, ý tưởng đánh thuế người giàu để trừng phạt họ đã được phổ biến, khiến người nghèo và trung lưu bỏ phiếu cho luật này. Tuy nhiên, khi chính phủ ngày càng cần nhiều tiền, thuế đã dần được áp dụng cho tầng lớp trung lưu, chính những người đã bỏ phiếu cho nó.",
+          "duration_ms": 25512
+        },
+        {
+          "id": 5946,
+          "segment_index": 5,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_3/pareto/part_6.mp3",
+          "text_content": "Người giàu đã nhìn thấy cơ hội và không chơi theo cùng một bộ quy tắc. Họ sử dụng các tập đoàn, hay công ty, như một phương tiện để giới hạn rủi ro và bảo vệ tài sản. Một công ty không phải là một tòa nhà lớn hay một nhóm người, mà chỉ là một tài liệu pháp lý tạo ra một thực thể hợp pháp. Các công ty mang lại lợi thế về thuế, cho phép chi trả các khoản phí trước khi tính thuế, và bảo vệ tài sản khỏi các vụ kiện tụng.",
+          "duration_ms": 24720
+        },
+        {
+          "id": 5947,
+          "segment_index": 6,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_3/pareto/part_7.mp3",
+          "text_content": "Cuộc chiến giữa người có và người không có đã diễn ra hàng trăm năm. Những người thua cuộc là những người thiếu thông tin, những người làm việc chăm chỉ mỗi ngày và đóng thuế mà không hiểu cách người giàu chơi trò chơi này. Kiến thức tài chính là sức mạnh. Người giàu không chỉ tuân thủ mà còn phản ứng, tìm cách giảm thiểu gánh nặng thuế một cách hợp pháp thông qua các luật sư và kế toán thông minh. Việc sở hữu một công ty riêng, tập trung vào việc xây dựng cột tài sản vững chắc, là con đường dẫn đến độc lập tài chính.",
+          "duration_ms": 27864
+        }
+      ]
+    },
+    {
+      "id": "3a7175b3-9b1b-44f5-8e60-8c6ff35f52cf",
+      "title": "Financial Intelligence: How the Rich Invent Money",
+      "status": "ready",
+      "unit_index": 3,
+      "unit_type": "Methodology",
+      "source_text_char_count": 11390,
+      "estimated_audio_seconds": 206,
+      "main_segment_count": 7,
+      "review_text": "Bài học này nhấn mạnh rằng người giàu tạo ra tiền bằng sự sáng tạo và lòng dũng cảm. Nỗi sợ hãi và sự nghi ngờ bản thân là rào cản lớn nhất đối với thiên tài tài chính. Phát triển chỉ số IQ tài chính giúp bạn có thêm lựa chọn và thịnh vượng trong một thế giới thay đổi nhanh chóng, nơi thông tin là tài sản quý giá. Đừng bám víu vào những ý tưởng cũ. Trò chơi CASHFLOW minh họa cách hiểu rõ tài sản và tiêu sản, cùng với việc tạo ra dòng tiền từ tài sản, giúp thoát khỏi \"Vòng luẩn quẩn\". Hãy học cách chấp nhận rủi ro có tính toán và phát triển tư duy tài chính sáng tạo.",
+      "review_audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_4/pareto/review.mp3",
+      "planner_reason": "This section explains how to train the mind to see opportunities, take calculated risks, and use financial intelligence to generate wealth without relying solely on hard labor. Mục tiêu học: Develop financial creativity to identify and create investment opportunities that others miss. Điểm quan trọng: 4/5.",
+      "segments": [
+        {
+          "id": 5948,
+          "segment_index": 0,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_4/pareto/part_1.mp3",
+          "text_content": "Câu chuyện về Alexander Graham Bell, người đã phát minh ra điện thoại, cho thấy tầm quan trọng của việc nhìn thấy cơ hội. Khi ông đề nghị bán bằng sáng chế và công ty nhỏ của mình cho Western Union với giá một trăm nghìn đô la, họ đã từ chối, coi đó là một mức giá lố bịch. Kết quả là, một ngành công nghiệp trị giá hàng tỷ đô la đã ra đời, và AT&T được thành lập. Ngược lại, một câu chuyện khác về một người quản lý bị sa thải, lo sợ mất nhà và phải cầu xin để được giữ việc, minh họa sự mong manh của những người không chuẩn bị cho sự thay đổi.",
+          "duration_ms": 32688
+        },
+        {
+          "id": 5949,
+          "segment_index": 1,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_4/pareto/part_2.mp3",
+          "text_content": "Từ kinh nghiệm giảng dạy, tôi nhận thấy rằng tất cả chúng ta đều có tiềm năng to lớn và những món quà trời ban. Tuy nhiên, điều kìm hãm chúng ta lại chính là sự nghi ngờ bản thân. Không phải thiếu thông tin kỹ thuật mà là thiếu tự tin mới là rào cản lớn nhất. Trong thế giới thực, điều quan trọng hơn bằng cấp hay điểm số là sự dũng cảm, táo bạo và kiên trì. Nỗi sợ hãi và sự nghi ngờ bản thân quá mức chính là kẻ thù lớn nhất của thiên tài cá nhân. Thường thì không phải người thông minh mà là người dám hành động mới là người thành công.",
+          "duration_ms": 30624
+        },
+        {
+          "id": 5950,
+          "segment_index": 2,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_4/pareto/part_3.mp3",
+          "text_content": "Thiên tài tài chính của bạn đòi hỏi cả kiến thức kỹ thuật lẫn lòng dũng cảm. Nếu nỗi sợ quá mạnh, thiên tài sẽ bị kìm nén. Tôi luôn khuyến khích học viên học cách chấp nhận rủi ro, trở nên táo bạo và biến nỗi sợ hãi thành sức mạnh. Vậy tại sao phải phát triển chỉ số IQ tài chính, tức là chỉ số thông minh tài chính của bạn? Đơn giản là để có nhiều lựa chọn hơn. Thế giới đang trải qua những thay đổi lớn, sẽ có nhiều người thành công như Bill Gates, nhưng cũng sẽ có nhiều phá sản và sa thải hơn.",
+          "duration_ms": 29448
+        },
+        {
+          "id": 5951,
+          "segment_index": 3,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_4/pareto/part_4.mp3",
+          "text_content": "Ba trăm năm trước, đất đai là tài sản. Sau đó là nhà máy và sản xuất. Ngày nay, thông tin là tài sản. Người có thông tin kịp thời nhất sẽ sở hữu của cải. Tuy nhiên, thông tin lan truyền với tốc độ ánh sáng, không bị giới hạn bởi biên giới như đất đai hay nhà máy. Nhiều người đang gặp khó khăn vì bám víu vào những ý tưởng cũ, chống lại sự thay đổi. Họ đổ lỗi cho công nghệ, kinh tế hay ông chủ, mà không nhận ra rằng chính những ý tưởng cũ đã trở thành gánh nặng lớn nhất của họ.",
+          "duration_ms": 30288
+        },
+        {
+          "id": 5952,
+          "segment_index": 4,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_4/pareto/part_5.mp3",
+          "text_content": "Để giúp mọi người học cách tiền bạc vận hành, tôi đã phát minh ra trò chơi CASHFLOW. Trò chơi này dạy về mối liên hệ giữa báo cáo thu nhập và bảng cân đối kế toán, cũng như cách dòng tiền luân chuyển. Mục tiêu là tăng dòng tiền hàng tháng từ cột tài sản cho đến khi nó vượt quá chi phí hàng tháng của bạn. Khi đạt được điều này, bạn có thể thoát khỏi \"Vòng luẩn quẩn\" (Rat Race) – tức là cuộc sống cứ làm việc để trả nợ và chi phí – và tiến vào \"Đường đua nhanh\" (Fast Track) – con đường làm giàu.",
+          "duration_ms": 29088
+        },
+        {
+          "id": 5953,
+          "segment_index": 5,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_4/pareto/part_6.mp3",
+          "text_content": "Một người phụ nữ sau ly hôn đã tham gia lớp học và chơi CASHFLOW. Ban đầu, cô ấy vui vẻ khi rút được thẻ \"tiêu sản\" (doodad) là một chiếc thuyền, nhưng sau đó lại bực bội vì không thích toán học. Khi hiểu ra cách các con số hoạt động, cô ấy nhận thấy chiếc thuyền đang \"ăn mòn\" tài chính của mình. Sau này, cô ấy nhận ra rằng trong hai mươi năm hôn nhân, cô và chồng đã tích lũy rất nhiều tiêu sản thay vì tài sản, dẫn đến không có gì để chia sau ly hôn. Trò chơi đã giúp cô ấy nhận ra sự thiếu hiểu biết về tài chính của mình.",
+          "duration_ms": 32112
+        },
+        {
+          "id": 5954,
+          "segment_index": 6,
+          "audio_url": "https://drlbwntplyteqvrpnmdi.supabase.co/storage/v1/object/public/audios/2baeb5b3-ce77-4a2f-93f4-732d5de31898/unit_4/pareto/part_7.mp3",
+          "text_content": "Cũng như trò chơi, thế giới luôn cung cấp phản hồi tức thì. Trò chơi CASHFLOW được thiết kế để mang lại phản hồi cá nhân, giúp người chơi suy nghĩ và tạo ra các lựa chọn tài chính mới. Những người thoát khỏi \"Vòng luẩn quẩn\" nhanh nhất là những người hiểu rõ các con số và có tư duy tài chính sáng tạo. Người giàu thường là những người sáng tạo và dám chấp nhận rủi ro có tính toán.",
+          "duration_ms": 22056
+        }
+      ]
+    }
+  ]
+}
+
+-- book_section_knowledge
+
