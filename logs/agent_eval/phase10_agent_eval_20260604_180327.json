@@ -1,0 +1,224 @@
+{
+  "environment": "http://127.0.0.1:8000/api/v1",
+  "generated_at": "2026-06-04T18:03:27.602862+07:00",
+  "ground_truth": {
+    "book_id": "dae3b3ae-8740-4485-9c16-12e685c6c970",
+    "title": "Of Mice and Men",
+    "author": "John Steinbeck",
+    "document_type": "epub",
+    "total_sections": 6,
+    "section_paths": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6"
+    ]
+  },
+  "summary": {
+    "total": 3,
+    "passed": 0,
+    "failed": 3
+  },
+  "db_message_delta": 7,
+  "results": [
+    {
+      "id": "mice-author-vi-voice",
+      "input_mode": "voice",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": false,
+        "expected_intent": false,
+        "expected_answer_source": false,
+        "expected_section": null,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 186,
+      "user_transcript_char_count": 25,
+      "trace": {
+        "answer_source": "book_rag",
+        "assistant_char_count": 186,
+        "completed_at": "2026-06-04T11:02:50.973958+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": null,
+        "detected_language": null,
+        "error_code": null,
+        "input_mode": "voice",
+        "resolved_book_ids": [],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [
+          "364",
+          "358",
+          "382",
+          "402",
+          "361",
+          "401",
+          "383",
+          "369",
+          "391",
+          "375"
+        ],
+        "retrieval_learning_unit_ids": [
+          "6418a935-352c-4c00-908e-ad51d3d0f7e4",
+          "05b2ab1d-7253-4e6e-996a-f7d393f3d4e2"
+        ],
+        "retrieval_method": "vector",
+        "retrieval_result_count": 10,
+        "retrieval_scores": [
+          0.3574,
+          0.3519,
+          0.336,
+          0.3318,
+          0.3316,
+          0.3268,
+          0.3266,
+          0.3265,
+          0.3224,
+          0.3215
+        ],
+        "retrieval_section_ids": [],
+        "room_name": "triam_f4726e2c_9c4c35",
+        "stage_latency_ms": {
+          "retrieval": 743,
+          "turn_total": 12296
+        },
+        "started_at": "2026-06-04T11:02:38.679947+00:00",
+        "thread_id": "f4726e2c-8407-49de-804f-b45ca8b0c1c2",
+        "tool_names": [
+          "search_book_knowledge"
+        ],
+        "trace_id": "5ec002bb-7219-4ea5-967e-5364304218fc",
+        "transcript_char_count": 25,
+        "transcript_final_seen": true
+      },
+      "response_preview": "Cuốn sách bạn đang học là “Of Mice and Men” của John Steinbeck. Đây là nội dung, bối cảnh và nhân vật từ tác phẩm này. Bạn cần tìm hiểu gì thêm về nội dung hay nhân vật trong sách không?",
+      "user_transcript_preview": "Giả của quyển sách là ai?"
+    },
+    {
+      "id": "mice-chapter-four-summary-vi-voice",
+      "input_mode": "voice",
+      "status": "failed",
+      "checks": {
+        "must_include": false,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "expected_intent": false,
+        "expected_answer_source": false,
+        "expected_section": false,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 144,
+      "user_transcript_char_count": 23,
+      "trace": {
+        "answer_source": "policy",
+        "assistant_char_count": 144,
+        "completed_at": "2026-06-04T11:03:06.616284+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": null,
+        "detected_language": null,
+        "error_code": null,
+        "input_mode": "voice",
+        "resolved_book_ids": [],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [
+          "382",
+          "358",
+          "364",
+          "361",
+          "363",
+          "386",
+          "405",
+          "416",
+          "369",
+          "424"
+        ],
+        "retrieval_learning_unit_ids": [
+          "6418a935-352c-4c00-908e-ad51d3d0f7e4",
+          "05b2ab1d-7253-4e6e-996a-f7d393f3d4e2"
+        ],
+        "retrieval_method": "vector",
+        "retrieval_result_count": 10,
+        "retrieval_scores": [
+          0.6783,
+          0.6744,
+          0.6656,
+          0.6558,
+          0.6553,
+          0.6552,
+          0.6552,
+          0.6541,
+          0.6531,
+          0.6523
+        ],
+        "retrieval_section_ids": [],
+        "room_name": "triam_f4726e2c_9c4c35",
+        "stage_latency_ms": {
+          "retrieval": 512,
+          "turn_total": 10531
+        },
+        "started_at": "2026-06-04T11:02:56.083886+00:00",
+        "thread_id": "f4726e2c-8407-49de-804f-b45ca8b0c1c2",
+        "tool_names": [
+          "search_book_knowledge",
+          "ask_web_search_permission"
+        ],
+        "trace_id": "80c99c21-fe6a-4ad7-a496-cb9291bd0733",
+        "transcript_char_count": 23,
+        "transcript_final_seen": true
+      },
+      "response_preview": "Thông tin về 'Tóm tắt nội dung chương 4 của tiểu thuyết Of Mice and Men' không có trong sách. Bạn có muốn tôi tìm kiếm thêm trên internet không?",
+      "user_transcript_preview": "Tắt chương bốn cho tôi."
+    },
+    {
+      "id": "mice-ambiguous-chapter-vi-voice",
+      "input_mode": "voice",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": true,
+        "expected_intent": false,
+        "expected_answer_source": false,
+        "expected_section": null,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 190,
+      "user_transcript_char_count": 10,
+      "trace": {
+        "answer_source": "policy",
+        "assistant_char_count": 190,
+        "completed_at": "2026-06-04T11:03:23.339155+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": null,
+        "detected_language": null,
+        "error_code": null,
+        "input_mode": "voice",
+        "resolved_book_ids": [],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_f4726e2c_9c4c35",
+        "stage_latency_ms": {
+          "turn_total": 10765
+        },
+        "started_at": "2026-06-04T11:03:12.581097+00:00",
+        "thread_id": "f4726e2c-8407-49de-804f-b45ca8b0c1c2",
+        "tool_names": [
+          "execute_web_search"
+        ],
+        "trace_id": "dfb100f0-dcba-42f3-9d03-f2bbf80ebafb",
+        "transcript_char_count": 10,
+        "transcript_final_seen": true
+      },
+      "response_preview": "Mình ghi nhận là bạn không muốn tìm kiếm trên internet. Vậy mình sẽ tiếp tục hỗ trợ dựa trên những nội dung sẵn có trong sách. Nếu bạn muốn tìm hiểu thêm phần nào khác, cứ cho mình biết nhé.",
+      "user_transcript_preview": "Tắt chương"
+    }
+  ]
+}

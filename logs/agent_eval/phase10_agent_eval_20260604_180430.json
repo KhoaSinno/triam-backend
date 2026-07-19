@@ -1,0 +1,226 @@
+{
+  "environment": "http://127.0.0.1:8000/api/v1",
+  "generated_at": "2026-06-04T18:04:30.342934+07:00",
+  "ground_truth": {
+    "book_id": "dae3b3ae-8740-4485-9c16-12e685c6c970",
+    "title": "Of Mice and Men",
+    "author": "John Steinbeck",
+    "document_type": "epub",
+    "total_sections": 6,
+    "section_paths": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5",
+      "6"
+    ]
+  },
+  "summary": {
+    "total": 3,
+    "passed": 0,
+    "failed": 3
+  },
+  "db_message_delta": 7,
+  "results": [
+    {
+      "id": "mice-chapter-five-summary-vi-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": false,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "expected_intent": false,
+        "expected_answer_source": false,
+        "expected_section": false,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 828,
+      "user_transcript_char_count": 0,
+      "trace": {
+        "answer_source": "book_rag",
+        "assistant_char_count": 831,
+        "completed_at": "2026-06-04T11:04:13.986098+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": null,
+        "detected_language": "text",
+        "error_code": null,
+        "input_mode": "text",
+        "resolved_book_ids": [],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [
+          "412",
+          "382",
+          "425",
+          "405",
+          "426",
+          "394",
+          "395",
+          "383",
+          "421",
+          "367"
+        ],
+        "retrieval_learning_unit_ids": [
+          "05b2ab1d-7253-4e6e-996a-f7d393f3d4e2",
+          "6418a935-352c-4c00-908e-ad51d3d0f7e4"
+        ],
+        "retrieval_method": "vector",
+        "retrieval_result_count": 10,
+        "retrieval_scores": [
+          0.3666,
+          0.3589,
+          0.3571,
+          0.3475,
+          0.3445,
+          0.339,
+          0.3373,
+          0.3357,
+          0.3325,
+          0.3303
+        ],
+        "retrieval_section_ids": [],
+        "room_name": "triam_f4726e2c_71ae01",
+        "stage_latency_ms": {
+          "answer_pipeline": 4483,
+          "retrieval": 742,
+          "turn_total": 5140
+        },
+        "started_at": "2026-06-04T11:04:08.841118+00:00",
+        "thread_id": "f4726e2c-8407-49de-804f-b45ca8b0c1c2",
+        "tool_names": [
+          "search_book_knowledge_text"
+        ],
+        "trace_id": "e4b8d156-0020-4a7d-9076-a19f5d8c58c0",
+        "transcript_char_count": 26,
+        "transcript_final_seen": true
+      },
+      "response_preview": "Trong chương 5 của tiểu thuyết \"Of Mice and Men\", những sự kiện chính diễn ra như sau: Chương này tập trung vào việc diễn ra một sự kiện bi thảm liên quan đến Lennie và một con chó của Candy. Candy rất thương chó của mình, nhưng nó đã già v",
+      "user_transcript_preview": ""
+    },
+    {
+      "id": "mice-ambiguous-chapter-vi-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "expected_intent": false,
+        "expected_answer_source": false,
+        "expected_section": null,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 968,
+      "user_transcript_char_count": 0,
+      "trace": {
+        "answer_source": "book_rag",
+        "assistant_char_count": 972,
+        "completed_at": "2026-06-04T11:04:21.861710+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": null,
+        "detected_language": "text",
+        "error_code": null,
+        "input_mode": "text",
+        "resolved_book_ids": [],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [
+          "402",
+          "426",
+          "375",
+          "382",
+          "358",
+          "395",
+          "405",
+          "387",
+          "383",
+          "414"
+        ],
+        "retrieval_learning_unit_ids": [
+          "05b2ab1d-7253-4e6e-996a-f7d393f3d4e2",
+          "6418a935-352c-4c00-908e-ad51d3d0f7e4"
+        ],
+        "retrieval_method": "vector",
+        "retrieval_result_count": 10,
+        "retrieval_scores": [
+          0.3507,
+          0.3402,
+          0.3381,
+          0.3334,
+          0.3327,
+          0.3313,
+          0.3304,
+          0.3301,
+          0.3277,
+          0.3237
+        ],
+        "retrieval_section_ids": [],
+        "room_name": "triam_f4726e2c_71ae01",
+        "stage_latency_ms": {
+          "answer_pipeline": 5800,
+          "retrieval": 524,
+          "turn_total": 6468
+        },
+        "started_at": "2026-06-04T11:04:15.397937+00:00",
+        "thread_id": "f4726e2c-8407-49de-804f-b45ca8b0c1c2",
+        "tool_names": [
+          "search_book_knowledge_text"
+        ],
+        "trace_id": "bf68ea4a-c052-4f44-8357-f9080ba2d850",
+        "transcript_char_count": 15,
+        "transcript_final_seen": true
+      },
+      "response_preview": "Trong chương 5 của \"Of Mice and Men\", các sự kiện chính diễn ra như sau: Chương này diễn ra trong chuồng ngựa, nơi Lennie đang ở một mình. Trong khi đó, Curley's vợ vào và bắt đầu nói chuyện với Lennie. Cô ấy cảm thấy cô đơn và không được c",
+      "user_transcript_preview": ""
+    },
+    {
+      "id": "mice-current-bitcoin-vi-text",
+      "input_mode": "text",
+      "status": "failed",
+      "checks": {
+        "must_include": true,
+        "must_not_include": true,
+        "voice_transcript_meaning": null,
+        "expected_intent": false,
+        "expected_answer_source": true,
+        "expected_section": null,
+        "web_not_used_without_permission": true
+      },
+      "response_char_count": 78,
+      "user_transcript_char_count": 0,
+      "trace": {
+        "answer_source": "policy",
+        "assistant_char_count": 78,
+        "completed_at": "2026-06-04T11:04:26.350971+00:00",
+        "correlation_quality": "session_active_turn",
+        "detected_intent": null,
+        "detected_language": "text",
+        "error_code": null,
+        "input_mode": "text",
+        "resolved_book_ids": [],
+        "resolved_section_ids": [],
+        "retrieval_chunk_ids": [],
+        "retrieval_learning_unit_ids": [],
+        "retrieval_method": null,
+        "retrieval_result_count": 0,
+        "retrieval_scores": [],
+        "retrieval_section_ids": [],
+        "room_name": "triam_f4726e2c_71ae01",
+        "stage_latency_ms": {
+          "answer_pipeline": 2337,
+          "turn_total": 3077
+        },
+        "started_at": "2026-06-04T11:04:23.261964+00:00",
+        "thread_id": "f4726e2c-8407-49de-804f-b45ca8b0c1c2",
+        "tool_names": [
+          "ask_web_search_permission_text"
+        ],
+        "trace_id": "86693b0f-ae7b-4a63-82fc-fa1504d4989e",
+        "transcript_char_count": 33,
+        "transcript_final_seen": true
+      },
+      "response_preview": "Bạn có muốn tôi tìm kiếm thông tin về giá Bitcoin hôm nay trên internet không?",
+      "user_transcript_preview": ""
+    }
+  ]
+}
