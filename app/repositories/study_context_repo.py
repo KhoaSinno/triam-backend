@@ -11,7 +11,13 @@ def get_study_context(session: Session, context_id: uuid.UUID) -> StudyContext |
 
 
 def get_study_contexts(session: Session, user_id: uuid.UUID) -> list[StudyContext]:
-    return session.exec(select(StudyContext).where(StudyContext.user_id == user_id)).all()
+    return session.exec(
+        select(StudyContext).where(
+            StudyContext.user_id == user_id,
+            StudyContext.is_auto_generated == False
+        )
+    ).all()
+
 
 
 def create_study_context(session: Session, study_context: StudyContext) -> StudyContext:

@@ -62,7 +62,7 @@ def get_documents_in_context(session: Session, user_id: uuid.UUID, context_id: u
             "has_pareto_mode": False,
         }
 
-    return [_book_to_dict(book) for book in context.books]
+    return [_book_to_dict(book) for book in context.books if not book.is_shared]
 
 
 def list_contexts(session: Session, user_id: uuid.UUID) -> list[StudyContext]:
