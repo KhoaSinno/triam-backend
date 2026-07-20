@@ -99,47 +99,28 @@ def cleanup_book_side_effects(session: Session, *, book_id: uuid.UUID, user_id: 
 
 async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uuid.UUID):
     """
-    Xóa assets vật lý trên Storage (chỉ áp dụng cho sách tự upload)
-    và dọn dẹp sạch bản ghi metadata trong Database.
+    Xóa bản ghi trong Database ngay lập tức (Synchronous - < 50ms) và đẩy nhiệm vụ xóa file
+    trên Supabase Storage sang Celery Worker chạy ngầm (Asynchronous).
     """
     book = get_book_by_id_and_user(session, book_id, user_id)
     if not book:
         raise BookNotFoundError()
 
     str_book_id = str(book_id)
+    is_clone = book.parent_shared_id is not None
 
-    # Logic CLone book
-    if book.parent_shared_id is not None:
-        log.info(f"Book {str_book_id} là sách clone. Bỏ qua bước xóa file vật lý trên Storage.")
-        cleanup_book_side_effects(session, book_id=book_id, user_id=user_id)
-        delete_book(session, book_id)
-        log.info(f"Clear Clone Book: {str_book_id}")
-        return
+    # 1. Dọn dẹp các bảng phụ thuộc & Xóa bản ghi trong Postgres DB
+    cleanup_book_side_effects(session, book_id=book_id, user_id=user_id)
+    delete_book(session, book_id)
+    log.info(f"Fast DB delete complete for book: {str_book_id}")
 
-    # --- Normal logic DEL Book + Related object + Storage object ---
-    target_buckets = ["audios", "raw_books"]
-    try:
-        # Lấy danh sách file từ tất cả bucket liên quan qua RPC
-        result = await asyncio.to_thread(
-            supabase.rpc("get_book_asset_paths", {"bucket_names": target_buckets, "book_id_prefix": str_book_id}).execute
-        )
+    # 2. Đẩy nhiệm vụ xóa file vật lý trên Storage cho Celery Worker (chỉ với sách tự upload)
+    if not is_clone:
+        try:
+            from app.tasks.book_tasks import purge_book_storage_assets_task
 
-        # Xóa file vật lý qua Storage API
-        if result.data:
-            data_list = result.data if isinstance(result.data, list) else []
-            for bucket in target_buckets:
-                paths = [str(item["name"]) for item in data_list if isinstance(item, dict) and item.get("bucket_id") == bucket]
-                if paths:
-                    await asyncio.to_thread(supabase.storage.from_(bucket).remove, paths)
-                    log.info(f"Đã xóa {len(paths)} files từ bucket: {bucket}")
-
-        # Xóa record trong DB
-        cleanup_book_side_effects(session, book_id=book_id, user_id=user_id)
-        delete_book(session, book_id)
-        log.info(f"Đã dọn dẹp sạch database cho book tự upload: {str_book_id}")
-
-    except Exception as e:
-        session.rollback()
-        log.exception(f"Lỗi nghiêm trọng khi xóa book {str_book_id}: {e}")
-        raise StorageOperationError("Không thể xóa tài nguyên sách trong Storage.") from e
+            purge_book_storage_assets_task.delay(str_book_id)
+            log.info(f"Dispatched background storage purge task for book: {str_book_id}")
+        except Exception as exc:
+            log.warning(f"Failed to dispatch purge task (will rely on periodic cleanup): {exc}")
 

@@ -38,9 +38,18 @@ def should_use_null_pool(database_url: str, pool_mode: str = "auto") -> bool:
 
 def _connect_args_for(database_url: str) -> dict[str, Any]:
     url = make_url(database_url)
-    if url.get_backend_name().startswith("postgresql") and settings.DATABASE_APPLICATION_NAME:
-        return {"application_name": settings.DATABASE_APPLICATION_NAME}
-    return {}
+    args: dict[str, Any] = {}
+    if url.get_backend_name().startswith("postgresql"):
+        if settings.DATABASE_APPLICATION_NAME:
+            args["application_name"] = settings.DATABASE_APPLICATION_NAME
+        if getattr(settings, "DATABASE_TCP_KEEPALIVES", True):
+            args.update({
+                "keepalives": 1,
+                "keepalives_idle": getattr(settings, "DATABASE_TCP_KEEPALIVES_IDLE", 30),
+                "keepalives_interval": getattr(settings, "DATABASE_TCP_KEEPALIVES_INTERVAL", 10),
+                "keepalives_count": getattr(settings, "DATABASE_TCP_KEEPALIVES_COUNT", 5),
+            })
+    return args
 
 
 def create_db_engine(database_url: str | None = None, *, pool_mode: str | None = None) -> Engine:

@@ -36,6 +36,7 @@ celery_app.conf.update(
         "triam.books.process": {"queue": "document"},
         "triam.books.switch_mode": {"queue": "document"},
         "triam.books.index_sections": {"queue": "document"},
+        "triam.books.purge_storage_assets": {"queue": "document"},
         "triam.notifications.scan_due": {"queue": "maintenance"},
         "triam.notifications.deliver_due": {"queue": "notification"},
     },

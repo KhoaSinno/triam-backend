@@ -6,6 +6,7 @@ from sqlmodel import Session
 from app.core.celery_app import celery_app
 from app.core.constant import ProcessingJobStatus
 from app.core.logger import log
+from app.core.supabase import supabase
 from app.db.database import engine
 from app.models.db_models import ProcessingJob
 from app.services.book_section_knowledge_indexer import index_book_sections
@@ -70,3 +71,29 @@ def index_book_sections_task(book_id: str) -> None:
         f"book_id={parsed_book_id} | sections={result.total_sections} | "
         f"indexed={result.indexed_sections} | skipped={result.skipped_sections} | chunks={result.chunks_created}"
     )
+
+
+@celery_app.task(name="triam.books.purge_storage_assets")
+def purge_book_storage_assets_task(book_id: str) -> None:
+    """Celery Background Worker: Dọn dẹp tất cả các file vật lý trên Supabase Storage
+    sau khi bản ghi sách đã được xóa sạch trong Database.
+    """
+    log.info(f"Celery purge_book_storage_assets_task started | book_id={book_id}")
+    target_buckets = ["audios", "raw_books"]
+    try:
+        result = supabase.rpc(
+            "get_book_asset_paths",
+            {"bucket_names": target_buckets, "book_id_prefix": book_id},
+        ).execute()
+
+        if result.data:
+            data_list = result.data if isinstance(result.data, list) else []
+            for bucket in target_buckets:
+                paths = [str(item["name"]) for item in data_list if isinstance(item, dict) and item.get("bucket_id") == bucket]
+                if paths:
+                    supabase.storage.from_(bucket).remove(paths)
+                    log.info(f"Celery purge_storage_assets | Deleted {len(paths)} files from bucket '{bucket}' for book {book_id}")
+
+        log.info(f"Celery purge_book_storage_assets_task completed | book_id={book_id}")
+    except Exception as exc:
+        log.exception(f"Celery purge_book_storage_assets_task failed | book_id={book_id} | error={exc}")
