@@ -35,7 +35,7 @@ from app.services.learning_unit_planner_service import plan_learning_units_async
 from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, WEEKDAY_SHORT_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
 from app.services.reading_plan_session_service import build_plan_session_summary, ensure_future_sessions_for_plan
 from app.services.storage_service import upload_file_to_supabase
-from app.tasks.book_tasks import index_book_sections_task, process_book_task
+from app.tasks.book_tasks import generate_book_summary_task, index_book_sections_task, process_book_task
 
 # HELPER FUNCTION: Detect document type based on MIME type or file extension
 
@@ -72,6 +72,14 @@ def _enqueue_section_indexing(book_id: uuid.UUID) -> None:
         index_book_sections_task.apply_async(args=[str(book_id)], queue="document")
     except Exception as exc:
         logger.warning(f"BookSectionKnowledge indexing enqueue failed | book_id={book_id} | reason={type(exc).__name__}")
+
+
+def _enqueue_book_summary(book_id: uuid.UUID) -> None:
+    try:
+        generate_book_summary_task.delay(str(book_id))
+        logger.info(f"Enqueued background AI summary task | book_id={book_id}")
+    except Exception as exc:
+        logger.warning(f"Failed to enqueue summary task | book_id={book_id} | reason={type(exc).__name__}")
 
 
 def _slot_response(slot) -> dict:
@@ -257,6 +265,7 @@ async def handle_upload_document(session: Session, file: UploadFile, user_id: uu
         raise DatabaseError(f"Lỗi lưu DB: {str(e)}") from e
 
     _enqueue_section_indexing(book_id)
+    _enqueue_book_summary(book_id)
 
     outline_tree = build_outline_preview(parsed_document)
     return {

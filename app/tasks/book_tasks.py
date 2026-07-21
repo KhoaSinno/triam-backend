@@ -4,12 +4,14 @@ import uuid
 from sqlmodel import Session
 
 from app.core.celery_app import celery_app
-from app.core.constant import ProcessingJobStatus
+from app.core.config import settings
+from app.core.constant import ProcessingJobStatus, SummaryStatus
 from app.core.logger import log
 from app.core.supabase import supabase
 from app.db.database import engine
-from app.models.db_models import ProcessingJob
+from app.models.db_models import Book, ProcessingJob
 from app.services.book_section_knowledge_indexer import index_book_sections
+from app.services.book_summary_service import generate_ai_book_summary
 from app.services.workers.book_pipeline import run_background_processing, run_switch_mode_processing
 
 
@@ -97,3 +99,42 @@ def purge_book_storage_assets_task(book_id: str) -> None:
         log.info(f"Celery purge_book_storage_assets_task completed | book_id={book_id}")
     except Exception as exc:
         log.exception(f"Celery purge_book_storage_assets_task failed | book_id={book_id} | error={exc}")
+
+
+@celery_app.task(
+    name="triam.books.generate_summary",
+    bind=True,
+    max_retries=settings.AI_SUMMARY_MAX_RETRIES,
+    default_retry_delay=settings.AI_SUMMARY_RETRY_DELAY_SECONDS,
+)
+def generate_book_summary_task(self, book_id: str) -> None:
+    """Celery Background Worker: Sinh bản tóm tắt AI cho sách.
+    Tự động retry tối đa 2 lần (mỗi lần cách 15s) nếu gặp sự cố.
+    """
+    log.info(f"Celery generate_book_summary_task started | book_id={book_id} | attempt={self.request.retries + 1}")
+    parsed_book_id = uuid.UUID(book_id)
+
+    with Session(engine) as session:
+        book = session.get(Book, parsed_book_id)
+        if not book:
+            log.error(f"Generate summary task skipped: Book not found | book_id={book_id}")
+            return
+
+        book.ai_summary_status = SummaryStatus.PROCESSING.value
+        session.add(book)
+        session.commit()
+
+        try:
+            asyncio.run(generate_ai_book_summary(session, parsed_book_id))
+            log.info(f"Celery generate_book_summary_task completed successfully | book_id={book_id}")
+        except Exception as exc:
+            log.warning(f"Celery generate_book_summary_task failed (attempt {self.request.retries + 1}) | error={exc}")
+            if self.request.retries < self.max_retries:
+                raise self.retry(exc=exc)
+            else:
+                log.error(f"Celery generate_book_summary_task permanently failed after max retries | book_id={book_id}")
+                book.ai_summary_status = SummaryStatus.FAILED.value
+                book.ai_summary_error = f"Không thể tạo tóm tắt AI sau {self.max_retries + 1} lần thử: {str(exc)}"
+                session.add(book)
+                session.commit()
+

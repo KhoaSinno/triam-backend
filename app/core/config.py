@@ -56,6 +56,9 @@ class Settings(BaseSettings):
     LIVEKIT_ROOM_DEPARTURE_TIMEOUT_SECONDS: int = 20
     LIVEKIT_AGENT_EMPTY_ROOM_GRACE_SECONDS: float = 8.0
     GEMINI_MODEL_LLM: str = "gemini-2.5-flash"
+    TOTAL_TOKEN_LIMIT: int = 800_000
+    AI_SUMMARY_MAX_RETRIES: int = 2
+    AI_SUMMARY_RETRY_DELAY_SECONDS: int = 15
 
     # Realtime voice agent behavior
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-mini"

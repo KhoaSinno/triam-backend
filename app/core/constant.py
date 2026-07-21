@@ -16,6 +16,13 @@ class BookStatus(str, Enum):
     ERROR = "error"
 
 
+class SummaryStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+
+
 class DocumentType(str, Enum):
     PDF = "pdf"
     EPUB = "epub"

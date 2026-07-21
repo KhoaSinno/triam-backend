@@ -6,8 +6,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
 from app.api.dependencies.auth import CurrentUser
+from app.core.constant import SummaryStatus
+from app.core.exceptions import BookNotFoundError
 from app.db.database import get_session
 from app.models.db_models import Book
+from app.repositories import audiobook_repo
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
 from app.schemas.plan import (
     PlanUpdateRequest,
@@ -38,6 +41,7 @@ from app.services.audiobook_service import (
     update_reading_plan,
 )
 from app.services.reading_plan_session_service import list_book_reading_plan_sessions, list_today_reading_plan_sessions
+from app.tasks.book_tasks import generate_book_summary_task
 
 router = APIRouter()
 
@@ -223,3 +227,42 @@ def reset_plan(
     Xóa sạch tiến độ học tập cũ của user và sinh lại các buổi học từ bài 1.
     """
     return reset_reading_plan(session, book_id, current_user.sub)
+
+
+@router.get("/books/{book_id}/summary")
+def get_book_ai_summary(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
+):
+    """API lấy bản tóm tắt AI của sách (Cache-first từ DB < 20ms)."""
+    book = audiobook_repo.get_book_by_id_and_user(session, book_id, current_user.sub)
+    if not book:
+        raise BookNotFoundError()
+
+    return {
+        "book_id": str(book.id),
+        "status": book.ai_summary_status,
+        "ai_summary": book.ai_summary,
+        "error_message": book.ai_summary_error,
+    }
+
+
+@router.post("/books/{book_id}/summary/regenerate")
+def regenerate_book_ai_summary(
+    book_id: uuid.UUID,
+    current_user: CurrentUser,
+    session: Annotated[Session, Depends(get_session)],
+):
+    """API yêu cầu tạo lại bản tóm tắt AI dưới nền."""
+    book = audiobook_repo.get_book_by_id_and_user(session, book_id, current_user.sub)
+    if not book:
+        raise BookNotFoundError()
+
+    book.ai_summary_status = SummaryStatus.PENDING.value
+    book.ai_summary_error = None
+    session.add(book)
+    session.commit()
+
+    generate_book_summary_task.delay(str(book.id))
+    return {"message": "Đã gửi yêu cầu tạo lại tóm tắt AI dưới nền.", "status": SummaryStatus.PENDING.value}

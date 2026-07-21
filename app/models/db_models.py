@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, JSON, Text, UniqueConstraint, func
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlmodel import Field, PrimaryKeyConstraint, Relationship, SQLModel
@@ -71,6 +71,9 @@ class Book(SQLModel, table=True):
     parent_shared_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), ForeignKey("books.id", ondelete="SET NULL"), nullable=True, index=True))
     status: Optional[str] = Field(default=None, sa_column=Column(Text))
     error_message: Optional[str] = Field(default=None, sa_column=Column(Text))
+    ai_summary: Optional[dict] = Field(default=None, sa_column=Column(JSON, nullable=True))
+    ai_summary_status: str = Field(default="pending", sa_column=Column(Text, nullable=False, server_default="pending"))
+    ai_summary_error: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
