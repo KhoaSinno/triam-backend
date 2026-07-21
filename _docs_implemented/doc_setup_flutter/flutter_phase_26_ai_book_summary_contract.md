@@ -65,6 +65,44 @@ Tài liệu này là hợp đồng tích hợp chính thức (API Contract) dàn
 
 ---
 
+### 1.3. Lấy sẵn dữ liệu tóm tắt AI từ các API Chi Tiết / Danh Sách Sách (Tùy chọn)
+
+Để tối ưu trải nghiệm và tránh gọi thêm HTTP request khi không cần thiết, Backend đã bổ sung 3 trường `ai_summary`, `ai_summary_status`, `ai_summary_error` vào trực tiếp phản hồi của 2 API thông dụng:
+
+1. **`GET /api/v1/books/{book_id}/details`** (API Chi tiết sách)
+2. **`GET /api/v1/books`** (API Danh sách sách)
+
+#### Cấu trúc JSON mẫu trả về từ `GET /api/v1/books/{book_id}/details`:
+```json
+{
+  "book_id": "e447b894-4646-46db-a33b-2a073a14723b",
+  "book_status": "ready",
+  "mode": "pareto",
+  "total_sections": 6,
+  "total_units": 12,
+  "ai_summary": {
+    "key_idea": "Cuốn sách kể về cuộc phiêu lưu kịch tính...",
+    "target_audience": "Độc giả yêu thích thể loại trinh thám, phiêu lưu kỳ bí (12+).",
+    "estimated_read_minutes": 240,
+    "key_takeaways": [
+      "Lòng dũng cảm giúp vượt qua sợ hãi.",
+      "Tình bạn và sự hợp tác là chìa khóa giải quyết thử thách."
+    ],
+    "summary": "Câu chuyện bắt đầu khi Nora và Peggy...",
+    "main_characters": ["Jack", "Mike Arnold", "Prince Paul"]
+  },
+  "ai_summary_status": "completed",
+  "ai_summary_error": null,
+  "units": [...]
+}
+```
+
+#### 💡 Chiến lược tích hợp khuyến nghị phía Flutter FE:
+* **Chiến lược A (Lấy chuyên dụng khi mở Sheet):** Gọi `GET /api/v1/books/{book_id}/summary` (< 20ms) trực tiếp trong Modal Sheet Launcher `showBookDetailAiSummarySheet`.
+* **Chiến lược B (Dùng lại dữ liệu đã fetch):** Sử dụng trực tiếp dữ liệu `book.aiSummary` có sẵn từ `BookDetailResponse` hoặc `BookResponse` đã fetch ở màn hình Book Detail trước đó.
+
+---
+
 ## 2. Bảng Máp Dữ Liệu 1-to-1 Với Giao Diện Flutter UI
 
 Máp trực tiếp các trường dữ liệu từ `ai_summary` vào Widget `showBookDetailAiSummarySheet` trong file `book_detail_sheet_launchers.dart`:

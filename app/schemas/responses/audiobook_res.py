@@ -17,6 +17,9 @@ class BookResponse(BaseModel):
     total_sections: Optional[int] = None
     total_units: Optional[int] = None
     status: Optional[str] = None
+    ai_summary: Optional[dict] = None
+    ai_summary_status: Optional[str] = None
+    ai_summary_error: Optional[str] = None
     learning_status: Optional[str] = None
     book_progress_percent: Optional[int] = None
     completed_at: Optional[datetime] = None
@@ -61,6 +64,9 @@ class BookDetailResponse(BaseModel):
     mode: str
     total_sections: Optional[int] = None
     total_units: int = 0
+    ai_summary: Optional[dict] = None
+    ai_summary_status: Optional[str] = None
+    ai_summary_error: Optional[str] = None
     learning_summary: Optional[BookLearningSummaryResponse] = None
     units: list[LearningUnitDetailResponse] = Field(default_factory=list)
 
