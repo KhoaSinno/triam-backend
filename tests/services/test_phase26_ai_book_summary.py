@@ -93,7 +93,7 @@ async def test_generate_ai_book_summary_service_success(db_session: Session):
 
 @pytest.mark.asyncio
 async def test_generate_ai_book_summary_llm_format_error(db_session: Session):
-    """Kiểm tra khi Gemini trả về thiếu trường hoặc sai format, ném LLMResponseFormatError."""
+    """Kiểm tra khi Gemini trả về không phải JSON hợp lệ, ném LLMResponseFormatError."""
     user_id = uuid.uuid4()
     book = Book(title="Bad Output Book", user_id=user_id, status="ready")
     db_session.add(book)
@@ -110,8 +110,8 @@ async def test_generate_ai_book_summary_llm_format_error(db_session: Session):
     db_session.add(section)
     db_session.commit()
 
-    # Trả về JSON thiếu trường bắt buộc 'key_idea'
-    bad_llm_json = json.dumps({"summary": "Chỉ có tóm tắt"})
+    # Trả về chuỗi không phải JSON
+    bad_llm_json = "This is not valid JSON string at all!"
     mock_completion = MagicMock()
     mock_completion.choices = [MagicMock(message=MagicMock(content=bad_llm_json))]
 
