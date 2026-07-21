@@ -7,7 +7,9 @@ from app.schemas.responses.audiobook_res import (
 from app.schemas.responses.study_context_res import (
     ChatMessageResponse,
     ChatThreadResponse,
+    ContextCapabilityResponse,
     ContextDocumentResponse,
+    DirectBookThreadResponse,
     StudyContextResponse,
 )
 
@@ -21,4 +23,6 @@ __all__ = [
     "ChatThreadResponse",
     "ChatMessageResponse",
     "ContextDocumentResponse",
+    "ContextCapabilityResponse",
+    "DirectBookThreadResponse",
 ]

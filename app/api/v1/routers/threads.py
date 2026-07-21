@@ -6,7 +6,7 @@ from sqlmodel import Session
 
 from app.api.dependencies.auth import CurrentUser
 from app.db.database import get_session
-from app.schemas.responses import ChatMessageResponse, ChatThreadResponse
+from app.schemas.responses import ChatMessageResponse, ChatThreadResponse, DirectBookThreadResponse
 from app.schemas.study_context import (
     ChatThreadUpdate,
 )
@@ -30,9 +30,9 @@ async def get_thread_messages_api(thread_id: uuid.UUID, current_user: CurrentUse
 # Get or create thread for a book
 
 
-@router.get("/threads/for-book/{book_id}")
+@router.get("/threads/for-book/{book_id}", response_model=DirectBookThreadResponse)
 async def get_thread_for_book(book_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
-    return get_or_create_thread_for_book(session, user_id=current_user.sub, book_id=book_id, title="New Book Chat")
+    return get_or_create_thread_for_book(session, user_id=current_user.sub, book_id=book_id)
 
 
 # Update current thread by thread_id

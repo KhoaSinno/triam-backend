@@ -38,6 +38,24 @@ def get_or_create_thread_for_book_repo(session: Session, user_id: uuid.UUID, boo
         DirectBookContext.book_id == book_id, DirectBookContext.user_id == user_id)).first()
 
     if direct_ctx:
+        # Self-healing: Cập nhật lại tiêu đề nếu Context/Thread cũ đang bị dính tên mặc định 'New Book Chat'
+        context = session.get(StudyContext, direct_ctx.context_id)
+        thread = session.get(ChatThread, direct_ctx.primary_thread_id)
+
+        need_commit = False
+        if context and context.title == "New Book Chat" and title and title != "New Book Chat":
+            context.title = title
+            session.add(context)
+            need_commit = True
+
+        if thread and thread.title == "New Book Chat" and title and title != "New Book Chat":
+            thread.title = title
+            session.add(thread)
+            need_commit = True
+
+        if need_commit:
+            session.commit()
+
         return direct_ctx.context_id, direct_ctx.primary_thread_id
 
     try:
