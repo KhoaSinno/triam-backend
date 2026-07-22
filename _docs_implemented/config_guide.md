@@ -206,7 +206,7 @@ Dành cho hàng đợi Celery xử lý phân tách chương sách và gửi thô
 
 | Tên biến | Kiểu dữ liệu | Mặc định | Mục đích sử dụng |
 |---|---|---|---|
-| `PARETO_PLANNER_MODEL` | `str` | `"gemini-3.5-flash"` | Tên mô hình Gemini chịu trách nhiệm lập kế hoạch học tập Pareto (chọn 20% cốt lõi). |
+| `PARETO_PLANNER_MODEL` | `str` | `"gemini-3.6-flash"` | Tên mô hình Gemini chịu trách nhiệm lập kế hoạch học tập Pareto (chọn 20% cốt lõi). |
 | `PARETO_PLANNER_TIMEOUT_SECONDS` | `float` | `25.0` | Thời gian chờ tối đa của API lập lịch Pareto. |
 | `PARETO_PLANNER_MAX_UNITS` | `int` | `8` | Số lượng bài học Pareto tối đa được tạo ra cho mỗi cuốn sách. |
 | `PARETO_PLANNER_MIN_UNITS` | `int` | `3` | Số lượng bài học Pareto tối thiểu. |
