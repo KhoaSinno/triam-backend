@@ -20,7 +20,7 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     # hardening DB pool/config
     DATABASE_ECHO: bool = False
-    DATABASE_POOL_MODE: str = "queue"
+    DATABASE_POOL_MODE: str = "auto"
     DATABASE_POOL_SIZE: int = 20
     DATABASE_MAX_OVERFLOW: int = 10
     DATABASE_POOL_TIMEOUT: int = 30
@@ -55,7 +55,7 @@ class Settings(BaseSettings):
     LIVEKIT_ROOM_EMPTY_TIMEOUT_SECONDS: int = 60
     LIVEKIT_ROOM_DEPARTURE_TIMEOUT_SECONDS: int = 20
     LIVEKIT_AGENT_EMPTY_ROOM_GRACE_SECONDS: float = 8.0
-    GEMINI_MODEL_LLM: str = "gemini-2.5-flash"
+    GEMINI_MODEL_LLM: str = "gemini-3.5-flash-lite"
     TOTAL_TOKEN_LIMIT: int = 800_000
     AI_SUMMARY_MAX_RETRIES: int = 2
     AI_SUMMARY_RETRY_DELAY_SECONDS: int = 15

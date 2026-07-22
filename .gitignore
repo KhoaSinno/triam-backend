@@ -26,6 +26,7 @@ logs/*
 !logs/pareto_log/
 !logs/agent_eval/
 !logs/sumary_ai/
+!logs/model_benchmark/
 _logs/
 KMS/
 worker.log
@@ -52,6 +53,7 @@ scratch_*.py
 !logs/pareto_log/**
 !logs/agent_eval/**
 !logs/sumary_ai/**
+!logs/model_benchmark/**
 
 triam-notification-firebase-adminsdk-fbsvc-77f3e9eac6.json
 
