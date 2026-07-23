@@ -75,10 +75,10 @@ def classify_web_permission_intent_fast_path(user_reply: str) -> WebPermissionIn
     if not normalized:
         return None
 
-    # Layer 1 (Fast-Path): Only apply to very short replies <= 2 words
+    # Layer 1 (Fast-Path): Apply to short permission replies <= 3 words
     token_count = len(normalized.split())
-    if token_count <= 2:
-        result = classify_voice_reply_intent_fast_path(user_reply)
+    if token_count <= 3:
+        result = classify_voice_reply_intent_fast_path(user_reply, max_grant_tokens=3)
         if result is not None:
             return WebPermissionIntentResult(
                 intent=result.intent,

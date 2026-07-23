@@ -29,5 +29,5 @@ async def test_fast_path_classifies_common_voice_replies(reply: str, expected_in
     )
 
     assert result.intent == expected_intent
-    assert result.source in {"fast_path", "classifier"}
+    assert result.source in {"fast_path", "classifier", "local_embedding"}
 

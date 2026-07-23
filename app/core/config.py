@@ -229,6 +229,10 @@ class Settings(BaseSettings):
     LEARNING_PROGRESS_MIN_DELTA_PERCENT: int = 5
     LEARNING_PROGRESS_STALE_SECONDS: int = 30
 
+    # == FOR TEST ==
+    PARETO_PLANNER_LLM_ENABLED: bool = True
+    PARETO_PLANNER_LLM_MIN_CARDS: int = 4
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

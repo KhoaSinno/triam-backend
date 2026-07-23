@@ -364,6 +364,7 @@ def _create_due_plan_session_reminder_outbox_rows(session: Session, *, now: date
         limit=settings.NOTIFICATION_DELIVERY_BATCH_SIZE * 2,
     )
     for plan_session in sessions:
+        session_id = plan_session.id
         try:
             book = session.get(Book, plan_session.book_id)
             if not book or book.status not in (BookStatus.PARTIAL_READY.value, BookStatus.READY.value):
@@ -372,7 +373,7 @@ def _create_due_plan_session_reminder_outbox_rows(session: Session, *, now: date
                 created_count += 1
         except ObjectDeletedError:
             session.rollback()
-            log.warning(f"Reading plan session was deleted concurrently during scan | session_id={plan_session.id}")
+            log.warning(f"Reading plan session was deleted concurrently during scan | session_id={session_id}")
             continue
     return created_count
 
@@ -469,6 +470,7 @@ def create_missed_plan_session_outbox_rows(session: Session, *, now: datetime) -
         limit=settings.NOTIFICATION_DELIVERY_BATCH_SIZE * 2,
     )
     for plan_session in sessions:
+        session_id = plan_session.id
         try:
             book = session.get(Book, plan_session.book_id)
             if not book or book.status not in (BookStatus.PARTIAL_READY.value, BookStatus.READY.value):
@@ -481,7 +483,7 @@ def create_missed_plan_session_outbox_rows(session: Session, *, now: datetime) -
                 created_count += 1
         except ObjectDeletedError:
             session.rollback()
-            log.warning(f"Reading plan session was deleted concurrently during missed scan | session_id={plan_session.id}")
+            log.warning(f"Reading plan session was deleted concurrently during missed scan | session_id={session_id}")
             continue
     return created_count
 
