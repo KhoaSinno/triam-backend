@@ -6,6 +6,7 @@ from hashlib import sha256
 
 import firebase_admin
 from firebase_admin import credentials, messaging
+from sqlalchemy import exc as sa_exc
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm.exc import StaleDataError
 from sqlmodel import Session, select
@@ -157,9 +158,9 @@ def register_user_device_token(session: Session, user_id: uuid.UUID, device_toke
                 session.commit()
                 session.refresh(existing)
                 return existing
-        except StaleDataError:
+        except (StaleDataError, sa_exc.InvalidRequestError, Exception) as e:
             session.rollback()
-            log.info("Bản ghi device_token đã bị xóa song song bởi luồng khác. Tiến hành tạo mới.")
+            log.info(f"Bản ghi device_token bị thay đổi/xóa song song bởi luồng khác ({e}). Tiến hành tạo mới hoặc truy vấn lại.")
             # Fall through to the insertion block below
 
     try:
