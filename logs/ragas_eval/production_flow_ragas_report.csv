@@ -1,6 +1,35 @@
 ﻿query_id,user_input,context_precision,context_recall,faithfulness,answer_relevancy,answer_correctness
 Q1,Sách có mấy chương,1.0,1.0,1.0,1.0,1.0
-Q2,"Sách có những nhân vật nào, nhân vật nào là nhân vật chính?",0.0,0.0,0.0,1.0,0.0
-Q3,Tóm tắt giúp tôi chương bốn của sách,0.0,0.0,1.0,0.4,0.0
-Q5,Tóm tắt chương sáu của sách Of Mice and Men,1.0,1.0,1.0,1.0,1.0
-Q6,Cái chết của Lennie diễn ra thế nào và tại sao George lại làm vậy?,1.0,1.0,1.0,1.0,1.0
+Q2,"Sách có những nhân vật nào, nhân vật nào là nhân vật chính",1.0,1.0,1.0,1.0,1.0
+Q3,Tóm tắt giúp tôi chương bốn của sách,1.0,1.0,1.0,1.0,1.0
+Q4,Tóm tắt chương sách này đi,1.0,1.0,1.0,0.2,1.0
+Q5,Chương sáu đi,1.0,1.0,0.2,1.0,1.0
+Q6,Cái chết của Lennie diễn ra thế nào và tại sao George lại làm vậy?,1.0,1.0,0.5,1.0,1.0
+Q7,Giá Bitcoin hiện tại hôm nay là bao nhiêu?,1.0,1.0,1.0,0.0,1.0
+Q8,"Không, chỉ tìm trong sách thôi.",1.0,1.0,1.0,1.0,1.0
+Q9,Tìm các tác phẩm tương tự với Of Mice and Men trên internet,1.0,1.0,1.0,0.2,1.0
+Q10,"Được chứ, tìm đi.",1.0,1.0,1.0,0.0,1.0
+Q11,Tôi muốn học về mảng và các thuật toán sắp xếp.,1.0,1.0,0.5,0.8,0.9
+Q12,Nói về đó phức tạp dữ liệu đi.,1.0,1.0,0.75,0.8,1.0
+Q13,Nói về khai báo và gán giá trị cho mảng hai chiều trong C#.,1.0,1.0,1.0,1.0,1.0
+Q14,"Rồi ok ok, tôi thấy có chương 29 nói về bubble sort á, thảo luận về nó đi.",1.0,1.0,0.5,1.0,1.0
+Q15,"À, ok, có cốt không, có cốt không?",1.0,1.0,1.0,1.0,0.3
+Q16,Nói về các thuật toán tìm kiếm phổ biến trong C#.,1.0,1.0,0.4,1.0,1.0
+Q17,Bây giờ tôi muốn định hướng về theo AI. Như vậy thì tôi muốn học thuật toán thì tôi học cái nào để lấy được nền tảng đây?,1.0,1.0,1.0,0.6,1.0
+Q18,"Ok, bạn có gợi ý trình nào để tôi học AI không?",1.0,1.0,1.0,1.0,1.0
+Q19,"Cho tôi lộ trình học trong 7 ngày đi, tiếp cận từ từ với các thuật toán nền tảng.",1.0,1.0,1.0,1.0,1.0
+Q20,Ok cảm ơn.,1.0,1.0,1.0,1.0,1.0
+Q21,"Ok, bây giờ tôi muốn học về tài chính.",1.0,1.0,1.0,1.0,0.8
+Q22,Tôi đọc sách ta thì tôi thấy là làm giàu ... Ba chữ giàu khác nhau như thế nào vậy?,1.0,1.0,1.0,0.9,0.9
+Q23,Vậy thì sức mạnh của đại kép được giải thích như thế nào qua câu chuyện của Warren Buffett trong sách?,1.0,1.0,0.4,1.0,0.85
+Q24,Trong tiếng Anh nó có hai từ đó là từ risk và từ waive. Vậy thì sự khác nhau giữa hai từ này là gì? ... Trong sách có nói về hai khái niệm này không?,1.0,1.0,1.0,0.0,1.0
+Q25,Tôi hỏi tài sản khác tiêu sản như thế nào?,1.0,1.0,1.0,1.0,1.0
+Q26,Có một khái niệm đó là vòng rat race là gì?,1.0,1.0,0.67,1.0,1.0
+Q27,"Tôi thắc mắc là tự nhiên là người giàu thì họ sẽ thích gặp tập đoàn, vậy để làm gì?",1.0,1.0,0.75,1.0,0.95
+Q28,Chương bốn nói về gì?,1.0,1.0,1.0,1.0,0.9
+Q29,Chương tiếp theo của sách là chương mấy?,1.0,1.0,1.0,1.0,1.0
+Q30,"À không đi, giờ tôi muốn biết giá cổ phiếu của Apple bây giờ là bao nhiêu rồi?",1.0,1.0,0.33,1.0,1.0
+Q31,Trong sách nào có cái khái niệm liquidity mining không?,1.0,1.0,1.0,1.0,1.0
+Q32,"Thôi đi, bây giờ chúng ta quay lại cái sách nói về tâm lý về tiền đi, tác giả khuyên gì về cái biên an toàn của tài chính?",1.0,1.0,1.0,1.0,1.0
+Q33,Qua hai quyển sách này thì tôi sẽ học được gì?,1.0,1.0,1.0,1.0,1.0
+Q34,"Bye bye, nghỉ rồi.",1.0,1.0,1.0,1.0,1.0

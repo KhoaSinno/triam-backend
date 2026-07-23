@@ -55,12 +55,14 @@ def _next_session_datetimes(
     now: datetime,
     count: int,
     lookahead_days: int = 370,
+    existing_active_times: set[datetime] | None = None,
 ) -> list[datetime]:
     if count <= 0 or not slots:
         return []
 
     now = ensure_aware_utc(now)
     candidates: list[datetime] = []
+    active_set = existing_active_times or set()
     for slot in sorted(slots, key=lambda value: (value.weekday, value.reminder_time)):
         slot_time = parse_hhmm(slot.reminder_time)
         tz = ZoneInfo(slot.timezone)
@@ -71,7 +73,7 @@ def _next_session_datetimes(
                 continue
             local_dt = datetime.combine(local_day, slot_time, tzinfo=tz)
             scheduled_at = local_dt.astimezone(timezone.utc)
-            if scheduled_at >= now:
+            if scheduled_at >= now and scheduled_at not in active_set:
                 candidates.append(scheduled_at)
 
     unique_candidates = sorted(set(candidates))
@@ -123,7 +125,23 @@ def ensure_future_sessions_for_plan(
 
     remaining_units = _remaining_units_for_plan(session, plan=plan, user_id=user_id)
     unit_groups = _chunk_units(remaining_units, plan.pace)
-    scheduled_times = _next_session_datetimes(slots=slots, now=now, count=len(unit_groups))
+
+    existing_active_times = set(
+        session.exec(
+            select(ReadingPlanSession.scheduled_at).where(
+                ReadingPlanSession.user_id == user_id,
+                ReadingPlanSession.plan_id != plan.id,
+                ReadingPlanSession.status != ReadingPlanSessionStatus.CANCELLED.value,
+            )
+        ).all()
+    )
+
+    scheduled_times = _next_session_datetimes(
+        slots=slots,
+        now=now,
+        count=len(unit_groups),
+        existing_active_times=existing_active_times,
+    )
     created = 0
 
     for index, (scheduled_at, unit_group) in enumerate(zip(scheduled_times, unit_groups, strict=False)):

@@ -444,6 +444,9 @@ def test_pause_resume_reading_plan():
     book_id = None
     try:
         with Session(engine) as session:
+            session.execute(text("DELETE FROM reading_plan_schedule_slots WHERE user_id = :uid"), {"uid": user_id})
+            session.execute(text("DELETE FROM reading_plans WHERE book_id IN (SELECT id FROM books WHERE user_id = :uid)"), {"uid": user_id})
+            session.commit()
             book, _, _ = _create_playable_book(session, user_id=user_id, title="Pause Resume Book")
             book_id = book.id
             plan = ReadingPlan(
@@ -503,6 +506,9 @@ def test_update_reading_plan():
     book_id = None
     try:
         with Session(engine) as session:
+            session.execute(text("DELETE FROM reading_plan_schedule_slots WHERE user_id = :uid"), {"uid": user_id})
+            session.execute(text("DELETE FROM reading_plans WHERE book_id IN (SELECT id FROM books WHERE user_id = :uid)"), {"uid": user_id})
+            session.commit()
             book, _, _ = _create_playable_book(session, user_id=user_id, title="Update Plan Book")
             book_id = book.id
             plan = ReadingPlan(
