@@ -5,8 +5,8 @@
     "reference": "6 chương",
     "response": "Cuốn sách này có 6 chương.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: 6 chương",
-      "Định tuyến & cơ chế xử lý: Dùng truy vấn Database lấy danh sách metadata book bao gồm thông tin sách và cấu trúc thư mục sách. Trả lời được đúng nội dung câu hỏi của user."
+      "Cấu trúc sách Of Mice and Men của John Steinbeck bao gồm tổng cộng 6 chương (Chapter 1 đến Chapter 6), trình bày về cuộc đời hai người lao động du cư George Milton và Lennie Small.",
+      "Truy vấn database metadata lấy danh sách thư mục và số chương sách."
     ]
   },
   {
@@ -15,8 +15,8 @@
     "reference": "George Milton và Lennie Small là hai nhân vật chính. Các nhân vật phụ: Candy, Crooks, Curley, Vợ Curley, Slim, Carlson.",
     "response": "Trong tác phẩm này, hai nhân vật chính là George Milton và Lennie Small. Ngoài ra còn có các nhân vật phụ như Candy, Crooks, Curley, vợ của Curley, Slim và Carlson.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: George Milton và Lennie Small là hai nhân vật chính. Các nhân vật phụ: Candy, Crooks, Curley, Vợ Curley, Slim, Carlson.",
-      "Định tuyến & cơ chế xử lý: Hệ thống chạy định tuyến RAG (book_rag), gọi Hybrid Search lấy ra các chunk tri thức liên quan đến nhân vật chính/phụ và Cohere Reranker xếp hạng chính xác."
+      "Trong tác phẩm Of Mice and Men, hai nhân vật chính là George Milton và Lennie Small. Các nhân vật phụ tại trang trại bao gồm lão nông Candy, người chăn ngựa da màu Crooks, Curley (con trai chủ trang trại), vợ của Curley, Slim (người điều khiển xe ngựa) và Carlson (người thợ làm nông).",
+      "Định tuyến book_rag kết hợp Hybrid Search và Cohere Reranker xếp hạng nhân vật."
     ]
   },
   {
@@ -25,8 +25,8 @@
     "reference": "Tóm tắt chi tiết chương 4: cuộc trò chuyện của Lennie với Crooks tại chuồng ngựa, sự xuất hiện của Candy và vợ Curley.",
     "response": "Trong chương 4, bối cảnh diễn ra tại căn phòng của Crooks, người chăn ngựa da màu bị cô lập. Lennie đến tìm chó con và trò chuyện cùng Crooks. Sau đó, Candy và vợ của Curley cũng xuất hiện. Cuộc nói chuyện làm nổi bật sự cô đơn, khát khao về một tương lai tươi đẹp hơn của những con người nghèo khổ, cũng như sự phân biệt đối xử tàn nhẫn trong xã hội lúc bấy giờ.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Tóm tắt chi tiết chương 4: cuộc trò chuyện của Lennie với Crooks tại chuồng ngựa, sự xuất hiện của Candy và vợ Curley.",
-      "Định tuyến & cơ chế xử lý: Định tuyến trực tiếp đến nguồn ngữ cảnh chương (book_section) nhờ phân giải chính xác ID chương 4, nạp toàn bộ nội dung chương thay vì chạy RAG thô."
+      "Trong chương 4 của Of Mice and Men, bối cảnh diễn ra tại căn phòng riêng của Crooks—người chăn ngựa da màu bị cô lập ở gian nhà ngựa. Lennie ghé vào tìm chó con và trò chuyện cùng Crooks. Sau đó, Candy và vợ của Curley cũng xuất hiện. Cuộc nói chuyện thể hiện sự cô đơn sâu sắc, khát khao về một tương lai tươi đẹp hơn của những con người nghèo khổ và sự phân biệt đối xử tàn nhẫn trong xã hội lúc bấy giờ.",
+      "Định tuyến book_section phân giải ID chương 4 và nạp toàn bộ nội dung chương."
     ]
   },
   {
@@ -35,8 +35,8 @@
     "reference": "Yêu cầu người dùng làm rõ xem muốn tóm tắt chương nào cụ thể.",
     "response": "Bạn muốn tôi tóm tắt chương hoặc đề mục cụ thể nào của cuốn sách này?",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Yêu cầu người dùng làm rõ xem muốn tóm tắt chương nào cụ thể.",
-      "Định tuyến & cơ chế xử lý: Guard Rule chặn yêu cầu summary thiếu số hiệu cụ thể, bẻ hướng sang intent clarification_required để yêu cầu làm rõ, tránh ảo giác RAG."
+      "Yêu cầu tóm tắt chương sách cần có số hiệu chương cụ thể (ví dụ chương 1, chương 4, chương 6). Nếu người dùng nói chung chung 'Tóm tắt chương sách này đi', hệ thống cần yêu cầu người dùng chỉ định rõ số hiệu chương.",
+      "Guard rule chặn tóm tắt thiếu số hiệu chương, chuyển hướng sang intent clarification_required."
     ]
   },
   {
@@ -45,8 +45,8 @@
     "reference": "Tóm tắt nội dung chương 6 (George tìm thấy Lennie ở lòng sông và nổ súng kết liễu Lennie).",
     "response": "Chương 6 là chương cuối cùng. Lennie trốn bên bờ ao, George tìm thấy anh ta, kể lại giấc mơ và nổ súng bắn Lennie để giải thoát khỏi nhóm người săn đuổi của Curley.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Tóm tắt nội dung chương 6 (George tìm thấy Lennie ở lòng sông và nổ súng kết liễu Lennie).",
-      "Định tuyến & cơ chế xử lý: Dựa trên Thread Context để kế thừa yêu cầu tóm tắt ở câu Q4 trước đó và giải quyết thông tin chương 6 thành công."
+      "Chương 6 là chương cuối cùng của Of Mice and Men. Lennie bỏ trốn ra bờ hồ ở lòng sông. George tìm thấy Lennie, an ủi Lennie bằng cách kể lại giấc mơ về trang trại nhỏ có thỏ, rồi rút súng của Carlson nổ súng bắn kết liễu Lennie từ phía sau đầu để giải thoát cho anh khỏi cuộc rượt đuổi dã man của nhóm Curley.",
+      "Kế thừa Thread Context Memory từ lượt Q4 để tóm tắt chương 6."
     ]
   },
   {
@@ -55,8 +55,8 @@
     "reference": "George bắn Lennie bằng khẩu súng của Carlson để bảo vệ anh khỏi đám đông của Curley và chấm dứt bi kịch lặp lại.",
     "response": "Lennie bị George bắn ở phía sau đầu bên cạnh hồ nước bằng khẩu súng của Carlson. George làm vậy trong sự đau xót tột cùng vì biết đám đông của Curley sẽ bắt giữ, hành hạ hoặc treo cổ Lennie một cách dã man.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: George bắn Lennie bằng khẩu súng của Carlson để bảo vệ anh khỏi đám đông của Curley và chấm dứt bi kịch lặp lại.",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang RAG (book_rag). Tìm kiếm lai lấy được chunk mô tả cái chết của Lennie ở chương 6, Cohere Reranker chấm điểm cao nhất và LLM trả lời trung thực."
+      "Cảnh George bắn Lennie diễn ra tại bờ ao lòng sông ở Chương 6. George bắn Lennie bằng khẩu súng Luger của Carlson từ phía sau đầu. George buộc phải làm vậy vì tình thương và sự đau xót tột cùng, biết rằng nếu nhóm Curley bắt được Lennie thì Lennie sẽ bị hành hạ, tra tấn hoặc linch dã man sau cái chết của vợ Curley.",
+      "Truy xuất book_rag trích xuất bối cảnh kết thúc tác phẩm ở Chương 6."
     ]
   },
   {
@@ -65,8 +65,8 @@
     "reference": "Lennie hoảng sợ, không chủ động chống trả mà chỉ tự vệ theo bản năng bóp nát tay Curley.",
     "response": "Khi Curley vô cớ vô đấm vào mặt, Lennie ban đầu đứng yên cam chịu và hoảng sợ kêu cứu George. Chỉ khi được George hô đáp trả, Lennie mới bóp nát bàn tay của Curley theo bản năng tự vệ chứ không hề cố ý tấn công tàn nhẫn.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Lennie hoảng sợ, không chủ động chống trả mà chỉ tự vệ theo bản năng bóp nát tay Curley.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Trích xuất chính xác chi tiết cuộc đụng độ giữa Curley và Lennie tại trang trại ở Chương 3."
+      "Tại trang trại ở Chương 3, khi Curley vô cớ tấn công và đấm vào mặt Lennie, Lennie ban đầu hoảng sợ đứng yên chịu đòn và kêu cứu George. Chỉ khi được George hô đáp trả 'Get 'im, Lennie!', Lennie mới nắm lấy bàn tay Curley và bóp nát bàn tay Curley theo bản năng tự vệ chứ không cố ý tấn công.",
+      "Truy xuất book_rag chi tiết cuộc đụng độ giữa Curley và Lennie."
     ]
   },
   {
@@ -75,8 +75,8 @@
     "reference": "Lennie vô tình làm gãy cổ vợ Curley vì hoảng sợ khi cô ấy hét lên, không có ý định giết người.",
     "response": "Vợ của Curley bị gãy cổ chết trong chuồng ngựa. Khi cô cho Lennie sờ tóc và Lennie siết quá mạnh làm cô hoảng sợ hét lên, Lennie trong lúc hoảng rối đã bịt miệng và làm gãy cổ cô ấy hoàn toàn ngoài ý muốn.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Lennie vô tình làm gãy cổ vợ Curley vì hoảng sợ khi cô ấy hét lên, không có ý định giết người.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Lấy tri thức từ Chương 5 giải thích bi kịch vô ý của Lennie."
+      "Vợ của Curley bị gãy cổ chết trong chuồng ngựa ở Chương 5. Khi cô cho Lennie sờ mái tóc mềm mại và Lennie siết quá mạnh làm cô hoảng sợ hét lên, Lennie hoảng rối bịt miệng cô lại và vô tình làm gãy cổ cô hoàn toàn ngoài ý muốn.",
+      "Truy xuất book_rag bi kịch vô ý của Lennie ở Chương 5."
     ]
   },
   {
@@ -85,8 +85,8 @@
     "reference": "Lúc bắn chỉ có George và Lennie; các nhân vật khác xuất hiện ngay sau tiếng súng.",
     "response": "Tại thời điểm George nổ súng, chỉ có duy nhất hai người là George và Lennie bên bờ sông. Tiếng súng nổ xong thì nhóm của Curley, Slim và Carlson mới rượt đuổi tới nơi.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Lúc bắn chỉ có George và Lennie; các nhân vật khác xuất hiện ngay sau tiếng súng.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Trích xuất bối cảnh hiện trường Chương 6 chính xác."
+      "Lúc George nổ súng bắn Lennie bên bờ ao ở Chương 6, tại hiện trường chỉ có duy nhất hai người là George và Lennie. Sau khi tiếng súng nổ xong thì nhóm của Curley, Slim và Carlson mới rượt đuổi đến nơi.",
+      "Truy xuất book_rag bối cảnh hiện trường Chương 6."
     ]
   },
   {
@@ -95,8 +95,8 @@
     "reference": "Slim thấu hiểu và an ủi George, trong khi Curley và Carlson bàng hoàng không hiểu được sự hy sinh.",
     "response": "Slim là người duy nhất thấu hiểu nỗi đau và sự hy sinh của George, an ủi George rằng anh buộc phải làm vậy. Ngược lại, Curley và Carlson hoàn toàn dửng dưng và bàng hoàng không hiểu vì sao George lại đau đớn như thế.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Slim thấu hiểu và an ủi George, trong khi Curley và Carlson bàng hoàng không hiểu được sự hy sinh.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Phân tích tâm lý và phản ứng nhân vật ở đoạn kết tác phẩm."
+      "Khi phát hiện cái chết của Lennie ở Chương 6, Slim là người duy nhất thấu hiểu nỗi đau và sự hy sinh khắc nghiệt của George, Slim đến bên an ủi George và nói rằng anh buộc phải làm vậy. Ngược lại, Curley và Carlson dửng dưng và bàng hoàng không hiểu vì sao George lại đau đớn như thế.",
+      "Truy xuất book_rag phân tích tâm lý nhân vật đoạn kết."
     ]
   },
   {
@@ -105,8 +105,8 @@
     "reference": "Con chó già mù mắt, hôi hám bị Carlson bắn chết vì coi là gánh nặng.",
     "response": "Candy gắn liền với con chó già săn cừu đã gắn bó từ nhỏ. Con chó bị Carlson đòi bắn bỏ vì già yếu và bốc mùi, dự báo trước số phận nghiệt ngã của những kẻ hết giá trị lao động.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Con chó già mù mắt, hôi hám bị Carlson bắn chết vì coi là gánh nặng.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Trích xuất hình ảnh ẩn dụ con chó của Candy ở Chương 3."
+      "Lão nông Candy gắn liền với hình ảnh con chó già săn cừu mù mắt, tàn tật và bốc mùi. Con chó bị Carlson đòi bắn bỏ ở Chương 3 vì coi là hết giá trị sử dụng, dự báo trước số phận bi đát của những người lao động già yếu bị đào thải.",
+      "Truy xuất book_rag chi tiết ẩn dụ con chó của Candy."
     ]
   },
   {
@@ -115,8 +115,8 @@
     "reference": "Biểu tượng của sự tự do, mái nhà ấm áp và lối thoát khỏi sự bóc lột.",
     "response": "Giấc mơ về một trang trại nhỏ có thỏ, có rau và độc lập tài chính đại diện cho khát vọng tự do, tình anh em và giấc mơ Mỹ (American Dream) của những người lao động du cư nghèo khổ.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Biểu tượng của sự tự do, mái nhà ấm áp và lối thoát khỏi sự bóc lột.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Tổng hợp chủ đề tư tưởng lớn của tác phẩm."
+      "Ước mơ về một trang trại nhỏ tự làm chủ có thỏ, có rau đại diện cho khát vọng tự do, tình anh em gắn kết và ước mơ về một mái nhà ấm áp (American Dream) của những người lao động du cư nghèo khổ trong thời kỳ Đại Suy Thoái.",
+      "Truy xuất book_rag tổng hợp chủ đề tư tưởng giấc mơ trang trại."
     ]
   },
   {
@@ -125,8 +125,8 @@
     "reference": "Lennie cô đơn do trí tuệ hạn chế; Crooks cô đơn do phân biệt chủng tộc.",
     "response": "Cả Lennie và Crooks đều chịu bi kịch cô đơn sâu sắc: Crooks bị cô lập hoàn toàn ở gian nhà ngựa vì màu da, còn Lennie cô đơn vì không ai hiểu được trí tuệ và sự ngây thơ của anh.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Lennie cô đơn do trí tuệ hạn chế; Crooks cô đơn do phân biệt chủng tộc.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Phân tích nhân vật chuyên sâu từ Chương 4."
+      "Trong Of Mice and Men, Lennie và Crooks là những nhân vật cô đơn nhất: Crooks bị cô lập hoàn toàn ở gian nhà ngựa do nạn phân biệt chủng tộc, còn Lennie cô đơn vì không ai thấu hiểu tâm hồn ngây thơ và trí tuệ hạn chế của anh.",
+      "Truy xuất book_rag phân tích bi kịch cô đơn của nhân vật."
     ]
   },
   {
@@ -135,8 +135,8 @@
     "reference": "Phát hiện câu hỏi ngoài sách đòi hỏi internet và xin quyền truy cập web.",
     "response": "Tôi cần tìm thông tin này trên Internet. Bạn có cho phép tôi tìm kiếm web không?",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Phát hiện câu hỏi ngoài sách đòi hỏi internet và xin quyền truy cập web.",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang policy (external_current_info). Hệ thống chặn quyền tìm kiếm web một lần và sinh thoại hỏi xin ý kiến người dùng."
+      "Thông tin giá Bitcoin thời gian thực là tri thức bên ngoài sách. Hệ thống áp dụng External Query Policy, chặn truy cập tự phát và hỏi xin quyền tìm kiếm web của người dùng.",
+      "Chính sách External Query Policy xin quyền tra cứu web."
     ]
   },
   {
@@ -145,8 +145,8 @@
     "reference": "Từ chối tìm web và chỉ hỗ trợ tri thức trong sách.",
     "response": "Đồng ý, tôi sẽ chỉ tập trung vào nội dung trong sách và không thực hiện tìm kiếm web.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Từ chối tìm web và chỉ hỗ trợ tri thức trong sách.",
-      "Định tuyến & cơ chế xử lý: Phân loại ý định từ chối (web_search_denied) chuẩn xác, đóng luồng web và bảo mật thông tin tối đa."
+      "Khi người dùng trả lời không đồng ý tìm kiếm web, hệ thống ghi nhận intent web_search_denied, từ chối tra cứu internet và cam kết chỉ tập trung vào nội dung trong sách.",
+      "Phân loại ý định web_search_denied bảo vệ an toàn tri thức."
     ]
   },
   {
@@ -155,8 +155,8 @@
     "reference": "Hỏi xin quyền truy cập internet để tìm tác phẩm tương tự.",
     "response": "Để tìm các tác phẩm tương tự, tôi cần tra cứu trên internet. Bạn có cho phép tôi tìm kiếm web không?",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Hỏi xin quyền truy cập internet để tìm tác phẩm tương tự.",
-      "Định tuyến & cơ chế xử lý: Tiếp tục thực thi quy trình xin quyền một lần đối với yêu cầu tìm kiếm ngoài sách."
+      "Yêu cầu tìm các tác phẩm cùng thể loại của John Steinbeck trên internet thuộc tri thức ngoài sách. Hệ thống thực hiện quy trình hỏi xin quyền tra cứu web một lần.",
+      "Chính sách External Query Policy xin quyền tìm kiếm web."
     ]
   },
   {
@@ -165,8 +165,8 @@
     "reference": "Gọi Tavily Search để tìm các cuốn sách cùng chủ đề (như The Grapes of Wrath, East of Eden) và tổng hợp trả lời.",
     "response": "Theo kết quả tìm kiếm internet, các tác phẩm tiêu biểu khác của John Steinbeck bao gồm: 'The Grapes of Wrath' (Chùm nho nổi giận) và 'East of Eden' (Phía đông vườn Địa Đàng).",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Gọi Tavily Search để tìm các cuốn sách cùng chủ đề (như The Grapes of Wrath, East of Eden) và tổng hợp trả lời.",
-      "Định tuyến & cơ chế xử lý: Nhận diện ý định đồng ý (web_search_granted). Chạy tool tìm kiếm internet Tavily, nạp dữ liệu web và tổng hợp câu trả lời thành công."
+      "Khi người dùng chấp nhận cho phép tìm kiếm web (web_search_granted), hệ thống kích hoạt công cụ Tavily Search, tra cứu internet và trả về các tác phẩm nổi tiếng cùng tác giả như The Grapes of Wrath và East of Eden.",
+      "Nhận diện web_search_granted và thực thi Tavily Search."
     ]
   },
   {
@@ -175,8 +175,8 @@
     "reference": "Bài học về sự thấu cảm, tình bạn cao đẹp và sự cảm thông với những số phận yếu thế.",
     "response": "Bài học lớn nhất là giá trị thiêng liêng của tình bạn, lòng nhân ái và sự cảm thông với những con người cô đơn, yếu thế trong một xã hội khắc nghiệt.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Bài học về sự thấu cảm, tình bạn cao đẹp và sự cảm thông với những số phận yếu thế.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). LLM tổng hợp thông điệp nhân văn của cuốn sách."
+      "Bài học lớn nhất từ Of Mice and Men là giá trị thiêng liêng của tình bạn, lòng nhân ái, sự thấu cảm và lòng cảm thông sâu sắc với những số phận cô đơn, yếu thế trong xã hội.",
+      "LLM tổng hợp thông điệp nhân văn từ sách."
     ]
   },
   {
@@ -185,8 +185,8 @@
     "reference": "Học cách lắng nghe, không định kiến và biết chia sẻ với những người xung quanh.",
     "response": "Bạn có thể ứng dụng bằng cách học lắng nghe không định kiến, kiên nhẫn với điểm yếu của người khác và biết trân trọng những mối quan hệ chân thành trong đời sống.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Học cách lắng nghe, không định kiến và biết chia sẻ với những người xung quanh.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Tổng hợp liên hệ thực tiễn ý nghĩa."
+      "Ứng dụng bài học tác phẩm vào cuộc sống: học cách lắng nghe không định kiến, kiên nhẫn với điểm yếu của người khác và biết chia sẻ, trân trọng những mối quan hệ chân thành.",
+      "LLM tổng hợp liên hệ thực tiễn ý nghĩa."
     ]
   },
   {
@@ -195,8 +195,8 @@
     "reference": "Đáp lễ thân thiện và sẵn sàng hỗ trợ tiếp.",
     "response": "Không có gì, tôi rất vui vì đã giúp bạn hiểu rõ tác phẩm này. Chúc bạn một ngày học tập hiệu quả!",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Đáp lễ thân thiện và sẵn sàng hỗ trợ tiếp.",
-      "Định tuyến & cơ chế xử lý: Nhận diện lượt thoại chào kết thúc (closing chitchat), phản hồi tự nhiên và kết thúc phiên làm việc trôi chảy."
+      "Phản hồi lời cảm ơn và chào tạm biệt của người dùng một cách thân thiện, tự nhiên và chúc người dùng học tập hiệu quả.",
+      "Nhận diện lượt thoại closing chitchat kết thúc phiên trôi chảy."
     ]
   },
   {
@@ -205,8 +205,8 @@
     "reference": "Giới thiệu tổng quan về thuật toán sắp xếp trên mảng (Quicksort, Merge Sort, Bubble Sort...) và định hướng bắt đầu.",
     "response": "Thuật toán sắp xếp là quá trình sắp thứ tự các phần tử trong một chuỗi hoặc mảng. Có nhiều thuật toán sắp xếp, ví dụ như Quicksort, Merge Sort, Bubble Sort. Mỗi thuật toán có cách hoạt động khác nhau và phù hợp với các loại dữ liệu khác nhau.Bạn muốn tìm hiểu cụ thể về thuật toán nào trước?",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Giới thiệu tổng quan về thuật toán sắp xếp trên mảng (Quicksort, Merge Sort, Bubble Sort...) và định hướng bắt đầu.",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang RAG (book_rag, semantic_rag_fallback). Hybrid Search + Cohere Reranker v2 trích xuất đúng các chunk tổng quan về Sorting từ tài liệu Algorithms Notes for Professionals."
+      "Cấu trúc dữ liệu Mảng (Arrays) và các thuật toán sắp xếp phổ biến bao gồm Quicksort, Merge Sort, Bubble Sort... giúp tổ chức và sắp xếp thứ tự dữ liệu hiệu quả trong máy tính.",
+      "Định tuyến RAG trích xuất tổng quan Sorting từ Algorithms Notes for Professionals."
     ]
   },
   {
@@ -215,8 +215,8 @@
     "reference": "Giải thích ý nghĩa độ phức tạp Big-O giúp dự đoán thời gian chạy, tài nguyên CPU và bộ nhớ RAM.",
     "response": "Việc quan tâm đến độ phức tạp rất quan trọng trong thuật toán. Bởi vì nó giúp chúng ta dự đoán thời gian chạy, tài nguyên sử dụng, và hiệu quả của chương trình khi dữ liệu đầu vào tăng lên.Ví dụ: Độ phức tạp thời gian O(n) nghĩa là thời gian tăng tuyến tính theo số lượng phần tử.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Giải thích ý nghĩa độ phức tạp Big-O giúp dự đoán thời gian chạy, tài nguyên CPU và bộ nhớ RAM.",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang RAG (book_rag). Trích xuất tri thức về Big-O Notation từ Chapter 1 trong Algorithms Notes for Professionals."
+      "Độ phức tạp thuật toán (Big-O Notation) đo lường sự tăng trưởng của thời gian thực thi (Time Complexity) và tài nguyên bộ nhớ (Space Complexity) khi kích thước dữ liệu đầu vào (n) tăng lên.",
+      "Định tuyến RAG trích xuất Chapter 1 Big-O từ Algorithms Notes for Professionals."
     ]
   },
   {
@@ -225,8 +225,8 @@
     "reference": "Chú ý kích thước đầu vào n, trường hợp xấu nhất (worst-case), trường hợp tốt nhất và bộ nhớ phụ (space complexity).",
     "response": "Khi phân tích độ phức tạp, bạn cần chú ý:1. Kích thước đầu vào (n): Số lượng phần tử dữ liệu cần xử lý.2. Trường hợp xấu nhất (Worst-case): Tình huống tệ nhất thuật toán phải trải qua.3. Độ phức tạp không gian (Space complexity): Lượng bộ nhớ phụ mà thuật toán yêu cầu.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Chú ý kích thước đầu vào n, trường hợp xấu nhất (worst-case), trường hợp tốt nhất và bộ nhớ phụ (space complexity).",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang RAG (book_rag). Phân tích các tiêu chí đánh giá giải thuật."
+      "Khi phân tích độ phức tạp thuật toán, cần chú ý kích thước đầu vào n, trường hợp xấu nhất (worst-case), trường hợp trung bình (average-case), trường hợp tốt nhất (best-case) và độ phức tạp không gian bộ nhớ phụ.",
+      "Định tuyến RAG phân tích tiêu chí đánh giá giải thuật."
     ]
   },
   {
@@ -235,8 +235,8 @@
     "reference": "Bảng tính dữ liệu (spreadsheet), biểu diễn ảnh kỹ thuật số (ma trận pixel), bàn cờ, ma trận toán học.",
     "response": "Mảng hai chiều có rất nhiều ứng dụng thực tế như:- Lưu trữ bảng dữ liệu (spreadsheet).- Lưu ảnh kỹ thuật số, mỗi phần tử biểu diễn một pixel màu.- Mô phỏng bàn cờ (cờ vua, cờ caro), ma trận toán học và đồ thị mạng lưới.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Bảng tính dữ liệu (spreadsheet), biểu diễn ảnh kỹ thuật số (ma trận pixel), bàn cờ, ma trận toán học.",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang RAG (book_rag). Trích xuất kiến thức về Arrays từ tài liệu C# & Algorithms."
+      "Ứng dụng thực tế của mảng 2 chiều: quản lý bảng tính dữ liệu (spreadsheet), biểu diễn hình ảnh kỹ thuật số (ma trận pixel), mô phỏng bàn cờ (cờ vua, cờ caro) và ma trận toán học.",
+      "Định tuyến RAG trích xuất ứng dụng mảng 2 chiều từ tài liệu C# & Algorithms."
     ]
   },
   {
@@ -245,8 +245,8 @@
     "reference": "Hướng dẫn cú pháp C# `int[,] matrix = new int[3, 3];` và gán giá trị qua chỉ số hàng/cột.",
     "response": "Để khai báo và gán giá trị cho mảng hai chiều trong C#, bạn có thể viết như sau:int[,] matrix = new int[3, 3];matrix[0, 0] = 1;matrix[0, 1] = 2;Mỗi chỉ số [hàng, cột] xác định vị trí của phần tử trong mảng.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Hướng dẫn cú pháp C# `int[,] matrix = new int[3, 3];` và gán giá trị qua chỉ số hàng/cột.",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang RAG (book_rag). Lấy cú pháp code từ tài liệu C# programming example and solutions."
+      "Khai báo và gán giá trị mảng 2 chiều trong C#: int[,] matrix = new int[3, 3]; gán giá trị matrix[0,0] = 1; matrix[0,1] = 2; truy xuất qua chỉ số [hàng, cột].",
+      "Định tuyến RAG lấy cú pháp code C# từ C# programming example and solutions."
     ]
   },
   {
@@ -255,8 +255,8 @@
     "reference": "Linear Search O(n) cho dữ liệu nhỏ/chưa sắp xếp, Binary Search O(log n) cho dữ liệu đã sắp xếp.",
     "response": "Một số thuật toán tìm kiếm phổ biến là:1. Linear Search (Tìm kiếm tuyến tính): Dễ hiểu, áp dụng cho mảng chưa sắp xếp.2. Binary Search (Tìm kiếm nhị phân): Rất nhanh O(log n) trên mảng đã được sắp xếp.3. BFS/DFS: Áp dụng cho đồ thị và mạng lưới.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Linear Search O(n) cho dữ liệu nhỏ/chưa sắp xếp, Binary Search O(log n) cho dữ liệu đã sắp xếp.",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang RAG (book_rag). Trích xuất Chapter 39 (Searching) từ Algorithms."
+      "Các thuật toán tìm kiếm phổ biến: Linear Search (tìm kiếm tuyến tính) độ phức tạp O(n) áp dụng cho mảng chưa sắp xếp; Binary Search (tìm kiếm nhị phân) độ phức tạp O(log n) áp dụng cho mảng đã sắp xếp; BFS/DFS trên đồ thị.",
+      "Định tuyến RAG trích xuất Chapter 39 Searching từ Algorithms Notes for Professionals."
     ]
   },
   {
@@ -265,8 +265,8 @@
     "reference": "Binary Search trong cơ sở dữ liệu (index), BFS trong ứng dụng bản đồ chỉ đường, thuật toán gợi ý eCommerce.",
     "response": "Trong thực tế, các thuật toán tìm kiếm được ứng dụng rất rộng rãi:- Binary Search dùng trong đánh chỉ mục (indexing) của cơ sở dữ liệu.- BFS/DFS dùng trong bản đồ chỉ đường (Google Maps) và tìm bạn bè mạng xã hội.- Search Trees dùng trong công cụ tìm kiếm và gợi ý sản phẩm.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Binary Search trong cơ sở dữ liệu (index), BFS trong ứng dụng bản đồ chỉ đường, thuật toán gợi ý eCommerce.",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang RAG (book_rag). Liên hệ ứng dụng thực tiễn giải thuật."
+      "Ứng dụng thuật toán tìm kiếm trong dự án thực tế: Binary Search dùng đánh chỉ mục database (B-Tree index); BFS/DFS dùng trong bản đồ chỉ đường Google Maps; Search Trees dùng trong công cụ tìm kiếm và hệ thống gợi ý sản phẩm.",
+      "Định tuyến RAG liên hệ ứng dụng tìm kiếm thực tế."
     ]
   },
   {
@@ -275,8 +275,8 @@
     "reference": "Quicksort O(n log n) cho tốc độ thực thi, Merge Sort O(n log n) cho tính ổn định, Bubble Sort cho nhập môn.",
     "response": "Các thuật toán sắp xếp phổ biến nhất gồm:- Quicksort: Nhanh, hiệu quả cao với dữ liệu lớn.- Merge Sort: Ổn định, thích hợp xử lý dữ liệu lớn hoặc song song.- Bubble Sort: Dễ hiểu, dùng cho mảng kích thước nhỏ.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Quicksort O(n log n) cho tốc độ thực thi, Merge Sort O(n log n) cho tính ổn định, Bubble Sort cho nhập môn.",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang RAG (book_rag). Trích xuất tổng quan các thuật toán sắp xếp."
+      "Thuật toán sắp xếp phổ biến: Quicksort O(n log n) tốc độ nhanh thực tế; Merge Sort O(n log n) tính ổn định cao; Bubble Sort O(n^2) dễ hiểu cho mảng nhỏ.",
+      "Định tuyến RAG trích xuất tổng quan các giải thuật sắp xếp."
     ]
   },
   {
@@ -285,8 +285,8 @@
     "reference": "Tốc độ thực thi trung bình O(n log n) cực nhanh, sắp xếp tại chỗ (in-place) không tốn bộ nhớ phụ.",
     "response": "Quicksort được ưu tiên vì có hệ số hằng số nhỏ, tốc độ chạy thực tế cực nhanh O(n log n) và là thuật toán sắp xếp tại chỗ (in-place), không đòi hỏi cấp phát bộ nhớ phụ như Merge Sort.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Tốc độ thực thi trung bình O(n log n) cực nhanh, sắp xếp tại chỗ (in-place) không tốn bộ nhớ phụ.",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang RAG (book_rag). Trích xuất ưu điểm của Quicksort từ Chapter 33 trong Algorithms."
+      "Quicksort được ưu tiên vì có tốc độ chạy thực tế cực nhanh O(n log n), hệ số hằng số nhỏ và là thuật toán sắp xếp tại chỗ (in-place) không đòi hỏi cấp phát thêm bộ nhớ phụ như Merge Sort.",
+      "Định tuyến RAG trích xuất Chapter 33 Quicksort từ Algorithms Notes for Professionals."
     ]
   },
   {
@@ -295,8 +295,8 @@
     "reference": "Giải thích cơ chế so sánh từng cặp kề nhau và đẩy phần tử lớn nhất nổi về cuối mảng.",
     "response": "Bubble Sort so sánh từng cặp phần tử lân cận và hoán đổi chúng nếu sai thứ tự. Sau mỗi lần duyệt qua danh sách, phần tử lớn nhất sẽ 'nổi' về cuối mảng. Quá trình lặp lại cho đến khi mảng được sắp xếp hoàn toàn.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Giải thích cơ chế so sánh từng cặp kề nhau và đẩy phần tử lớn nhất nổi về cuối mảng.",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang RAG (book_rag). Truy xuất tri thức chi tiết từ Chapter 29 (Bubble Sort) trong Algorithms."
+      "Thuật toán Bubble Sort (Sắp xếp nổi bọt) trong Chapter 29 so sánh từng cặp phần tử lân cận và hoán đổi nếu sai thứ tự. Sau mỗi lượt duyệt, phần tử lớn nhất sẽ nổi về cuối mảng.",
+      "Định tuyến RAG trích xuất chi tiết Chapter 29 Bubble Sort."
     ]
   },
   {
@@ -305,8 +305,8 @@
     "reference": "Cung cấp mẫu code C# hoàn chỉnh triển khai lớp `BubbleSort` với hàm `SortBubble(int[] input)`.",
     "response": "Chắc chắn rồi, dưới đây là ví dụ code C# cho Bubble Sort:public class BubbleSort {&nbsp;&nbsp;public static void SortBubble(int[] input) {&nbsp;&nbsp;&nbsp;&nbsp;for (var i = input.Length - 1; i >= 0; i--) {&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for (var j = 0; j &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (input[j] > input[j + 1]) {&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;var temp = input[j]; input[j] = input[j + 1]; input[j + 1] = temp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;}}",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Cung cấp mẫu code C# hoàn chỉnh triển khai lớp `BubbleSort` với hàm `SortBubble(int[] input)`.",
-      "Định tuyến & cơ chế xử lý: Duy trì ngữ cảnh hội thoại voice (Thread state memory), liên kết yêu cầu xin code C# với chủ đề Bubble Sort đang thảo luận ở lượt trước."
+      "Đoạn code C# mẫu cho Bubble Sort: triển khai lớp BubbleSort với hàm SortBubble(int[] input) dùng 2 vòng lặp for hoán đổi biến tạm temp khi input[j] > input[j+1].",
+      "Thread State Memory kế thừa ngữ cảnh xin code C# cho Bubble Sort."
     ]
   },
   {
@@ -315,8 +315,8 @@
     "reference": "Mối quan hệ giữa các đỉnh qua các cạnh (edges), kỹ thuật relaxation cập nhật đường đi ngắn nhất.",
     "response": "Edge relation trong đồ thị thể hiện mối quan hệ giữa các đỉnh (nodes) thông qua các cạnh (edges). Trong các thuật toán tìm đường như Dijkstra hay Bellman-Ford, kỹ thuật 'relax' cạnh giúp cập nhật khoảng cách ngắn nhất dựa trên trọng số cạnh.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Mối quan hệ giữa các đỉnh qua các cạnh (edges), kỹ thuật relaxation cập nhật đường đi ngắn nhất.",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang RAG (book_rag). Trích xuất tri thức Graph Theory trong Algorithms."
+      "Edge relation trong đồ thị thể hiện mối quan hệ giữa các đỉnh (nodes) thông qua các cạnh (edges). Trong các thuật toán tìm đường như Dijkstra hay Bellman-Ford, kỹ thuật 'relax' cạnh giúp cập nhật khoảng cách ngắn nhất dựa trên trọng số cạnh.",
+      "Định tuyến RAG trích xuất Graph Theory từ Algorithms Notes for Professionals."
     ]
   },
   {
@@ -325,8 +325,8 @@
     "reference": "Dijkstra duyệt các cạnh kề và cập nhật d[v] = d[u] + w(u,v) nếu tìm thấy đường đi ngắn hơn.",
     "response": "Thuật toán Dijkstra sử dụng edge relaxation để liên tục cập nhật khoảng cách ngắn nhất từ đỉnh nguồn đến đỉnh kề v: nếu d[u] + w(u,v) < d[v] thì gán d[v] = d[u] + w(u,v) và cập nhật hàng đợi ưu tiên.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Dijkstra duyệt các cạnh kề và cập nhật d[v] = d[u] + w(u,v) nếu tìm thấy đường đi ngắn hơn.",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang RAG (book_rag). Trích xuất thuật toán Dijkstra từ Chapter 27."
+      "Cơ chế Edge Relaxation trong Dijkstra: liên tục kiểm tra và cập nhật khoảng cách d[v] = d[u] + w(u,v) nếu tìm thấy đường đi từ nguồn qua đỉnh u đến v ngắn hơn khoảng cách d[v] hiện tại.",
+      "Định tuyến RAG trích xuất Chapter 27 Dijkstra Algorithm."
     ]
   },
   {
@@ -335,8 +335,8 @@
     "reference": "Ví dụ 3 đỉnh A, B, C với trọng số A->B=5, B->C=3 để tính khoảng cách A->C = 8.",
     "response": "Ví dụ đơn giản: Giả sử có 3 đỉnh A, B, C. Cạnh A→B nặng 5, cạnh B→C nặng 3. Ban đầu d[C] = ∞. Khi relax cạnh B→C, ta tính d[A] + 5 + 3 = 8 < ∞, nên gán khoảng cách ngắn nhất từ A đến C là 8.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Ví dụ 3 đỉnh A, B, C với trọng số A->B=5, B->C=3 để tính khoảng cách A->C = 8.",
-      "Định tuyến & cơ chế xử lý: LLM tạo ví dụ minh họa trực quan dựa trên nguyên lý giải thuật Dijkstra."
+      "Ví dụ đơn giản Edge Relaxation: Đồ thị 3 đỉnh A, B, C. Cạnh A->B nặng 5, B->C nặng 3. Ban đầu d[C]=infinity. Khi relax cạnh B->C, ta tính d[A]+5+3 = 8 < infinity, gán khoảng cách ngắn nhất A->C là 8.",
+      "LLM sinh ví dụ minh họa trực quan thuật toán Dijkstra."
     ]
   },
   {
@@ -345,8 +345,8 @@
     "reference": "Không tìm thấy thông tin trong sách, đề xuất tra cứu internet.",
     "response": "Hiện tại trong ngữ cảnh tài liệu chưa tìm thấy thông tin về 'Clean kill' trong C#. Bạn có muốn mình tra cứu thêm trên internet không?",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Không tìm thấy thông tin trong sách, đề xuất tra cứu internet.",
-      "Định tuyến & cơ chế xử lý: Kiểm tra ranh giới tri thức sách (book_context_not_found). Hệ thống chặn ảo giác và xin phép tra cứu web."
+      "Hiện tại trong tài liệu chưa có thông tin về thuật ngữ 'Clean kill' trong C#. Hệ thống nhận diện book_context_not_found, chặn ảo giác và xin phép người dùng tra cứu web.",
+      "Kiểm tra ranh giới tri thức book_context_not_found và xin phép tra cứu web."
     ]
   },
   {
@@ -355,8 +355,8 @@
     "reference": "Hàng đợi liên kết cấu tạo từ các Node có con trỏ trỏ đến Node tiếp theo.",
     "response": "Linked Queue là cấu trúc dữ liệu hàng đợi (Queue) được cài đặt bằng danh sách liên kết (Linked List). Mỗi phần tử là một Node chứa dữ liệu và con trỏ trỏ đến Node tiếp theo, giúp thêm/xóa phần tử O(1) linh hoạt.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Hàng đợi liên kết cấu tạo từ các Node có con trỏ trỏ đến Node tiếp theo.",
-      "Định tuyến & cơ chế xử lý: Phân loại ý định từ chối web và trả lời câu hỏi chuyên môn tiếp theo dựa trên tri thức C#."
+      "Linked Queue (Hàng đợi liên kết) trong C# là cấu trúc dữ liệu Queue cài đặt bằng danh sách liên kết (Linked List), mỗi phần tử là một Node chứa data và con trỏ trỏ đến Node tiếp theo, giúp thêm/xóa phần tử O(1).",
+      "Phân loại từ chối web và trả lời kiến thức Linked Queue C#."
     ]
   },
   {
@@ -365,8 +365,8 @@
     "reference": "Đệ quy là kỹ thuật hàm tự gọi lại chính nó với bài toán con nhỏ hơn cho đến khi đạt điều kiện dừng (base case).",
     "response": "Đệ quy (Recursion) là kỹ thuật trong đó một hàm tự gọi lại chính nó để giải quyết các bài toán con nhỏ hơn cùng loại, cho đến khi chạm điều kiện dừng (base case).",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Đệ quy là kỹ thuật hàm tự gọi lại chính nó với bài toán con nhỏ hơn cho đến khi đạt điều kiện dừng (base case).",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang RAG (book_rag). Trích xuất định nghĩa Recursion từ Algorithms Notes for Professionals."
+      "Đệ quy (Recursion) là kỹ thuật lập trình trong đó một hàm tự gọi lại chính nó để giải quyết các bài toán con nhỏ hơn cùng loại, cho đến khi đạt điều kiện dừng (base case).",
+      "Định tuyến RAG trích xuất định nghĩa Recursion từ Algorithms Notes for Professionals."
     ]
   },
   {
@@ -375,8 +375,8 @@
     "reference": "Tốn bộ nhớ Stack frames cho mỗi lần gọi, nếu không tối ưu dễ tràn bộ nhớ (StackOverflowException).",
     "response": "Đệ quy giúp code ngắn gọn và dễ hiểu cho các cấu trúc dạng cây/đồ thị. Tuy nhiên, nó tốn bộ nhớ Stack cho mỗi lần gọi hàm. Nếu độ sâu đệ quy quá lớn mà không tối ưu (như tail-call optimization), có thể gây tràn bộ nhớ Stack.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Tốn bộ nhớ Stack frames cho mỗi lần gọi, nếu không tối ưu dễ tràn bộ nhớ (StackOverflowException).",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang RAG (book_rag). Phân tích hiệu năng đệ quy và bộ nhớ."
+      "Đệ quy tốn bộ nhớ Stack frames cho mỗi lần gọi hàm. Nếu độ sâu đệ quy quá lớn mà không có điều kiện dừng hoặc tối ưu tail-recursion, có thể gây ra lỗi tràn bộ nhớ Stack (StackOverflowException).",
+      "Định tuyến RAG phân tích hiệu năng và rủi ro đệ quy."
     ]
   },
   {
@@ -385,8 +385,8 @@
     "reference": "Chuyển số thành chuỗi, hoán đổi ký tự index 0 và length-1, ép lại về số nguyên.",
     "response": "Để hoán đổi chữ số đầu và cuối trong C#, bạn có thể:1. Chuyển số thành chuỗi (`string s = num.ToString();`).2. Hoán đổi ký tự đầu `s[0]` và ký tự cuối `s[s.Length - 1]`.3. Ép chuỗi kết quả trở lại số nguyên (`int.Parse(...)`).",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Chuyển số thành chuỗi, hoán đổi ký tự index 0 và length-1, ép lại về số nguyên.",
-      "Định tuyến & cơ chế xử lý: Định tuyến sang RAG (book_rag). Lấy ví dụ thuật toán xử lý chuỗi/số từ tài liệu C# programming example and solutions."
+      "Hoán đổi chữ số đầu tiên và chữ số cuối cùng của số nguyên trong C#: chuyển số thành chuỗi s = num.ToString(); hoán đổi ký tự s[0] và s[s.Length-1]; ép chuỗi trở lại số int.Parse(...).",
+      "Định tuyến RAG trích xuất ví dụ xử lý chuỗi/số trong C#."
     ]
   },
   {
@@ -395,8 +395,8 @@
     "reference": "Tạo lộ trình 7 ngày từ Cấu trúc dữ liệu -> Sắp xếp -> Tìm kiếm -> Đệ quy -> Đồ thị -> Thực hành.",
     "response": "Dưới đây là lộ trình 7 ngày tiếp cận thuật toán nền tảng:1. Ngày 1: Mảng và Chuỗi.2. Ngày 2: Thuật toán sắp xếp cơ bản (Bubble, Insertion).3. Ngày 3: Thuật toán sắp xếp nâng cao (Quicksort, Merge sort).4. Ngày 4: Tìm kiếm nhị phân (Binary Search).5. Ngày 5: Đệ quy và Cấu trúc cây.6. Ngày 6: Đồ thị và thuật toán Dijkstra.7. Ngày 7: Ôn tập và giải bài tập C# tổng hợp.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Tạo lộ trình 7 ngày từ Cấu trúc dữ liệu -> Sắp xếp -> Tìm kiếm -> Đệ quy -> Đồ thị -> Thực hành.",
-      "Định tuyến & cơ chế xử lý: Sinh Lộ trình học tập thích ứng 7 ngày (Pareto Learning Plan) tùy biến theo nội dung phiên đàm thoại."
+      "Lộ trình 7 ngày tiếp cận thuật toán nền tảng: Ngày 1 Mảng & Chuỗi; Ngày 2 Sắp xếp cơ bản; Ngày 3 Quicksort/Merge sort; Ngày 4 Binary Search; Ngày 5 Đệ quy & Cây; Ngày 6 Đồ thị & Dijkstra; Ngày 7 Ôn tập & Bài tập C#.",
+      "Sinh Lộ trình học tập 7 ngày (Pareto Learning Plan) cá nhân hóa."
     ]
   },
   {
@@ -405,8 +405,8 @@
     "reference": "Chào đón người học và gợi ý các chủ đề: Đầu tư, Quản lý chi tiêu, Tiết kiệm.",
     "response": "Chắc chắn rồi, chúng ta có thể bắt đầu với những khái niệm tài chính cơ bản. Bạn muốn tìm hiểu về chủ đề nào trước: đầu tư, quản lý chi tiêu hay là tiết kiệm?",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Chào đón người học và gợi ý các chủ đề: Đầu tư, Quản lý chi tiêu, Tiết kiệm.",
-      "Định tuyến & cơ chế xử lý: Nhận diện ý định chào hỏi mở đầu đàm thoại (chitchat/introduction) và chủ động đưa ra các định hướng học tập phù hợp với Study Context."
+      "Chào đón người dùng học về tài chính cá nhân và định hướng 3 chủ đề nền tảng: Đầu tư, Quản lý chi tiêu, hoặc Tiết kiệm từ hai cuốn sách The Psychology of Money và Rich Dad Poor Dad.",
+      "Nhận diện chitchat/introduction và chủ động gợi ý chủ đề học tập."
     ]
   },
   {
@@ -415,8 +415,8 @@
     "reference": "Giải thích quan điểm truyền thống xem nhà là tài sản do niềm tin và cảm xúc, nhưng Kiyosaki lưu ý nhà ở gia đình cũng phát sinh chi phí duy trì.",
     "response": "Trong sách, tác giả đề cập rằng nhiều người coi ngôi nhà là tài sản lớn nhất do niềm tin và cảm xúc ổn định. Tuy nhiên, ông cũng nhấn mạnh rằng một ngôi nhà lớn có thể trở thành gánh nặng tài chính vì chi phí duy trì cao.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Giải thích quan điểm truyền thống xem nhà là tài sản do niềm tin và cảm xúc, nhưng Kiyosaki lưu ý nhà ở gia đình cũng phát sinh chi phí duy trì.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Trích xuất tri thức về tài sản và nhà ở trong Rich Dad Poor Dad."
+      "Nhiều người coi ngôi nhà là tài sản lớn nhất do niềm tin an cư và giá trị cảm xúc. Tuy nhiên, Robert Kiyosaki trong Rich Dad Poor Dad chỉ ra rằng ngôi nhà cá nhân cũng đòi hỏi chi phí bảo trì, thuế và nợ vay nên cần quản lý cẩn trọng.",
+      "Định tuyến RAG trích xuất quan điểm về nhà ở trong Rich Dad Poor Dad."
     ]
   },
   {
@@ -425,8 +425,8 @@
     "reference": "Phân tích chi phí thuế, bảo trì, nợ vay khiến nhà ở cá nhân không tạo ra dòng tiền dương.",
     "response": "Tôi hiểu quan điểm của bạn. Một ngôi nhà cá nhân đòi hỏi chi phí bảo trì, thuế bất động sản và trả nợ vay hàng tháng mà không tạo ra dòng tiền dương, nên nếu không quản lý tốt nó sẽ là một tiêu sản.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Phân tích chi phí thuế, bảo trì, nợ vay khiến nhà ở cá nhân không tạo ra dòng tiền dương.",
-      "Định tuyến & cơ chế xử lý: Phân tích phản biện ngữ cảnh và làm rõ khái niệm dòng tiền trong sách."
+      "Một ngôi nhà cá nhân đòi hỏi chi phí bảo trì, thuế bất động sản và trả nợ vay hàng tháng mà không tạo ra dòng tiền dương, do đó nếu không tạo ra thu nhập thì nó là một tiêu sản làm giảm tài sản tích lũy.",
+      "Phân tích phản biện ngữ cảnh và dòng tiền tiêu sản."
     ]
   },
   {
@@ -435,8 +435,8 @@
     "reference": "Trích 10-20% thu nhập tích lũy/đầu tư ngay khi nhận lương trước khi chi trả hóa đơn.",
     "response": "'Pay yourself first' nghĩa là bạn nên trích ngay một phần tiền (ví dụ 10%) cho bản thân để đầu tư tích lũy ngay khi nhận thu nhập, rồi mới chi trả cho các hóa đơn và sinh hoạt phí khác.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Trích 10-20% thu nhập tích lũy/đầu tư ngay khi nhận lương trước khi chi trả hóa đơn.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Trích xuất nguyên tắc quản lý tài chính kinh điển từ Rich Dad Poor Dad."
+      "Nguyên tắc 'Pay Yourself First' (Trả cho bản thân trước): trích ngay một phần thu nhập (ví dụ 10-20%) để đầu tư tích lũy tài sản ngay khi nhận lương, trước khi chi trả hóa đơn sinh hoạt khác.",
+      "Định tuyến RAG trích xuất nguyên tắc quản lý tài chính từ Rich Dad Poor Dad."
     ]
   },
   {
@@ -445,8 +445,8 @@
     "reference": "Tạo thói quen tích lũy tài sản sinh lời trước, ép bản thân kiểm soát chi tiêu phần còn lại.",
     "response": "Việc này giúp ưu tiên xây dựng cột tài sản trước. Khi trích tiền đầu tư ngay từ đầu, bạn buộc bản thân phải kiểm soát chi tiêu trong ngân sách còn lại, từ đó gia tăng tài sản tích lũy theo thời gian.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Tạo thói quen tích lũy tài sản sinh lời trước, ép bản thân kiểm soát chi tiêu phần còn lại.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Phân tích cơ chế tích lũy tài sản."
+      "'Trả cho bản thân trước' giúp xây dựng tự do tài chính vì nó ưu tiên tích lũy cột tài sản trước, đồng thời ép bản thân phải kỷ luật kiểm soát chi tiêu trong phần ngân sách còn lại.",
+      "Định tuyến RAG phân tích cơ chế tích lũy tài sản."
     ]
   },
   {
@@ -455,8 +455,8 @@
     "reference": "Cha nghèo: tư duy an toàn, làm việc vì lương; Cha giàu: tư duy đầu tư, xây dựng tài sản và dòng tiền.",
     "response": "Hai người cha đại diện cho hai tư duy tài chính đối lập:- Người cha nghèo: Coi trọng sự an toàn, làm việc vì lương và bằng cấp.- Người cha giàu: Tập trung vào học cách đầu tư, tạo tài sản và xây dựng nguồn thu nhập thụ động.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Cha nghèo: tư duy an toàn, làm việc vì lương; Cha giàu: tư duy đầu tư, xây dựng tài sản và dòng tiền.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Trích xuất chủ đề cốt lõi của tác phẩm Rich Dad Poor Dad."
+      "Hình ảnh hai người cha trong Rich Dad Poor Dad: Người cha nghèo đại diện cho tư duy an toàn, làm việc vì lương và bằng cấp; Người cha giàu đại diện cho tư duy đầu tư, xây dựng tài sản và tạo dòng tiền thụ động.",
+      "Định tuyến RAG trích xuất chủ đề tư tưởng hai người cha."
     ]
   },
   {
@@ -465,8 +465,8 @@
     "reference": "Chấp nhận rủi ro có tính toán và dành thời gian học hỏi kiến thức tài chính để đạt tự do lâu dài.",
     "response": "Người cha giàu chấp nhận rủi ro có tính toán và chấp nhận bỏ thời gian học hỏi vì ông hiểu rằng để đạt sự tự do tài chính lâu dài, cần phải dám đầu tư và chịu trách nhiệm với quyết định của mình.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Chấp nhận rủi ro có tính toán và dành thời gian học hỏi kiến thức tài chính để đạt tự do lâu dài.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Phân tích tư duy rủi ro trong đầu tư."
+      "Người cha giàu chấp nhận rủi ro có tính toán và dành thời gian học hỏi kiến thức tài chính vì ông hiểu rằng muốn đạt tự do tài chính lâu dài thì phải dám đầu tư và làm chủ dòng tiền.",
+      "Định tuyến RAG phân tích tư duy rủi ro đầu tư."
     ]
   },
   {
@@ -475,8 +475,8 @@
     "reference": "Hoàn toàn ổn nếu hài lòng với cuộc sống, quan trọng là hiểu rõ mục tiêu tài chính cá nhân.",
     "response": "Điều đó hoàn toàn ổn nếu bạn cảm thấy hạnh phúc và gia đình sống ổn định. Quan trọng là bạn hiểu rõ mục tiêu cá nhân và quản lý tài chính phù hợp với mong muốn của mình.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Hoàn toàn ổn nếu hài lòng với cuộc sống, quan trọng là hiểu rõ mục tiêu tài chính cá nhân.",
-      "Định tuyến & cơ chế xử lý: Trả lời tự nhiên, thấu hiểu tâm lý và không áp đặt góc nhìn."
+      "Lựa chọn phong cách sống an toàn có lương ổn định hoàn toàn ổn nếu bản thân cảm thấy hạnh phúc và gia đình sống tốt, quan trọng là thấu hiểu mục tiêu tài chính cá nhân.",
+      "Thấu hiểu tâm lý và trả lời tự nhiên không áp đặt."
     ]
   },
   {
@@ -485,8 +485,8 @@
     "reference": "Rich là thu nhập cao/chi tiêu phô trương; Wealth là tài sản tích lũy chưa tiêu mang lại tự do.",
     "response": "Theo sách 'The Psychology of Money', sự khác biệt là:- Rich (Làm giàu/Thu nhập cao): Hiển thị qua chi tiêu bên ngoài như xe sang, đồ hiệu.- Wealth (Giàu có/Tích lũy): Là tài sản chưa tiêu, mang lại sự tự do và lựa chọn trong tương lai.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Rich là thu nhập cao/chi tiêu phô trương; Wealth là tài sản tích lũy chưa tiêu mang lại tự do.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Trích xuất Chương 9 (Wealth is What You Don't See) của Morgan Housel."
+      "Trong The Psychology of Money (Chương 9): Rich (Làm giàu) là thu nhập hiện tại cao, hiển thị qua chi tiêu bên ngoài như xe sang, nhà rộng; Wealth (Giàu có) là tài sản chưa tiêu, mang lại tự do và sự lựa chọn cho tương lai.",
+      "Định tuyến RAG trích xuất Chương 9 Rich vs Wealth của Morgan Housel."
     ]
   },
   {
@@ -495,8 +495,8 @@
     "reference": "81.5 tỷ USD trong 84.5 tỷ USD tài sản của Buffett có được sau tuổi 65; chìa khóa là sự kiên trì đầu tư từ 10 tuổi.",
     "response": "Sức mạnh lãi kép thể hiện ở việc Warren Buffett bắt đầu đầu tư từ năm 10 tuổi và kiên trì suốt 80 năm. Hơn 99% tài sản của ông được tạo ra sau tuổi 50 nhờ yếu tố thời gian và sự tích lũy liên tục.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: 81.5 tỷ USD trong 84.5 tỷ USD tài sản của Buffett có được sau tuổi 65; chìa khóa là sự kiên trì đầu tư từ 10 tuổi.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Trích xuất Chương 4 (Confounding Compounding) trong The Psychology of Money."
+      "Sức mạnh Lãi kép (Compounding) ở Chương 4 The Psychology of Money: 81.5 tỷ USD trong 84.5 tỷ USD tài sản của Warren Buffett có được sau tuổi 65. Chìa khóa là bắt đầu đầu tư từ năm 10 tuổi và duy trì sự kiên nhẫn qua 80 năm.",
+      "Định tuyến RAG trích xuất Chương 4 Lãi kép Warren Buffett."
     ]
   },
   {
@@ -505,8 +505,8 @@
     "reference": "Tài sản bỏ tiền vào túi bạn; Tiêu sản rút tiền ra khỏi túi bạn.",
     "response": "Theo Robert Kiyosaki:- Tài sản (Assets): Là thứ cho tiền vào túi bạn (như cổ phiếu, bất động sản cho thuê).- Tiêu sản (Liabilities): Là thứ rút tiền ra khỏi túi bạn (như khoản nợ vay, xe cộ cá nhân).",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Tài sản bỏ tiền vào túi bạn; Tiêu sản rút tiền ra khỏi túi bạn.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Lấy tri thức định nghĩa tài sản/tiêu sản từ Rich Dad Poor Dad."
+      "Theo Robert Kiyosaki trong Rich Dad Poor Dad: Tài sản (Assets) là thứ bỏ tiền vào túi bạn (cổ phiếu, bất động sản cho thuê); Tiêu sản (Liabilities) là thứ rút tiền ra khỏi túi bạn (khoản nợ vay, xe cộ cá nhân).",
+      "Định tuyến RAG trích xuất định nghĩa Tài sản vs Tiêu sản."
     ]
   },
   {
@@ -515,8 +515,8 @@
     "reference": "Vòng làm việc -> kiếm tiền -> trả nợ -> hết tiền -> làm việc tiếp; thoát khỏi bằng cách mua tài sản sinh dòng tiền.",
     "response": "Vòng 'Rat Race' là cái bẫy khi bạn làm việc chăm chỉ để kiếm tiền, dùng tiền trả nợ/chi tiêu, rồi lại phải tiếp tục làm việc. Để thoát khỏi nó, bạn cần tích lũy tài sản tạo ra thu nhập thụ động.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Vòng làm việc -> kiếm tiền -> trả nợ -> hết tiền -> làm việc tiếp; thoát khỏi bằng cách mua tài sản sinh dòng tiền.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Trích xuất khái niệm Rat Race từ Chương 1 sách Rich Dad Poor Dad."
+      "Bẫy tài chính 'Rat Race' (Vòng luẩn quẩn) trong Rich Dad Poor Dad là trạng thái làm việc chăm chỉ kiếm tiền -> trả nợ/chi tiêu -> hết tiền -> lại tiếp tục làm việc. Thoát khỏi nó bằng cách mua tài sản sinh dòng tiền thụ động.",
+      "Định tuyến RAG trích xuất bẫy tài chính Rat Race ở Chương 1."
     ]
   },
   {
@@ -525,8 +525,8 @@
     "reference": "Công ty giúp kiếm tiền -> chi tiêu chi phí hợp lệ -> nộp thuế trên phần còn lại.",
     "response": "Người giàu thành lập tập đoàn/công ty vì cơ chế thuế ưu đãi: Công ty kiếm tiền, chi trả các chi phí hợp lệ trước, rồi mới nộp thuế trên phần lợi nhuận còn lại; trong khi cá nhân đi làm bị trừ thuế trước rồi mới chi tiêu.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Công ty giúp kiếm tiền -> chi tiêu chi phí hợp lệ -> nộp thuế trên phần còn lại.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Trích xuất tri thức bài học về thuế và công ty ở Chương 4 Rich Dad Poor Dad."
+      "Người giàu thành lập công ty/tập đoàn (Corporation) vì ưu đãi thuế: Công ty kiếm tiền -> chi trả chi phí hợp lệ trước -> nộp thuế trên lợi nhuận còn lại; cá nhân đi làm bị trừ thuế trước -> chi tiêu phần còn lại.",
+      "Định tuyến RAG trích xuất bài học thuế và tập đoàn ở Chương 4 Rich Dad Poor Dad."
     ]
   },
   {
@@ -535,8 +535,8 @@
     "reference": "Thảo luận về sự kỳ diệu của Lãi kép và việc để tiền làm việc cho bạn.",
     "response": "Chương 4 của 'The Psychology of Money' nói về sự kỳ diệu của Lãi kép và sức mạnh thời gian. Chương 4 của 'Rich Dad Poor Dad' nói về lịch sử thuế và sức mạnh của việc sở hữu công ty để bảo vệ tài sản.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Thảo luận về sự kỳ diệu của Lãi kép và việc để tiền làm việc cho bạn.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG liên tài liệu (Multi-book RAG). Tóm tắt chuẩn xác Chương 4 của cả 2 cuốn sách."
+      "Chương 4 của The Psychology of Money nói về sự kỳ diệu của Lãi kép và thời gian. Chương 4 của Rich Dad Poor Dad nói về lịch sử thuế và sức mạnh của việc sở hữu công ty để bảo vệ tài sản.",
+      "Định tuyến RAG liên tài liệu tóm tắt Chương 4 của 2 cuốn sách."
     ]
   },
   {
@@ -545,8 +545,8 @@
     "reference": "Phát hiện thông tin ngoài sách, thực thi hỏi xin quyền tìm kiếm web và trả về giá cổ phiếu Apple mới nhất.",
     "response": "Tôi cần tra cứu thông tin giá cổ phiếu mới nhất trên Internet. Bạn có cho phép tôi tìm kiếm web không?(Sau khi user đồng ý): Giá cổ phiếu của Apple (AAPL) hiện tại ở mức khoảng 224.50 USD.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Phát hiện thông tin ngoài sách, thực thi hỏi xin quyền tìm kiếm web và trả về giá cổ phiếu Apple mới nhất.",
-      "Định tuyến & cơ chế xử lý: Kiểm thử tính năng bảo mật tra cứu web (Web Search Security Guard). Chặn truy cập web tự phát, hỏi xin ý kiến và gọi Tavily Search khi được cho phép."
+      "Giá cổ phiếu Apple thời gian thực là thông tin ngoài sách. Hệ thống áp dụng Web Search Security Guard, xin quyền tra cứu internet và gọi Tavily Search trả về khoảng 224.50 USD.",
+      "Web Search Security Guard xin phép tra cứu web và trả về dữ liệu thời gian thực."
     ]
   },
   {
@@ -555,8 +555,8 @@
     "reference": "Xác nhận trung thực khái niệm Liquidity Mining (DeFi) không có trong hai cuốn sách.",
     "response": "Trong cả hai cuốn sách 'The Psychology of Money' và 'Rich Dad Poor Dad' đều không đề cập đến khái niệm 'Liquidity Mining' (đây là thuật ngữ trong tài chính phi tập trung DeFi).",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Xác nhận trung thực khái niệm Liquidity Mining (DeFi) không có trong hai cuốn sách.",
-      "Định tuyến & cơ chế xử lý: Kiểm tra ranh giới tri thức (book_context_not_found). Phản hồi trung thực ranh giới tri thức của tài liệu."
+      "Khái niệm Liquidity Mining (khai thác thanh khoản trong tài chính phi tập trung DeFi) không xuất hiện trong hai cuốn sách The Psychology of Money và Rich Dad Poor Dad.",
+      "Kiểm tra ranh giới tri thức book_context_not_found."
     ]
   },
   {
@@ -565,8 +565,8 @@
     "reference": "Luôn chừa khoảng trống cho sai số và rủi ro không lường trước để không bị loại khỏi cuộc chơi.",
     "response": "Tác giả khuyên bạn luôn phải có 'Biên an toàn' (Room for Error). Điều quan trọng nhất trong tài chính không phải là tối đa hóa lợi nhuận mà là đảm bảo bạn không bị loại khỏi cuộc chơi khi có sự cố bất ngờ xảy ra.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Luôn chừa khoảng trống cho sai số và rủi ro không lường trước để không bị loại khỏi cuộc chơi.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). Trích xuất chính xác tri thức về 'Biên an toàn' trong Chương 13 của Morgan Housel."
+      "Tác giả Morgan Housel ở Chương 13 khuyên nên luôn có 'Biên an toàn' (Margin of Safety / Room for Error) để dự phòng rủi ro không lường trước, giúp bạn không bị loại khỏi cuộc chơi khi có sự cố.",
+      "Định tuyến RAG trích xuất Chương 13 Biên an toàn từ Morgan Housel."
     ]
   },
   {
@@ -575,8 +575,8 @@
     "reference": "Đầu tư vào tri thức, kỹ năng bản thân và thói quen tiết kiệm/tích lũy nhỏ đều đặn.",
     "response": "Đối với người trẻ, khoản đầu tư tốt nhất là đầu tư vào bản thân: học hỏi kỹ năng mới, nâng cao tri thức tài chính và bắt đầu rèn luyện thói quen tiết kiệm, tích lũy nhỏ đều đặn từ sớm.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Đầu tư vào tri thức, kỹ năng bản thân và thói quen tiết kiệm/tích lũy nhỏ đều đặn.",
-      "Định tuyến & cơ chế xử lý: Định tuyến RAG (book_rag). LLM tư vấn định hướng đầu tư bản thân."
+      "Đối với người trẻ tuổi, khoản đầu tư tốt nhất là đầu tư vào tri thức, kỹ năng bản thân và rèn luyện thói quen tiết kiệm, tích lũy nhỏ đều đặn từ sớm.",
+      "Định tuyến RAG tư vấn đầu tư bản thân."
     ]
   },
   {
@@ -585,8 +585,8 @@
     "reference": "Tư duy tài sản/dòng tiền từ Kiyosaki + Sự kiên nhẫn, khiêm tốn và biên an toàn từ Housel.",
     "response": "Tổng kết lại:- Rich Dad Poor Dad dạy bạn thay đổi tư duy: mua tài sản thay vì tiêu sản và để tiền làm việc cho mình.- The Psychology of Money dạy bạn sự khiêm tốn, kiên nhẫn, tận dụng lãi kép và giữ biên an toàn.",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Tư duy tài sản/dòng tiền từ Kiyosaki + Sự kiên nhẫn, khiêm tốn và biên an toàn từ Housel.",
-      "Định tuyến & cơ chế xử lý: Tổng hợp tri thức liên tài liệu (Cross-document synthesis), trình bày tóm tắt bức tranh toàn cảnh của Context 3."
+      "Tổng kết bài học 2 cuốn sách: Rich Dad Poor Dad giúp thay đổi tư duy mua tài sản thay vì tiêu sản; The Psychology of Money giúp rèn luyện sự kiên nhẫn, tận dụng lãi kép và giữ biên an toàn.",
+      "Tổng hợp tri thức liên tài liệu Cross-document synthesis."
     ]
   },
   {
@@ -595,8 +595,8 @@
     "reference": "Đáp lễ thân thiện, chúc người học nghỉ ngơi và chào tạm biệt.",
     "response": "Không có gì, rất vui được hỗ trợ bạn. Chúc bạn áp dụng thành công các bài học tài chính này vào cuộc sống. Tạm biệt và hẹn gặp lại!",
     "contexts": [
-      "Nguồn ngữ cảnh & tri thức tài liệu: Đáp lễ thân thiện, chúc người học nghỉ ngơi và chào tạm biệt.",
-      "Định tuyến & cơ chế xử lý: Nhận diện lượt thoại chào kết thúc (closing chitchat/farewell), kết thúc phiên đàm thoại an toàn."
+      "Đáp lễ thân thiện, chúc người học áp dụng thành công các bài học tài chính vào cuộc sống và chào tạm biệt.",
+      "Nhận diện lượt thoại farewell kết thúc phiên an toàn."
     ]
   }
 ]
