@@ -265,7 +265,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
     <td style="padding: 8px;">Nhận diện ý định đồng ý (web_search_granted). Chạy tool tìm kiếm internet Tavily, nạp dữ liệu web và tổng hợp câu trả lời thành công.</td>
   </tr>
 
-  <!-- Header Ngữ cảnh 2 -->
+    <!-- Header Ngữ cảnh 2 -->
   <tr style="background-color: #d1e7dd; text-align: center;">
     <th colspan="2" style="padding: 10px; font-size: 16px; color: #0f5132;">Ngữ cảnh 2 (Tương ứng với 1 phiên trao đổi đa tài liệu cùng lĩnh vực CNTT)</th>
   </tr>
@@ -275,27 +275,27 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
     <td colspan="2" style="padding: 10px; line-height: 1.5; background-color: #f8f9fa;">
       <b>(Mô tả ngữ cảnh)</b><br>
       - 1 context gồm 2 tài liệu cùng ngành Công nghệ thông tin:<br>
-        1. <i>Algorithms Notes for Professionals</i>: Tài liệu chuyên sâu về cấu trúc dữ liệu, giải thuật (Big-O, Trees, Graphs, Sorting...).<br>
+        1. <i>Algorithms Notes for Professionals</i>: Tài liệu chuyên sâu về cấu trúc dữ liệu, giải thuật (Big-O, Trees, Graphs, Sorting, Searching...).<br>
         2. <i>C# programming example and solutions</i>: Tài liệu thực hành lập trình C# qua các ví dụ thực tế (switch-case, arrays, functions, LINQ...).<br>
-      - <b>Chủ đề ôn tập thống nhất</b>: Ôn tập về cấu trúc dữ liệu Mảng (Arrays), các giải thuật sắp xếp/tìm kiếm liên quan, và cách hiện thực, tối ưu hóa hiệu năng mảng trong ngôn ngữ C# (.NET).
+      - <b>Chủ đề ôn tập thống nhất</b>: Ôn tập về cấu trúc dữ liệu Mảng (Arrays), các giải thuật sắp xếp/tìm kiếm liên quan, cách hiện thực code C#, và định hướng lộ trình học tập thuật toán AI. Dữ liệu ghi nhận trực tiếp từ tệp log thực tế <code>log_live1.md</code>.
     </td>
   </tr>
 
   <!-- Q11 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q11: User hỏi "Tôi muốn học về mảng và các thuật toán sắp xếp"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q11: User hỏi "Tôi muốn học về mảng và các thuật toán sắp xếp."</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
-    <td style="padding: 8px;">học mảng và thuật toán sắp xếp trong C# và cấu trúc dữ liệu</td>
+    <td style="padding: 8px;">học mảng và các thuật toán sắp xếp (book_semantic_question)</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Chào đón người dùng và liệt kê chính xác tài liệu liên quan trong Study Context (C# có Topic 5 về mảng, Algorithms có các chương Sorting từ 28-38).</td>
+    <td style="padding: 8px;">Giới thiệu tổng quan về thuật toán sắp xếp trên mảng (Quicksort, Merge Sort, Bubble Sort...) và định hướng bắt đầu.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Chào bạn! Ôn tập về mảng và các giải thuật sắp xếp là một lựa chọn rất tốt để nắm vững nền tảng. Hiện tại trong Study Context của bạn có tài liệu 'C# programming example and solutions' (Topic 5 hướng dẫn thực hành về mảng) và tài liệu 'Algorithms Notes for Professionals' (dành riêng các Chapter từ 28 đến 38 để nói về các giải thuật Sorting). Bạn muốn bắt đầu từ lý thuyết giải thuật hay thực hành viết code C# trước?</td>
+    <td style="padding: 8px;">Thuật toán sắp xếp là quá trình sắp thứ tự các phần tử trong một chuỗi hoặc mảng. Có nhiều thuật toán sắp xếp, ví dụ như <b>Quicksort</b>, <b>Merge Sort</b>, <b>Bubble Sort</b>. Mỗi thuật toán có cách hoạt động khác nhau và phù hợp với các loại dữ liệu khác nhau.<br><br>Bạn muốn tìm hiểu cụ thể về thuật toán nào trước?</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -303,24 +303,24 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Lý do</td>
-    <td style="padding: 8px;">Nhận diện ý định chào hỏi (chitchat) kết hợp truy xuất metadata danh sách tài liệu hiện có trong context để phản hồi thân thiện và chính xác.</td>
+    <td style="padding: 8px;">Định tuyến sang RAG (book_rag, semantic_rag_fallback). Hybrid Search + Cohere Reranker v2 trích xuất đúng các chunk tổng quan về Sorting từ tài liệu <i>Algorithms Notes for Professionals</i>.</td>
   </tr>
 
   <!-- Q12 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q12: User hỏi "Nói về độ phức tạp thời gian đối với dữ liệu mảng"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q12: User hỏi "Nói về đó phức tạp dữ liệu đi." (Phát âm giọng nói: "Nói về độ phức tạp dữ liệu đi")</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
-    <td style="padding: 8px;">độ phức tạp thời gian của mảng trong Algorithms</td>
+    <td style="padding: 8px;">độ phức tạp của thuật toán sắp xếp dữ liệu (book_semantic_question)</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Giải thích độ phức tạp của mảng: truy cập phần tử qua chỉ mục là O(1), tìm kiếm tuyến tính O(n), chèn/xóa O(n).</td>
+    <td style="padding: 8px;">Trình bày độ phức tạp thời gian Big-O của các giải thuật sắp xếp (O(n²) cho Bubble Sort, O(n log n) cho Quicksort).</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Theo tài liệu Algorithms Notes for Professionals, mảng có các độ phức tạp thời gian như sau: Truy cập phần tử thông qua chỉ mục (Access) là O(1) do dữ liệu được lưu trữ liên tục trên bộ nhớ; Tìm kiếm tuyến tính (Search), Chèn phần tử (Insertion) và Xóa phần tử (Deletion) ở vị trí bất kỳ đều mất độ phức tạp O(n) trong trường hợp xấu nhất vì phải dịch chuyển các phần tử còn lại.</td>
+    <td style="padding: 8px;">Độ phức tạp của thuật toán sắp xếp phụ thuộc vào thuật toán cụ thể. Ví dụ:<br><br>1. <b>Bubble Sort</b>: O(n²) trong trường hợp xấu nhất.<br>2. <b>Quicksort</b>: O(n log n) trong trường hợp trung bình.<br><br>Bạn muốn tìm hiểu cụ thể về thuật toán nào không?</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -328,24 +328,24 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Lý do</td>
-    <td style="padding: 8px;">Định tuyến sang RAG (book_rag). Hệ thống thực hiện Hybrid Search lấy ra các chunk tri thức giới thiệu thuật toán mảng từ tài liệu Algorithms và Cohere Reranker xếp hạng cao nhất.</td>
+    <td style="padding: 8px;">Định tuyến sang RAG (book_rag). Hệ thống xử lý thành công câu hỏi bị nhận diện lệch nhẹ âm STT ("đó phức tạp" -> "độ phức tạp"), tìm kiếm tri thức độ phức tạp trong sách <i>Algorithms</i>.</td>
   </tr>
 
   <!-- Q13 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q13: User hỏi "Làm sao khai báo và gán trị mảng hai chìu trong C-sáp vậy"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q13: User hỏi "Nói về khai báo và gán giá trị cho mảng hai chiều trong C#."</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
-    <td style="padding: 8px;">khai báo và gán giá trị mảng hai chiều trong C#</td>
+    <td style="padding: 8px;">khai báo và gán giá trị mảng hai chiều trong C# (book_semantic_question)</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Hướng dẫn khai báo mảng 2 chiều trong C# (Topic 5): `int[,] array = new int[rows, cols];` kết hợp khởi tạo giá trị.</td>
+    <td style="padding: 8px;">Hướng dẫn khai báo mảng 2 chiều (<code>int[,] matrix = new int[3, 3];</code>) và gán chỉ số phần tử trong C#.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Trong C# (Topic 5 của tài liệu), để khai báo và gán giá trị cho mảng hai chiều, bạn dùng dấu phẩy trong ngoặc vuông. Ví dụ khai báo mảng số nguyên gồm 2 hàng và 3 cột: `int[,] matrix = new int[2, 3] { {1, 2, 3}, {4, 5, 6} };` hoặc có thể viết ngắn gọn là: `int[,] matrix = { {1, 2, 3}, {4, 5, 6} };`.</td>
+    <td style="padding: 8px;">Để khai báo và gán giá trị cho mảng hai chiều trong C#, bạn có thể làm như sau:<br><br><b>Ví dụ:</b><br><code>int[,] matrix = new int[3, 3];<br>// Gán giá trị<br>matrix[0, 0] = 1;<br>matrix[0, 1] = 2;<br>// ...</code><br><br>Mỗi chỉ số sẽ xác định vị trí của phần tử trong mảng hai chiều.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -353,24 +353,24 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Lý do</td>
-    <td style="padding: 8px;">Định tuyến sang RAG (book_rag). Dù người dùng gõ sai chính tả ("chìu" -> "chiều", "C-sáp" -> "C#"), hệ thống nhờ cơ chế chuẩn hóa từ khóa và tìm kiếm lai vẫn nhận diện chính xác tri thức cần tìm là mảng 2 chiều trong tài liệu C# programming.</td>
+    <td style="padding: 8px;">Định tuyến sang RAG (book_rag). Tìm kiếm lai tri thức lập trình C# từ tài liệu <i>C# programming example and solutions</i> (Topic 5 & Topic 10), trả về cú pháp code chính xác.</td>
   </tr>
 
   <!-- Q14 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q14: User hỏi "Nói về thuật toán sắp xếp mảng đi"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q14: User hỏi "Rồi ok ok, tôi thấy có chương 29 nói về bubble sort á, thảo luận về nó đi."</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
-    <td style="padding: 8px;">các thuật toán sắp xếp mảng trong Algorithms</td>
+    <td style="padding: 8px;">thảo luận nguyên lý hoạt động của thuật toán Bubble Sort trong chương 29 (book_semantic_question)</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Liệt kê các giải thuật sắp xếp (Bubble Sort Chapter 29, Merge Sort Chapter 30, Quicksort Chapter 33, Selection Sort Chapter 38).</td>
+    <td style="padding: 8px;">Giải thích nguyên lý sắp xếp nổi bọt (Bubble Sort): so sánh từng cặp kề nhau, đẩy phần tử lớn nhất nổi về cuối mảng.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Tài liệu Algorithms Notes for Professionals dành riêng các Chapter từ 28 đến 38 để nói về các giải thuật sắp xếp mảng. Các thuật toán phổ biến bao gồm: Bubble Sort (Chapter 29), Merge Sort (Chapter 30), Quicksort (Chapter 33), và Selection Sort (Chapter 38)... Bạn có muốn đi sâu vào giải thuật nào không?</td>
+    <td style="padding: 8px;">Được, chúng ta hãy xem qua cách hoạt động của thuật toán Bubble Sort.<br><br><b>Bubble Sort</b> so sánh từng cặp phần tử lân cận và hoán đổi chúng nếu cần thiết. Sau mỗi lần duyệt qua danh sách, phần tử lớn nhất sẽ "nổi" lên cuối danh sách. Thuật toán lặp lại cho đến khi không còn cặp nào cần hoán đổi.<br><br>Bạn có muốn xem chi tiết mã C# nữa không?</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -378,24 +378,24 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Lý do</td>
-    <td style="padding: 8px;">Định tuyến sang RAG (book_rag). Tìm kiếm lai lấy ra các chunk giới thiệu giải thuật Sorting từ tài liệu Algorithms, Cohere Reranker xếp hạng chính xác.</td>
+    <td style="padding: 8px;">Định tuyến sang RAG (book_rag). Truy xuất tri thức chi tiết từ Chapter 29 (Bubble Sort) trong tài liệu <i>Algorithms Notes for Professionals</i>.</td>
   </tr>
 
   <!-- Q15 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q15: User trả lời "Tôi thấy chương 29 nói về Bubble Sort, tôi muốn thảo luận rõ hơn về nó"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q15: User hỏi "À, ok, có cốt không, có cốt không?" (Có code không)</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
-    <td style="padding: 8px;">Tóm tắt chương 29 Bubble Sort trong sách Algorithms Notes for Professionals</td>
+    <td style="padding: 8px;">cung cấp đoạn code hiện thực Bubble Sort bằng ngôn ngữ C# (book_semantic_question)</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Tóm tắt chi tiết Chapter 29 về Bubble Sort (hoạt động bằng cách hoán đổi các phần tử kề nhau, độ phức tạp trung bình O(n^2)).</td>
+    <td style="padding: 8px;">Cung cấp mẫu code C# hoàn chỉnh triển khai lớp <code>BubbleSort</code> với hàm <code>SortBubble(int[] input)</code>.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Chương 29 tóm tắt về Bubble Sort (Sắp xếp nổi bọt). Thuật toán hoạt động bằng cách liên tục duyệt qua mảng, so sánh các cặp phần tử kề nhau và hoán đổi chúng nếu chúng sai thứ tự. Quá trình này lặp lại cho đến khi không cần hoán đổi nữa. Độ phức tạp thời gian trung bình và tệ nhất là O(n^2), tốt nhất là O(n) nếu mảng đã sắp xếp sẵn.</td>
+    <td style="padding: 8px;">Chắc chắn rồi, dưới đây là một ví dụ về code C# cho thuật toán Bubble Sort:<br><br><code>public class BubbleSort {<br>&nbsp;&nbsp;public static void SortBubble(int[] input) {<br>&nbsp;&nbsp;&nbsp;&nbsp;for (var i = input.Length - 1; i >= 0; i--) {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for (var j = input.Length - 1 - 1; j >= 0; j--) {<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (input[j] <= input[j + 1]) continue;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;var temp = input[j + 1];<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;input[j + 1] = input[j];<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;input[j] = temp;<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;&nbsp;&nbsp;}<br>&nbsp;&nbsp;}<br><br>&nbsp;&nbsp;public static int[] Main(int[] input) {<br>&nbsp;&nbsp;&nbsp;&nbsp;SortBubble(input);<br>&nbsp;&nbsp;&nbsp;&nbsp;return input;<br>&nbsp;&nbsp;}<br>}</code><br><br>Bạn có thể thử chạy đoạn mã này trên một mảng số và xem kết quả.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -403,24 +403,24 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Lý do</td>
-    <td style="padding: 8px;">Định tuyến trực tiếp đến nguồn ngữ cảnh chương (book_section) nhờ phân giải chính xác ID chương 29, nạp toàn bộ nội dung chương thay vì chạy RAG thô.</td>
+    <td style="padding: 8px;">Duy trì ngữ cảnh hội thoại voice (Thread state memory), liên kết yêu cầu xin code C# với chủ đề Bubble Sort đang thảo luận ở lượt trước, trả về code C# chuẩn xác.</td>
   </tr>
 
   <!-- Q16 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q16: User hỏi "Tiếp theo nói về chương giải thuật tìm kiếm đi"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q16: User hỏi "Nói về các thuật toán tìm kiếm phổ biến trong C#."</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
-    <td style="padding: 8px;">tóm tắt chương giải thuật tìm kiếm</td>
+    <td style="padding: 8px;">tổng quan các thuật toán tìm kiếm tuyến tính và nhị phân trong C# (book_semantic_question)</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Yêu cầu người dùng làm rõ xem muốn tóm tắt chương tìm kiếm nhị phân trong sách cấu trúc dữ liệu hay tìm kiếm trong sách lập trình C#.</td>
+    <td style="padding: 8px;">Giới thiệu 2 thuật toán tìm kiếm phổ biến trong C#: Linear Search O(n) và Binary Search O(log n).</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Hiện tại cả hai cuốn sách của bạn đều có nội dung về tìm kiếm (sách Algorithms có Chapter 39 nói về Searching, sách C# cũng có phần tìm kiếm). Bạn muốn tôi tóm tắt chương giải thuật tìm kiếm trong tài liệu cấu trúc dữ liệu hay tìm kiếm trong tài liệu lập trình C#?</td>
+    <td style="padding: 8px;">Dạ, trong C#, các thuật toán tìm kiếm phổ biến có:<br><br>1. <b>Linear Search (tìm kiếm tuyến tính)</b>: Dò qua từng phần tử cho đến khi tìm thấy hoặc hết danh sách. Độ phức tạp O(n).<br><br>2. <b>Binary Search (tìm kiếm nhị phân)</b>: Chỉ áp dụng trên danh sách đã sắp xếp. Phân nửa để tìm kiếm với độ phức tạp O(log n).<br><br>Bạn muốn tìm hiểu chi tiết về thuật toán nào trước?</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -428,24 +428,24 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Lý do</td>
-    <td style="padding: 8px;">Guard Rule chặn yêu cầu summary thiếu số hiệu chương cụ thể và bị mơ hồ giữa hai tài liệu, bẻ hướng định tuyến sang intent clarification_required để yêu cầu làm rõ.</td>
+    <td style="padding: 8px;">Định tuyến sang RAG (book_rag). Tìm kiếm tri thức về Searching (Chapter 39 trong <i>Algorithms</i> và ví dụ C#), phân tích điểm khác biệt về độ phức tạp.</td>
   </tr>
 
   <!-- Q17 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q17: User trả lời "Tôi định hướng theo AI vậy phải học các thuật toán nào nền tảng"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q17: User hỏi "Bây giờ tôi muốn định hướng về theo AI. Như vậy thì tôi muốn học thuật toán thì tôi học cái nào để lấy được nền tảng đây?"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
-    <td style="padding: 8px;">thuật toán nền tảng AI lộ trình học tập</td>
+    <td style="padding: 8px;">định hướng học các thuật toán nền tảng để theo ngành AI (book_semantic_question)</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Nhận diện câu hỏi ngoài phạm vi tri thức sách hiện tại (parametric warning), đưa ra cảnh báo giới hạn tri thức sách và hỏi xin quyền tìm kiếm web.</td>
+    <td style="padding: 8px;">Đưa ra tư vấn các nhóm thuật toán nền tảng: Tìm kiếm, Sắp xếp, Cây quyết định và Hồi quy.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Các thuật toán nền tảng cho AI như Gradient Descent, Backpropagation, hay các mạng Neural Network hiện tại không nằm trong hai cuốn sách trong Study Context của bạn (vốn chỉ nói về thuật toán mảng, cấu trúc dữ liệu cơ bản và C#). Để theo học AI, bạn nên nắm vững Toán (Đại số tuyến tính, Xác suất) và Học máy. Bạn có muốn tôi tìm kiếm lộ trình chi tiết từ internet không?</td>
+    <td style="padding: 8px;">Để xây dựng nền tảng về AI, bạn nên tập trung vào các thuật toán cơ bản như:<br><br>1. Tìm kiếm (Search algorithms)<br>2. Sắp xếp (Sorting algorithms)<br>3. Gần đây, học thêm về cây quyết định (decision trees) và hồi quy (regression).<br><br>Những kiến thức này sẽ giúp bạn hiểu rõ hơn về các mô hình AI.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -453,24 +453,24 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Lý do</td>
-    <td style="padding: 8px;">Nhận diện ý định hỏi câu mới bất ngờ và hủy trạng thái chờ làm rõ trước đó. Định tuyến sang policy (external_current_info) do câu hỏi yêu cầu tri thức ngoài sách, thực thi cảnh báo giới hạn tri thức và hỏi xin quyền tìm kiếm web.</td>
+    <td style="padding: 8px;">Định tuyến sang RAG (book_rag). Kết hợp tri thức giải thuật tìm kiếm/sắp xếp trong sách để định hướng lộ trình nhập môn Trí tuệ nhân tạo.</td>
   </tr>
 
   <!-- Q18 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q18: User trả lời "Đồng ý, hãy tra cứu giúp tôi"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q18: User hỏi "Ok, bạn có gợi ý trình nào để tôi học AI không?"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
-    <td style="padding: 8px;">đồng ý tìm kiếm web</td>
+    <td style="padding: 8px;">gợi ý tài liệu và khóa học học AI (book_semantic_question)</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Gọi Tavily Search để tìm kiếm các thuật toán AI nền tảng và lộ trình học tập, sau đó tổng hợp câu trả lời.</td>
+    <td style="padding: 8px;">Gợi ý các cuốn sách kinh điển (Deep Learning - Ian Goodfellow, Pattern Recognition - Bishop) và các nền tảng (Coursera, edX).</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Theo kết quả tìm kiếm internet, các thuật toán nền tảng cho AI bao gồm: Hồi quy tuyến tính (Linear Regression), Hồi quy logistic, Cây quyết định (Decision Trees), và đặc biệt là giải thuật Lan truyền ngược (Backpropagation) trong mạng nơ-ron để cập nhật trọng số. Lộ trình học nên bắt đầu từ học máy truyền thống trước khi tiến lên học sâu (Deep Learning)...</td>
+    <td style="padding: 8px;">Tất nhiên, bạn có thể bắt đầu với một vài quyển sách như “Deep Learning” của Ian Goodfellow hoặc “Pattern Recognition and Machine Learning” của Bishop. Ngoài ra, các khoá học online như Coursera, edX cũng rất hữu ích. Bạn có muốn tìm hiểu thêm về khóa học nào không?</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -478,24 +478,24 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Lý do</td>
-    <td style="padding: 8px;">Định tuyến sang web_search (web_search_granted). Chạy công cụ tìm kiếm web Tavily, lấy kết quả thời gian thực và tổng hợp câu trả lời thành công.</td>
+    <td style="padding: 8px;">Tư vấn tài liệu tham khảo nâng cao và khóa học mở rộng dựa trên bộ tri thức nền tảng của mô hình.</td>
   </tr>
 
   <!-- Q19 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q19: User hỏi "Hiện nay 2026 các mô hình AI ngôn ngữ lớn nào đang được đánh giá mạnh nhất trên thế giới?"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q19: User hỏi "Cho tôi lộ trình học trong 7 ngày đi, tiếp cận từ từ với các thuật toán nền tảng."</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
-    <td style="padding: 8px;">mô hình ngôn ngữ lớn LLM mạnh nhất năm 2026</td>
+    <td style="padding: 8px;">xây dựng lộ trình học tập 7 ngày tiếp cận các thuật toán nền tảng (book_semantic_question)</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Nhận diện câu hỏi thông tin thời gian thực năm 2026 ngoài sách, yêu cầu tra cứu internet và hỏi xin quyền tìm kiếm web.</td>
+    <td style="padding: 8px;">Lập danh mục lộ trình 7 ngày từ Cấu trúc dữ liệu -> Sắp xếp -> Tìm kiếm -> Đệ quy -> Cây quyết định -> Dự đoán -> Thực hành.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Để cập nhật thông tin về các mô hình ngôn ngữ lớn (LLM) mạnh nhất thế giới tính đến năm 2026, tôi cần tìm kiếm trên internet. Bạn có cho phép tôi tra cứu web không?</td>
+    <td style="padding: 8px;">Vâng, tôi nghe được bạn. Bạn muốn lên một lộ trình học trong 7 ngày, tập trung vào các thuật toán nền tảng. Chúng ta có thể bắt đầu với các bước sau:<br><br>1. Ngày đầu: Hiểu về các cấu trúc dữ liệu cơ bản.<br>2. Ngày thứ hai: Tìm hiểu thuật toán sắp xếp đơn giản (như Bubble Sort, Insertion Sort).<br>3. Ngày thứ ba: Làm quen với thuật toán tìm kiếm (Linear Search, Binary Search).<br>4. Ngày thứ tư: Bắt đầu với đệ quy (Recursion) và các ứng dụng.<br>5. Ngày thứ năm: Tìm hiểu cây quyết định (Decision Trees) cơ bản.<br>6. Ngày thứ sáu: Ứng dụng thuật toán vào dự đoán.<br>7. Ngày cuối: Ôn tập và làm bài tập thực hành.<br><br>Bạn thấy hướng đi này ổn không?</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -503,24 +503,24 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Lý do</td>
-    <td style="padding: 8px;">Định tuyến sang policy (external_current_info). Hệ thống phát hiện thông tin thời gian thực ngoài sách, thực thi chính sách chặn Web và hỏi xin ý kiến người dùng.</td>
+    <td style="padding: 8px;">Lập lộ trình học tập thích ứng 7 ngày (Pareto Learning Plan) được cá nhân hóa dựa trên tiến trình đàm thoại thực tế trong phiên.</td>
   </tr>
 
   <!-- Q20 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q20: User trả lời "Không cần đâu, chỉ cần giới thiệu sơ qua dựa trên những gì bạn biết thôi"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q20: User trả lời "Ok cảm ơn."</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
-    <td style="padding: 8px;">không đồng ý tìm kiếm web</td>
+    <td style="padding: 8px;">lời cảm ơn kết thúc lượt trao đổi (closing_chitchat)</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Từ chối tìm web và chỉ dùng Parametric Memory của LLM để trả lời sơ qua về các mô hình lớn như GPT-4, Claude 3 hay Gemini 1.5.</td>
+    <td style="padding: 8px;">Phản hồi đáp lễ thân thiện và sẵn sàng hỗ trợ tiếp.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Đồng ý, tôi sẽ không thực hiện tìm kiếm web. Dựa trên tri thức sẵn có, các mô hình ngôn ngữ lớn hàng đầu bao gồm dòng GPT-4 của OpenAI, Claude 3 của Anthropic và Gemini 1.5 của Google. Các mô hình này đều hỗ trợ xử lý đa phương thức (multimodal) và có khả năng lập trình, suy luận logic rất mạnh mẽ.</td>
+    <td style="padding: 8px;">Không có gì, mình rất sẵn lòng hỗ trợ. Nếu bạn cần thêm bất kỳ gợi ý nào, cứ nói nhé. Chúc bạn học tốt!</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -528,10 +528,10 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Lý do</td>
-    <td style="padding: 8px;">Phân loại ý định từ chối (web_search_denied) chuẩn xác, đóng luồng web và trả lời dựa trên tri thức nội bộ của mô hình.</td>
+    <td style="padding: 8px;">Nhận diện lượt thoại chào kết thúc (closing chitchat), phản hồi tự nhiên và kết thúc phiên làm việc trôi chảy.</td>
   </tr>
 
-  <!-- Header Ngữ cảnh 3 -->
+<!-- Header Ngữ cảnh 3 -->
   <tr style="background-color: #d1e7dd; text-align: center;">
     <th colspan="2" style="padding: 10px; font-size: 16px; color: #0f5132;">Ngữ cảnh 3 (Đàm thoại Đa tài liệu chéo miền, kiểm thử bảo mật Web nâng cao và máy trạng thái nâng cao)</th>
   </tr>
@@ -540,10 +540,10 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   <tr>
     <td colspan="2" style="padding: 10px; line-height: 1.5; background-color: #f8f9fa;">
       <b>(Mô tả ngữ cảnh)</b><br>
-      - 1 context gồm 2 tài liệu ngoài kỹ thuật thuộc lĩnh vực Tài chính & Đầu tư:<br>
-        1. <i>The Intelligent Investor</i>: Cuốn sách kinh điển về đầu tư giá trị của Benjamin Graham.<br>
-        2. <i>Rich Dad Poor Dad</i>: Cuốn sách rèn luyện tư duy dòng tiền và tài sản của Robert Kiyosaki.<br>
-      - <b>Chủ đề ôn tập thống nhất</b>: Lý thuyết đầu tư giá trị phòng thủ, xây dựng tài sản cá nhân và đối soát tri thức tĩnh với thông tin thị trường thời gian thực năm 2026.
+      - 1 context gồm 2 tài liệu ngoài kỹ thuật thuộc lĩnh vực Tài chính & Quản lý tiền bạc:<br>
+        1. <i>The Psychology of Money</i>: Cuốn sách nổi tiếng về tâm lý học hành vi đối với tiền bạc, tự do tài chính và lãi kép của Morgan Housel.<br>
+        2. <i>Rich Dad Poor Dad</i>: Cuốn sách rèn luyện tư duy dòng tiền, phân biệt tài sản/tiêu sản và sức mạnh của tập đoàn của Robert Kiyosaki.<br>
+      - <b>Chủ đề ôn tập thống nhất</b>: Tâm lý tài chính cá nhân, quản lý tài sản, tư duy dòng tiền và đối soát tri thức tĩnh với thông tin thị trường thời gian thực năm 2026.
     </td>
   </tr>
 
@@ -553,15 +553,15 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
-    <td style="padding: 8px;">học về tài chính</td>
+    <td style="padding: 8px;">học về tài chính và quản lý tiền bạc</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Chào đón người dùng và liệt kê chính xác danh sách sách tài chính có sẵn trong Study Context (The Intelligent Investor và Rich Dad Poor Dad).</td>
+    <td style="padding: 8px;">Chào đón người dùng và liệt kê chính xác danh sách sách tài chính có sẵn trong Study Context (The Psychology of Money và Rich Dad Poor Dad).</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Chào bạn! Ôn tập về tài chính và tư duy đầu tư là lựa chọn rất tuyệt vời. Hiện tại trong Study Context của bạn có tài liệu 'The Intelligent Investor' của Benjamin Graham và 'Rich Dad Poor Dad' của Robert Kiyosaki. Bạn muốn đi sâu vào lý thuyết đầu tư giá trị hay tư duy tài sản trước?</td>
+    <td style="padding: 8px;">Chào bạn! Ôn tập về tài chính và tâm lý tiền bạc là lựa chọn rất tuyệt vời. Hiện tại trong Study Context của bạn có tài liệu 'The Psychology of Money' của Morgan Housel và 'Rich Dad Poor Dad' của Robert Kiyosaki. Bạn muốn đi sâu vào tâm lý tài chính cá nhân hay tư duy quản lý dòng tiền trước?</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -574,19 +574,19 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
 
   <!-- Q22 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q22: User hỏi "Biên độ an toàn là gì"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q22: User hỏi "Làm giàu và giữ giàu khác nhau thế nào trong sách Tâm lý học về tiền"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
-    <td style="padding: 8px;">biên độ an toàn là gì</td>
+    <td style="padding: 8px;">sự khác biệt giữa làm giàu và giữ giàu trong The Psychology of Money</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">RAG truy xuất sách The Intelligent Investor và giải thích nguyên tắc biên độ an toàn (Margin of Safety) của Benjamin Graham.</td>
+    <td style="padding: 8px;">RAG truy xuất sách The Psychology of Money (Chương 5) và giải thích nguyên tắc 'Getting Wealthy vs. Staying Wealthy'.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Theo sách The Intelligent Investor, biên độ an toàn (Margin of Safety) là khoảng chênh lệch giữa giá trị nội tại thực tế của một cổ phiếu và giá thị trường hiện tại của nó. Graham khuyên chỉ nên mua khi giá thị trường thấp hơn đáng kể so với giá trị nội tại để hạn chế tối đa rủi ro thua lỗ khi thị trường biến động.</td>
+    <td style="padding: 8px;">Theo sách The Psychology of Money (Chương 5), 'Làm giàu' (Getting Wealthy) đòi hỏi bạn phải chấp nhận rủi ro, giữ sự lạc quan và hành động dũng cảm. Ngược lại, 'Giữ giàu' (Staying Wealthy) lại đòi hỏi điều hoàn toàn trái ngược: sự khiêm tốn, tính tiết kiệm và nỗi sợ hãi chừng mực rằng những gì bạn kiếm được có thể bị tước đi bất cứ lúc nào. Nhiều người làm giàu thành công nhưng thất bại ở khâu giữ giàu vì áp dụng sai tâm lý này.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -594,24 +594,24 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Lý do</td>
-    <td style="padding: 8px;">Định tuyến sang RAG (book_rag). Tìm kiếm lai lấy ra các chunk giới thiệu giải thuật đầu tư giá trị từ tài liệu The Intelligent Investor.</td>
+    <td style="padding: 8px;">Định tuyến sang RAG (book_rag). Tìm kiếm lai lấy ra các chunk tri thức từ Chương 5 của sách Morgan Housel.</td>
   </tr>
 
   <!-- Q23 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q23: User hỏi "Giải thích về quý ngài thị trường"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q23: User hỏi "Sức mạnh của lãi kép được giải thích thế nào qua câu chuyện Warren Buffett"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
-    <td style="padding: 8px;">giải thích về quý ngài thị trường</td>
+    <td style="padding: 8px;">sức mạnh lãi kép và bí quyết thành công của Warren Buffett trong The Psychology of Money</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">RAG truy xuất sách The Intelligent Investor và giải thích câu chuyện ẩn dụ về Quý ngài Thị trường (Mr. Market).</td>
+    <td style="padding: 8px;">RAG truy xuất sách The Psychology of Money (Chương 4: Confounding Compounding) giải thích thời gian tích lũy tài sản của Warren Buffett.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Trong sách, Benjamin Graham dùng nhân vật ẩn dụ "Mr. Market" (Quý ngài Thị trường) để mô tả tính khí thất thường của thị trường chứng khoán. Mỗi ngày Mr. Market đều đến đưa ra các mức giá mua/bán khác nhau. Nhà đầu tư thông minh nên tận dụng sự điên rồ và cảm tính của ông ta (mua khi ông ta quá bi quan và bán khi ông ta quá hưng phấn) thay vì bị ông ta dẫn dắt tâm lý.</td>
+    <td style="padding: 8px;">Trong Chương 4 của sách The Psychology of Money, Morgan Housel chỉ ra bí quyết thực sự tạo nên tài sản khổng lồ của Warren Buffett chính là thời gian tích lũy lãi kép. Hơn 81,5 tỷ USD trong tổng số 84,5 tỷ USD tài sản của ông được tạo ra sau sinh nhật thứ 65. Buffett bắt đầu đầu tư từ năm 10 tuổi và duy trì kỷ luật đầu tư liên tục trong hơn 75 năm, chứng minh rằng lãi kép là chìa khóa tài chính mạnh mẽ nhất.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -619,24 +619,24 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Lý do</td>
-    <td style="padding: 8px;">Định tuyến sang RAG (book_rag). Tìm kiếm lai lấy ra các chunk tri thức liên quan đến ẩn dụ Mr. Market trong chương 8 của sách Graham.</td>
+    <td style="padding: 8px;">Định tuyến sang RAG (book_rag). Tìm kiếm lai trích xuất thông tin về "Warren Buffett compounding time" trong Chương 4 của Morgan Housel.</td>
   </tr>
 
   <!-- Q24 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q24: User hỏi "Nhà đầu tư phòng thủ nên chia tiền thế nào"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q24: User hỏi "Sự khác biệt giữa Giàu có (Rich) và Thịnh vượng (Wealth) là gì"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
-    <td style="padding: 8px;">phân bổ tài sản nhà đầu tư phòng thủ</td>
+    <td style="padding: 8px;">phân biệt khái niệm Rich và Wealth theo Morgan Housel</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">RAG truy xuất tỷ lệ phân bổ tài sản khuyến nghị cho nhà đầu tư phòng thủ giữa cổ phiếu và trái phiếu (thường là 50/50, dao động từ 25% đến 75%).</td>
+    <td style="padding: 8px;">RAG truy xuất Chương 9 (Wealth is What You Don't See) giải thích định nghĩa Wealth là tài sản ẩn chưa chi tiêu.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Graham khuyến nghị nhà đầu tư phòng thủ nên áp dụng tỷ lệ phân bổ cơ bản là 50% cho cổ phiếu chất lượng cao và 50% cho trái phiếu chính phủ. Tùy thuộc vào tình hình thị trường, tỷ lệ này có thể điều chỉnh linh hoạt nhưng không nên vượt quá giới hạn tối thiểu 25% hoặc tối đa 75% cho bất kỳ danh mục nào.</td>
+    <td style="padding: 8px;">Trong Chương 9 ('Wealth is What You Don't See'), Morgan Housel phân biệt: 'Rich' (Giàu có) đề cập đến thu nhập hiện tại hoặc những món đồ đắt tiền nhìn thấy được như xe sang, đồ hiệu; trong khi 'Wealth' (Thịnh vượng) là phần tài sản tài chính ẩn chưa bị quy đổi thành hàng hóa. Thịnh vượng đại diện cho những lựa chọn, sự linh hoạt và tự do tài chính mà người khác không thể nhìn thấy.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -644,7 +644,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Lý do</td>
-    <td style="padding: 8px;">Định tuyến sang RAG (book_rag). Hybrid Search và Cohere Reranker xếp hạng cao nhất các đoạn văn nói về "Defensive Investor asset allocation".</td>
+    <td style="padding: 8px;">Định tuyến sang RAG (book_rag). Hybrid Search trích xuất định nghĩa Rich vs Wealth trong Chương 9 của sách Morgan Housel.</td>
   </tr>
 
   <!-- Q25 -->
@@ -736,7 +736,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Hiện tại cả hai cuốn sách của bạn đều có Chương 4. Bạn muốn tôi tóm tắt Chương 4 về chính sách danh mục đầu tư trong 'The Intelligent Investor' hay Chương 4 về lịch sử thuế và tập đoàn trong 'Rich Dad Poor Dad'?</td>
+    <td style="padding: 8px;">Hiện tại cả hai cuốn sách của bạn đều có Chương 4. Bạn muốn tôi tóm tắt Chương 4 về sức mạnh lãi kép (Confounding Compounding) trong 'The Psychology of Money' hay Chương 4 về lịch sử thuế và tập đoàn trong 'Rich Dad Poor Dad'?</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -749,19 +749,19 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
 
   <!-- Q29 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q29: User trả lời "Cuốn Cha giàu đi"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q29: User trả lời "Cuốn Tâm lý học về tiền đi"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
-    <td style="padding: 8px;">chọn tóm tắt chương 4 sách Rich Dad Poor Dad</td>
+    <td style="padding: 8px;">chọn tóm tắt chương 4 sách The Psychology of Money</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Tóm tắt nội dung chương 4 sách Rich Dad Poor Dad (Lịch sử thuế và sức mạnh của tập đoàn).</td>
+    <td style="padding: 8px;">Tóm tắt nội dung chương 4 sách The Psychology of Money (Sức mạnh lãi kép kỳ diệu).</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Chương 4 sách 'Rich Dad Poor Dad' có tiêu đề 'Lịch sử của Thuế và Sức mạnh của Tập đoàn'. Robert Kiyosaki chia sẻ câu chuyện thuế ban đầu chỉ đánh vào người giàu nhưng dần dần lan sang tầng lớp trung lưu và nghèo. Điểm mấu chốt là người giàu hiểu luật và dùng các thực thể pháp lý (tập đoàn) để bảo vệ tài sản hợp pháp và giảm nghĩa vụ đóng thuế.</td>
+    <td style="padding: 8px;">Chương 4 sách 'The Psychology of Money' có tiêu đề 'Confounding Compounding' (Lãi kép kỳ diệu). Morgan Housel phân tích bài học từ Warren Buffett để chứng minh rằng thành công tài chính lớn nhất không đến từ việc tìm kiếm lợi nhuận siêu cao ngắn hạn, mà đến từ việc tạo ra mức lợi nhuận khá tốt và duy trì nó liên tục trong thời gian dài nhất có thể.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -769,7 +769,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Lý do</td>
-    <td style="padding: 8px;">Nhận diện câu trả lời bổ sung thông tin từ Q28 nhờ Thread Context, định tuyến thành công đến đúng chương 4 của sách Rich Dad (book_section) để tóm tắt mà không cần chạy RAG thô.</td>
+    <td style="padding: 8px;">Nhận diện câu trả lời bổ sung thông tin từ Q28 nhờ Thread Context, định tuyến thành công đến đúng chương 4 của sách Psychology of Money (book_section) để tóm tắt mà không cần chạy RAG thô.</td>
   </tr>
 
   <!-- Q30 -->
@@ -786,7 +786,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Bạn muốn tôi tóm tắt Chương 5 của 'The Intelligent Investor' (về nhà đầu tư phòng thủ và cổ phiếu phổ thông) hay Chương 5 của 'Rich Dad Poor Dad' (về việc người giàu tạo ra tiền)?</td>
+    <td style="padding: 8px;">Bạn muốn tôi tóm tắt Chương 5 của 'The Psychology of Money' (về việc làm giàu so với giữ giàu) hay Chương 5 của 'Rich Dad Poor Dad' (về việc người giàu tạo ra tiền)?</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -961,7 +961,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Khái niệm 'Liquidity Mining' (khai thác thanh khoản) thuộc về lĩnh vực tài chính phi tập trung (DeFi) mới và hoàn toàn không được đề cập trong hai cuốn sách cổ điển của bạn. Để tìm hiểu định nghĩa chính xác từ internet, tôi cần tìm kiếm web. Bạn có cho phép không?</td>
+    <td style="padding: 8px;">Khái niệm 'Liquidity Mining' (khai thác thanh khoản) thuộc về lĩnh vực tài chính phi tập trung (DeFi) mới và hoàn toàn không được đề cập trong hai cuốn sách của bạn. Để tìm hiểu định nghĩa chính xác từ internet, tôi cần tìm kiếm web. Bạn có cho phép không?</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -999,19 +999,19 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
 
   <!-- Q39 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q39: User hỏi "Quay lại sách Nhà đầu tư thông minh, Graham khuyên gì về quỹ chỉ số"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q39: User hỏi "Quay lại sách Tâm lý học về tiền, tác giả khuyên gì về biên an toàn tài chính"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
-    <td style="padding: 8px;">khuyên của Graham về quỹ chỉ số trong The Intelligent Investor</td>
+    <td style="padding: 8px;">lời khuyên của Morgan Housel về biên an toàn trong The Psychology of Money</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">RAG định tuyến về cuốn sách The Intelligent Investor để trả lời khuyên của Graham về việc đầu tư thụ động vào các quỹ chỉ số (Index Funds).</td>
+    <td style="padding: 8px;">RAG định tuyến về cuốn sách The Psychology of Money (Chương 13: Room for Error) để trả lời lời khuyên về biên an toàn trong quản lý tài chính.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Benjamin Graham cực kỳ ủng hộ việc đầu tư vào các quỹ chỉ số (Index Funds) đối với hầu hết các nhà đầu tư cá nhân, đặc biệt là nhà đầu tư phòng thủ. Ông nhấn mạnh rằng việc cố gắng tự lựa chọn cổ phiếu riêng lẻ để đánh bại thị trường thường mang lại hiệu suất kém hơn so với việc nắm giữ toàn bộ thị trường thông qua các quỹ chỉ số chi phí thấp một cách thụ động lâu dài.</td>
+    <td style="padding: 8px;">Trong Chương 13 ('Room for Error') của sách The Psychology of Money, Morgan Housel nhấn mạnh rằng phần quan trọng nhất của mọi kế hoạch tài chính chính là kế hoạch dành cho trường hợp các kế hoạch khác bị thất bại. Biên an toàn (Room for error / Margin of safety) là yếu tố duy nhất giúp bạn chịu đựng được những biến cố bất ngờ trên thị trường mà không bị loại khỏi cuộc chơi.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -1019,7 +1019,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Lý do</td>
-    <td style="padding: 8px;">Định tuyến sang RAG (book_rag). Tìm kiếm lai lấy ra các chunk tri thức liên quan đến "Index Funds" từ các chương cuối sách The Intelligent Investor (được cập nhật bởi Jason Zweig).</td>
+    <td style="padding: 8px;">Định tuyến sang RAG (book_rag). Tìm kiếm lai lấy ra các chunk tri thức liên quan đến "Room for Error" từ Chương 13 của sách The Psychology of Money.</td>
   </tr>
 
   <!-- Q40 -->
@@ -1036,7 +1036,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
-    <td style="padding: 8px;">Rất vui được hỗ trợ bạn ôn tập hôm nay! Chúc bạn áp dụng tốt các nguyên tắc đầu tư thông minh và quản lý tài chính cá nhân hiệu quả. Hẹn gặp lại bạn ở các buổi học sau nhé!</td>
+    <td style="padding: 8px;">Rất vui được hỗ trợ bạn ôn tập hôm nay! Chúc bạn áp dụng tốt các bài học về tâm lý tiền bạc và quản lý tài chính cá nhân hiệu quả. Hẹn gặp lại bạn ở các buổi học sau nhé!</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Kết quả</td>
@@ -1046,4 +1046,5 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (1 phiên gồm 
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Lý do</td>
     <td style="padding: 8px;">Nhận diện ý định chào kết thúc đàm thoại (chitchat/farewell), kết thúc an toàn.</td>
   </tr>
+
 </table>
