@@ -1,0 +1,34 @@
+[
+  {
+    "query_id": "Q2",
+    "book_id": "827b7894-11e0-4d67-b85d-3800485dbba1",
+    "book_title": "Of Mice and Men",
+    "category": "factoid",
+    "user_input": "Sách có những nhân vật nào, nhân vật nào là nhân vật chính?",
+    "reference": "George Milton và Lennie Small là hai nhân vật chính. Các nhân vật phụ gồm Candy, Crooks, Curley, Vợ Curley, Slim, Carlson."
+  },
+  {
+    "query_id": "Q3",
+    "book_id": "827b7894-11e0-4d67-b85d-3800485dbba1",
+    "book_title": "Of Mice and Men",
+    "category": "section_summary",
+    "user_input": "Tóm tắt giúp tôi chương bốn của sách",
+    "reference": "Trong chương 4, bối cảnh diễn ra tại căn phòng của Crooks, người chăn ngựa da màu bị cô lập. Lennie đến tìm chó con và trò chuyện cùng Crooks. Sau đó Candy và vợ của Curley xuất hiện, làm nổi bật sự cô đơn, khát khao tương lai và sự phân biệt đối xử trong xã hội."
+  },
+  {
+    "query_id": "Q5",
+    "book_id": "827b7894-11e0-4d67-b85d-3800485dbba1",
+    "book_title": "Of Mice and Men",
+    "category": "section_summary",
+    "user_input": "Tóm tắt chương sáu của sách Of Mice and Men",
+    "reference": "Chương 6 là chương cuối cùng. Lennie trốn bên bờ ao, George tìm thấy anh ta, kể lại giấc mơ về trang trại và nổ súng bắn Lennie bằng khẩu súng Carlson để giải thoát anh khỏi sự săn đuổi tàn nhẫn của nhóm Curley."
+  },
+  {
+    "query_id": "Q6",
+    "book_id": "827b7894-11e0-4d67-b85d-3800485dbba1",
+    "book_title": "Of Mice and Men",
+    "category": "reasoning",
+    "user_input": "Cái chết của Lennie diễn ra thế nào và tại sao George lại làm vậy?",
+    "reference": "Lennie bị George bắn ở phía sau đầu bên cạnh bờ ao bằng khẩu súng Carlson. George làm vậy trong sự đau xót tột cùng vì biết đám đông săn đuổi của Curley sẽ bắt giữ, hành hạ hoặc treo cổ Lennie một cách dã man."
+  }
+]

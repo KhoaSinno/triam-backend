@@ -27,6 +27,8 @@ logs/*
 !logs/agent_eval/
 !logs/sumary_ai/
 !logs/model_benchmark/
+!logs/ragas_eval/
+
 _logs/
 KMS/
 worker.log
@@ -54,6 +56,7 @@ scratch_*.py
 !logs/agent_eval/**
 !logs/sumary_ai/**
 !logs/model_benchmark/**
+!logs/ragas_eval/**
 
 triam-notification-firebase-adminsdk-fbsvc-77f3e9eac6.json
 

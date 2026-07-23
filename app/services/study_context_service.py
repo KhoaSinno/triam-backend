@@ -62,7 +62,7 @@ def get_documents_in_context(session: Session, user_id: uuid.UUID, context_id: u
             "has_pareto_mode": False,
         }
 
-    return [_book_to_dict(book) for book in context.books if not book.is_shared]
+    return [_book_to_dict(book) for book in context.books]
 
 
 def _build_capabilities(is_auto_generated: bool) -> dict:
@@ -172,7 +172,7 @@ def add_document_to_context(
 ) -> StudyContextDocumentLink:
     """Validate book và context, sau đó tạo link giữa context và document."""
     book = get_book_by_id(session, payload.book_id)
-    if not book or book.user_id != user_id:
+    if not book or (book.user_id != user_id and not book.is_shared):
         raise BookNotFoundError()
 
     ctx = _get_owned_context(session, context_id, user_id)

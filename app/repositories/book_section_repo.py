@@ -28,6 +28,12 @@ def delete_sections_by_book(session: Session, book_id: uuid.UUID) -> None:
         session.delete(section)
 
 
+def _clean_str(val: str | None) -> str | None:
+    if val is None:
+        return None
+    return val.replace("\x00", "").replace("\u0000", "")
+
+
 def create_book_sections(session: Session, book_id: uuid.UUID, parsed_document: ParsedDocument) -> list[BookSection]:
     created: list[BookSection] = []
     section_index = 0
@@ -40,15 +46,15 @@ def create_book_sections(session: Session, book_id: uuid.UUID, parsed_document: 
                 book_id=book_id,
                 parent_id=parent_id,
                 section_index=section_index,
-                title=section.title,
+                title=_clean_str(section.title) or "Untitled",
                 level=section.level,
-                path=section.path,
-                text_content=normalized_text or None,
-                text_char_count=len(normalized_text or ""),
+                path=_clean_str(section.path) or "",
+                text_content=_clean_str(normalized_text) or None,
+                text_char_count=len(_clean_str(normalized_text) or ""),
                 page_start=section.page_start,
                 page_end=section.page_end,
-                source_href=section.source_href,
-                source_anchor=section.source_anchor,
+                source_href=_clean_str(section.source_href),
+                source_anchor=_clean_str(section.source_anchor),
             )
             section_index += 1
             session.add(row)

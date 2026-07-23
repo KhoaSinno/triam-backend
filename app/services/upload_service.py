@@ -241,7 +241,7 @@ async def handle_upload_document(session: Session, file: UploadFile, user_id: uu
     warnings = detect_structure_warnings(parsed_document)
 
     # 5. Lưu DB: Book (DRAFT) + BookSection tree
-    title = (file.filename or "unknown").rsplit(".", 1)[0]
+    title = (file.filename or "unknown").rsplit(".", 1)[0].replace("\x00", "").replace("\u0000", "")
     try:
         book = Book(
             id=book_id,

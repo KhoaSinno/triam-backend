@@ -4,6 +4,7 @@ import asyncio
 import torch
 from transformers import AutoTokenizer, AutoModel
 from app.core.config import settings
+from app.core.logger import log
 from app.services.agent_grounding.contracts import GroundingIntent, NormalizedQuery
 
 # Định nghĩa các câu mẫu đặc trưng đại diện cho từng lớp Ý định (Intent Class)
@@ -71,6 +72,7 @@ PROTOTYPES = {
     ],
     GroundingIntent.BOOK_METADATA_SECTION_COUNT: [
         "bao nhiêu đề mục",
+        "sách có bao nhiêu đề mục",
         "quyển này có bao nhiêu mục tất cả",
         "tổng số mục trong sách",
         "how many sections",
@@ -110,27 +112,43 @@ class SemanticIntentClassifier:
         self._lock = asyncio.Lock()
         self._initialized = False
 
-    def initialize(self) -> None:
+    def initialize(self, max_retries: int = 3, retry_delay: float = 1.0) -> None:
         """
         Nạp tokenizer, weights và tính toán trước vector nhúng của các câu mẫu.
         Phương thức này chạy đồng bộ (blocking CPU) nên cần được bao bọc khi gọi từ async loop.
+        Thực hiện retry tự động nếu gặp sự cố mạng khi nạp mô hình.
         """
         if self._initialized:
             return
         
-        self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-        self.model = AutoModel.from_pretrained(self.model_name)
-        self.model.eval()
-        
-        with torch.no_grad():
-            for intent, phrases in PROTOTYPES.items():
-                inputs = self.tokenizer(phrases, padding=True, truncation=True, return_tensors="pt")
-                outputs = self.model(**inputs)
-                embeddings = mean_pooling(outputs, inputs['attention_mask'])
-                embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
-                self.proto_embeddings[intent] = embeddings
+        import time
+
+        last_error = None
+        for attempt in range(1, max_retries + 1):
+            try:
+                self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+                self.model = AutoModel.from_pretrained(self.model_name)
+                self.model.eval()
                 
-        self._initialized = True
+                with torch.no_grad():
+                    for intent, phrases in PROTOTYPES.items():
+                        inputs = self.tokenizer(phrases, padding=True, truncation=True, return_tensors="pt")
+                        outputs = self.model(**inputs)
+                        embeddings = mean_pooling(outputs, inputs['attention_mask'])
+                        embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
+                        self.proto_embeddings[intent] = embeddings
+                        
+                self._initialized = True
+                log.info(f"SemanticIntentClassifier: Nạp thành công mô hình local embedding '{self.model_name}'.")
+                return
+            except Exception as err:
+                last_error = err
+                log.warning(f"SemanticIntentClassifier: Lỗi nạp mô hình '{self.model_name}' (lần thử {attempt}/{max_retries}): {err}")
+                if attempt < max_retries:
+                    time.sleep(retry_delay)
+
+        self._initialized = False
+        log.warning(f"SemanticIntentClassifier: Không thể nạp mô hình '{self.model_name}' sau {max_retries} lần thử ({last_error}). Tạm thời chuyển sang phân loại từ khóa rule-based cấp cứu.")
 
     async def initialize_async(self) -> None:
         """
@@ -154,6 +172,13 @@ class SemanticIntentClassifier:
         
         text = query_text.strip().lower()
         if not text:
+            return GroundingIntent.BOOK_SEMANTIC_QUESTION
+
+        if self.model is None or self.tokenizer is None:
+            # Fallback sang Keyword Rule Matching nếu offline / không nạp được model
+            for intent, phrases in PROTOTYPES.items():
+                if any(p in text for p in phrases):
+                    return intent
             return GroundingIntent.BOOK_SEMANTIC_QUESTION
 
         with torch.no_grad():

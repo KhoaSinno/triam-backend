@@ -30,6 +30,9 @@ def normalize_section_text(text: str | None) -> str:
     if not text:
         return ""
 
+    # 0. Loại bỏ ký tự NUL (0x00) gây lỗi PostgreSQL
+    text = text.replace("\x00", "").replace("\u0000", "")
+
     # 1. Đồng nhất xuống dòng
     text = text.replace("\r\n", "\n")
 
