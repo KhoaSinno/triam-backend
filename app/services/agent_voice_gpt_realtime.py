@@ -1303,8 +1303,8 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                             topic=LK_CHAT_TOPIC,
                         ),
                     ),
-                    close_on_disconnect=True,
-                    delete_room_on_close=True,
+                    close_on_disconnect=settings.VOICE_AGENT_CLOSE_ON_DISCONNECT,
+                    delete_room_on_close=settings.VOICE_AGENT_CLOSE_ON_DISCONNECT,
                 ),
             )
 

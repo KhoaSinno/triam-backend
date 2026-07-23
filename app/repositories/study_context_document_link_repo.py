@@ -8,6 +8,15 @@ from app.models.db_models import StudyContextDocumentLink
 def create_new_context_document(
     session: Session, link: StudyContextDocumentLink
 ) -> StudyContextDocumentLink:
+    existing = session.exec(
+        select(StudyContextDocumentLink).where(
+            StudyContextDocumentLink.context_id == link.context_id,
+            StudyContextDocumentLink.book_id == link.book_id,
+        )
+    ).first()
+    if existing:
+        return existing
+
     session.add(link)
     session.commit()
     session.refresh(link)

@@ -47,10 +47,10 @@ class GroundingRouter:
         reference = parse_section_reference(normalized)
 
         # 2. Luật chặn (Guard Rule): Nếu phân loại là mục lục/tóm tắt chương nhưng không có đề mục cụ thể
-        # thì tự động hạ cấp xuống CLARIFICATION_REQUIRED để tránh lỗi định tuyến
+        # thì tự động hạ cấp xuống BOOK_SEMANTIC_QUESTION để tránh lỗi định tuyến
         if intent in (GroundingIntent.BOOK_SECTION_SUMMARY, GroundingIntent.BOOK_SECTION_CONTENT):
             if not reference.has_target:
-                intent = GroundingIntent.CLARIFICATION_REQUIRED
+                intent = GroundingIntent.BOOK_SEMANTIC_QUESTION
 
         result = None
         if intent == GroundingIntent.BOOK_SEMANTIC_QUESTION:

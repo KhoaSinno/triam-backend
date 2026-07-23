@@ -80,18 +80,17 @@ PROTOTYPES = {
     ],
     GroundingIntent.EXTERNAL_CURRENT_INFO: [
         "giá thị trường hôm nay là bao nhiêu",
-        "tin tức mới nhất hôm nay",
         "thời tiết hôm nay thế nào",
         "giá vàng hiện nay",
         "thời tiết hiện tại",
         "tin tức thời sự bây giờ",
         "current market price today",
-        "latest news today",
+        "latest live news today",
         "thời tiết hôm nay ra sao",
-        "tin hot ngày hôm nay",
-        "tìm các tác phẩm tương tự",
-        "các tác phẩm cùng thể loại",
-        "similar books to this one"
+        "tin hot thời sự ngày hôm nay",
+        "tìm các tác phẩm ngoài đời tương tự",
+        "các tác phẩm sách khác cùng thể loại ngoài thị trường",
+        "similar published books in the market"
     ]
 }
 
@@ -154,11 +153,12 @@ class SemanticIntentClassifier:
         """
         Khởi tạo an toàn bất đồng bộ. Đẩy tác vụ nạp model nặng sang Executor Thread
         để không chặn Event Loop chính của LiveKit.
+        Nếu nạp thất bại trước đó, tự động retry lại khi được gọi.
         """
-        if self._initialized:
+        if self._initialized and self.model is not None:
             return
         async with self._lock:
-            if not self._initialized:
+            if not self._initialized or self.model is None:
                 loop = asyncio.get_running_loop()
                 await loop.run_in_executor(None, self.initialize)
 
@@ -176,7 +176,13 @@ class SemanticIntentClassifier:
 
         if self.model is None or self.tokenizer is None:
             # Fallback sang Keyword Rule Matching nếu offline / không nạp được model
+            from app.services.agent_grounding.section_reference_parser import parse_section_reference
+            from app.services.agent_grounding.query_normalizer import normalize_query
+            ref = parse_section_reference(normalize_query(text))
+
             for intent, phrases in PROTOTYPES.items():
+                if intent in (GroundingIntent.BOOK_SECTION_SUMMARY, GroundingIntent.BOOK_SECTION_CONTENT) and not ref.has_target:
+                    continue
                 if any(p in text for p in phrases):
                     return intent
             return GroundingIntent.BOOK_SEMANTIC_QUESTION
@@ -204,6 +210,10 @@ class SemanticIntentClassifier:
                     has_content_verb = any(v in text for v in AUTHOR_CONTENT_VERBS)
                     has_identity_keyword = any(k in text for k in AUTHOR_IDENTITY_KEYWORDS)
                     if has_content_verb and not has_identity_keyword:
+                        return GroundingIntent.BOOK_SEMANTIC_QUESTION
+                if best_intent == GroundingIntent.EXTERNAL_CURRENT_INFO:
+                    external_keywords = ("hôm nay", "bây giờ", "hiện nay", "thị trường", "thời tiết", "thời sự", "tin tức", "giá vàng", "today", "live news", "market")
+                    if not any(k in text for k in external_keywords):
                         return GroundingIntent.BOOK_SEMANTIC_QUESTION
                 return best_intent
                 
