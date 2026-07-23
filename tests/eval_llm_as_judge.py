@@ -28,7 +28,7 @@ judge_client = AsyncOpenAI(
     api_key=settings.GEMINI_API_KEY,
     base_url=settings.GEMINI_BASE_URL,
 )
-JUDGE_MODEL = "gemini-3.5-flash-lite"
+JUDGE_MODEL = "gemini-3.6-flash"
 
 
 async def evaluate_faithfulness(question: str, contexts: list[str], response: str) -> float:
@@ -135,32 +135,33 @@ async def evaluate_answer_correctness(question: str, reference: str, response: s
         return 0.90
 
 
-async def evaluate_item(item: dict) -> dict:
-    q = item["user_input"]
-    ref = item["reference"]
-    ctx = item.get("contexts") or item.get("retrieved_contexts") or []
-    resp = item.get("response", "")
+async def evaluate_item(item: dict, sem: asyncio.Semaphore) -> dict:
+    async with sem:
+        q = item["user_input"]
+        ref = item["reference"]
+        ctx = item.get("contexts") or item.get("retrieved_contexts") or []
+        resp = item.get("response", "")
 
-    # Đánh giá bất đồng bộ 4 chỉ số chính
-    f_score, r_score, rec_score, c_score = await asyncio.gather(
-        evaluate_faithfulness(q, ctx, resp),
-        evaluate_answer_relevancy(q, resp),
-        evaluate_context_recall(q, ref, ctx),
-        evaluate_answer_correctness(q, ref, resp),
-    )
+        # Đánh giá bất đồng bộ 4 chỉ số chính
+        f_score, r_score, rec_score, c_score = await asyncio.gather(
+            evaluate_faithfulness(q, ctx, resp),
+            evaluate_answer_relevancy(q, resp),
+            evaluate_context_recall(q, ref, ctx),
+            evaluate_answer_correctness(q, ref, resp),
+        )
 
-    # Tính Context Precision dựa trên sự xuất hiện của chunk tốt ở Top Rank
-    prec_score = rec_score if ctx else 0.0
+        # Tính Context Precision dựa trên sự xuất hiện của chunk tốt ở Top Rank
+        prec_score = rec_score if ctx else 0.0
 
-    return {
-        "query_id": item.get("query_id"),
-        "user_input": q,
-        "context_precision": prec_score,
-        "context_recall": rec_score,
-        "faithfulness": f_score,
-        "answer_relevancy": r_score,
-        "answer_correctness": c_score,
-    }
+        return {
+            "query_id": item.get("query_id"),
+            "user_input": q,
+            "context_precision": prec_score,
+            "context_recall": rec_score,
+            "faithfulness": f_score,
+            "answer_relevancy": r_score,
+            "answer_correctness": c_score,
+        }
 
 
 async def run_evaluation():
@@ -172,9 +173,10 @@ async def run_evaluation():
     with open(trace_path, "r", encoding="utf-8") as f:
         trace_data = json.load(f)
 
-    print(f"🚀 BẮT ĐẦU ĐÁNH GIÁ LLM-AS-A-JUDGE (PRODUCTION FLOW TRACE) CHO {len(trace_data)} TEST CASES...")
+    print(f"🚀 BẮT ĐẦU ĐÁNH GIÁ LLM-AS-A-JUDGE ({JUDGE_MODEL}) CHO {len(trace_data)} TEST CASES...")
     
-    results = await asyncio.gather(*[evaluate_item(item) for item in trace_data])
+    sem = asyncio.Semaphore(5)
+    results = await asyncio.gather(*[evaluate_item(item, sem) for item in trace_data])
     df = pd.DataFrame(results)
 
     print("\n📊 BÁO CÁO KẾT QUẢ ĐÁNH GIÁ CHI TIẾT PRODUCTION FLOW:")

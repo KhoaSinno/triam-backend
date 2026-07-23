@@ -1,35 +1,61 @@
 ﻿query_id,user_input,context_precision,context_recall,faithfulness,answer_relevancy,answer_correctness
 Q1,Sách có mấy chương,1.0,1.0,1.0,1.0,1.0
 Q2,"Sách có những nhân vật nào, nhân vật nào là nhân vật chính",1.0,1.0,1.0,1.0,1.0
-Q3,Tóm tắt giúp tôi chương bốn của sách,1.0,1.0,1.0,1.0,1.0
-Q4,Tóm tắt chương sách này đi,1.0,1.0,1.0,0.2,1.0
-Q5,Chương sáu đi,1.0,1.0,0.2,1.0,1.0
-Q6,Cái chết của Lennie diễn ra thế nào và tại sao George lại làm vậy?,1.0,1.0,0.5,1.0,1.0
-Q7,Giá Bitcoin hiện tại hôm nay là bao nhiêu?,1.0,1.0,1.0,0.0,1.0
-Q8,"Không, chỉ tìm trong sách thôi.",1.0,1.0,1.0,1.0,1.0
-Q9,Tìm các tác phẩm tương tự với Of Mice and Men trên internet,1.0,1.0,1.0,0.2,1.0
-Q10,"Được chứ, tìm đi.",1.0,1.0,1.0,0.0,1.0
-Q11,Tôi muốn học về mảng và các thuật toán sắp xếp.,1.0,1.0,0.5,0.8,0.9
-Q12,Nói về đó phức tạp dữ liệu đi.,1.0,1.0,0.75,0.8,1.0
-Q13,Nói về khai báo và gán giá trị cho mảng hai chiều trong C#.,1.0,1.0,1.0,1.0,1.0
-Q14,"Rồi ok ok, tôi thấy có chương 29 nói về bubble sort á, thảo luận về nó đi.",1.0,1.0,0.5,1.0,1.0
-Q15,"À, ok, có cốt không, có cốt không?",1.0,1.0,1.0,1.0,0.3
-Q16,Nói về các thuật toán tìm kiếm phổ biến trong C#.,1.0,1.0,0.4,1.0,1.0
-Q17,Bây giờ tôi muốn định hướng về theo AI. Như vậy thì tôi muốn học thuật toán thì tôi học cái nào để lấy được nền tảng đây?,1.0,1.0,1.0,0.6,1.0
-Q18,"Ok, bạn có gợi ý trình nào để tôi học AI không?",1.0,1.0,1.0,1.0,1.0
-Q19,"Cho tôi lộ trình học trong 7 ngày đi, tiếp cận từ từ với các thuật toán nền tảng.",1.0,1.0,1.0,1.0,1.0
-Q20,Ok cảm ơn.,1.0,1.0,1.0,1.0,1.0
-Q21,"Ok, bây giờ tôi muốn học về tài chính.",1.0,1.0,1.0,1.0,0.8
-Q22,Tôi đọc sách ta thì tôi thấy là làm giàu ... Ba chữ giàu khác nhau như thế nào vậy?,1.0,1.0,1.0,0.9,0.9
-Q23,Vậy thì sức mạnh của đại kép được giải thích như thế nào qua câu chuyện của Warren Buffett trong sách?,1.0,1.0,0.4,1.0,0.85
-Q24,Trong tiếng Anh nó có hai từ đó là từ risk và từ waive. Vậy thì sự khác nhau giữa hai từ này là gì? ... Trong sách có nói về hai khái niệm này không?,1.0,1.0,1.0,0.0,1.0
-Q25,Tôi hỏi tài sản khác tiêu sản như thế nào?,1.0,1.0,1.0,1.0,1.0
-Q26,Có một khái niệm đó là vòng rat race là gì?,1.0,1.0,0.67,1.0,1.0
-Q27,"Tôi thắc mắc là tự nhiên là người giàu thì họ sẽ thích gặp tập đoàn, vậy để làm gì?",1.0,1.0,0.75,1.0,0.95
-Q28,Chương bốn nói về gì?,1.0,1.0,1.0,1.0,0.9
-Q29,Chương tiếp theo của sách là chương mấy?,1.0,1.0,1.0,1.0,1.0
-Q30,"À không đi, giờ tôi muốn biết giá cổ phiếu của Apple bây giờ là bao nhiêu rồi?",1.0,1.0,0.33,1.0,1.0
-Q31,Trong sách nào có cái khái niệm liquidity mining không?,1.0,1.0,1.0,1.0,1.0
-Q32,"Thôi đi, bây giờ chúng ta quay lại cái sách nói về tâm lý về tiền đi, tác giả khuyên gì về cái biên an toàn của tài chính?",1.0,1.0,1.0,1.0,1.0
-Q33,Qua hai quyển sách này thì tôi sẽ học được gì?,1.0,1.0,1.0,1.0,1.0
-Q34,"Bye bye, nghỉ rồi.",1.0,1.0,1.0,1.0,1.0
+Q3,Tóm tắt giúp tôi chương bốn của sách,1.0,1.0,0.375,1.0,1.0
+Q4,Tóm tắt chương sách này đi,1.0,1.0,1.0,1.0,1.0
+Q5,Chương sáu đi,1.0,1.0,0.33,1.0,1.0
+Q6,Cảnh George bắn Lennie diễn ra thế nào và tại sao George lại làm vậy?,1.0,1.0,0.33,1.0,1.0
+Q7,Khi Curley tấn công Lennie thì Lennie có chống cự không?,1.0,1.0,0.5,1.0,1.0
+Q8,Vợ của Curley bị làm sao và Lennie có cố ý làm hại cô ấy không?,1.0,1.0,0.43,1.0,1.0
+Q9,Lúc George bắn Lennie ở bờ sông thì có nhân vật nào khác ở đó không?,1.0,1.0,0.5,1.0,1.0
+Q10,"Khi phát hiện cái chết của Lennie, phản ứng của Slim và những người khác ra sao?",1.0,1.0,0.2,1.0,1.0
+Q11,"Trong câu chuyện, nhân vật Candy gắn liền với chi tiết con vật nào?",1.0,1.0,0.4,1.0,1.0
+Q12,Ước mơ về trang trại nhỏ của George và Lennie có ý nghĩa gì đối với họ?,1.0,1.0,0.2,1.0,0.95
+Q13,"Trong tác phẩm, ai được xem là nhân vật đáng thương và cô đơn nhất?",1.0,1.0,0.6,1.0,1.0
+Q14,Giá Bitcoin hiện tại hôm nay là bao nhiêu?,1.0,1.0,1.0,0.0,1.0
+Q15,"Không, chỉ tìm trong sách thôi.",1.0,1.0,1.0,1.0,1.0
+Q16,Tìm các tác phẩm cùng thể loại của John Steinbeck trên internet,1.0,1.0,1.0,0.3,1.0
+Q17,"Được chứ, tìm đi.",1.0,1.0,0.5,1.0,1.0
+Q18,Bài học lớn nhất mà tôi có thể rút ra từ câu chuyện Of Mice and Men là gì?,1.0,1.0,0.6,1.0,1.0
+Q19,Làm thế nào để ứng dụng bài học về sự thấu cảm trong tác phẩm vào cuộc sống thực tế?,1.0,1.0,0.33,1.0,1.0
+Q20,"Cảm ơn bạn, tôi đã hiểu rõ cuốn sách này rồi.",1.0,1.0,0.33,1.0,1.0
+Q21,Tôi muốn học về mảng và các thuật toán sắp xếp.,1.0,1.0,0.4,0.9,1.0
+Q22,Khi đang học thuật toán thì tôi thấy là tại sao khi học thuật toán lại phải quan tâm đến độ phức tạp.,1.0,1.0,0.4,1.0,1.0
+Q23,Ngoài biết Big-O thì khi phân tích độ phức tạp cần chú ý những gì nữa?,1.0,1.0,0.5,1.0,0.8
+Q24,Mảng hai chiều được ứng dụng thực tế là làm gì?,1.0,1.0,0.67,1.0,1.0
+Q25,Nói về cách khai báo và gán giá trị cho mảng hai chiều trong C#.,1.0,1.0,1.0,1.0,1.0
+Q26,Thuật toán tìm kiếm nào phổ biến và áp dụng nhiều nhất?,1.0,1.0,0.5,1.0,1.0
+Q27,Trong các dự án thực tế thì có những thuật toán tìm kiếm nào đã áp dụng rồi?,1.0,1.0,0.33,1.0,1.0
+Q28,"Qua thuật toán sắp xếp đi, thuật toán nào phổ biến và áp dụng nhiều nhất?",1.0,1.0,0.17,1.0,1.0
+Q29,Tại sao Quicksort lại được ưu tiên sử dụng hơn các thuật toán sắp xếp khác?,1.0,1.0,0.6,1.0,1.0
+Q30,"Rồi ok ok, tôi thấy có chương 29 nói về bubble sort á, thảo luận về nó đi.",1.0,1.0,0.5,1.0,1.0
+Q31,"À, ok, có cốt không, có cốt không? (Cho tôi xem code C#)",1.0,1.0,1.0,1.0,0.6
+Q32,Bạn biết khái niệm Edge relation trong thuật toán ghi chép hoạt động như thế nào không?,1.0,1.0,0.5,0.7,1.0
+Q33,Vậy thuật toán Dijkstra sử dụng cơ chế Edge Relaxation như thế nào?,1.0,1.0,0.5,1.0,1.0
+Q34,Cho tôi một ví dụ đơn giản để dễ hình dung hơn đi.,1.0,1.0,0.67,1.0,1.0
+Q35,"Ok, bây giờ chuyển qua C# đi. Clean kill trong C# là gì?",1.0,1.0,1.0,1.0,1.0
+Q36,"Khỏi cần, qua cái khác đi. Thế Linked Queue trong C# là gì?",1.0,1.0,0.4,0.9,1.0
+Q37,Recursion (Đệ quy) là gì vậy?,1.0,1.0,0.8,1.0,1.0
+Q38,"Khi sử dụng đệ quy thì có tốn CPU và bộ nhớ không, như vậy có tốt không?",1.0,1.0,0.33,0.8,1.0
+Q39,Làm thế nào để đảo ngược vị trí giữa chữ số đầu tiên và chữ số cuối cùng của một số nguyên trong C#?,1.0,1.0,0.6,1.0,1.0
+Q40,Cho tôi một lộ trình học 7 ngày tiếp cận các thuật toán nền tảng này đi.,1.0,1.0,0.125,1.0,1.0
+Q41,"Ok, bây giờ tôi muốn học về tài chính.",1.0,1.0,0.5,1.0,1.0
+Q42,Tôi thắc mắc là trong sách có nói là ngôi nhà là tài sản lớn nhất và là khoản đầu tư tối ưu nhất. Vậy thì tại sao lại nói vậy?,1.0,1.0,0.67,0.95,1.0
+Q43,Tôi nghĩ nó có hại chứ đâu có lợi đâu.,1.0,1.0,0.67,1.0,1.0
+Q44,Trong cụm từ 'Pay Yourself First' nghĩa là gì?,1.0,1.0,0.5,1.0,1.0
+Q45,Tại sao việc 'Trả cho bản thân trước' lại giúp xây dựng sự tự do tài chính?,1.0,1.0,1.0,1.0,1.0
+Q46,"Trong sách Cha giàu cha nghèo, người cha giàu và người cha nghèo đại diện cho điều gì?",1.0,1.0,0.86,1.0,1.0
+Q47,Tại sao người cha giàu chấp nhận rủi ro và làm việc nhiều hơn?,1.0,1.0,0.25,1.0,1.0
+Q48,Nếu tôi chọn làm một người cha nghèo có lương ổn định để lo cho gia đình thì có sao không?,1.0,1.0,0.5,1.0,1.0
+Q49,Tôi đọc sách thấy làm giàu... Ba chữ giàu khác nhau như thế nào vậy? (Rich vs Wealth),1.0,1.0,0.57,1.0,1.0
+Q50,Sức mạnh của Lãi kép (Compounding) được giải thích qua câu chuyện của Warren Buffett như thế nào?,1.0,1.0,0.25,1.0,0.95
+Q51,Phân biệt sự khác nhau giữa 'Tài sản' và 'Tiêu sản' theo Robert Kiyosaki.,1.0,1.0,0.4,1.0,1.0
+Q52,Khái niệm bẫy tài chính 'Rat Race' (Vòng luẩn quẩn) là gì và làm sao để thoát khỏi nó?,1.0,1.0,1.0,1.0,1.0
+Q53,Tại sao người giàu lại chú trọng việc thành lập công ty/tập đoàn (Corporation)?,1.0,1.0,0.6,1.0,1.0
+Q54,Chương 4 của sách Tâm lý học về tiền và Cha giàu cha nghèo thảo luận về nội dung gì?,1.0,1.0,0.0,0.9,0.9
+Q55,Thời điểm hiện tại giá cổ phiếu của Apple bây giờ là bao nhiêu rồi?,1.0,1.0,0.5,1.0,1.0
+Q56,Trong hai cuốn sách này có đề cập đến khái niệm Liquidity Mining không?,1.0,1.0,0.5,1.0,1.0
+Q57,Tác giả Morgan Housel khuyên gì về 'Biên an toàn' (Margin of Safety / Room for Error) trong tài chính?,1.0,1.0,0.67,1.0,1.0
+Q58,Đối với một người trẻ tuổi thì nên ưu tiên đầu tư vào điều gì nhất?,1.0,1.0,0.25,1.0,1.0
+Q59,"Tổng kết lại, bài học quan trọng nhất rút ra từ cả hai cuốn sách này là gì?",1.0,1.0,0.0,1.0,1.0
+Q60,"Cảm ơn bạn, bài học hôm nay rất bổ ích. Bye bye!",1.0,1.0,0.67,1.0,1.0
