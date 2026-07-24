@@ -11,6 +11,7 @@ from app.core.config import settings
 from app.core.constant import BookStatus, DocumentType, PlanStatus, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import (
     AppException,
+    AudioLimitExceededError,
     BookNotFoundError,
     BookStatusConflictError,
     DatabaseError,
@@ -35,6 +36,7 @@ from app.services.learning_unit_planner_service import plan_learning_units_async
 from app.services.reading_plan_schedule_service import WEEKDAY_LABELS, WEEKDAY_SHORT_LABELS, build_slots_for_plan, validate_plan_schedule_for_activation, validate_plan_schedule_shape
 from app.services.reading_plan_session_service import build_plan_session_summary, ensure_future_sessions_for_plan
 from app.services.storage_service import upload_file_to_supabase
+from app.services.token_budget_service import check_book_preflight_limits
 from app.tasks.book_tasks import generate_book_summary_task, index_book_sections_task, process_book_task
 
 # HELPER FUNCTION: Detect document type based on MIME type or file extension
@@ -75,6 +77,9 @@ def _enqueue_section_indexing(book_id: uuid.UUID) -> None:
 
 
 def _enqueue_book_summary(book_id: uuid.UUID) -> None:
+    if not settings.AI_SUMMARY_AUTO_ENQUEUE_ENABLED:
+        logger.info(f"⏭️ AI Summary auto-enqueue is DISABLED by config | book_id={book_id}")
+        return
     try:
         generate_book_summary_task.delay(str(book_id))
         logger.info(f"Enqueued background AI summary task | book_id={book_id}")
@@ -210,6 +215,12 @@ async def handle_upload_document(session: Session, file: UploadFile, user_id: uu
         if not flat_sections:
             raise DocumentExtractionError()
 
+        # Pre-flight Check: Fail fast if estimated audio exceeds system limits before storage/DB operations
+        is_valid, est_seconds, err_msg = check_book_preflight_limits(flat_sections)
+        if not is_valid:
+            logger.warning(f"⛔ Upload rejected by Pre-flight Audio Limit | book_id={book_id} | reason={err_msg}")
+            raise AudioLimitExceededError(err_msg)
+
         # 4. Upload PDF lên Supabase Storage bucket 'raw_books'
         storage_path = f"{book_id}/original.{document_type}"
         content_type = (
@@ -264,7 +275,7 @@ async def handle_upload_document(session: Session, file: UploadFile, user_id: uu
         logger.error(f"Failed to create book record: {e}")
         raise DatabaseError(f"Lỗi lưu DB: {str(e)}") from e
 
-    _enqueue_section_indexing(book_id)
+    # [PHASE 28]: Section indexing is deferred to handle_generate_plan
     _enqueue_book_summary(book_id)
 
     outline_tree = build_outline_preview(parsed_document)
@@ -341,6 +352,8 @@ async def handle_generate_plan(session: Session, payload: PlanInput, user_id: uu
 
     if job:
         try:
+            # [PHASE 28]: Section indexing is triggered when plan creation starts
+            _enqueue_section_indexing(payload.book_id)
             process_book_task.apply_async(
                 args=[str(payload.book_id), payload.mode.value, str(job.id)],
                 queue="document",

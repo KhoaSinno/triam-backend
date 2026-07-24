@@ -59,6 +59,7 @@ class Settings(BaseSettings):
     TOTAL_TOKEN_LIMIT: int = 800_000
     AI_SUMMARY_MAX_RETRIES: int = 2
     AI_SUMMARY_RETRY_DELAY_SECONDS: int = 15
+    AI_SUMMARY_AUTO_ENQUEUE_ENABLED: bool = True
 
     # Realtime voice agent behavior
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-mini"

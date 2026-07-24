@@ -89,6 +89,11 @@ class FileTooLargeError(AppException):
     detail = "File vượt quá giới hạn 50MB."
 
 
+class AudioLimitExceededError(AppException):
+    status_code = 400
+    detail = "Tài liệu vượt quá giới hạn thời lượng audio cho phép."
+
+
 # ---------------------------------------------------------------------------
 # 409 Conflict
 # ---------------------------------------------------------------------------
