@@ -24,15 +24,29 @@ rectangle "Phân hệ: Quản trị hệ thống" {
   (Quản lý người dùng) as UC_AdminUser
   (Quản lý sách hệ thống) as UC_AdminCatalog
   (Xuất dữ liệu) as UC_ExportData
-  (Giám sát tác vụ) as UC_AdminJob
+  (Quản lý tác vụ) as UC_AdminJob
   (Xem nhật ký hệ thống) as UC_Audit
+
+  (Upload sách) as UC_UploadBook
+  (Cấu hình chia sẻ sách) as UC_ShareBook
+
+  (Giám sát tác vụ) as UC_MonitorJob
+  (Kích hoạt tác vụ) as UC_ActivateJob
+
+  
+
 }
 
 Admin -- UC_AdminDashboard
 Admin -- UC_AdminUser
 Admin -- UC_AdminCatalog
+UC_AdminCatalog <.. UC_UploadBook: <<extend>>
+UC_AdminCatalog <.. UC_ShareBook: <<extend>>
+
 Admin -- UC_ExportData
 Admin -- UC_AdminJob
+UC_AdminJob <.. UC_MonitorJob: <<extend>>
+UC_AdminJob <.. UC_ActivateJob: <<extend>>
 Admin -- UC_Audit
 Admin -|> Reader
 

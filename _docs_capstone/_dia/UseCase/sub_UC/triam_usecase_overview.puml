@@ -27,7 +27,7 @@ actor "Admin" as Admin
 
 rectangle "UseCase tổng quan" {
   (Quản lý phiên đàm thoại) as UC_Account
-  (Quản lý thư viện cá nhân) as UC_LibraryPlan
+  (Quản lý thư viện sách cá nhân) as UC_LibraryPlan
   (Quản lý kế hoạch học tập) as UC_ListenProgress
   (Quản lý phiên đàm thoại AI) as UC_AI
   (Quản lý không gian học tập) as UC_Workspace
