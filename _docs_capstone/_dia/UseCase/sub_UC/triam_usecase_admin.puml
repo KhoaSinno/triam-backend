@@ -16,20 +16,22 @@ skinparam usecase {
 
 left to right direction
 
-actor "Quản trị viên" as Admin
-actor "Độc giả" as Reader
+actor "Admin" as Admin
+actor "User" as Reader
 
-rectangle "Phân hệ Quản trị hệ thống" {
+rectangle "Phân hệ: Quản trị hệ thống" {
   (Xem dashboard) as UC_AdminDashboard
   (Quản lý người dùng) as UC_AdminUser
   (Quản lý sách hệ thống) as UC_AdminCatalog
-  (Giám sát và xử lý lỗi) as UC_AdminJob
+  (Xuất dữ liệu) as UC_ExportData
+  (Giám sát tác vụ) as UC_AdminJob
   (Xem nhật ký hệ thống) as UC_Audit
 }
 
 Admin -- UC_AdminDashboard
 Admin -- UC_AdminUser
 Admin -- UC_AdminCatalog
+Admin -- UC_ExportData
 Admin -- UC_AdminJob
 Admin -- UC_Audit
 Admin -|> Reader

@@ -16,21 +16,38 @@ skinparam usecase {
 
 left to right direction
 
-actor "Độc giả" as Reader
+actor "User" as Reader
 
-rectangle "Phân hệ Không gian học, Ôn tập và Thông báo" {
-  (Quản lý Không gian) as UC_Workspace
-  (Xem lịch ôn tập) as UC_Review
+rectangle "Phân hệ: Không gian học, ôn tập và thông báo" {
+  (Quản lý Không gian học tập) as UC_Workspace
+  (Quản lý lịch ôn tập) as UC_Review
   (Quản lý thông báo) as UC_Notification
 
   (Liên kết sách vào không gian) as UC_ManageWSBooks
   (Khởi tạo hội thoại trong không gian) as UC_WSChat
   (Hội thoại trực tiếp với sách) as UC_DirectChat
 
+  (Theo dõi bài ôn tới hạn) as UC_TrackDueReview
+  (Hoàn thành bài ôn) as UC_CompleteReview
+  (Bỏ qua bài ôn) as UC_SkipReview
+
+  (Theo dõi thông báo) as UC_TrackNotification
+  (Cài đặt thông báo) as UC_SetupNotification
+
+
   ' Các chức năng con của Quản lý không gian sử dụng quan hệ mở rộng (extend)
   UC_Workspace <.. UC_ManageWSBooks : <<extend>>
   UC_Workspace <.. UC_WSChat : <<extend>>
   UC_Workspace <.. UC_DirectChat : <<extend>>
+
+  ' Các chức năng con của Quản lý lịch ôn tập sử dụng quan hệ mở rộng (extend)
+  UC_Review <.. UC_TrackDueReview : <<extend>>
+  UC_Review <.. UC_CompleteReview : <<extend>>
+  UC_Review <.. UC_SkipReview : <<extend>>
+
+  ' Các chức năng con của Quản lý thông báo sử dụng quan hệ mở rộng (extend)
+  UC_Notification <.. UC_TrackNotification : <<extend>>
+  UC_Notification <.. UC_SetupNotification : <<extend>>
 }
 
 Reader -- UC_Workspace

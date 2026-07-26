@@ -38,8 +38,8 @@ skinparam note {
 left to right direction
 
 '------------- Actors -------------
-actor "Độc giả\n(đã đăng nhập)" as Reader
-actor "Quản trị viên" as Admin
+actor "User" as Reader
+actor "Admin" as Admin
 Admin -|> Reader
 
 '------------- Boundary -------------
@@ -104,7 +104,7 @@ rectangle "TRIAM Assistant - Hệ thống sách nói AI" {
 }
 
 '------------- Actor Connections (Straight Lines, No Arrowheads) -------------
-' Độc giả chưa đăng nhập vẫn tương tác được với 2 UC này
+' User chưa đăng nhập vẫn tương tác được với 2 UC này
 Reader -- UC_Login
 Reader -- UC_Register
 

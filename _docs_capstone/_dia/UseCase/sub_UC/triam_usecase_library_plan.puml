@@ -16,16 +16,15 @@ skinparam usecase {
 
 left to right direction
 
-actor "Độc giả" as Reader
+actor "User" as Reader
 
-rectangle "Phân hệ Tài liệu và Kế hoạch học" {
+rectangle "Phân hệ: Tài liệu và kế hoạch học" {
   (Upload sách) as UC_UploadBook
-  ' TODO: Hiện tại chưa có Chọn sách từ thư viện
   (Chọn sách từ thư viện) as UC_SelectBook
-
-  (Tạo kế hoạch học mới) as UC_CreatePlan
-  (Chọn chế độ học) as UC_SelectMode
-  (Theo dõi tiến trình xử lý) as UC_TrackJob
+  (Tạo và điều chỉnh kế hoạch học tập) as UC_CreatePlan
+  (Xem tóm tắt AI của sách) as UC_AI_SUM
+  (Tạo lại tóm tắt) as UC_RE_AI_SUM
+  (Theo dõi tiến trình xử) as UC_TrackJob
   (Nghe sớm bài học) as UC_ListenEarly
 
   ' Mũi tên hướng từ tính năng mở rộng về tính năng gốc
@@ -35,6 +34,8 @@ rectangle "Phân hệ Tài liệu và Kế hoạch học" {
 Reader -- UC_UploadBook
 Reader -- UC_SelectBook
 Reader -- UC_CreatePlan
-Reader -- UC_SelectMode
+Reader -- UC_AI_SUM
 Reader -- UC_TrackJob
+
+UC_AI_SUM <.. UC_RE_AI_SUM : <<extend>>
 @enduml

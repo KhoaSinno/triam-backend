@@ -16,15 +16,17 @@ skinparam usecase {
 
 left to right direction
 
-actor "Độc giả" as Reader
+actor "User" as Reader
 
-rectangle "Phân hệ Nghe sách nói và Tiến độ" {
+rectangle "Phân hệ: Nghe sách nói và tiến độ" {
   (Nghe audio bài học) as UC_Listen
   (Chuyển đổi chế độ học) as UC_SwitchMode
   (Cập nhật tiến độ nghe) as UC_Progress
+  (Theo dõi và điều chỉnh lịch học) as UC_TrackSchedule
 }
 
 Reader -- UC_Listen
 Reader -- UC_SwitchMode
 Reader -- UC_Progress
+Reader -- UC_TrackSchedule
 @enduml

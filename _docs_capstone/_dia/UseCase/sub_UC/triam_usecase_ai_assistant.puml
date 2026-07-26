@@ -16,28 +16,33 @@ skinparam usecase {
 
 left to right direction
 
-actor "Độc giả" as Reader
+actor "User" as Reader
 ' actor "Tavily API (Internet)" as Tavily
 
-rectangle "Phân hệ Trợ lý AI theo ngữ cảnh sách" {
-  (Hỏi đáp bằng Text/Voice thường) as UC_QA
-  (Đàm thoại LiveKit thời gian thực) as UC_LiveKit
-  (Truy xuất ngữ nghĩa từ tài liệu - RAG) as UC_RAG
-  (Tìm kiếm Internet) as UC_Web
-  (Cấp quyền tìm kiếm ngoài tài liệu) as UC_Perm
+rectangle "Phân hệ: Trợ lý AI theo ngữ cảnh sách" {
+  (Hỏi đáp theo phạm vi tài liệu) as UC_QA
+  (Đàm thoại thời gian thực) as UC_LiveKit
+  ' (Truy xuất ngữ nghĩa từ tài liệu - RAG) as UC_RAG
+  (Quản lý phiên đàm thoại) as UC_ManageSession
+  (Yêu cầu tìm kiếm Internet) as UC_Web
+  (Cấp quyền tìm kiếm) as UC_Perm
 
   ' Hỏi đáp và Đàm thoại đều bắt buộc phải truy xuất ngữ nghĩa từ tài liệu (RAG)
-  UC_QA .> UC_RAG : <<include>>
-  UC_LiveKit .> UC_RAG : <<include>>
+  ' UC_QA .> UC_RAG : <<include>>
+  ' UC_LiveKit .> UC_RAG : <<include>>
 
   ' Quan hệ mở rộng tìm kiếm ngoài
+  UC_ManageSession <.. UC_QA : <<extend>>
+  UC_ManageSession <.. UC_LiveKit : <<extend>>
+
   UC_QA <.. UC_Web : <<extend>>
   UC_LiveKit <.. UC_Web : <<extend>>
 
   ' Tìm kiếm ngoài bắt buộc phải hỏi xin quyền từ người học
-  UC_Web ..> UC_Perm : <<include>>
+  UC_Web .> UC_Perm : <<include>>
 }
 
-Reader -- UC_QA
-Reader -- UC_LiveKit
+' Reader -- UC_QA
+' Reader -- UC_LiveKit
+Reader -- UC_ManageSession
 @enduml

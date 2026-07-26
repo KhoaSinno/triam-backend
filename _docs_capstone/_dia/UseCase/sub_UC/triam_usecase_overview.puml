@@ -22,15 +22,18 @@ skinparam usecase {
 
 left to right direction
 
-actor "Độc giả\n(đã đăng nhập)" as Reader
-actor "Quản trị viên" as Admin
+actor "User" as Reader
+actor "Admin" as Admin
 
-rectangle "Hệ thống nền tảng sách nói thông minh" {
-  (Quản lý Tài khoản) as UC_Account
-  (Quản lý Thư viện sách và Kế hoạch học) as UC_LibraryPlan
-  (Nghe sách nói và Quản lý tiến độ) as UC_ListenProgress
-  (Tương tác Trợ lý AI theo ngữ cảnh) as UC_AI
-  (Quản lý Không gian học tập và Ôn tập) as UC_Workspace
+rectangle "UseCase tổng quan" {
+  (Quản lý phiên đàm thoại) as UC_Account
+  (Quản lý thư viện cá nhân) as UC_LibraryPlan
+  (Quản lý kế hoạch học tập) as UC_ListenProgress
+  (Quản lý phiên đàm thoại AI) as UC_AI
+  (Quản lý không gian học tập) as UC_Workspace
+  (Quản lý lịch ôn tập) as UC_Review
+  (Quản lý thông báo cá nhân) as UC_Notification
+
   (Quản trị hệ thống) as UC_AdminSystem
 }
 
@@ -39,6 +42,8 @@ Reader -- UC_LibraryPlan
 Reader -- UC_ListenProgress
 Reader -- UC_AI
 Reader -- UC_Workspace
+Reader -- UC_Review
+Reader -- UC_Notification
 
 Admin -- UC_AdminSystem
 Reader <|- Admin
