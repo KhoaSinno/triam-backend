@@ -1,0 +1,1332 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TriÂm - Nền Tảng Sách Nói Tương Tác Thông Minh (Capstone Presentation)</title>
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-base: #030712;
+            --bg-card: rgba(17, 24, 39, 0.75);
+            --bg-card-hover: rgba(31, 41, 55, 0.9);
+            --border-light: rgba(255, 255, 255, 0.15);
+            --border-glow: rgba(59, 130, 246, 0.6);
+            
+            --primary: #3B82F6;
+            --primary-grad: linear-gradient(135deg, #60A5FA 0%, #3B82F6 50%, #1D4ED8 100%);
+            --accent-purple: #A855F7;
+            --accent-purple-grad: linear-gradient(135deg, #C084FC 0%, #9333EA 100%);
+            --secondary-cyan: #06B6D4;
+            --success: #10B981;
+            --success-grad: linear-gradient(135deg, #34D399 0%, #059669 100%);
+            --warning: #F59E0B;
+            --danger: #EF4444;
+            
+            --text-main: #FFFFFF;
+            --text-sub: #9CA3AF;
+            --font-title: 'Space Grotesk', sans-serif;
+            --font-body: 'Plus Jakarta Sans', sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-base);
+            color: var(--text-main);
+            font-family: var(--font-body);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+            display: flex;
+            flex-direction: column;
+            user-select: none;
+        }
+
+        /* Ambient Mesh Background */
+        .ambient-bg {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            overflow: hidden;
+            pointer-events: none;
+        }
+
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(140px);
+            opacity: 0.3;
+            animation: orbFloat 22s infinite alternate cubic-bezier(0.45, 0.05, 0.55, 0.95);
+        }
+
+        .orb-1 { width: 700px; height: 700px; background: #2563EB; top: -150px; left: -150px; }
+        .orb-2 { width: 600px; height: 600px; background: #7C3AED; bottom: -150px; right: -150px; animation-delay: -6s; }
+        .orb-3 { width: 500px; height: 500px; background: #0891B2; top: 35%; left: 35%; animation-delay: -12s; }
+
+        @keyframes orbFloat {
+            0% { transform: translate(0, 0) scale(1); }
+            100% { transform: translate(90px, 70px) scale(1.18); }
+        }
+
+        /* Top Progress Bar */
+        .top-progress {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 5px;
+            background: rgba(255, 255, 255, 0.05);
+            z-index: 100;
+        }
+
+        .top-progress-bar {
+            height: 100%;
+            width: 6.25%;
+            background: linear-gradient(90deg, #3B82F6, #A855F7, #06B6D4);
+            box-shadow: 0 0 18px rgba(59, 130, 246, 0.9);
+            transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Header Navigation */
+        header {
+            position: relative;
+            z-index: 50;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 18px 48px;
+            background: rgba(3, 7, 18, 0.85);
+            backdrop-filter: blur(24px);
+            border-bottom: 1px solid var(--border-light);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .brand-logo {
+            width: 46px;
+            height: 46px;
+            border-radius: 14px;
+            background: var(--primary-grad);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-title);
+            font-weight: 800;
+            font-size: 24px;
+            color: #fff;
+            box-shadow: 0 0 25px rgba(59, 130, 246, 0.6);
+        }
+
+        .brand-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .brand-name {
+            font-family: var(--font-title);
+            font-weight: 800;
+            font-size: 20px;
+            letter-spacing: 0.5px;
+            background: linear-gradient(90deg, #FFFFFF 0%, #CBD5E1 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .brand-sub {
+            font-size: 12px;
+            color: var(--secondary-cyan);
+            font-weight: 700;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+        }
+
+        .header-controls {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .slide-counter-pill {
+            font-family: var(--font-title);
+            font-size: 15px;
+            font-weight: 700;
+            color: #fff;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-light);
+            padding: 8px 20px;
+            border-radius: 24px;
+        }
+
+        .btn-action {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid var(--border-light);
+            color: var(--text-main);
+            padding: 10px 20px;
+            border-radius: 12px;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            transition: all 0.25s ease;
+        }
+
+        .btn-action:hover {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: var(--primary);
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.4);
+            transform: translateY(-2px);
+        }
+
+        /* Slide Stage Container */
+        .stage {
+            position: relative;
+            z-index: 10;
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px 36px;
+        }
+
+        .slide {
+            position: absolute;
+            width: calc(100% - 72px);
+            height: calc(100% - 36px);
+            max-width: 1500px;
+            max-height: 860px;
+            background: var(--bg-card);
+            backdrop-filter: blur(36px);
+            border-radius: 32px;
+            border: 1px solid var(--border-light);
+            padding: 44px 56px;
+            display: flex;
+            flex-direction: column;
+            opacity: 0;
+            transform: scale(0.96) translateY(24px);
+            pointer-events: none;
+            transition: all 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 35px 90px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.2);
+        }
+
+        .slide.active {
+            opacity: 1;
+            transform: scale(1) translateY(0);
+            pointer-events: auto;
+        }
+
+        /* Slide Header Typography (LARGE) */
+        .slide-meta {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .slide-tag {
+            font-family: var(--font-title);
+            font-size: 14px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: var(--secondary-cyan);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .slide-tag::before {
+            content: '';
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: var(--secondary-cyan);
+            box-shadow: 0 0 12px var(--secondary-cyan);
+        }
+
+        .slide-title {
+            font-family: var(--font-title);
+            font-size: 34px;
+            font-weight: 800;
+            line-height: 1.25;
+            margin-bottom: 28px;
+            background: linear-gradient(135deg, #FFFFFF 0%, #E2E8F0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Slide Grid Layouts */
+        .slide-grid {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 32px;
+            overflow-y: auto;
+        }
+
+        .slide-grid.grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .slide-grid.grid-1-2 { grid-template-columns: 1fr 1.4fr; }
+
+        /* Card Widgets (LARGE TEXT) */
+        .card {
+            background: rgba(15, 23, 42, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 24px;
+            padding: 28px 32px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .card:hover {
+            border-color: var(--border-glow);
+            background: rgba(30, 41, 59, 0.75);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 45px rgba(0, 0, 0, 0.4);
+        }
+
+        .card-header {
+            font-family: var(--font-title);
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            padding-bottom: 14px;
+        }
+
+        .card-header.success { color: var(--success); }
+        .card-header.purple { color: #C084FC; }
+        .card-header.warning { color: var(--warning); }
+        .card-header.cyan { color: var(--secondary-cyan); }
+
+        .point-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 14px;
+            font-size: 16px;
+            line-height: 1.65;
+            color: #F3F4F6;
+        }
+
+        .point-bullet {
+            width: 32px;
+            height: 32px;
+            border-radius: 10px;
+            background: rgba(59, 130, 246, 0.2);
+            color: var(--primary);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 15px;
+            font-weight: 800;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .point-bullet.success { background: rgba(16, 185, 129, 0.2); color: var(--success); }
+        .point-bullet.warning { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+        .point-bullet.purple { background: rgba(168, 85, 247, 0.2); color: var(--accent-purple); }
+
+        /* Metrics Cards Grid */
+        .metrics-row {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+
+        .metric-card {
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            padding: 20px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .metric-card:hover {
+            background: rgba(59, 130, 246, 0.12);
+            border-color: var(--primary);
+        }
+
+        .metric-num {
+            font-family: var(--font-title);
+            font-size: 36px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #60A5FA 0%, #34D399 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .metric-desc {
+            font-size: 14px;
+            color: #9CA3AF;
+            font-weight: 600;
+        }
+
+        /* Vector SVG Diagram Box & Image Dropzone */
+        .visual-card {
+            background: rgba(10, 15, 26, 0.8);
+            border: 2px dashed rgba(59, 130, 246, 0.4);
+            border-radius: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 28px;
+            text-align: center;
+            gap: 16px;
+            position: relative;
+            overflow: hidden;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .visual-card:hover {
+            border-color: var(--primary);
+            background: rgba(30, 41, 59, 0.85);
+            box-shadow: 0 0 35px rgba(59, 130, 246, 0.3);
+        }
+
+        .visual-card input[type="file"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .visual-img {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            border-radius: 16px;
+            display: none;
+        }
+
+        .visual-svg-content {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Tech Logo Badge Grid */
+        .logo-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+
+        .logo-badge {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 18px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            transition: all 0.3s ease;
+        }
+
+        .logo-badge:hover {
+            background: rgba(59, 130, 246, 0.15);
+            border-color: var(--primary);
+            transform: translateY(-3px);
+        }
+
+        .logo-badge svg {
+            width: 44px;
+            height: 44px;
+        }
+
+        .logo-badge-name {
+            font-family: var(--font-title);
+            font-size: 14px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .logo-badge-sub {
+            font-size: 11px;
+            color: var(--text-sub);
+        }
+
+        /* Navigation Arrows */
+        .stage-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 58px;
+            height: 58px;
+            border-radius: 50%;
+            background: rgba(17, 24, 39, 0.9);
+            border: 1px solid var(--border-light);
+            color: #fff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 40;
+            backdrop-filter: blur(20px);
+            transition: all 0.25s ease;
+            box-shadow: 0 12px 30px rgba(0, 0, 0, 0.6);
+        }
+
+        .stage-btn:hover {
+            background: var(--primary);
+            border-color: var(--primary);
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.7);
+            transform: translateY(-50%) scale(1.1);
+        }
+
+        .stage-btn.prev { left: 24px; }
+        .stage-btn.next { right: 24px; }
+
+        /* Speaker Drawer */
+        .drawer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(3, 7, 18, 0.98);
+            backdrop-filter: blur(28px);
+            border-top: 1px solid rgba(59, 130, 246, 0.5);
+            padding: 28px 56px;
+            z-index: 95;
+            transform: translateY(100%);
+            transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            box-shadow: 0 -25px 60px rgba(0, 0, 0, 0.8);
+        }
+
+        .drawer.open {
+            transform: translateY(0);
+        }
+
+        .drawer-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 14px;
+        }
+
+        .drawer-title {
+            font-family: var(--font-title);
+            font-size: 16px;
+            font-weight: 800;
+            color: var(--warning);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .drawer-text {
+            font-size: 16px;
+            line-height: 1.8;
+            color: #F3F4F6;
+            max-height: 140px;
+            overflow-y: auto;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Ambient Mesh Background -->
+    <div class="ambient-bg">
+        <div class="orb orb-1"></div>
+        <div class="orb orb-2"></div>
+        <div class="orb orb-3"></div>
+    </div>
+
+    <!-- Top Progress Bar -->
+    <div class="top-progress">
+        <div class="top-progress-bar" id="progressBar"></div>
+    </div>
+
+    <!-- Header Navigation -->
+    <header>
+        <div class="brand">
+            <div class="brand-logo">T</div>
+            <div class="brand-info">
+                <div class="brand-name">TRIÂM VOICE AI PLATFORM</div>
+                <div class="brand-sub">Trường ĐH Kỹ Thuật - Công Nghệ Cần Thơ (CTUT)</div>
+            </div>
+        </div>
+
+        <div class="slide-counter-pill" id="slidePill">Slide 1 / 16</div>
+
+        <div class="header-controls">
+            <button class="btn-action" onclick="toggleNotes()">
+                <span>🎙️</span> Kịch bản phát biểu (N)
+            </button>
+            <button class="btn-action" onclick="toggleFullscreen()">
+                <span>🖥️</span> Toàn màn hình (F)
+            </button>
+        </div>
+    </header>
+
+    <!-- Slide Stage -->
+    <div class="stage">
+        <button class="stage-btn prev" onclick="prevSlide()">❮</button>
+        <button class="stage-btn next" onclick="nextSlide()">❯</button>
+
+        <!-- SLIDE 1: COVER -->
+        <div class="slide active">
+            <div class="slide-meta"><div class="slide-tag">Đồ Án Tốt Nghiệp HTTT</div></div>
+            <div class="slide-title">PHÁT TRIỂN NỀN TẢNG SÁCH NÓI TƯƠNG TÁC THÔNG MINH HỖ TRỢ HỌC TẬP</div>
+            <div class="slide-grid grid-1-2">
+                <div class="card">
+                    <div class="card-header primary">📌 THÔNG TIN THUYẾT TRÌNH BÁO CÁO</div>
+                    <div class="point-item"><div class="point-bullet">👤</div> <div><strong>Sinh viên 1:</strong> Nguyễn Trần Anh Khoa - HTTT2211026</div></div>
+                    <div class="point-item"><div class="point-bullet">👤</div> <div><strong>Sinh viên 2:</strong> Nguyễn Thành Đạt - HTTT2211003</div></div>
+                    <div class="point-item"><div class="point-bullet purple">👨‍🏫</div> <div><strong>Giảng viên hướng dẫn:</strong> TS. Nguyễn Trung Việt</div></div>
+                    <div class="point-item"><div class="point-bullet success">🏛️</div> <div><strong>Đơn vị:</strong> Trường Đại học Kỹ thuật - Công nghệ Cần Thơ (CTUT)</div></div>
+                </div>
+
+                <div class="visual-card" onclick="triggerUpload(this)">
+                    <input type="file" accept="image/*" onchange="previewImage(this)">
+                    <img class="visual-img">
+                    <div class="visual-svg-content">
+                        <!-- SVG Voice Smartphone Wave Graphic -->
+                        <svg viewBox="0 0 600 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="180" y="20" width="240" height="310" rx="30" fill="#0F172A" stroke="#3B82F6" stroke-width="4"/>
+                            <rect x="240" y="32" width="120" height="18" rx="9" fill="#1E293B"/>
+                            <circle cx="300" cy="160" r="45" fill="url(#gradVoice)" filter="drop-shadow(0 0 20px #3B82F6)"/>
+                            <path d="M285 160C285 151.716 291.716 145 300 145C308.284 145 315 151.716 315 160V165C315 173.284 308.284 180 300 180C291.716 180 285 173.284 285 165V160Z" fill="white"/>
+                            <path d="M275 160C275 173.807 286.193 185 300 185C313.807 185 325 173.807 325 160" stroke="white" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M300 185V198" stroke="white" stroke-width="4" stroke-linecap="round"/>
+                            <path d="M60 160 Q120 100 180 160 T300 160 T420 160 T540 160" stroke="#06B6D4" stroke-width="3" fill="none" opacity="0.6"/>
+                            <path d="M60 160 Q120 220 180 160 T300 160 T420 160 T540 160" stroke="#A855F7" stroke-width="3" fill="none" opacity="0.6"/>
+                            <defs>
+                                <linearGradient id="gradVoice" x1="255" y1="115" x2="345" y2="205" gradientUnits="userSpaceOnUse">
+                                    <stop stop-color="#3B82F6"/>
+                                    <stop offset="1" stop-color="#A855F7"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 2: MARKET SURVEY -->
+        <div class="slide">
+            <div class="slide-meta"><div class="slide-tag">Phần 1: Tổng Quan Đề Tài</div></div>
+            <div class="slide-title">MỘT SỐ HỆ THỐNG PHỔ BIẾN HIỆN CÓ</div>
+            <div class="slide-grid">
+                <div class="card">
+                    <div class="card-header primary">CÁC HỆ THỐNG THAM KHẢO (>1 TRUYỆU LƯỢT TẢI)</div>
+                    <div class="point-item"><div class="point-bullet success">📱</div> <div><strong>Ứng dụng Fonos:</strong> Kho sách nói bản quyền lớn, chất lượng thu âm cao.</div></div>
+                    <div class="point-item"><div class="point-bullet success">📱</div> <div><strong>Ứng dụng Voiz FM:</strong> Đa dạng thể loại sách nói & podcast.</div></div>
+                    <div class="point-item"><div class="point-bullet success">📱</div> <div><strong>Ứng dụng LeapAhead:</strong> Chuyên tóm tắt sách chữ & audio.</div></div>
+                    <div class="point-item" style="margin-top: 10px;"><div class="point-bullet warning">⚠️</div> <div><strong>Vấn đề phát hiện:</strong> Đều thiếu khả năng đàm thoại 2 chiều thời gian thực và cá nhân hóa lộ trình tri thức ngắt quãng.</div></div>
+                </div>
+
+                <div class="visual-card" onclick="triggerUpload(this)">
+                    <input type="file" accept="image/*" onchange="previewImage(this)">
+                    <img class="visual-img">
+                    <div class="visual-svg-content">
+                        <!-- Brand Comparison SVG Matrix -->
+                        <svg viewBox="0 0 600 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="40" y="30" width="250" height="290" rx="20" fill="#1E293B" stroke="#334155" stroke-width="2"/>
+                            <text x="165" y="65" fill="#94A3B8" font-size="16" font-weight="bold" text-anchor="middle">SÁCH NÓI TRUYỀN THỐNG</text>
+                            <text x="70" y="120" fill="#F8FAFC" font-size="15">🔊 Nghe 1 chiều thụ động</text>
+                            <text x="70" y="170" fill="#F8FAFC" font-size="15">📜 Nghe tuyến tính cố định</text>
+                            <text x="70" y="220" fill="#F8FAFC" font-size="15">❌ Dễ quên (Ebbinghaus)</text>
+
+                            <rect x="310" y="30" width="250" height="290" rx="20" fill="url(#bgTriam)" stroke="#3B82F6" stroke-width="3"/>
+                            <text x="435" y="65" fill="#60A5FA" font-size="18" font-weight="bold" text-anchor="middle">NỀN TẢNG TRIÂM VOICE AI</text>
+                            <text x="340" y="120" fill="#10B981" font-size="15" font-weight="bold">🎙️ Đàm thoại 2 chiều WebRTC</text>
+                            <text x="340" y="170" fill="#3B82F6" font-size="15" font-weight="bold">🎯 Pareto 40% Budget Trimming</text>
+                            <text x="340" y="220" fill="#A855F7" font-size="15" font-weight="bold">📅 Ôn tập ngắt quãng SM-2</text>
+                            <defs>
+                                <linearGradient id="bgTriam" x1="310" y1="30" x2="560" y2="320" gradientUnits="userSpaceOnUse">
+                                    <stop stop-color="#0F172A"/>
+                                    <stop offset="1" stop-color="#1E1B4B"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 3: PAIN POINTS & SCIENCE -->
+        <div class="slide">
+            <div class="slide-meta"><div class="slide-tag">Phần 1: Tính Cấp Thiết</div></div>
+            <div class="slide-title">NỖI ĐAU NGƯỜI DÙNG & HẠN CHẾ CỦA SÁCH NÓI TRUYỀN THỐNG</div>
+            <div class="slide-grid grid-3">
+                <div class="card">
+                    <div class="card-header warning">1. NGHE THỤ ĐỘNG & DỄ XAO NHÃNG</div>
+                    <div class="point-item"><div class="point-bullet warning">10%</div> <div>Người nghe chỉ tiếp thu <strong>10% kiến thức</strong> (Tháp Dale) do nghe một chiều, dễ buồn ngủ, không thể hỏi đáp khi gặp kiến thức khó.</div></div>
+                </div>
+                <div class="card">
+                    <div class="card-header warning">2. TÙY BIẾN THEO NHU CẦU</div>
+                    <div class="point-item"><div class="point-bullet warning">📚</div> <div>Giáo trình tài liệu quá dày (hàng trăm trang), nhưng chỉ muốn học kiến thức cốt lõi. Muốn học sách cá nhân nhưng kho sách không có.</div></div>
+                </div>
+                <div class="card">
+                    <div class="card-header warning">3. HỌC TRƯỚC QUÊN SAU</div>
+                    <div class="point-item"><div class="point-bullet warning">80%</div> <div>Quên <strong>80% kiến thức</strong> sau 48 giờ (Đường cong Ebbinghaus). Sách nói truyền thống không theo dõi tiến độ và không biết khi nào cần ôn tập lại.</div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 4: 3 PILLARS SOLUTION -->
+        <div class="slide">
+            <div class="slide-meta"><div class="slide-tag">Phần 1: Giải Pháp TriÂm</div></div>
+            <div class="slide-title">GIẢI PHÁP TRIÂM: CÁ NHÂN HÓA & HỌC TẬP CHỦ ĐỘNG</div>
+            <div class="slide-grid grid-3">
+                <div class="card">
+                    <div class="card-header success">🎙️ TRỢ LÝ THOẠI REALTIME</div>
+                    <div class="point-item"><div class="point-bullet success">✓</div> <div>Đàm thoại 2 chiều trực tiếp qua WebRTC, bám sát tri thức sách (Grounding RAG). Cho phép ngắt lời AI để hỏi và phản hồi tức thì độ trễ &lt; 1.5s.<br>➔ <em>Giải quyết Nghe thụ động</em></div></div>
+                </div>
+                <div class="card">
+                    <div class="card-header primary">🎯 INGESTION PIPELINE PARETO</div>
+                    <div class="point-item"><div class="point-bullet">✓</div> <div>Người học tự upload sách của họ và chọn chế độ Pareto, học kiến thức cốt lõi. Hoặc chế độ Full, giữ nguyên toàn bộ nội dung của sách gốc.<br>➔ <em>Giải quyết Quá tải thông tin</em></div></div>
+                </div>
+                <div class="card">
+                    <div class="card-header purple">📅 THẢO LUẬN & ÔN TẬP SM-2</div>
+                    <div class="point-item"><div class="point-bullet purple">✓</div> <div>Tự động hóa việc theo dõi tiến độ học tập và tính toán chu kỳ ôn tập tối ưu bằng thuật toán SM-2, gửi nhắc nhở chủ động.<br>➔ <em>Giải quyết Học trước quên sau</em></div></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 5: LLM APPLICATION -->
+        <div class="slide">
+            <div class="slide-meta"><div class="slide-tag">Phần 2: Cơ Sở Lý Thuyết</div></div>
+            <div class="slide-title">LLM ĐƯỢC ỨNG DỤNG NHƯ THẾ NÀO TRONG HỆ THỐNG</div>
+            <div class="slide-grid">
+                <div class="card">
+                    <div class="card-header primary">ỨNG DỤNG MODEL LLM CỐT LÕI</div>
+                    <div class="point-item"><div class="point-bullet">✨</div> <div><strong>gemini-2.5-flash:</strong> Chuẩn hóa và biên tập nội dung, làm đầu vào cho quy trình chuyển văn bản thành audio. Tóm tắt sách.</div></div>
+                    <div class="point-item"><div class="point-bullet purple">🧠</div> <div><strong>Cơ sở khoa học:</strong> Áp dụng thuật toán học ngắt quãng SuperMemo-2 (SM-2) cải tiến để tự động hóa đưa ra lịch ôn tập cá nhân hóa.</div></div>
+                    <div class="point-item"><div class="point-bullet cyan">⚖️</div> <div><strong>Nguyên lý Pareto 80/20:</strong> Chắt lọc nội dung cốt lõi của sách, giúp người học nắm bắt trọng tâm nhanh nhất.</div></div>
+                </div>
+
+                <div class="visual-card" onclick="triggerUpload(this)">
+                    <input type="file" accept="image/*" onchange="previewImage(this)">
+                    <img class="visual-img">
+                    <div class="visual-svg-content">
+                        <!-- LLM Gemini Logo Diagram SVG -->
+                        <svg viewBox="0 0 600 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="180" y="50" width="240" height="240" rx="30" fill="url(#gradGem)" stroke="#3B82F6" stroke-width="3"/>
+                            <path d="M300 90 L315 150 L375 165 L315 180 L300 240 L285 180 L225 165 L285 150 Z" fill="white"/>
+                            <text x="300" y="270" fill="#FFFFFF" font-size="18" font-weight="bold" text-anchor="middle">gemini-2.5-flash</text>
+                            <defs>
+                                <linearGradient id="gradGem" x1="180" y1="50" x2="420" y2="290" gradientUnits="userSpaceOnUse">
+                                    <stop stop-color="#1E1B4B"/>
+                                    <stop offset="1" stop-color="#312E81"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 6: HYBRID SEARCH RAG -->
+        <div class="slide">
+            <div class="slide-meta"><div class="slide-tag">Phần 2: Cơ Sở Lý Thuyết</div></div>
+            <div class="slide-title">HYBRID SEARCH RAG</div>
+            <div class="slide-grid">
+                <div class="card">
+                    <div class="card-header success">SO SÁNH 2 LUỒNG TÌM KIẾM & Rerank</div>
+                    <div class="point-item"><div class="point-bullet success">🔍</div> <div><strong>Semantic Search (Dense Vector):</strong> Hiểu ngữ cảnh ý đồ. Nhược điểm: Dễ bị trôi ngữ cảnh (semantic drift) và tìm sai từ khóa kỹ thuật.</div></div>
+                    <div class="point-item"><div class="point-bullet success">🔤</div> <div><strong>Lexical Search (BM25/FTS):</strong> Chính xác từ khóa mã code, tên riêng. Nhược điểm: Không hiểu ngữ nghĩa đồng âm.</div></div>
+                    <div class="point-item"><div class="point-bullet success">🔄</div> <div><strong>RRF (Reciprocal Rank Fusion):</strong> Thuật toán gộp kết quả tìm kiếm từ Semantic & Lexical search.</div></div>
+                    <div class="point-item"><div class="point-bullet success">🎯</div> <div><strong>Cohere Rerank:</strong> Cross-Encoder xếp hạng lại độ liên quan ngữ nghĩa chi tiết.</div></div>
+                </div>
+
+                <div class="visual-card" onclick="triggerUpload(this)">
+                    <input type="file" accept="image/*" onchange="previewImage(this)">
+                    <img class="visual-img">
+                    <div class="visual-svg-content">
+                        <!-- Hybrid Search Pipeline SVG -->
+                        <svg viewBox="0 0 600 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="40" y="30" width="230" height="60" rx="12" fill="#1E293B" stroke="#06B6D4" stroke-width="2"/>
+                            <text x="155" y="65" fill="#06B6D4" font-size="15" font-weight="bold" text-anchor="middle">BM25 Lexical Search</text>
+
+                            <rect x="330" y="30" width="230" height="60" rx="12" fill="#1E293B" stroke="#3B82F6" stroke-width="2"/>
+                            <text x="445" y="65" fill="#60A5FA" font-size="15" font-weight="bold" text-anchor="middle">Dense Vector Cosine</text>
+
+                            <path d="M155 90 L250 150" stroke="#06B6D4" stroke-width="3"/>
+                            <path d="M445 90 L350 150" stroke="#3B82F6" stroke-width="3"/>
+
+                            <rect x="180" y="150" width="240" height="60" rx="14" fill="#8B5CF6" opacity="0.2" stroke="#8B5CF6" stroke-width="2"/>
+                            <text x="300" y="185" fill="#C084FC" font-size="16" font-weight="bold" text-anchor="middle">RRF Fusion (k=60)</text>
+
+                            <path d="M300 210 V250" stroke="#8B5CF6" stroke-width="3"/>
+
+                            <rect x="150" y="250" width="300" height="60" rx="14" fill="#10B981" opacity="0.2" stroke="#10B981" stroke-width="2"/>
+                            <text x="300" y="285" fill="#34D399" font-size="16" font-weight="bold" text-anchor="middle">Cohere Reranker v2 Cross-Encoder</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 7A: VECTOR & DATABASE EMBEDDING -->
+        <div class="slide">
+            <div class="slide-meta"><div class="slide-tag">Phần 2: Cơ Sở Lý Thuyết</div></div>
+            <div class="slide-title">VECTOR EMBEDDING VÀ DATABASE EMBEDDING</div>
+            <div class="slide-grid">
+                <div class="card">
+                    <div class="card-header primary">PHƯƠNG ÁN XỬ LÝ & LƯU TRỮ VECTOR</div>
+                    <div class="point-item"><div class="point-bullet">💻</div> <div><strong>Local Embedding:</strong> Chạy local trong RAM để sinh vector nhúng. Ưu điểm: không cần internet, bảo mật, tối ưu chi phí API. Nhược điểm: tốn tài nguyên.</div></div>
+                    <div class="point-item"><div class="point-bullet purple">🤖</div> <div><strong>GPT Embedding Model:</strong> Sinh vector embedding độ chính xác cao, nhiều chiều hơn. Nhược điểm: tốn chi phí API.</div></div>
+                    <div class="point-item"><div class="point-bullet success">💾</div> <div><strong>Supabase PostgreSQL + pgvector:</strong> Lưu trữ và truy vấn vector HNSW tốc độ cao, dễ sử dụng, bảo mật tốt.</div></div>
+                </div>
+
+                <div class="visual-card" onclick="triggerUpload(this)">
+                    <input type="file" accept="image/*" onchange="previewImage(this)">
+                    <img class="visual-img">
+                    <div class="visual-svg-content">
+                        <!-- Vector Database SVG -->
+                        <svg viewBox="0 0 600 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="80" y="50" width="440" height="70" rx="16" fill="#1E293B" stroke="#3B82F6" stroke-width="2"/>
+                            <text x="300" y="90" fill="#60A5FA" font-size="16" font-weight="bold" text-anchor="middle">Local Embedding (RAM) & GPT Embedding</text>
+
+                            <path d="M300 120 V180" stroke="#3B82F6" stroke-width="3"/>
+
+                            <rect x="120" y="180" width="360" height="120" rx="20" fill="#0F172A" stroke="#10B981" stroke-width="3"/>
+                            <text x="300" y="225" fill="#34D399" font-size="18" font-weight="bold" text-anchor="middle">Supabase PostgreSQL</text>
+                            <text x="300" y="260" fill="#F8FAFC" font-size="15" text-anchor="middle">+ pgvector Extension (HNSW Index)</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 7B: TECH STACK -->
+        <div class="slide">
+            <div class="slide-meta"><div class="slide-tag">Phần 2: Công Nghệ Nền Tảng</div></div>
+            <div class="slide-title">CÁC CÔNG NGHỆ NỀN TẢNG</div>
+            <div class="slide-grid">
+                <div class="card">
+                    <div class="card-header primary">CƠ CẤU CÔNG NGHỆ THỰC TẾ</div>
+                    <div class="point-item"><div class="point-bullet">🎙️</div> <div><strong>LiveKit Cloud:</strong> Truyền tải và bảo mật âm thanh thời gian thực.</div></div>
+                    <div class="point-item"><div class="point-bullet">⚡</div> <div><strong>FastAPI Backend:</strong> Framework Python hiệu năng cao làm API Gateway.</div></div>
+                    <div class="point-item"><div class="point-bullet">📱</div> <div><strong>Flutter Frontend:</strong> Xây dựng mobile app đa nền tảng.</div></div>
+                    <div class="point-item"><div class="point-bullet">🌐</div> <div><strong>Next.js Frontend:</strong> Xây dựng web admin tối ưu SEO.</div></div>
+                    <div class="point-item"><div class="point-bullet">🔍</div> <div><strong>Tavily Search API:</strong> Tìm kiếm tra cứu Internet khi thiếu dữ liệu trong sách.</div></div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header cyan">LƯỚI CÔNG NGHỆ CHÍNH</div>
+                    <div class="logo-grid">
+                        <div class="logo-badge">
+                            <svg viewBox="0 0 128 128"><path d="M115.4 30.6L66.8 2.5a6 6 0 00-5.7 0L12.6 30.6a6 6 0 00-3 5.2v56.4a6 6 0 003 5.2l48.5 28.1a6 6 0 005.7 0l48.5-28.1a6 6 0 003-5.2V35.8a6 6 0 00-3-5.2z" fill="#009688"/></svg>
+                            <div class="logo-badge-name">FastAPI</div>
+                        </div>
+                        <div class="logo-badge">
+                            <svg viewBox="0 0 128 128"><path d="M64 10a54 54 0 100 108 54 54 0 000-108zm0 96a42 42 0 110-84 42 42 0 010 84z" fill="#38BDF8"/></svg>
+                            <div class="logo-badge-name">LiveKit</div>
+                        </div>
+                        <div class="logo-badge">
+                            <svg viewBox="0 0 128 128"><path d="M64 12L12 36v56l52 24 52-24V36L64 12z" fill="#336791"/></svg>
+                            <div class="logo-badge-name">PostgreSQL</div>
+                        </div>
+                        <div class="logo-badge">
+                            <svg viewBox="0 0 128 128"><path d="M37 12L7 42l48 48 48-48L73 12H37z" fill="#02569B"/></svg>
+                            <div class="logo-badge-name">Flutter</div>
+                        </div>
+                        <div class="logo-badge">
+                            <svg viewBox="0 0 128 128"><circle cx="64" cy="64" r="50" fill="#000000" stroke="#FFF" stroke-width="4"/></svg>
+                            <div class="logo-badge-name">Next.js</div>
+                        </div>
+                        <div class="logo-badge">
+                            <svg viewBox="0 0 128 128"><circle cx="64" cy="64" r="50" fill="#A855F7"/></svg>
+                            <div class="logo-badge-name">Tavily</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 8: SYSTEM ARCHITECTURE -->
+        <div class="slide">
+            <div class="slide-meta"><div class="slide-tag">Phần 3: Phân Tích Thiết Kế</div></div>
+            <div class="slide-title">SƠ ĐỒ KIẾN TRÚC TỔNG QUAN</div>
+            <div class="slide-grid">
+                <div class="card">
+                    <div class="card-header primary">PHÂN TÁCH LUỒNG VẬN HÀNH</div>
+                    <div class="point-item"><div class="point-bullet">🌐</div> <div><strong>Luồng REST HTTP:</strong> Chạy qua HTTP để đồng bộ tiến độ và quản lý nghiệp vụ truyền thống.</div></div>
+                    <div class="point-item"><div class="point-bullet">⚡</div> <div><strong>Luồng WebRTC Audio:</strong> Đàm thoại giọng nói truyền qua LiveKit Server nhằm triệt tiêu độ trễ.</div></div>
+                    <div class="point-item"><div class="point-bullet">⚙️</div> <div><strong>Worker Ngầm (Celery):</strong> Các tác vụ nặng như xử lý tài liệu hay sinh audio được đẩy vào Celery để xử lý bất đồng bộ ngầm.</div></div>
+                </div>
+
+                <div class="visual-card" onclick="triggerUpload(this)">
+                    <input type="file" accept="image/*" onchange="previewImage(this)">
+                    <img class="visual-img">
+                    <div class="visual-svg-content">
+                        <!-- System Architecture SVG -->
+                        <svg viewBox="0 0 600 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="30" y="130" width="130" height="90" rx="16" fill="#1E293B" stroke="#02569B" stroke-width="2"/>
+                            <text x="95" y="170" fill="#38BDF8" font-size="14" font-weight="bold" text-anchor="middle">Flutter App</text>
+                            <text x="95" y="195" fill="#94A3B8" font-size="12" text-anchor="middle">SQLite Drift</text>
+
+                            <path d="M160 150 H240" stroke="#3B82F6" stroke-width="3" stroke-dasharray="4 4"/>
+                            <text x="200" y="142" fill="#60A5FA" font-size="11" text-anchor="middle">REST HTTP</text>
+
+                            <path d="M160 200 H240" stroke="#10B981" stroke-width="3"/>
+                            <text x="200" y="222" fill="#34D399" font-size="11" text-anchor="middle">WebRTC Audio</text>
+
+                            <rect x="240" y="40" width="160" height="270" rx="20" fill="#0F172A" stroke="#3B82F6" stroke-width="2"/>
+                            <text x="320" y="75" fill="#F8FAFC" font-size="15" font-weight="bold" text-anchor="middle">FastAPI Backend</text>
+
+                            <rect x="260" y="100" width="120" height="45" rx="10" fill="#1E293B"/>
+                            <text x="320" y="127" fill="#60A5FA" font-size="12" text-anchor="middle">API Gateway</text>
+
+                            <rect x="260" y="160" width="120" height="45" rx="10" fill="#1E293B"/>
+                            <text x="320" y="187" fill="#34D399" font-size="12" text-anchor="middle">LiveKit Agent</text>
+
+                            <rect x="260" y="220" width="120" height="45" rx="10" fill="#1E293B"/>
+                            <text x="320" y="247" fill="#C084FC" font-size="12" text-anchor="middle">Celery Worker</text>
+
+                            <path d="M400 175 H460" stroke="#3B82F6" stroke-width="3"/>
+
+                            <rect x="460" y="130" width="110" height="90" rx="16" fill="#1E293B" stroke="#336791" stroke-width="2"/>
+                            <text x="515" y="170" fill="#60A5FA" font-size="14" font-weight="bold" text-anchor="middle">PostgreSQL</text>
+                            <text x="515" y="195" fill="#34D399" font-size="12" text-anchor="middle">pgvector HNSW</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 9: USECASE & CLASS DIAGRAM -->
+        <div class="slide">
+            <div class="slide-meta"><div class="slide-tag">Phần 3: Phân Tích Thiết Kế</div></div>
+            <div class="slide-title">SƠ ĐỒ USECASE VÀ SƠ ĐỒ CLASS</div>
+            <div class="slide-grid">
+                <div class="card">
+                    <div class="card-header success">HIỆN THỰC HÓA NGHIỆP VỤ</div>
+                    <div class="point-item"><div class="point-bullet success">📌</div> <div><strong>Usecase Diagram:</strong> Thể hiện các hoạt động chính của người học từ việc tải sách đến tương tác đàm thoại.</div></div>
+                    <div class="point-item"><div class="point-bullet success">🌲</div> <div><strong>Cấu trúc cây BookSection:</strong> Sử dụng cấu trúc cây tự liên kết trong bảng BookSection để lưu trữ mục lục và văn bản sách phục vụ RAG.</div></div>
+                    <div class="point-item"><div class="point-bullet success">📅</div> <div><strong>Lập lịch học cá nhân:</strong> Kết hợp các bảng lập lịch học để quản lý tiến trình học tập cá nhân hóa.</div></div>
+                </div>
+
+                <div class="visual-card" onclick="triggerUpload(this)">
+                    <input type="file" accept="image/*" onchange="previewImage(this)">
+                    <img class="visual-img">
+                    <div class="visual-svg-content">
+                        <!-- Class Diagram Entity Visual Card -->
+                        <svg viewBox="0 0 600 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="150" y="30" width="300" height="290" rx="18" fill="#1E293B" stroke="#10B981" stroke-width="3"/>
+                            <rect x="150" y="30" width="300" height="50" rx="18" fill="#059669"/>
+                            <text x="300" y="62" fill="#FFFFFF" font-size="18" font-weight="bold" text-anchor="middle">CLASS: Book Entity</text>
+                            
+                            <text x="180" y="115" fill="#F8FAFC" font-size="14">+ id: uuid (PK)</text>
+                            <text x="180" y="145" fill="#F8FAFC" font-size="14">+ title: string</text>
+                            <text x="180" y="175" fill="#F8FAFC" font-size="14">+ author: string</text>
+                            <text x="180" y="205" fill="#F8FAFC" font-size="14">+ file_path: string</text>
+                            
+                            <!-- Highlighted ai_summary field -->
+                            <rect x="170" y="225" width="260" height="40" rx="8" fill="#F59E0B" opacity="0.2" stroke="#F59E0B" stroke-width="2"/>
+                            <text x="180" y="250" fill="#FBBF24" font-size="15" font-weight="bold">+ ai_summary: Optional[dict]</text>
+                            
+                            <text x="180" y="295" fill="#94A3B8" font-size="13">+ created_at: datetime</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 11: INGESTION PIPELINE -->
+        <div class="slide">
+            <div class="slide-meta"><div class="slide-tag">Phần 4: Xây Dựng Hệ Thống</div></div>
+            <div class="slide-title">QUY TRÌNH INGESTION PIPELINE VÀ SINH AUDIO TỰ ĐỘNG</div>
+            <div class="slide-grid">
+                <div class="card">
+                    <div class="card-header primary">2 CHẾ ĐỘ PIPELINE RIÊNG BIỆT</div>
+                    <div class="point-item"><div class="point-bullet">📖</div> <div><strong>Full Mode:</strong> Được biên tập lại và giữ toàn bộ nội dung gốc khi qua bộ chuẩn hóa LLM để phù hợp với quy trình TTS.</div></div>
+                    <div class="point-item"><div class="point-bullet purple">🎯</div> <div><strong>Pareto Mode:</strong> Phức tạp hơn vì đi qua giai đoạn gán nhãn nội dung quan trọng, LLM tạo outline cô đọng các nội dung cốt lõi nhất.</div></div>
+                </div>
+
+                <div class="visual-card" onclick="triggerUpload(this)">
+                    <input type="file" accept="image/*" onchange="previewImage(this)">
+                    <img class="visual-img">
+                    <div class="visual-svg-content">
+                        <!-- Ingestion Pipeline SVG Flow -->
+                        <svg viewBox="0 0 600 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="30" y="140" width="100" height="70" rx="12" fill="#1E293B" stroke="#3B82F6" stroke-width="2"/>
+                            <text x="80" y="180" fill="#60A5FA" font-size="14" font-weight="bold" text-anchor="middle">PDF/EPUB</text>
+
+                            <path d="M130 175 H170" stroke="#3B82F6" stroke-width="3"/>
+
+                            <rect x="170" y="140" width="110" height="70" rx="12" fill="#1E293B" stroke="#F59E0B" stroke-width="2"/>
+                            <text x="225" y="172" fill="#FBBF24" font-size="13" font-weight="bold" text-anchor="middle">Validation</text>
+                            <text x="225" y="192" fill="#FBBF24" font-size="13" font-weight="bold" text-anchor="middle">Gate</text>
+
+                            <path d="M280 175 H320" stroke="#F59E0B" stroke-width="3"/>
+
+                            <rect x="320" y="140" width="120" height="70" rx="12" fill="#1E293B" stroke="#A855F7" stroke-width="2"/>
+                            <text x="380" y="172" fill="#C084FC" font-size="13" font-weight="bold" text-anchor="middle">Semantic</text>
+                            <text x="380" y="192" fill="#C084FC" font-size="13" font-weight="bold" text-anchor="middle">Labelling</text>
+
+                            <path d="M440 175 H480" stroke="#A855F7" stroke-width="3"/>
+
+                            <rect x="480" y="140" width="90" height="70" rx="12" fill="#1E293B" stroke="#10B981" stroke-width="2"/>
+                            <text x="525" y="180" fill="#34D399" font-size="14" font-weight="bold" text-anchor="middle">TTS Stream</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 12: RAG PIPELINE -->
+        <div class="slide">
+            <div class="slide-meta"><div class="slide-tag">Phần 4: Xây Dựng Hệ Thống</div></div>
+            <div class="slide-title">QUY TRÌNH RAG</div>
+            <div class="slide-grid">
+                <div class="card">
+                    <div class="card-header primary">SEMANTIC ROUTER 4 NHÁNH & HYBRID RAG</div>
+                    <div class="point-item"><div class="point-bullet">🔀</div> <div><strong>Semantic Router (4 Nhánh):</strong> Định hướng luồng câu hỏi (Metadata, Section Reference, Clarification, Hybrid RAG).</div></div>
+                    <div class="point-item"><div class="point-bullet success">🔍</div> <div><strong>Retrieval Hybrid Search:</strong> Kết hợp Semantic & Lexical search ra các chunks.</div></div>
+                    <div class="point-item"><div class="point-bullet purple">🎯</div> <div><strong>Phễu lọc RRF & Cohere Reranker:</strong> Gộp điểm RRF và dùng Cohere reranker lọc ra các chunks nổi bật nhất đưa vào ngữ cảnh cho Agent.</div></div>
+                </div>
+
+                <div class="visual-card" onclick="triggerUpload(this)">
+                    <input type="file" accept="image/*" onchange="previewImage(this)">
+                    <img class="visual-img">
+                    <div class="visual-svg-content">
+                        <!-- Router 4 Branch SVG -->
+                        <svg viewBox="0 0 600 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="50" y="145" width="160" height="60" rx="14" fill="#3B82F6" opacity="0.2" stroke="#3B82F6" stroke-width="2"/>
+                            <text x="130" y="180" fill="#60A5FA" font-size="14" font-weight="bold" text-anchor="middle">User Voice Input</text>
+
+                            <path d="M210 175 L280 80" stroke="#3B82F6" stroke-width="2"/>
+                            <path d="M210 175 L280 140" stroke="#06B6D4" stroke-width="2"/>
+                            <path d="M210 175 L280 210" stroke="#F59E0B" stroke-width="2"/>
+                            <path d="M210 175 L280 270" stroke="#10B981" stroke-width="2"/>
+
+                            <rect x="280" y="55" width="260" height="45" rx="10" fill="#1E293B" stroke="#3B82F6" stroke-width="1.5"/>
+                            <text x="410" y="82" fill="#60A5FA" font-size="13" font-weight="bold" text-anchor="middle">1. BOOK_METADATA</text>
+
+                            <rect x="280" y="115" width="260" height="45" rx="10" fill="#1E293B" stroke="#06B6D4" stroke-width="1.5"/>
+                            <text x="410" y="142" fill="#22D3EE" font-size="13" font-weight="bold" text-anchor="middle">2. SECTION_REFERENCE</text>
+
+                            <rect x="280" y="185" width="260" height="45" rx="10" fill="#1E293B" stroke="#F59E0B" stroke-width="1.5"/>
+                            <text x="410" y="212" fill="#FBBF24" font-size="13" font-weight="bold" text-anchor="middle">3. NEED_CLARIFICATION</text>
+
+                            <rect x="280" y="245" width="260" height="45" rx="10" fill="#1E293B" stroke="#10B981" stroke-width="1.5"/>
+                            <text x="410" y="272" fill="#34D399" font-size="13" font-weight="bold" text-anchor="middle">4. HYBRID_RAG (Full)</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 13: MOBILE APP SHOWCASE -->
+        <div class="slide">
+            <div class="slide-meta"><div class="slide-tag">Phần 4: Giao Diện Úng Dụng</div></div>
+            <div class="slide-title">GIAO DIỆN THỰC TẾ ỨNG DỤNG DI ĐỘNG TRIÂM</div>
+            <div class="slide-grid grid-3">
+                <div class="visual-card" onclick="triggerUpload(this)">
+                    <input type="file" accept="image/*" onchange="previewImage(this)">
+                    <img class="visual-img">
+                    <div class="visual-svg-content">
+                        <svg viewBox="0 0 240 380" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="10" y="10" width="220" height="360" rx="24" fill="#0F172A" stroke="#3B82F6" stroke-width="3"/>
+                            <rect x="80" y="20" width="80" height="12" rx="6" fill="#1E293B"/>
+                            <text x="120" y="70" fill="#60A5FA" font-size="14" font-weight="bold" text-anchor="middle">Màn Hình Hôm Nay</text>
+                            <rect x="30" y="90" width="180" height="50" rx="10" fill="#1E293B"/>
+                            <text x="45" y="120" fill="#F8FAFC" font-size="12">📖 Bài 1: Lộ trình hôm nay</text>
+                            <rect x="30" y="150" width="180" height="50" rx="10" fill="#1E293B"/>
+                            <text x="45" y="180" fill="#F8FAFC" font-size="12">📅 Lịch nhắc SM-2</text>
+                        </svg>
+                    </div>
+                </div>
+                
+                <div class="visual-card" onclick="triggerUpload(this)">
+                    <input type="file" accept="image/*" onchange="previewImage(this)">
+                    <img class="visual-img">
+                    <div class="visual-svg-content">
+                        <svg viewBox="0 0 240 380" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="10" y="10" width="220" height="360" rx="24" fill="#0F172A" stroke="#A855F7" stroke-width="3"/>
+                            <rect x="80" y="20" width="80" height="12" rx="6" fill="#1E293B"/>
+                            <text x="120" y="70" fill="#C084FC" font-size="14" font-weight="bold" text-anchor="middle">Trình Player Audio</text>
+                            <circle cx="120" cy="160" r="50" fill="#8B5CF6" opacity="0.3" stroke="#A855F7" stroke-width="2"/>
+                            <polygon points="112,145 135,160 112,175" fill="white"/>
+                            <rect x="40" y="250" width="160" height="30" rx="15" fill="#1E293B"/>
+                            <text x="120" y="270" fill="#34D399" font-size="11" text-anchor="middle">Nút đàm thoại trực tiếp</text>
+                        </svg>
+                    </div>
+                </div>
+
+                <div class="visual-card" onclick="triggerUpload(this)">
+                    <input type="file" accept="image/*" onchange="previewImage(this)">
+                    <img class="visual-img">
+                    <div class="visual-svg-content">
+                        <svg viewBox="0 0 240 380" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="10" y="10" width="220" height="360" rx="24" fill="#0F172A" stroke="#10B981" stroke-width="3"/>
+                            <rect x="80" y="20" width="80" height="12" rx="6" fill="#1E293B"/>
+                            <text x="120" y="70" fill="#34D399" font-size="14" font-weight="bold" text-anchor="middle">Voice Call Realtime</text>
+                            <circle cx="120" cy="160" r="40" fill="#10B981" opacity="0.4"/>
+                            <path d="M60 250 Q90 220 120 250 T180 250" stroke="#10B981" stroke-width="3" fill="none"/>
+                            <text x="120" y="290" fill="#94A3B8" font-size="11" text-anchor="middle">Đang đàm thoại với TriÂm...</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 14: LATENCY BUDGET -->
+        <div class="slide">
+            <div class="slide-meta"><div class="slide-tag">Phần 5: Kết Quả Thực Nghiệm</div></div>
+            <div class="slide-title">KẾT QUẢ THỰC NGHIỆM ĐÁNH GIÁ ĐỘ TRỄ & PHÂN BỔ HIỆU NĂNG</div>
+            <div class="slide-grid">
+                <div class="card">
+                    <div class="card-header success">SỐ LIỆU ĐO ĐẠC THỰC TẾ (BẢNG 9.1 LUẬN VĂN)</div>
+                    <div class="metrics-row">
+                        <div class="metric-card"><div class="metric-num">100%</div><div class="metric-desc">pytest tự động (103/103 tests pass)</div></div>
+                        <div class="metric-card"><div class="metric-num">29 ms</div><div class="metric-desc">Semantic Router (P50)</div></div>
+                        <div class="metric-card"><div class="metric-num">1.493 ms</div><div class="metric-desc">Retrieval Hybrid RAG (P50)</div></div>
+                        <div class="metric-card"><div class="metric-num">1.8s - 2.5s</div><div class="metric-desc">TTFA (Phản hồi âm thanh đầu tiên)</div></div>
+                    </div>
+                    <div class="point-item" style="margin-top: 12px;"><div class="point-bullet warning">⏱️</div> <div><strong>Voice Turn Total:</strong> P50 = 12.279ms (~12,28s) | P90 = 26.459ms | P95 = 47.251ms</div></div>
+                </div>
+
+                <div class="visual-card" onclick="triggerUpload(this)">
+                    <input type="file" accept="image/*" onchange="previewImage(this)">
+                    <img class="visual-img">
+                    <div class="visual-svg-content">
+                        <!-- Latency Chart SVG -->
+                        <svg viewBox="0 0 600 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <text x="30" y="50" fill="#60A5FA" font-size="15" font-weight="bold">Semantic Router (29ms)</text>
+                            <rect x="30" y="65" width="20" height="24" rx="6" fill="#3B82F6"/>
+
+                            <text x="30" y="120" fill="#34D399" font-size="15" font-weight="bold">Hybrid RAG Retrieval (1.493ms)</text>
+                            <rect x="30" y="135" width="220" height="24" rx="6" fill="#10B981"/>
+
+                            <text x="30" y="190" fill="#FBBF24" font-size="15" font-weight="bold">Tavily Web Search (869ms)</text>
+                            <rect x="30" y="205" width="130" height="24" rx="6" fill="#F59E0B"/>
+
+                            <text x="30" y="260" fill="#C084FC" font-size="15" font-weight="bold">Audio Streaming TTFA (1.800ms - 2.500ms)</text>
+                            <rect x="30" y="275" width="340" height="24" rx="6" fill="#A855F7"/>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 15: RAGAS BENCHMARK -->
+        <div class="slide">
+            <div class="slide-meta"><div class="slide-tag">Phần 5: Kết Quả Thực Nghiệm</div></div>
+            <div class="slide-title">ĐÁNH GIÁ CHẤT LƯỢNG RAG THEO CHUẨN RAGAS & ABLATION STUDY</div>
+            <div class="slide-grid">
+                <div class="card">
+                    <div class="card-header primary">RAGAS 60 CA & ABLATION STUDY</div>
+                    <div class="metrics-row">
+                        <div class="metric-card"><div class="metric-num">98.67%</div><div class="metric-desc">Answer Correctness</div></div>
+                        <div class="metric-card"><div class="metric-num">95.98%</div><div class="metric-desc">Context Precision & Recall</div></div>
+                        <div class="metric-card"><div class="metric-num">94.58%</div><div class="metric-desc">Answer Relevancy</div></div>
+                        <div class="metric-card"><div class="metric-num">82.77%</div><div class="metric-desc">Faithfulness (Chống ảo giác)</div></div>
+                    </div>
+                    <div class="point-item" style="margin-top: 12px;"><div class="point-bullet success">🏆</div> <div><strong>Ablation Study (Precision@5):</strong> BM25 (72.5%) vs Dense (84.0%) vs <strong>Hybrid + Reranker đề xuất (91.5%)</strong></div></div>
+                </div>
+
+                <div class="visual-card" onclick="triggerUpload(this)">
+                    <input type="file" accept="image/*" onchange="previewImage(this)">
+                    <img class="visual-img">
+                    <div class="visual-svg-content">
+                        <!-- Ablation Study Chart SVG -->
+                        <svg viewBox="0 0 600 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <text x="40" y="50" fill="#94A3B8" font-size="15" font-weight="bold">Ablation Study: Accuracy Precision@5</text>
+                            
+                            <text x="40" y="100" fill="#F8FAFC" font-size="14">BM25 Lexical Search</text>
+                            <rect x="40" y="110" width="310" height="28" rx="8" fill="#475569"/>
+                            <text x="360" y="130" fill="#F8FAFC" font-size="14" font-weight="bold">72.5%</text>
+
+                            <text x="40" y="170" fill="#F8FAFC" font-size="14">Dense Vector Search (Cosine)</text>
+                            <rect x="40" y="180" width="360" height="28" rx="8" fill="#3B82F6"/>
+                            <text x="410" y="200" fill="#F8FAFC" font-size="14" font-weight="bold">84.0%</text>
+
+                            <text x="40" y="240" fill="#34D399" font-size="15" font-weight="bold">Proposed Hybrid Search + RRF + Reranker</text>
+                            <rect x="40" y="250" width="430" height="32" rx="8" fill="#10B981"/>
+                            <text x="480" y="272" fill="#34D399" font-size="16" font-weight="bold">91.5%</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- SLIDE 16: CONCLUSION -->
+        <div class="slide">
+            <div class="slide-meta"><div class="slide-tag">Phần 6: Kết Luận</div></div>
+            <div class="slide-title">KẾT LUẬN ĐỒ ÁN & HƯỚNG PHÁT TRIỂN TƯƠNG LAI</div>
+            <div class="slide-grid">
+                <div class="card">
+                    <div class="card-header success">3 ĐÓNG GÓP CHÍNH VÀ CẢM ƠN</div>
+                    <div class="point-item"><div class="point-bullet success">1</div> <div>Hiện thực hóa thành công Nền tảng sách nói học tập tương tác hai chiều qua WebRTC bám nguồn tiếng Việt đầu tiên.</div></div>
+                    <div class="point-item"><div class="point-bullet success">2</div> <div>Xây dựng quy trình Ingestion Pipeline cá nhân hóa với chế độ học trọng tâm Pareto (40% ngân sách token) và cơ chế Cắt tỉa dựa trên giá trị (Value-Based Trimming).</div></div>
+                    <div class="point-item"><div class="point-bullet success">3</div> <div>Tự động hóa lịch trình nhắc nhở ôn tập ngắt quãng dựa trên thuật toán SM-2 cải tiến.</div></div>
+                    <div class="point-item" style="margin-top: 10px;"><div class="point-bullet purple">🚀</div> <div><strong>Hướng phát triển tương lai:</strong> Mở rộng trích xuất tri thức đa phương tiện (video bài giảng, công thức toán) & Clone giọng nói cá nhân.</div></div>
+                    <div class="card-header primary" style="margin-top: 14px; justify-content: center; font-size: 18px;">
+                        XIN CHÂN THÀNH CẢM ƠN HỘI ĐỒNG PHẢN BIỆN!
+                    </div>
+                </div>
+
+                <div class="visual-card" onclick="triggerUpload(this)">
+                    <input type="file" accept="image/*" onchange="previewImage(this)">
+                    <img class="visual-img">
+                    <div class="visual-svg-content">
+                        <!-- QR Code SVG Visual -->
+                        <svg viewBox="0 0 600 350" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <rect x="210" y="60" width="180" height="180" rx="16" fill="white"/>
+                            <rect x="230" y="80" width="50" height="50" fill="#0F172A"/>
+                            <rect x="240" y="90" width="30" height="30" fill="white"/>
+                            <rect x="320" y="80" width="50" height="50" fill="#0F172A"/>
+                            <rect x="330" y="90" width="30" height="30" fill="white"/>
+                            <rect x="230" y="170" width="50" height="50" fill="#0F172A"/>
+                            <rect x="240" y="180" width="30" height="30" fill="white"/>
+                            <rect x="300" y="150" width="20" height="20" fill="#0F172A"/>
+                            <rect x="340" y="180" width="30" height="30" fill="#0F172A"/>
+                            <text x="300" y="280" fill="#60A5FA" font-size="16" font-weight="bold" text-anchor="middle">QUÉT MÃ QR TRẢI NGHIỆM DEMO</text>
+                        </svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <!-- Drawer for Speaker Script (VERBATIM FROM slide_content.md) -->
+    <div class="drawer" id="drawer">
+        <div class="drawer-header">
+            <div class="drawer-title">🎙️ KỊCH BẢN PHÁT BIỂU DÀNH CHO 1 NGƯỜI THUYẾT TRÌNH (BÁM SÁT SLIDE_CONTENT.MD)</div>
+            <button class="btn-action" onclick="toggleNotes()">Đóng (N)</button>
+        </div>
+        <div class="drawer-text" id="drawerText">
+            "Kính thưa Hội đồng cùng toàn thể các thầy cô giáo..."
+        </div>
+    </div>
+
+    <script>
+        const slides = document.querySelectorAll('.slide');
+        const slidePill = document.getElementById('slidePill');
+        const progressBar = document.getElementById('progressBar');
+        const drawer = document.getElementById('drawer');
+        const drawerText = document.getElementById('drawerText');
+
+        let currentSlide = 0;
+
+        // VERBATIM SPEAKER NOTES FROM slide_content.md
+        const scripts = [
+            "Kính thưa Hội đồng cùng toàn thể các thầy cô giáo. Hôm nay chúng em xin phép được trình bày đề tài tốt nghiệp của mình: 'Phát triển nền tảng sách nói tương tác thông minh hỗ trợ học tập'. Dự án hướng tới giải quyết bài toán tiếp thu kiến thức thụ động từ sách nói truyền thống, đưa công nghệ AI đàm thoại hai chiều thời gian thực vào quy trình học tập cá nhân hóa.",
+            "Tất cả app mà em tham khảo như Fonos, Voiz FM hay LeapAhead đều có lượt tải hơn 1 triệu và đánh giá khá cao. Em cũng đã xem các chức năng và trải nghiệm miễn phí các app này. Từ đó thấy được nhiều vấn đề ở các app sách nói hiện tại.",
+            "Mặc dù sách nói đang bùng nổ, việc học qua sách nói truyền thống gặp 3 rào cản lớn: Thứ nhất là sự xao nhãng do nghe thụ động một chiều, chỉ lưu giữ 10% kiến thức. Thứ hai là quá tải thông tin khi sách quá dài nhưng thiếu thời gian chắt lọc. Thứ ba là học trước quên sau do tác động của đường cong quên lãng Ebbinghaus. TriÂm ra đời nhằm giải quyết triệt để 3 nỗi đau này của người học.",
+            "Để giải quyết 3 vấn đề trên, TriÂm xây dựng 3 giải pháp cốt lõi: Trợ lý đàm thoại giọng nói thời gian thực giúp học tương tác; Bộ hoạch định Pareto chắt lọc 20% kiến thức trọng tâm; Và hệ thống ôn tập ngắt quãng tự động hóa hoàn toàn lịch trình nhắc nhở học viên đúng thời điểm rơi trí nhớ.",
+            "Về cơ sở khoa học, hệ thống áp dụng thuật toán học ngắt quãng SM-2 cải tiến để tự động hóa việc đưa ra lịch ôn tập cá nhân hóa, giúp tri thức chuyển từ trí nhớ ngắn hạn sang dài hạn. Đồng thời, nguyên lý Pareto 80/20 được áp dụng để chắt lọc nội dung cốt lõi của sách, giúp người học nắm bắt trọng tâm nhanh nhất.",
+            "Để phục vụ RAG đàm thoại, chúng em sử dụng giải thuật Tìm kiếm lai. Các phương pháp RAG truyền thống thường chỉ dùng tìm kiếm vector ngữ nghĩa, dễ bị trôi ngữ nghĩa và bỏ sót các thuật ngữ kỹ thuật chính xác. Bằng cách kết hợp tìm kiếm từ khóa BM25 và tìm kiếm vector, TriÂm đảm bảo kết quả tìm kiếm vừa đúng ngữ cảnh vừa chính xác tuyệt đối các thuật ngữ chuyên môn. Sau khi có kết quả từ hai luồng tìm kiếm, chúng em áp dụng thuật toán Reciprocal Rank Fusion để kết hợp thứ hạng một cách khách quan. Tiếp theo, mô hình Cohere Reranker đóng vai trò là một Cross-Encoder để xếp hạng lại độ liên quan ngữ nghĩa chi tiết. Cuối cùng, một chốt chặn Evidence Validation kiểm tra chéo các thực thể trong câu trả lời của LLM so với văn bản gốc để loại bỏ hoàn toàn ảo giác kiến thức.",
+            "Để xử lý và lưu trữ dữ liệu Vector Embedding, chúng em đã triển khai song song 2 phương án. Phương án thứ nhất là chạy local trong RAM của hệ thống. Phương án này đảm bảo hiệu suất nhanh kịp thời trong các module cần tính realtime, chạy thường xuyên tối ưu chi phí API. Phương án thứ hai, gpt embedding model của OpenAI. Mô hình này cho hiệu suất cao về độ chính xác với số chiều nhiều hơn, cho phép xử lý dữ liệu phức tạp hơn. Các vector embedding được tạo ra sẽ lưu vào PostgreSQL đã thêm phần extension pgvector tối ưu cho lưu trữ, truy vấn vector.",
+            "Về kiến trúc, chúng em xây dựng backend với FastAPI, một framework Python hiệu năng cao, đóng vai trò là API Gateway kết nối với cơ sở dữ liệu Supabase sử dụng PostgreSQL và extension pgvector để quản lý vector embedding. LiveKit Server đảm nhận xử lý real-time cho luồng audio đàm thoại. Với mobile, chúng em sử dụng Flutter, cho phép phát triển đa nền tảng với một codebase duy nhất. Riêng cho giao diện web, chúng em xây dựng với Next.js để tối ưu SEO và trải nghiệm người dùng. Để mở rộng khả năng tra cứu thông tin trên internet, chúng em tích hợp API tìm kiếm Tavily.",
+            "Đây là sơ đồ kiến trúc tổng quan của hệ thống. Chúng em tách biệt hoàn toàn luồng nghiệp vụ REST truyền thống chạy qua HTTP để đồng bộ tiến độ và luồng đàm thoại giọng nói truyền qua giao thức WebRTC sử dụng LiveKit Server nhằm triệt tiêu độ trễ. Các tác vụ nặng như xử lý tài liệu hay sinh audio được đẩy vào Celery để xử lý bất đồng bộ ngầm.",
+            "Để hiện thực hóa nghiệp vụ hệ thống, sơ đồ Usecase thể hiện các hoạt động chính của người học từ việc tải sách đến tương tác đàm thoại. Ở bên phải là mô hình dữ liệu cốt lõi. Chúng em sử dụng cấu trúc cây tự liên kết trong bảng BookSection để lưu trữ mục lục và văn bản sách phục vụ RAG, kết hợp với các bảng lập lịch học để quản lý tiến trình học tập cá nhân hóa.",
+            "Quy trình Ingestion Pipeline của chúng em biến sách thô thành bài giảng âm thanh qua các bước tự động hóa. Với bước tạo kế hoạch học, người học có thể chọn chế độ học để hệ thống tiến hành quy trình tạo các bài học theo chế độ. Hệ thống cung cấp 2 chế độ cho người học. Full mode, sẽ được biên tập lại và giữ toàn bộ nội dung gốc. Pareto mode được áp dụng LLM, tạo ra các bài học cốt lõi. Mỗi chế độ sẽ có pipeline khá khác nhau. Full mode sẽ được hệ thống xử lý để phù hợp với quy trình TTS nhưng vẫn giữ được toàn bộ nội dung khi qua bộ chuẩn hóa bằng LLM. Pareto mode thì sẽ phức tạp hơn vì có đi qua giai đoạn gán nhãn nội dung quan trọng, sau đó đưa qua LLM dựa trên các nhãn này thì LLM sẽ đưa ra outline với các nội dung quan trọng, được cô đọng giúp người học tiếp thu nhanh mà không cần phải học toàn bộ sách.",
+            "Quy trình RAG được kích hoạt khi người dùng đặt câu hỏi. Câu hỏi người dùng sẽ đi qua bộ Semantic Router grounding, bộ này có vai trò định hướng luồng câu hỏi nhờ sự tham gia của local embedding, sẽ trả về nhãn để retrieval chính xác nhãn nguồn data để lấy ra data cung cấp cho agent nguồn thông tin với câu hỏi. Router này có 4 nhánh: nhánh truy xuất thông tin metadata sách, nhánh truy xuất các phần nội dung chương - mục sách, nhánh yêu cầu rõ ý định người dùng khi câu hỏi chưa đầy đủ thông tin và nhánh cuối cùng vào hybrid RAG. Với nhánh Hybrid RAG, câu hỏi gốc của người học được agent hiểu lại, hệ thống lấy câu hỏi được agent hiểu lại để chuyển thành các vector embedding. Sau đó thực hiện giai đoạn retrieval với semantic cùng lexical search ra các chunks. Các chunks này tiếp tục đi các phễu lọc để lọc bớt chunks, đầu tiên là RRF để gộp và boost điểm số của 2 các chunks xuất hiện ở cả 2 phương pháp. Tiếp theo là qua Cohere reranker để chọn lọc các chunk nổi bật nhất. Các chunk này sẽ được tổng hợp vào ngữ cảnh và cung cấp cho agent. Agent sẽ phản hồi về cho người học.",
+            "Đây là giao diện ứng dụng di động TriÂm được phát triển trên nền tảng Flutter. Thiết kế theo phong cách tối giản hiện đại. Ứng dụng tích hợp bộ lưu cache SQLite ngoại tuyến bằng thư viện Drift, giúp lưu trữ bài học và audio trực tiếp trên thiết bị để người học có thể ôn tập mọi lúc mọi nơi không cần mạng internet.",
+            "Kính thưa Hội đồng, toàn bộ dữ liệu thực nghiệm đều được trích xuất trực tiếp từ nhật ký vận hành thực tế trên ứng dụng di động. Về chức năng tự động, 103/103 ca kiểm thử hồi quy qua pytest đạt tỷ lệ 100%. Về hiệu năng đàm thoại qua WebRTC, bộ định tuyến ý định Semantic Router hoạt động cực nhanh với P50 chỉ 29 ms. Luồng trích xuất tri thức Hybrid Search kết hợp Cohere Reranker tiêu tốn trung bình 1.493 ms (P50). Đặc biệt, nhờ áp dụng kỹ thuật truyền phát âm thanh phân đoạn Audio Streaming qua WebRTC, thời gian người học chờ nghe âm thanh phản hồi đầu tiên TTFA chỉ dao động trong khoảng từ 1,8 giây đến 2,5 giây, giúp duy trì nhịp tương tác đàm thoại tự nhiên và mượt mà.",
+            "Về mặt chất lượng bám nguồn và chống ảo giác, chúng em áp dụng bộ chỉ số chuẩn quốc tế RAGAS với mô hình giám khảo độc lập Gemini 3.6 Flash trên tập dữ liệu 60 ca đàm thoại thực tế trải rộng ở 3 miền tri thức. Kết quả thu được đạt mức ấn tượng với độ chính xác nội dung thực tế 98.67%, hai chỉ số ngữ cảnh Precision và Recall đều đạt 95.98%. Đặc biệt, qua bảng thử nghiệm so sánh Ablation Study, giải pháp Tìm kiếm lai Hybrid Search kết hợp gộp xếp hạng RRF và Cohere Reranker do chúng em đề xuất đã chứng minh tính ưu việt vượt trội với độ chính xác trích xuất Top 5 đạt 91.5% và độ thu hồi tri thức đạt 94.0%, vượt xa phương pháp tìm kiếm Vector hoặc Từ khóa thuần túy.",
+            "Đồ án đã hiện thực hóa thành công nền tảng sách nói học tập tương tác chủ động thông minh đầu tiên hỗ trợ tiếng Việt với độ trễ thấp và độ bám nguồn cao. Trong tương lai, chúng em hướng tới trích xuất tri thức từ các video bài giảng và hỗ trợ clone giọng nói cá nhân. Sau đây chúng em xin phép trình chiếu video demo thực tế ứng dụng. Chúng em xin chân thành cảm ơn thầy cô đã chú ý lắng nghe."
+        ];
+
+        function renderSlide() {
+            slides.forEach((s, idx) => {
+                s.classList.toggle('active', idx === currentSlide);
+            });
+            slidePill.textContent = `Slide ${currentSlide + 1} / ${slides.length}`;
+            progressBar.style.width = `${((currentSlide + 1) / slides.length) * 100}%`;
+            drawerText.textContent = scripts[currentSlide] || "";
+        }
+
+        function nextSlide() {
+            if (currentSlide < slides.length - 1) {
+                currentSlide++;
+                renderSlide();
+            }
+        }
+
+        function prevSlide() {
+            if (currentSlide > 0) {
+                currentSlide--;
+                renderSlide();
+            }
+        }
+
+        function toggleNotes() {
+            drawer.classList.toggle('open');
+        }
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen();
+            } else {
+                if (document.exitFullscreen) document.exitFullscreen();
+            }
+        }
+
+        function triggerUpload(card) {
+            const input = card.querySelector('input[type="file"]');
+            if (input) input.click();
+        }
+
+        function previewImage(input) {
+            const file = input.files[0];
+            if (file) {
+                const reader = new FileReader();
+                const card = input.closest('.visual-card');
+                const img = card.querySelector('.visual-img');
+                const svgContent = card.querySelector('.visual-svg-content');
+
+                reader.onload = function(e) {
+                    img.src = e.target.result;
+                    img.style.display = 'block';
+                    if (svgContent) svgContent.style.display = 'none';
+                }
+                reader.readAsDataURL(file);
+            }
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === 'PageDown' || e.key === ' ') nextSlide();
+            else if (e.key === 'ArrowLeft' || e.key === 'PageUp') prevSlide();
+            else if (e.key === 'n' || e.key === 'N') toggleNotes();
+            else if (e.key === 'f' || e.key === 'F') toggleFullscreen();
+        });
+
+        renderSlide();
+    </script>
+</body>
+</html>

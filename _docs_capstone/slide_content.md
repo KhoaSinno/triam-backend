@@ -174,7 +174,7 @@ Slide gồm: Thuyết trình + chiếu video demo trong 15 phút
 
 ### Slide 13: Minh họa UI mobile app
 
-- **Tiêu đề:** Giao Diện Thực Tế Ứng Dụng Di Động TriÂm
+- **Tiêu đề:** UI app TRIAM
 - **Diagram:** Trình bày 3 ảnh chụp màn hình thực tế của ứng dụng Flutter:
   1.  Màn hình chính "Hôm nay" hiển thị lộ trình học trong ngày.
   2.  Trình nghe Audio Player tích hợp nút đàm thoại trực tiếp.
@@ -185,36 +185,74 @@ Slide gồm: Thuyết trình + chiếu video demo trong 15 phút
 - **Speaker Notes:**
   > "Đây là giao diện ứng dụng di động TriÂm được phát triển trên nền tảng Flutter. Thiết kế theo phong cách tối giản hiện đại. Ứng dụng tích hợp bộ lưu cache SQLite ngoại tuyến bằng thư viện Drift, giúp lưu trữ bài học và audio trực tiếp trên thiết bị để người học có thể ôn tập mọi lúc mọi nơi không cần mạng internet."
 
-## PHẦN 5: Kết quả (2 SLIDES)
+## PHẦN 5: KẾT QUẢ THỰC NGHIỆM (2 SLIDES)
 
-### Slide 14: Đánh giá Thực nghiệm: Độ trễ thoại & Chất lượng RAG
+### Slide 14: Đánh giá Thực nghiệm (Phần 1): Kiểm thử Chức năng & Phân bổ Độ trễ Đàm thoại (TTFA)
 
-- **Tiêu đề:** Kết Quả Thực Nghiệm Đánh Giá Độ Trễ & RAG
-- **Diagram:** Biểu đồ phân rã độ trễ thoại và bảng so sánh độ chính xác của các giải thuật RAG.
+- **Tiêu đề:** Khả năng đáp ứng
+- **Diagram:** Chia 2 phần: 
+  1. Bảng phân bổ độ trễ thực nghiệm từ ứng dụng di động qua WebRTC ($P_{50}$, $P_{90}$, $P_{95}$).
 - **Nội dung hiển thị:**
-  - **Phân rã độ trễ đàm thoại thoại trung bình (~1.16 giây):**
-    - VAD (Nhận diện dứt câu): ~150ms.
-    - RAG Retrieval & Reranker: ~240ms.
-    - LLM & TTS Streaming (Tạo giọng): ~650ms.
-    - Mạng WebRTC: ~120ms.
-  - **Độ chính xác định vị RAG (RAG Accuracy):**
-    - Chỉ Vector Search: 81.2%
-    - Chỉ Lexical Search (FTS): 68.4%
-    - Hybrid RAG + Cohere Rerank: **94.8%** (Tối ưu nhất, triệt tiêu lỗi trích xuất sai ngữ cảnh).
+  - **Kết quả đo độ trễ thực nghiệm thực tế trên server cloud:**
+    - *Semantic Grounding Router*: $P_{50} = 29\text{ ms} \mid P_{90} = 56\text{ ms} \mid P_{95} = 295\text{ ms}$
+    - *Query Guard Validation*: $P_{50} = 1\text{ ms} \mid P_{90} = 1\text{ ms} \mid P_{95} = 1\text{ ms}$
+    - *Retrieval (Hybrid Search + Cohere Reranker)*: $P_{50} = 1.493\text{ ms} \mid P_{90} = 2.966\text{ ms} \mid P_{95} = 3.100\text{ ms}$
+    - *Tìm kiếm Web mở rộng (Tavily Search API)*: $P_{50} = 869\text{ ms} \mid P_{90} = 869\text{ ms} \mid P_{95} = 869\text{ ms}$
+    - *Tổng hợp công cụ RAG (Total Tool Execution)*: $P_{50} = 1.516\text{ ms} \mid P_{90} = 2.987\text{ ms} \mid P_{95} = 3.131\text{ ms}$
+    - *Tổng thời lượng lượt thoại đàm thoại (Voice Turn Total)*: $P_{50} = 12.279\text{ ms} \mid P_{90} = 26.459\text{ ms} \mid P_{95} = 47.251\text{ ms}$
+  - **Độ trễ âm thanh phản hồi đầu tiên (Time-to-First-Audio - TTFA):**
+    - Nhờ kỹ thuật **Audio Streaming** phân đoạn qua WebRTC, chỉ số TTFA từ khi kết thúc phát biểu đến khi âm thanh phản hồi đầu tiên phát ra đạt từ **$1,8\text{ s}$ đến $2,5\text{ s}$**, giúp duy trì nhịp đàm thoại học tập tự nhiên và mượt mà.
 - **Speaker Notes:**
-  > "Chúng em đã thực hiện đo đạc thực nghiệm kỹ lưỡng. Tổng độ trễ đàm thoại trung bình duy trì ổn định ở mức 1.16 giây, đạt chuẩn giao tiếp tự nhiên của con người (< 1.5 giây). Về chất lượng RAG, giải thuật kết hợp Hybrid Search và xếp hạng lại bằng Cohere Reranker mang lại độ chính xác định vị kiến thức lên tới 94.8%, vượt trội hoàn toàn so với tìm kiếm vector đơn thuần."
+  > "Kính thưa Hội đồng, toàn bộ dữ liệu thực nghiệm đều được trích xuất trực tiếp từ nhật ký vận hành thực tế trên ứng dụng trên server cloud. Về hiệu năng đàm thoại qua WebRTC, bộ định tuyến ý định Semantic Router hoạt động cực nhanh với $P_{50}$ chỉ 29 ms. Luồng trích xuất tri thức Hybrid Search kết hợp Cohere Reranker tiêu tốn trung bình 1.493 ms ($P_{50}$). Đặc biệt, nhờ áp dụng kỹ thuật truyền phát âm thanh phân đoạn Audio Streaming qua WebRTC, thời gian người học chờ nghe âm thanh phản hồi đầu tiên TTFA chỉ dao động trong khoảng từ 1,8 giây đến 2,5 giây, giúp duy trì nhịp tương tác đàm thoại tự nhiên và mượt mà."
 
 ---
 
-## PHẦN 6: Kết luận (1 SLIDES)
+### Slide 15: Đánh giá Thực nghiệm (Phần 2): Chất lượng RAG (Khung RAGAS) & Thử nghiệm So sánh
 
-### Slide 15: Kết luận & Hướng phát triển tương lai
-
-- **Tiêu đề:** Kết Luận Đồ Án & Hướng Phát Triển Tương Lai
-- **Diagram:** Trang cảm ơn ban giám khảo trang trọng, kèm mã QR để tải ứng dụng demo.
+- **Tiêu đề:** Đánh giá RAG theo chuẩn RAGAS
+- **Diagram:** Bảng tổng hợp 5 chỉ số RAGAS cốt lõi.
 - **Nội dung hiển thị:**
-  - **Đóng góp chính:** Hiện thực hóa thành công trợ lý học tập đàm thoại sách nói qua WebRTC bám nguồn tiếng Việt đầu tiên, tối ưu hóa chu kỳ học ngắt quãng và cá nhân hóa lộ trình học.
-  - **Hướng phát triển:** Trích xuất tri thức đa phương tiện (video bài giảng, đồ thị/công thức toán học phức tạp); Cá nhân hóa giọng đọc thông qua công nghệ clone giọng nói.
-  - **XIN CHÂN THÀNH CẢM ƠN HỘI ĐỒNG PHẢN BIỆN!**
+  - **Tập dữ liệu kiểm định chuẩn (60 ca đàm thoại thực tế $Q_1 \rightarrow Q_{60}$):** Phủ rộng 3 miền tri thức (Văn học *Of Mice and Men*, CNTT & Lập trình C#, Tài chính cá nhân *Rich Dad Poor Dad* & *Psychology of Money*).
+  - **Mô hình Giám định (LLM-as-a-Judge):** Mô hình độc lập `gemini-3.6-flash`.
+  - **Kết quả 5 chỉ số RAGAS (Thang điểm 1.0):**
+    - **Answer Correctness (Độ chính xác thực tế):** **$0,9867$** ($98,67\%$)
+    - **Context Precision (Chính xác ngữ cảnh):** **$0,9598$** ($95,98\%$)
+    - **Context Recall (Bao phủ tri thức):** **$0,9598$** ($95,98\%$)
+    - **Answer Relevancy (Đúng trọng tâm):** **$0,9458$** ($94,58\%$)
+    - **Faithfulness (Trung thực - Chống ảo giác):** **$0,8277$** ($82,77\%$)
+  - **Kết quả Thử nghiệm So sánh Phương pháp Trích xuất (Ablation Study):**
+    - *Lexical Search (BM25)*: Precision@5 = $72,5\%$ \mid Recall = $75,0\%$
+    - *Dense Retrieval (Cosine)*: Precision@5 = $84,0\%$ \mid Recall = $88,0\%$
+    - **Hybrid Search + RRF + Cohere Reranker (Đề xuất)**: **Precision@5 = $91,5\%$** \mid **Recall = $94,0\%$**
 - **Speaker Notes:**
-  > "Đồ án đã hiện thực hóa thành công nền tảng sách nói học tập tương tác chủ động thông minh đầu tiên hỗ trợ tiếng Việt. Trong tương lai, chúng em hướng tới trích xuất tri thức từ các video bài giảng và hỗ trợ clone giọng nói cá nhân. Sau đây chúng em xin phép trình chiếu video demo thực tế ứng dụng. Chúng em xin chân thành cảm ơn thầy cô đã lắng nghe."
+  > "Về mặt chất lượng bám nguồn và chống ảo giác, chúng em áp dụng bộ chỉ số chuẩn quốc tế RAGAS với mô hình giám khảo độc lập Gemini 3.6 Flash trên tập dữ liệu 60 ca đàm thoại thực tế trải rộng ở 3 miền tri thức. Kết quả thu được đạt mức ấn tượng với độ chính xác nội dung thực tế 98.67%, hai chỉ số ngữ cảnh Precision và Recall đều đạt 95.98%. Đặc biệt, qua bảng thử nghiệm so sánh Ablation Study, giải pháp Tìm kiếm lai Hybrid Search kết hợp gộp xếp hạng RRF và Cohere Reranker do chúng em đề xuất đã chứng minh tính ưu việt vượt trội với độ chính xác trích xuất Top 5 đạt 91.5% và độ thu hồi tri thức đạt 94.0%, vượt xa phương pháp tìm kiếm Vector hoặc Từ khóa thuần túy."
+
+---
+
+## PHẦN 6: KẾT LUẬN (1 SLIDES)
+
+### Slide 16: Kết luận & Hướng phát triển tương lai
+
+- **Tiêu đề:** Kết Luận và hướng phát triển
+- **Diagram:** Trang cảm ơn ban giám khảo trang trọng, kèm mã QR để tải ứng dụng demo di động.
+- **Nội dung hiển thị:**
+  - **Đóng góp chính của Đồ án:** 
+    - Hiện thực hóa thành công nền tảng sách nói học tập tương tác hai chiều qua WebRTC bám nguồn tiếng Việt đầu tiên.
+    - Xây dựng quy trình Ingestion Pipeline cá nhân hóa với chế độ học trọng tâm Pareto ($40\%$ ngân sách token) và cơ chế Cắt tỉa dựa trên giá trị (Value-Based Trimming).
+    - Tự động hóa lịch trình nhắc nhở ôn tập ngắt quãng dựa trên thuật toán SM-2 cải tiến.
+  - **Hướng phát triển tương lai:** 
+    - Mở rộng trích xuất tri thức đa phương tiện (video bài giảng, công thức toán học/đồ thị phức tạp).
+    - Tích hợp công nghệ clone giọng nói cá nhân hóa để tăng tính thân thiện của trợ lý thoại.
+- **Speaker Notes:**
+  > "Đồ án đã hiện thực hóa thành công nền tảng sách nói học tập tương tác chủ động thông minh đầu tiên hỗ trợ tiếng Việt với độ trễ thấp và độ bám nguồn cao. Trong tương lai, chúng em hướng tới trích xuất tri thức từ các video bài giảng và hỗ trợ clone giọng nói cá nhân."
+
+
+### Slide 17: Cảm ơn và Demo Ứng dụng
+- **Tiêu đề:** Cảm ơn và Demo Ứng dụng
+- **Diagram:** Trang cảm ơn ban giám khảo trang trọng, kèm mã QR để tải ứng dụng demo di động.
+- **Nội dung hiển thị:**
+  - **XIN CHÂN THÀNH CẢM ƠN HỘI ĐỒNG PHẢN BIỆN!**
+  - Mã QR để tải ứng dụng demo di động.
+  - Video demo thực tế ứng dụng.
+- **Speaker Notes:**
+  > "Chúng em xin chân thành cảm ơn thầy cô đã chú ý lắng nghe. Sau đây chúng em xin phép trình chiếu video demo thực tế ứng dụng."
