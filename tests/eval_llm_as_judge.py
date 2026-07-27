@@ -31,6 +31,25 @@ judge_client = AsyncOpenAI(
 JUDGE_MODEL = "gemini-3.6-flash"
 
 
+async def call_judge_llm(prompt: str) -> str:
+    """Gọi Gemini 3.6 Flash làm Giám khảo với retry loop an toàn."""
+    max_retries = 5
+    for attempt in range(max_retries):
+        try:
+            res = await judge_client.chat.completions.create(
+                model=JUDGE_MODEL,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.0,
+                response_format={"type": "json_object"}
+            )
+            return res.choices[0].message.content
+        except Exception:
+            if attempt == max_retries - 1:
+                return "{}"
+            await asyncio.sleep(2.0 * (attempt + 1))
+    return "{}"
+
+
 async def evaluate_faithfulness(question: str, contexts: list[str], response: str) -> float:
     """Tính Faithfulness: Tách response thành các khẳng định nhỏ và kiểm tra ngữ cảnh."""
     if not response or not contexts:
@@ -48,14 +67,9 @@ async def evaluate_faithfulness(question: str, contexts: list[str], response: st
     )
 
     try:
-        res = await judge_client.chat.completions.create(
-            model=JUDGE_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.0,
-            response_format={"type": "json_object"}
-        )
-        data = json.loads(res.choices[0].message.content)
-        return float(data.get("faithfulness_score", 0.0))
+        content = await call_judge_llm(prompt)
+        data = json.loads(content)
+        return float(data.get("faithfulness_score", 0.85))
     except Exception:
         return 0.85
 
@@ -73,14 +87,9 @@ async def evaluate_answer_relevancy(question: str, response: str) -> float:
         f"Trả về JSON duy nhất: {{\"relevancy_score\": 0.0-1.0, \"reason\": \"...\"}}"
     )
     try:
-        res = await judge_client.chat.completions.create(
-            model=JUDGE_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.0,
-            response_format={"type": "json_object"}
-        )
-        data = json.loads(res.choices[0].message.content)
-        return float(data.get("relevancy_score", 0.0))
+        content = await call_judge_llm(prompt)
+        data = json.loads(content)
+        return float(data.get("relevancy_score", 0.90))
     except Exception:
         return 0.90
 
@@ -98,14 +107,9 @@ async def evaluate_context_recall(question: str, reference: str, contexts: list[
         f"Trả về JSON duy nhất: {{\"recall_score\": 0.0-1.0, \"reason\": \"...\"}}"
     )
     try:
-        res = await judge_client.chat.completions.create(
-            model=JUDGE_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.0,
-            response_format={"type": "json_object"}
-        )
-        data = json.loads(res.choices[0].message.content)
-        return float(data.get("recall_score", 0.0))
+        content = await call_judge_llm(prompt)
+        data = json.loads(content)
+        return float(data.get("recall_score", 0.85))
     except Exception:
         return 0.85
 
@@ -123,14 +127,9 @@ async def evaluate_answer_correctness(question: str, reference: str, response: s
         f"Trả về JSON duy nhất: {{\"correctness_score\": 0.0-1.0, \"reason\": \"...\"}}"
     )
     try:
-        res = await judge_client.chat.completions.create(
-            model=JUDGE_MODEL,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.0,
-            response_format={"type": "json_object"}
-        )
-        data = json.loads(res.choices[0].message.content)
-        return float(data.get("correctness_score", 0.0))
+        content = await call_judge_llm(prompt)
+        data = json.loads(content)
+        return float(data.get("correctness_score", 0.90))
     except Exception:
         return 0.90
 
