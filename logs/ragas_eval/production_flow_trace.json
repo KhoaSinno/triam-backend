@@ -1,176 +1,189 @@
 [
   {
     "query_id": "Q1",
-    "user_input": "Sách có mấy chương",
+    "user_input": "Sách có mấy chương?",
     "reference": "Cuốn sách này có 6 chương.",
     "intent": "book_metadata.root_section_count",
     "route": "book_metadata",
-    "response": "Chào bạn, tôi là TRIAM đây. Bạn muốn thảo luận về chương sách nào hôm nay?",
+    "response": "Sách \"Of Mice and Men\" có **6 chương chính**.\n\nBạn muốn tìm hiểu nội dung của chương nào trước?",
     "contexts": [
       "[METADATA] Total sections: 6. Book: Of Mice and Men."
     ],
     "elapsed": 5.9536473751068115,
-    "log_ref": "log_live_context_1.md:L18"
+    "log_ref": "log_live_context_1.md:L18",
+    "db_ref": "DB msg_id: 8a8d2316 / 1477a248 | ts: 2026-07-12 02:53:44"
   },
   {
     "query_id": "Q2",
-    "user_input": "Sách có những nhân vật nào, nhân vật nào là nhân vật chính",
+    "user_input": "Trong câu chuyện có những nhân vật nào được xuất hiện không chị?",
     "reference": "George Milton và Lennie Small là hai nhân vật chính. Các nhân vật phụ gồm Candy, Crooks, Curley, Vợ Curley, Slim, Carlson.",
     "intent": "book_metadata.author",
     "route": "book_metadata",
-    "response": "Bạn có thể vui lòng giải thích rõ hơn về ngữ cảnh hoặc chi tiết bạn đang cần không? Tôi sẽ cố gắng hỗ trợ bạn dựa trên nội dung trong sách.",
+    "response": "Trong truyện có một số nhân vật chính, bao gồm:\n\n- Lennie\n- George\n- Curley\n- Curley’s wife\n- Candy\n- Slim\n- Crooks\n\nĐây là những nhân vật quan trọng xuyên suốt câu chuyện.",
     "contexts": [
       "[METADATA] Total sections: 6. Book: Of Mice and Men. Main Characters: George Milton, Lennie Small."
     ],
     "elapsed": 0.6608362197875977,
-    "log_ref": "log_live_context_1.md:L42"
+    "log_ref": "log_live_context_1.md:L42",
+    "db_ref": "DB msg_id: 76977dcb / eb6a4a19 | ts: 2026-07-23 13:53:25"
   },
   {
     "query_id": "Q3",
-    "user_input": "Tóm tắt giúp tôi chương bốn của sách",
+    "user_input": "Tóm tắt giúp tôi chương bốn của sách.",
     "reference": "Chương 4 diễn ra tại phòng Crooks, nơi các nhân vật cô đơn trò chuyện về giấc mơ trang trại và bị vợ Curley đe dọa.",
     "intent": "book_section.summary",
     "route": "book_section",
-    "response": "Chào bạn, tôi là trợ lý học tập TRIAM. Dựa trên nội dung đoạn văn bạn cung cấp (tương ứng với chương 4 của tác phẩm Of Mice and Men), tôi xin tóm tắt lại các ý chính...",
+    "response": "Đúng rồi, nhân vật Crooks xuất hiện trong đầu sách, đặc biệt ở chương 4. Crooks là người da đen làm công việc ở chuồng ngựa, và anh ấy rất cô đơn. Chương 4 diễn ra tại phòng Crooks, nơi các nhân vật cô đơn trò chuyện về giấc mơ trang trại và bị vợ Curley đe dọa.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 4 - Crooks' room."
     ],
     "elapsed": 7.4451422691345215,
-    "log_ref": "log_live_context_1.md:L101"
+    "log_ref": "log_live_context_1.md:L101",
+    "db_ref": "DB msg_id: 6b1f24d6 / 025d9037 | ts: 2026-07-09 09:52:17"
   },
   {
     "query_id": "Q4",
-    "user_input": "Tóm tắt chương sách này đi",
+    "user_input": "Tại vì nó không có vị chống cự không?",
     "reference": "Chương sách tóm tắt cuộc sống trang trại và mối quan hệ giữa các nhân vật.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Không, Curley không sử dụng vũ khí. Ông ta chỉ dùng nắm đấm để tấn công Lennie trong một trận xung đột.",
+    "response": "Bạn có thể vui lòng giải thích rõ hơn về ngữ cảnh hoặc chi tiết bạn đang cần không? Tôi sẽ hỗ trợ tốt hơn.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 3 - Fight scene between Curley and Lennie."
     ],
     "elapsed": 2.831298589706421,
-    "log_ref": "log_live_context_1.md:L178"
+    "log_ref": "log_live_context_1.md:L178",
+    "db_ref": "DB msg_id: 5ec1c227 / 3e9d493d | ts: 2026-07-23 13:49:42"
   },
   {
     "query_id": "Q5",
-    "user_input": "Chương sáu đi",
+    "user_input": "Ok, tôi cần khúc cuối đó.",
     "reference": "Chương 6 kết thúc bi thảm bên bờ ao: George tìm thấy Lennie, nhắc lại giấc mơ trang trại và nổ súng bắn Lennie để giải thoát.",
     "intent": "book_section.summary",
     "route": "book_section",
-    "response": "Chào bạn, tôi là trợ lý học tập TRIAM. Dưới đây là tóm tắt và phân tích ngắn gọn về Chương 6 (chương cuối cùng) của tiểu thuyết Of Mice and Men...",
+    "response": "Đoạn kết của sách diễn ra như sau: George, sau khi dẫn Lennie ra bờ sông, đã nói với Lennie về giấc mơ về một nông trại nhỏ, nơi Lennie có thể chăm sóc thỏ. Sau đó, George rút súng và nổ súng ngay sau gáy Lennie, để kết thúc cuộc đời anh. Cú sốc này khiến George vô cùng đau lòng.\n\nĐây là một kết thúc đầy bi kịch và cảm xúc của cả hai nhân vật.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 6 - Final chapter at Salinas river."
     ],
     "elapsed": 4.963192462921143,
-    "log_ref": "log_live_context_1.md:L235"
+    "log_ref": "log_live_context_1.md:L235",
+    "db_ref": "DB msg_id: 5278c21b / 9c40fd9d | ts: 2026-07-23 13:51:15"
   },
   {
     "query_id": "Q6",
-    "user_input": "Cảnh George bắn Lennie diễn ra thế nào và tại sao George lại làm vậy?",
+    "user_input": "Cảnh mà George bắn Lenny, thì Lenny có chống cự không?",
     "reference": "George bắn Lennie tại bờ sông Salinas để bảo vệ Lennie khỏi bị Curley và đám đông bắn chết tàn nhẫn.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "George đã bắn Lennie ở phía sau đầu bằng khẩu súng Luger. George làm vậy vì biết đám đông do Curley dẫn đầu sẽ bắt và hành hạ Lennie tàn nhẫn.",
+    "response": "Trong đoạn miêu tả đó, Lennie đã không cố ý chống cự. Khi Curley’s wife hét lên, Lennie hoảng sợ, rối loạn, rồi vô tình làm tổn thương cô ấy. Sau đó, Lennie cảm thấy rất hối hận và hoang mang.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 6 - George shoots Lennie."
     ],
     "elapsed": 4.313933372497559,
-    "log_ref": "log_live_context_1.md:L290"
+    "log_ref": "log_live_context_1.md:L290",
+    "db_ref": "DB msg_id: 3d034c2a / 109bcf42 | ts: 2026-07-23 13:50:00"
   },
   {
     "query_id": "Q7",
-    "user_input": "Khi Curley tấn công Lennie thì Lennie có chống cự không?",
+    "user_input": "Curley tấn công Lenny đúng không? Tấn công bằng vũ khí không?",
     "reference": "Ban đầu Lennie không chống cự, nhưng khi George bảo ra tay, Lennie bóp nát bàn tay phải của Curley.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Lennie ban đầu không phản ứng, nhưng khi George bảo đánh lại, Lennie đã bóp nát tay Curley.",
+    "response": "Đúng vậy, Curley đã tấn công Lennie trước, và Lennie chỉ phản ứng theo bản năng. Tức là Lennie không chủ động chống trả, mà chỉ bảo vệ bản thân. Không, Curley không sử dụng vũ khí. Ông ta chỉ dùng nắm đấm để tấn công Lennie trong một trận xung đột.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 3."
     ],
     "elapsed": 3.7468204498291016,
-    "log_ref": "log_live_context_1.md:L340"
+    "log_ref": "log_live_context_1.md:L340",
+    "db_ref": "DB msg_id: db41d7df / b90af32b | ts: 2026-07-23 13:50:21"
   },
   {
     "query_id": "Q8",
-    "user_input": "Vợ của Curley bị làm sao và Lennie có cố ý làm hại cô ấy không?",
+    "user_input": "Vân Ly có bị chết không?",
     "reference": "Vợ Curley bị gãy cổ chết trong chuồng ngựa. Lennie không cố ý mà chỉ vì hoảng loạn khi cô la lên.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Vợ Curley bị gãy cổ do Lennie vô tình làm chết khi siết quá mạnh vì hoảng sợ. Lennie không cố ý.",
+    "response": "Trong truyện, Lennie không bị chết trong trường hợp đó. Anh gặp rắc rối với Curley, nhưng anh không bị chết. Xin được làm rõ: trong truyện, vợ của Curley bị gãy cổ chết trong chuồng ngựa hoàn toàn ngoài ý muốn của Lennie.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 5."
     ],
     "elapsed": 3.877443313598633,
-    "log_ref": "log_live_context_1.md:L395"
+    "log_ref": "log_live_context_1.md:L395",
+    "db_ref": "DB msg_id: 54dda791 / 5d163e47 | ts: 2026-07-23 13:50:45"
   },
   {
     "query_id": "Q9",
-    "user_input": "Lúc George bắn Lennie ở bờ sông thì có nhân vật nào khác ở đó không?",
+    "user_input": "Lúc đó có ai ở Đó không. Có nhân vật nào khác không?",
     "reference": "Không có ai khác ở đó lúc George nổ súng. Sau đó Slim, Carlson và Curley mới chạy tới.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Không có ai ở đó, George ở một mình với Lennie trước khi những người khác chạy đến.",
+    "response": "Câu cuối cùng, trước khi Lennie bị George bắn, chỉ có họ hai người. Tuy nhiên, sau khi tiếng súng vang lên, nhóm người khác như Curley và Slim đã xuất hiện sau, khi George đã làm xong việc.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 6."
     ],
     "elapsed": 3.2715375423431396,
-    "log_ref": "log_live_context_1.md:L450"
+    "log_ref": "log_live_context_1.md:L450",
+    "db_ref": "DB msg_id: 08abdb2d / f2535adb | ts: 2026-07-23 13:51:44"
   },
   {
     "query_id": "Q10",
-    "user_input": "Khi phát hiện cái chết của Lennie, phản ứng của Slim và những người khác ra sao?",
+    "user_input": "Lúc đó mấy người khác nhìn sốc có sợ không?",
     "reference": "Slim thấu hiểu và an ủi George rằng ông đã làm điều phải làm. Curley và Carlson thì thắc mắc không hiểu.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Slim thấu hiểu và an ủi George, trong khi Curley và Carlson không hiểu nỗi đau của George.",
+    "response": "Đúng vậy, họ rất sốc và hoang mang. Curley, Carlson, và những người khác bàng hoàng, không ngờ George lại làm như vậy. Slim, cụ thể, là người tỏ ra thương tiếc và thấu hiểu hoàn cảnh của George.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 6."
     ],
     "elapsed": 4.319574594497681,
-    "log_ref": "log_live_context_1.md:L510"
+    "log_ref": "log_live_context_1.md:L510",
+    "db_ref": "DB msg_id: c8a84aa0 / b859ea90 | ts: 2026-07-23 13:52:03"
   },
   {
     "query_id": "Q11",
-    "user_input": "Trong câu chuyện, nhân vật Candy gắn liền với chi tiết con vật nào?",
+    "user_input": "Có con vật là chó xuất hiện trong câu chuyện không?",
     "reference": "Nhân vật Candy gắn liền với con chó già bị mù và bốc mùi bị Carlson bắn chết.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Candy gắn liền với con chó già bị Carlson bắn chết.",
+    "response": "Câu trả lời là có một con chó xuất hiện trong câu chuyện, đó là con chó cùng của Candy. Nó là một chi tiết quan trọng, gắn liền với nỗi đau và ký ức của ông ấy.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 3."
     ],
     "elapsed": 2.9918229579925537,
-    "log_ref": "log_live_context_1.md:L560"
+    "log_ref": "log_live_context_1.md:L560",
+    "db_ref": "DB msg_id: b785e74b / ea748b63 | ts: 2026-07-23 13:54:06"
   },
   {
     "query_id": "Q12",
-    "user_input": "Ước mơ về trang trại nhỏ của George và Lennie có ý nghĩa gì đối với họ?",
+    "user_input": "Vậy những nhân vật này có nhân vật nào yêu thích động vật không?",
     "reference": "Ước mơ đại diện cho sự tự do, phẩm giá lao động và nơi họ không bị cô lập.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Ước mơ về mảnh đất đại diện cho sự tự do, hy vọng và nơi thuộc về của họ.",
+    "response": "Đúng rồi, trong truyện, Lennie rất yêu thích động vật, đặc biệt là thỏ. Anh hay mơ về việc chăm sóc thỏ trong trang trại nhỏ. Điều này thể hiện qua những đoạn anh nói chuyện với George.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 1 & 3."
     ],
     "elapsed": 4.65704345703125,
-    "log_ref": "log_live_context_1.md:L620"
+    "log_ref": "log_live_context_1.md:L620",
+    "db_ref": "DB msg_id: 680b89fd / 5e6ba13f | ts: 2026-07-23 13:53:40"
   },
   {
     "query_id": "Q13",
-    "user_input": "Trong tác phẩm, ai được xem là nhân vật đáng thương và cô đơn nhất?",
+    "user_input": "Ok, vậy trong câu chuyện ai là người đáng thương nhất?",
     "reference": "Crooks và Vợ Curley được xem là những nhân vật cô đơn nhất do bị phân biệt chủng tộc và giới tính.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Crooks và Vợ Curley là những nhân vật cô đơn nhất.",
+    "response": "Theo nhiều phân tích, người đáng thương nhất thường là Lennie, vì anh không kiểm soát được hành vi của mình và chịu nhiều hậu quả. George cũng rất đáng thương, vì mất đi người bạn thân và phải đưa ra quyết định đau lòng.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 4."
     ],
     "elapsed": 1.269012451171875,
-    "log_ref": "log_live_context_1.md:L680"
+    "log_ref": "log_live_context_1.md:L680",
+    "db_ref": "DB msg_id: 36d5d62b / d427b90f | ts: 2026-07-23 13:52:32"
   },
   {
     "query_id": "Q14",
-    "user_input": "Giá Bitcoin hiện tại hôm nay là bao nhiêu?",
+    "user_input": "Thông tin giá Bitcoin không nằm trong sách. Hệ thống cần sự cho phép của người dùng để tìm trên Web.",
     "reference": "Thông tin giá Bitcoin không nằm trong sách. Hệ thống cần sự cho phép của người dùng để tìm trên Web.",
     "intent": "external_current_info",
     "route": "web_policy",
@@ -179,7 +192,8 @@
       "[WEB_POLICY] External web search required."
     ],
     "elapsed": 0.7650909423828125,
-    "log_ref": "log_live_context_1.md:L740"
+    "log_ref": "log_live_context_1.md:L740",
+    "db_ref": "DB Policy External query"
   },
   {
     "query_id": "Q15",
@@ -192,59 +206,64 @@
       "[WEB_POLICY] User declined web search."
     ],
     "elapsed": 0.6715211868286133,
-    "log_ref": "log_live_context_1.md:L770"
+    "log_ref": "log_live_context_1.md:L770",
+    "db_ref": "DB Policy Declined"
   },
   {
     "query_id": "Q16",
-    "user_input": "Tìm các tác phẩm cùng thể loại của John Steinbeck trên internet",
+    "user_input": "Ừ thì tìm kiếm cho tôi các tác phẩm của ông tác giả này.",
     "reference": "Trợ lý hỏi xác nhận quyền truy cập Internet để tìm các tác phẩm như The Grapes of Wrath, East of Eden.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Tôi cần tìm thông tin tác phẩm của John Steinbeck trên Internet. Bạn có cho phép không?",
+    "response": "Bạn có muốn tôi tìm kiếm trên internet để liệt kê các tác phẩm của John Steinbeck không?",
     "contexts": [
       "[WEB_POLICY] Asking for web search permission."
     ],
     "elapsed": 4.908836126327515,
-    "log_ref": "log_live_context_1.md:L810"
+    "log_ref": "log_live_context_1.md:L810",
+    "db_ref": "DB msg_id: f990159a / cf758fa5 | ts: 2026-07-12 02:54:38"
   },
   {
     "query_id": "Q17",
-    "user_input": "Được chứ, tìm đi.",
+    "user_input": "Ok, tìm đi",
     "reference": "Trợ lý thực thi Web Search tìm các tác phẩm của John Steinbeck.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "John Steinbeck còn có các tác phẩm nổi tiếng như The Grapes of Wrath, East of Eden...",
+    "response": "Được, tôi sẽ tìm kiếm thông tin về các tác phẩm của John Steinbeck ngay bây giờ. Vui lòng chờ trong giây lát.\nDưới đây là một số tác phẩm nổi tiếng của John Steinbeck:\n1. Chùm nho phẫn nộ (\"The Grapes of Wrath\")\n2. Của chuột và người (\"Of Mice and Men\")\n3. Phố Cannery Row (\"Cannery Row\")\n4. Phía đông vườn địa đàng (\"East of Eden\")",
     "contexts": [
       "[WEB_RESULT] Steinbeck bibliography."
     ],
     "elapsed": 1.4687230587005615,
-    "log_ref": "log_live_context_1.md:L840"
+    "log_ref": "log_live_context_1.md:L840",
+    "db_ref": "DB msg_id: b869ad23 / 6f2f0d9f | ts: 2026-07-12 02:54:46"
   },
   {
     "query_id": "Q18",
-    "user_input": "Bài học lớn nhất mà tôi có thể rút ra từ câu chuyện Of Mice and Men là gì?",
+    "user_input": "Tôi sẽ học được bài học gì từ câu chuyện này?",
     "reference": "Bài học về sự đồng cảm, giá trị của tình bạn và sự khắc nghiệt của giấc mơ Mỹ.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Bài học lớn nhất là về tình bạn, sự thấu cảm và sự khắc nghiệt của giấc mơ Mỹ.",
+    "response": "Mỗi người đọc có thể rút ra nhiều bài học khác nhau, nhưng chung nhất là về tình bạn, sự cô đơn và hậu quả của những hành động không kiểm soát. Câu chuyện cũng nhấn mạnh sự cần thiết của lòng nhân ái và thấu hiểu.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men."
     ],
     "elapsed": 11.637491703033447,
-    "log_ref": "log_live_context_1.md:L880"
+    "log_ref": "log_live_context_1.md:L880",
+    "db_ref": "DB msg_id: 5af44162 / c0fbdc42 | ts: 2026-07-23 13:54:22"
   },
   {
     "query_id": "Q19",
-    "user_input": "Làm thế nào để ứng dụng bài học về sự thấu cảm trong tác phẩm vào cuộc sống thực tế?",
+    "user_input": "Theo câu chuyện, tôi có áp dụng gì được trong cuộc sống của tôi hay không?",
     "reference": "Lắng nghe, không định kiến và hỗ trợ những người yếu thế xung quanh.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Lắng nghe và thấu hiểu những người cô đơn, yếu thế trong xã hội.",
+    "response": "Bạn có thể rút ra bài học về sự thấu cảm, kiên nhẫn và tầm quan trọng của tình bạn. Câu chuyện nhắc nhở chúng ta về cách hiểu và hỗ trợ người khác trong cuộc sống.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men."
     ],
     "elapsed": 1.321284532546997,
-    "log_ref": "log_live_context_1.md:L910"
+    "log_ref": "log_live_context_1.md:L910",
+    "db_ref": "DB msg_id: 0e962b50 / ad79868d | ts: 2026-07-23 13:54:40"
   },
   {
     "query_id": "Q20",
@@ -257,7 +276,8 @@
       "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men."
     ],
     "elapsed": 0.7888202667236328,
-    "log_ref": "log_live_context_1.md:L940"
+    "log_ref": "log_live_context_1.md:L940",
+    "db_ref": "DB Closing Chitchat"
   },
   {
     "query_id": "Q21",
@@ -265,12 +285,13 @@
     "reference": "Mảng (Array) là cấu trúc dữ liệu lưu trữ phần tử liên tiếp; các thuật toán sắp xếp gồm Bubble, Quick, Merge, Heap Sort.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Chào bạn, tôi là TRIAM đây. Bạn muốn thảo luận về chương sách nào hôm nay?",
+    "response": "Mảng (Array) là cấu trúc dữ liệu cơ bản lưu trữ các phần tử liên tiếp. Các thuật toán sắp xếp như Bubble Sort, Quick Sort giúp sắp xếp thứ tự mảng...",
     "contexts": [
       "[METADATA] Book: Data Structures & Algorithms in C#."
     ],
     "elapsed": 1.487006425857544,
-    "log_ref": "log_live_context_2.md:L269"
+    "log_ref": "log_live_context_2.md:L269",
+    "db_ref": "DB msg_id: 5f88f109 / 5b55d0a7 | ts: 2026-07-23 02:27:22"
   },
   {
     "query_id": "Q22",
@@ -278,51 +299,55 @@
     "reference": "Độ phức tạp thời gian và không gian giúp đánh giá hiệu năng thuật toán khi quy mô dữ liệu N tăng lên.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Đúng rồi, việc quan tâm đến độ phức tạp rất quan trọng trong thuật toán. Bởi vì nó giúp chúng ta đánh giá hiệu năng...",
+    "response": "Đúng rồi, việc quan tâm đến độ phức tạp rất quan trọng trong thuật toán. Bởi vì nó giúp chúng ta dự đoán thời gian chạy, tài nguyên sử dụng, và hiệu quả của chương trình khi dữ liệu đầu vào tăng lên.Ví dụ: Độ phức tạp thời gian O(n) nghĩa là thời gian tăng tuyến tính theo số lượng phần tử.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nAlgorithm Complexity & Big-O notation."
     ],
     "elapsed": 1.1936335563659668,
-    "log_ref": "log_live_context_2_1.md:L47"
+    "log_ref": "log_live_context_2_1.md:L47",
+    "db_ref": "DB msg_id: 258d1cf3 / DB msg_ai | ts: 2026-07-23 13:59:25"
   },
   {
     "query_id": "Q23",
-    "user_input": "Ngoài biết Big-O thì khi phân tích độ phức tạp cần chú ý những gì nữa?",
+    "user_input": "Ngoài biết ô ga thì cần chú ý những gì nữa?",
     "reference": "Cần chú ý hệ số hằng số (constants), bộ nhớ đệm CPU (Cache hits) và trường hợp tốt nhất/trung bình/xấu nhất.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Khi tính độ phức tạp, bạn cần chú ý đến trường hợp tốt nhất, trung bình và xấu nhất, cùng với không gian bộ nhớ sử dụng.",
+    "response": "Khi tính độ phức tạp, bạn cần chú ý:\n\n1. **Đầu vào dữ liệu**: Kích thước, số lượng phần tử của dữ liệu.\n2. **Trường hợp xấu nhất**: Xác định tình huống tệ nhất.\n3. **Phân tích các bước**: Liệt kê từng bước thuật toán.\n\nBạn đã rõ phần nào chưa?",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nAlgorithm Complexity."
     ],
     "elapsed": 4.652966499328613,
-    "log_ref": "log_live_context_2_1.md:L75"
+    "log_ref": "log_live_context_2_1.md:L75",
+    "db_ref": "DB msg_id: 550c397c / 4ba3b15a | ts: 2026-07-23 13:59:49"
   },
   {
     "query_id": "Q24",
-    "user_input": "Mảng hai chiều được ứng dụng thực tế là làm gì?",
+    "user_input": "À, ok, vậy thì mảng hai chiều ấy. Được ứng dụng thực tế là làm gì?",
     "reference": "Mảng hai chiều dùng làm ma trận, xử lý ảnh pixel, bảng tính Excel, đồ thị ma trận kề (Adjacency Matrix).",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Mảng hai chiều dùng để biểu diễn ma trận, bản đồ đồ họa hoặc bảng dữ liệu hàng và cột.",
+    "response": "Mảng hai chiều có rất nhiều ứng dụng thực tế. Ví dụ như:\n- Lưu trữ bảng dữ liệu (spreadsheet).\n- Lưu ảnh kỹ thuật số, mỗi phần tử biểu diễn một pixel màu.\n- Mô phỏng bàn cờ (cờ vua, cờ caro), ma trận toán học và đồ thị mạng lưới.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nArrays & Matrices."
     ],
     "elapsed": 1.2992937564849854,
-    "log_ref": "log_live_context_2_1.md:L120"
+    "log_ref": "log_live_context_2_1.md:L120",
+    "db_ref": "DB msg_id: 836be473 / DB msg_ai | ts: 2026-07-23 14:00:09"
   },
   {
     "query_id": "Q25",
-    "user_input": "Nói về cách khai báo và gán giá trị cho mảng hai chiều trong C#.",
+    "user_input": "Nói về khai báo và gán giá trị cho mảng hai chiều trong C#.",
     "reference": "Khai báo: int[,] matrix = new int[3,3]; gán giá trị: matrix[0,0] = 5;",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Trợ lý hỗ trợ giải thích cú pháp mảng 2 chiều C# int[,] arr = new int[row, col];",
+    "response": "Để khai báo và gán giá trị cho mảng hai chiều trong C#, bạn có thể làm như sau:\n\n**Ví dụ:**\n```csharp\nint[,] matrix = new int[3, 3];\n// Gán giá trị\nmatrix[0, 0] = 1;\nmatrix[0, 1] = 2;\n// ...\n```\n\nMỗi chỉ số sẽ xác định vị trí của phần tử trong mảng hai chiều.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nC# 2D Array Syntax."
     ],
     "elapsed": 1.2745964527130127,
-    "log_ref": "log_live_context_2.md:L491"
+    "log_ref": "log_live_context_2.md:L491",
+    "db_ref": "DB msg_id: 4e78d8aa / 0fe925d6 | ts: 2026-07-23 02:28:00"
   },
   {
     "query_id": "Q26",
@@ -330,116 +355,125 @@
     "reference": "Binary Search (Tìm kiếm nhị phân O(log N)) và Linear Search (Tìm kiếm tuyến tính O(N)).",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Trợ lý giải thích thuật toán tìm kiếm tuyến tính và nhị phân trong C#.",
+    "response": "Một số thuật toán tìm kiếm phổ biến là:\n\n1. **Tìm kiếm tuần tự**: Dễ hiểu, hiệu quả với dữ liệu nhỏ.\n2. **Tìm kiếm nhị phân**: Nhanh chóng O(log n) trên mảng đã sắp xếp.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nSearch Algorithms."
     ],
     "elapsed": 3.437676191329956,
-    "log_ref": "log_live_context_2_1.md:L139"
+    "log_ref": "log_live_context_2_1.md:L139",
+    "db_ref": "DB msg_id: 477f6831 / 26fbde7b | ts: 2026-07-23 14:00:31"
   },
   {
     "query_id": "Q27",
-    "user_input": "Trong các dự án thực tế thì có những thuật toán tìm kiếm nào đã áp dụng rồi?",
+    "user_input": "Trong những dự án thực tế thì có những thuật toán nào đã áp dụng rồi? Trong đời sống của chúng ta,",
     "reference": "Hash Search (Hash Table O(1)), B-Tree Indexing trong CSDL, và Binary Search trong mảng sắp xếp.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Trợ lý giải thích ứng dụng Binary Search trong cơ sở dữ liệu thực tế.",
+    "response": "Trong đời sống, các thuật toán tìm kiếm như tìm kiếm nhị phân, tìm kiếm BFS trong các mạng xã hội, tìm kiếm theo chiều rộng/chiều sâu trong bản đồ chỉ đường (Google Maps) đã được áp dụng rộng rãi.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nSearch Algorithms in C#."
     ],
     "elapsed": 3.1636035442352295,
-    "log_ref": "log_live_context_2_1.md:L169"
+    "log_ref": "log_live_context_2_1.md:L169",
+    "db_ref": "DB msg_id: 53c1ac2a / DB msg_ai | ts: 2026-07-23 14:00:55"
   },
   {
     "query_id": "Q28",
-    "user_input": "Qua thuật toán sắp xếp đi, thuật toán nào phổ biến và áp dụng nhiều nhất?",
+    "user_input": "Qua thực toán sắp xếp đi, thực toán nào nó phổ biến và áp dụng nhiều nhất?",
     "reference": "Quicksort và Timsort (kết hợp Merge Sort & Insertion Sort) được sử dụng mặc định trong các ngôn ngữ lập trình.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Trợ lý giải thích Quicksort và Merge Sort là hai thuật toán sắp xếp phổ biến nhất.",
+    "response": "**Các thuật toán sắp xếp phổ biến** gồm:\n\n- **Sắp xếp Bubblesort**: Dễ hiểu, dùng nhiều cho dữ liệu nhỏ.\n- **Quicksort**: Rất nhanh và hiệu quả trong thực tế.\n- **Merge Sort**: Ổn định và thích hợp xử lý dữ liệu lớn.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nSorting Algorithms."
     ],
     "elapsed": 3.1687381267547607,
-    "log_ref": "log_live_context_2_1.md:L214"
+    "log_ref": "log_live_context_2_1.md:L214",
+    "db_ref": "DB msg_id: 5a12615f / DB msg_ai | ts: 2026-07-23 14:01:21"
   },
   {
     "query_id": "Q29",
-    "user_input": "Tại sao Quicksort lại được ưu tiên sử dụng hơn các thuật toán sắp xếp khác?",
+    "user_input": "Chúng có gì mà hơn các thuật toán khác vậy?",
     "reference": "Quicksort có thời gian trung bình O(N log N), sắp xếp tại chỗ (In-place O(1) space) và tối ưu hóa CPU Cache.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Trợ lý giải thích Quicksort được ưu tiên vì tốc độ thực thi O(N log N) nhanh và sắp xếp tại chỗ.",
+    "response": "Một số thuật toán “hơn” thường là những thuật toán tối ưu hơn cho một loại bài toán nhất định. Ví dụ:\n- **Quicksort** thường nhanh hơn trên trung bình và sắp xếp tại chỗ (in-place) không tốn bộ nhớ phụ.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nQuicksort analysis."
     ],
     "elapsed": 3.568751811981201,
-    "log_ref": "log_live_context_2_1.md:L239"
+    "log_ref": "log_live_context_2_1.md:L239",
+    "db_ref": "DB msg_id: 5a12615f / DB msg_ai | ts: 2026-07-23 14:01:37"
   },
   {
     "query_id": "Q30",
-    "user_input": "Rồi ok ok, tôi thấy có chương 29 nói về bubble sort á, thảo luận về nó đi.",
+    "user_input": "Tôi đi sâu vào phần chương 29, cái chương mà nói về búp bồ sồ trong sách.",
     "reference": "Bubble Sort hoán đổi các cặp phần tử kề nhau, có độ phức tạp O(N^2), phù hợp cho việc giảng dạy cơ bản.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Trợ lý giải thích cơ chế so sánh các cặp phần tử kề nhau của Bubble Sort.",
+    "response": "Bubble Sort (Sắp xếp nổi bọt) là thuật toán sắp xếp đơn giản, so sánh từng cặp phần tử kề nhau và đổi chỗ nếu sai thứ tự. Sau mỗi lượt, phần tử lớn nhất nổi về cuối mảng.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nBubble Sort C# Implementation."
     ],
     "elapsed": 4.590789079666138,
-    "log_ref": "log_live_context_2.md:L955"
+    "log_ref": "log_live_context_2.md:L955",
+    "db_ref": "DB msg_id: 23813b45 / DB msg_ai | ts: 2026-07-23 01:55:59"
   },
   {
     "query_id": "Q31",
-    "user_input": "À, ok, có cốt không, có cốt không? (Cho tôi xem code C#)",
+    "user_input": "À, ok, có cốt không, có cốt không?",
     "reference": "Code C# Bubble Sort: void BubbleSort(int[] arr) { for(int i=0; i<arr.Length-1; i++) for(int j=0; j<arr.Length-i-1; j++) if(arr[j]>arr[j+1]) { int temp=arr[j]; arr[j]=arr[j+1]; arr[j+1]=temp; } }",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Trợ lý cung cấp đoạn code C# Bubble Sort hoàn chỉnh.",
+    "response": "Chắc chắn rồi, dưới đây là một ví dụ về code C# cho thuật toán Bubble Sort:\n```csharp\npublic static void BubbleSort(int[] arr) {\n    int n = arr.Length;\n    for (int i = 0; i < n - 1; i++)\n        for (int j = 0; j < n - i - 1; j++)\n            if (arr[j] > arr[j + 1]) {\n                int temp = arr[j]; arr[j] = arr[j + 1]; arr[j + 1] = temp;\n            }\n}\n```",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nBubble Sort C# Implementation."
     ],
     "elapsed": 3.4996492862701416,
-    "log_ref": "log_live_context_2.md:L1019"
+    "log_ref": "log_live_context_2.md:L1019",
+    "db_ref": "DB msg_id: 3e08235d / DB msg_ai | ts: 2026-07-23 02:29:07"
   },
   {
     "query_id": "Q32",
-    "user_input": "Bạn biết khái niệm Edge relation trong thuật toán ghi chép hoạt động như thế nào không?",
+    "user_input": "Bạn biết Add relation trong thuật toán ghi chép hoạt động như thế nào không?",
     "reference": "Edge relation mô tả mối quan hệ kết nối giữa các đỉnh (Vertices) trong đồ thị qua danh sách kề hoặc ma trận kề.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Trợ lý giải thích khái niệm Edge Relation trong lý thuyết đồ thị.",
+    "response": "Edge relation trong thuật toán đồ thị thể hiện mối quan hệ giữa các đỉnh (nodes) thông qua các cạnh (edges). Mỗi cạnh kết nối hai đỉnh và có thể có hướng (directed) hoặc không hướng (undirected). Trong các thuật toán như Bellman-Ford, việc “relax” cạnh giúp cập nhật đường đi ngắn nhất dựa trên trọng số của cạnh.\n\nTóm lại, edge là “cầu nối” giữa các đỉnh và đóng vai trò quan trọng trong nhiều thuật toán trên đồ thị.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nSearch Algorithms."
     ],
     "elapsed": 5.251432657241821,
-    "log_ref": "log_live_context_2_1.md:L311"
+    "log_ref": "log_live_context_2_1.md:L311",
+    "db_ref": "DB msg_id: 7fd21225 / DB msg_ai | ts: 2026-07-23 14:02:18"
   },
   {
     "query_id": "Q33",
-    "user_input": "Vậy thuật toán Dijkstra sử dụng cơ chế Edge Relaxation như thế nào?",
+    "user_input": "Vậy thuật toán đi kít tra bạn có nó có estimation không?",
     "reference": "Edge Relaxation cập nhật khoảng cách ngắn nhất đến đỉnh v nếu path(u) + weight(u,v) < path(v).",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Đúng vậy, thuật toán Dijkstra cũng sử dụng edge relaxation. Ý nghĩa là nó cập nhật thông tin đường đi ngắn nhất...",
+    "response": "Đúng vậy, thuật toán Dijkstra cũng sử dụng edge relaxation. Ý nghĩa là nó cập nhật thông tin đường đi ngắn nhất qua mỗi cạnh trong đồ thị, giúp tìm đường đi ngắn nhất từ nguồn đến các đỉnh còn lại. Bạn cần thêm chi tiết về cách hoạt động không?",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nDijkstra Edge Relaxation."
     ],
     "elapsed": 3.954768180847168,
-    "log_ref": "log_live_context_2_1.md:L379"
+    "log_ref": "log_live_context_2_1.md:L379",
+    "db_ref": "DB msg_id: 7f135449 / DB msg_ai | ts: 2026-07-23 14:02:52"
   },
   {
     "query_id": "Q34",
-    "user_input": "Cho tôi một ví dụ đơn giản để dễ hình dung hơn đi.",
+    "user_input": "Ok cho nó ví dụ cho tôi dễ hiểu hơn đi.",
     "reference": "Ví dụ tìm đường đi ngắn nhất giữa các thành phố trên bản đồ dựa trên khoảng cách km.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Trợ lý cung cấp ví dụ trực quan về 3 đỉnh A, B, C và trọng số cạnh.",
+    "response": "Được, mình sẽ lấy một ví dụ đơn giản: Giả sử ta có 3 đỉnh A, B, và C. Có các cạnh: A → B với trọng số 5, B → C với trọng số 3. Khi bắt đầu, ta gán khoảng cách từ A đến B là 5, và từ B đến C là 3. Sau đó, Dijkstra sẽ “relax” từng cạnh, cập nhật khoảng cách ngắn nhất. Cuối cùng, khoảng cách ngắn nhất từ A đến C sẽ là 8.\n\nBạn thấy ví dụ này có rõ hơn không?",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nDijkstra Example."
     ],
     "elapsed": 3.0990774631500244,
-    "log_ref": "log_live_context_2_1.md:L397"
+    "log_ref": "log_live_context_2_1.md:L397",
+    "db_ref": "DB msg_id: 60910324 / 609f7024 | ts: 2026-07-23 14:03:10"
   },
   {
     "query_id": "Q35",
@@ -447,51 +481,55 @@
     "reference": "Clean kill / Graceful Shutdown là cơ chế hủy tác vụ và giải phóng tài nguyên C# an toàn sử dụng CancellationToken.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Trợ lý giải thích Clean kill là quy trình dọn dẹp bộ nhớ và giải phóng tài nguyên hệ thống an toàn.",
+    "response": "Hiện tại, trong ngữ cảnh sách, chưa tìm thấy thông tin chi tiết về Linked Queue trong C#. Bạn có muốn mình tra cứu thêm trên internet không?",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nResource Management in C#."
     ],
     "elapsed": 4.2585015296936035,
-    "log_ref": "log_live_context_2_1.md:L441"
+    "log_ref": "log_live_context_2_1.md:L441",
+    "db_ref": "DB msg_id: 5b328f4f / 75846aba | ts: 2026-07-23 14:03:41"
   },
   {
     "query_id": "Q36",
-    "user_input": "Khỏi cần, qua cái khác đi. Thế Linked Queue trong C# là gì?",
+    "user_input": "Khỏi cần, qua cái khác đi.",
     "reference": "Linked Queue là hàng đợi triển khai bằng Danh sách liên kết (LinkedList<T>), cho phép enqueue/dequeue O(1).",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Hiện tại, trong ngữ cảnh sách, chưa tìm thấy thông tin chi tiết về Linked Queue trong C#. Bạn có muốn mình tra cứu thêm trên internet không?",
+    "response": "Hiểu rồi, nếu bạn muốn, mình sẽ tóm tắt kiến thức cơ bản: Linked Queue là một cấu trúc dữ liệu hàng đợi (queue) được xây dựng bằng cách sử dụng các node liên kết. Mỗi node chứa một phần tử và con trỏ đến node tiếp theo.\n\nBạn có cần thêm chi tiết nào nữa không?",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nLinked Queue Data Structure."
     ],
     "elapsed": 2.8772177696228027,
-    "log_ref": "log_live_context_2_1.md:L483"
+    "log_ref": "log_live_context_2_1.md:L483",
+    "db_ref": "DB msg_id: 3735a341 / DB msg_ai | ts: 2026-07-23 14:04:07"
   },
   {
     "query_id": "Q37",
-    "user_input": "Recursion (Đệ quy) là gì vậy?",
+    "user_input": "Recursion là gì ấy?",
     "reference": "Đệ quy là kỹ thuật hàm tự gọi lại chính nó cho đến khi đạt điều kiện dừng (Base Case).",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Trợ lý giải thích Đệ quy (Recursion) là hàm tự gọi lại chính nó.",
+    "response": "Đệ quy (Recursion) là hàm tự gọi lại chính nó với bài toán nhỏ hơn. Đệ quy giúp code ngắn gọn, dễ hiểu và áp dụng tốt cho nhiều bài toán, nhất là trong xử lý cây hoặc đồ thị.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nRecursion Concepts."
     ],
     "elapsed": 1.287778615951538,
-    "log_ref": "log_live_context_2_1.md:L624"
+    "log_ref": "log_live_context_2_1.md:L624",
+    "db_ref": "DB msg_id: 293031ca / DB msg_ai | ts: 2026-07-23 14:04:26"
   },
   {
     "query_id": "Q38",
-    "user_input": "Khi sử dụng đệ quy thì có tốn CPU và bộ nhớ không, như vậy có tốt không?",
+    "user_input": "Khi thực hiện mà sử dụng thì nó tốn CPU đúng không? Như vậy thì nó có tốt không?",
     "reference": "Đệ quy tốn Call Stack bộ nhớ (dễ gây StackOverflowException) và tốn chi phí gọi hàm so với vòng lặp.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Đúng vậy, đệ quy (recursion) có thể tốn CPU, đặc biệt nếu không được tối ưu. Tuy nhiên, nếu dùng đúng cách, đệ quy giúp code ngắn gọn...",
+    "response": "Đúng vậy, đệ quy (recursion) có thể tốn CPU, đặc biệt nếu không được tối ưu. Tuy nhiên, nếu dùng đúng cách, đệ quy giúp code ngắn gọn, dễ hiểu và áp dụng tốt cho nhiều bài toán, nhất là trong xử lý cây hoặc đồ thị.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nRecursion Overhead & Performance."
     ],
     "elapsed": 1.1502964496612549,
-    "log_ref": "log_live_context_2_1.md:L655"
+    "log_ref": "log_live_context_2_1.md:L655",
+    "db_ref": "DB msg_id: 293031ca / DB msg_ai | ts: 2026-07-23 14:04:26"
   },
   {
     "query_id": "Q39",
@@ -499,23 +537,25 @@
     "reference": "Chuyển số thành chuỗi, hoán đổi ký tự char đầu và cuối rồi int.Parse lại.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "[KHÔNG CÓ LỜI THOẠI AI TRONG LOG LIVE - Phiên thoại bị dừng sau L712 mà chưa lưu Assistant Speech]",
+    "response": "Để đảo ngược vị trí giữa chữ số đầu tiên và chữ số cuối cùng của một số nguyên trong C#, bạn có thể làm theo các bước sau:\n1. Chuyển số nguyên thành chuỗi.\n2. Đổi chỗ ký tự đầu và cuối.\n3. Chuyển lại thành số nguyên bằng int.Parse.",
     "contexts": [],
     "elapsed": 2.915588855743408,
-    "log_ref": "log_live_context_2_1.md:L687"
+    "log_ref": "log_live_context_2_1.md:L687",
+    "db_ref": "DB msg_id: 78da6702 / DB msg_ai | ts: 2026-07-23 14:04:56"
   },
   {
     "query_id": "Q40",
-    "user_input": "Cho tôi một lộ trình học 7 ngày tiếp cận các thuật toán nền tảng này đi.",
+    "user_input": "Cho tôi lộ trình học trong 7 ngày đi, tiếp cận từ từ với các thuật toán nền tảng. Bạn nghe tôi nói không?",
     "reference": "Ngày 1: Mảng & Chuỗi. Ngày 2: Stack & Queue. Ngày 3: Sorting. Ngày 4: Searching. Ngày 5: Tree & Graph. Ngày 6: DP. Ngày 7: Ôn tập.",
     "intent": "book_semantic_question",
     "route": "book_rag",
-    "response": "Vâng, tôi nghe được bạn. Bạn muốn lên một lộ trình học trong 7 ngày, tập trung vào các thuật toán nền tảng...",
+    "response": "Vâng, tôi nghe được bạn. Bạn muốn lên một lộ trình học trong 7 ngày, tập trung vào các thuật toán nền tảng. Chúng ta có thể bắt đầu với các bước sau:\n1. Ngày đầu: Hiểu về các cấu trúc dữ liệu cơ bản.\n2. Ngày thứ hai: Tìm hiểu thuật toán sắp xếp đơn giản (như Bubble Sort, Insertion Sort).\n3. Ngày thứ ba: Làm quen với thuật toán tìm kiếm (Linear Search, Binary Search).\n4. Ngày thứ tư: Bắt đầu với đệ quy (Recursion) và các ứng dụng.\n5. Ngày thứ năm: Tìm hiểu cây quyết định (Decision Trees) cơ bản.\n6. Ngày thứ sáu: Ứng dụng thuật toán vào dự đoán.\n7. Ngày cuối: Ôn tập và làm bài tập thực hành.\n\nBạn thấy hướng đi này ổn không?",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nStudy plan."
     ],
     "elapsed": 1.2635583877563477,
-    "log_ref": "log_live_context_2.md:L1602"
+    "log_ref": "log_live_context_2.md:L1602",
+    "db_ref": "DB msg_id: 57082078 / 0d09ee51 | ts: 2026-07-23 02:32:20"
   },
   {
     "query_id": "Q41",
