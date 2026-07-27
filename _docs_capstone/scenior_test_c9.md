@@ -305,7 +305,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <!-- Q13 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q13: User hỏi "Trong tác phẩm, ai được xem là nhân vật đáng thương và cô đơn nhất?"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q13: User hỏi "Trong tác phẩm, ai được xem là nhân vật đáng thương nhất?"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
@@ -377,7 +377,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <!-- Q16 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q16: User hỏi "Tìm các tác phẩm cùng thể loại của John Steinbeck trên internet"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q16: User hỏi "Tìm các tác phẩm cùng thể loại của sách này trên internet"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
@@ -425,7 +425,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <!-- Q18 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q18: User hỏi "Bài học lớn nhất mà tôi có thể rút ra từ câu chuyện Of Mice and Men là gì?"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q18: User hỏi "Bài học có thể rút ra từ câu chuyện này là gì?"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
@@ -449,7 +449,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <!-- Q19 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q19: User hỏi "Làm thế nào để ứng dụng bài học về sự thấu cảm trong tác phẩm vào cuộc sống thực tế?"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q19: User hỏi "Làm thế nào để ứng dụng bài học trong tác phẩm vào cuộc sống của tôi?"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
@@ -473,7 +473,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <!-- Q20 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q20: User hỏi "Cảm ơn bạn, tôi đã hiểu rõ cuốn sách này rồi."</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q20: User hỏi "Cảm ơn, tôi đã hiểu."</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
@@ -537,7 +537,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <!-- Q22 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q22: User hỏi "Khi đang học thuật toán thì tôi thấy là tại sao khi học thuật toán lại phải quan tâm đến độ phức tạp."</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q22: User hỏi "Khi học thuật toán tại sao phải quan tâm đến độ phức tạp."</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
@@ -561,7 +561,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <!-- Q23 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q23: User hỏi "Ngoài biết Big-O thì khi phân tích độ phức tạp cần chú ý những gì nữa?"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q23: User hỏi "Ngoài biết Big-O thì khi phân tích độ phức tạp cần chú ý những gì?"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
@@ -897,7 +897,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <!-- Q37 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q37: User hỏi "Recursion (Đệ quy) là gì vậy?"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q37: User hỏi "Recursion là gì vậy?"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
@@ -1201,7 +1201,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <!-- Q49 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q49: User hỏi "Tôi đọc sách thấy làm giàu... Ba chữ giàu khác nhau như thế nào vậy? (Rich vs Wealth)"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q49: User hỏi "Tôi đọc sách thấy làm giàu... Ba chữ giàu khác nhau như thế nào vậy?"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
@@ -1225,7 +1225,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <!-- Q50 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q50: User hỏi "Sức mạnh của Lãi kép (Compounding) được giải thích qua câu chuyện của Warren Buffett như thế nào?"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q50: User hỏi "Sức mạnh của Lãi kép được giải thích qua câu chuyện của Warren Buffett như thế nào?"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
@@ -1249,7 +1249,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <!-- Q51 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q51: User hỏi "Phân biệt sự khác nhau giữa 'Tài sản' và 'Tiêu sản' theo Robert Kiyosaki."</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q51: User hỏi "Phân biệt sự khác nhau giữa 'Tài sản' và 'Tiêu sản'."</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
@@ -1273,7 +1273,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <!-- Q52 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q52: User hỏi "Khái niệm bẫy tài chính 'Rat Race' (Vòng luẩn quẩn) là gì và làm sao để thoát khỏi nó?"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q52: User hỏi "Khái niệm bẫy tài chính 'Rat Race' là gì và làm sao để thoát khỏi nó?"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
@@ -1297,7 +1297,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <!-- Q53 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q53: User hỏi "Tại sao người giàu lại chú trọng việc thành lập công ty/tập đoàn (Corporation)?"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q53: User hỏi "Tại sao người giàu lại chú trọng việc thành lập tập đoàn?"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
@@ -1321,7 +1321,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <!-- Q54 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q54: User hỏi "Chương 4 của sách Tâm lý học về tiền và Cha giàu cha nghèo thảo luận về nội dung gì?"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q54: User hỏi "Chương 4 sách cha nghèo thảo luận về nội dung gì?"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
@@ -1393,7 +1393,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <!-- Q57 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q57: User hỏi "Tác giả Morgan Housel khuyên gì về 'Biên an toàn' (Margin of Safety / Room for Error) trong tài chính?"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q57: User hỏi "Tác giả Morgan Housel khuyên gì về 'Biên an toàn'"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
@@ -1465,7 +1465,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <!-- Q60 -->
   <tr style="background-color: #f2f2f2;">
-    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q60: User hỏi "Cảm ơn bạn, bài học hôm nay rất bổ ích. Bye bye!"</td>
+    <td colspan="2" style="padding: 8px; font-weight: bold; text-align: left;">Q60: User hỏi "Cảm ơn. Bye bye!"</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI hiểu</td>
