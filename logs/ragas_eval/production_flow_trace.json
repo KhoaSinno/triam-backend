@@ -3,43 +3,46 @@
     "query_id": "Q1",
     "user_input": "Sách có mấy chương?",
     "reference": "Cuốn sách này có 6 chương.",
-    "intent": "book_metadata.root_section_count",
-    "route": "book_metadata",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
     "response": "Sách \"Of Mice and Men\" có **6 chương chính**.\n\nBạn muốn tìm hiểu nội dung của chương nào trước?",
     "contexts": [
       "[METADATA] Total sections: 6. Book: Of Mice and Men."
     ],
     "elapsed": 5.9536473751068115,
     "log_ref": "log_live_context_1.md:L18",
-    "db_ref": "DB msg_id: 8a8d2316 / 1477a248 | ts: 2026-07-12 02:53:44"
+    "db_ref": "DB msg_id: 8a8d2316 / 1477a248 | ts: 2026-07-12 02:53:44",
+    "intent_log_ref": "log_live_context_1.md:L41"
   },
   {
     "query_id": "Q2",
     "user_input": "Trong câu chuyện có những nhân vật nào được xuất hiện không chị?",
     "reference": "George Milton và Lennie Small là hai nhân vật chính. Các nhân vật phụ gồm Candy, Crooks, Curley, Vợ Curley, Slim, Carlson.",
-    "intent": "book_metadata.author",
-    "route": "book_metadata",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
     "response": "Trong truyện có một số nhân vật chính, bao gồm:\n\n- Lennie\n- George\n- Curley\n- Curley’s wife\n- Candy\n- Slim\n- Crooks\n\nĐây là những nhân vật quan trọng xuyên suốt câu chuyện.",
     "contexts": [
       "[METADATA] Total sections: 6. Book: Of Mice and Men. Main Characters: George Milton, Lennie Small."
     ],
     "elapsed": 0.6608362197875977,
     "log_ref": "log_live_context_1.md:L42",
-    "db_ref": "DB msg_id: 76977dcb / eb6a4a19 | ts: 2026-07-23 13:53:25"
+    "db_ref": "DB msg_id: 76977dcb / eb6a4a19 | ts: 2026-07-23 13:53:25",
+    "intent_log_ref": "log_live_context_1.md:L41"
   },
   {
     "query_id": "Q3",
     "user_input": "Tóm tắt giúp tôi chương bốn của sách.",
     "reference": "Chương 4 diễn ra tại phòng Crooks, nơi các nhân vật cô đơn trò chuyện về giấc mơ trang trại và bị vợ Curley đe dọa.",
-    "intent": "book_section.summary",
-    "route": "book_section",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
     "response": "Đúng rồi, nhân vật Crooks xuất hiện trong đầu sách, đặc biệt ở chương 4. Crooks là người da đen làm công việc ở chuồng ngựa, và anh ấy rất cô đơn. Chương 4 diễn ra tại phòng Crooks, nơi các nhân vật cô đơn trò chuyện về giấc mơ trang trại và bị vợ Curley đe dọa.",
     "contexts": [
       "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 4 - Crooks' room."
     ],
     "elapsed": 7.4451422691345215,
     "log_ref": "log_live_context_1.md:L101",
-    "db_ref": "DB msg_id: 6b1f24d6 / 025d9037 | ts: 2026-07-09 09:52:17"
+    "db_ref": "DB msg_id: 6b1f24d6 / 025d9037 | ts: 2026-07-09 09:52:17",
+    "intent_log_ref": "log_live_context_1.md:L100"
   },
   {
     "query_id": "Q4",
@@ -53,7 +56,8 @@
     ],
     "elapsed": 2.831298589706421,
     "log_ref": "log_live_context_1.md:L178",
-    "db_ref": "DB msg_id: 5ec1c227 / 3e9d493d | ts: 2026-07-23 13:49:42"
+    "db_ref": "DB msg_id: 5ec1c227 / 3e9d493d | ts: 2026-07-23 13:49:42",
+    "intent_log_ref": "log_live_context_1.md:L176"
   },
   {
     "query_id": "Q5",
@@ -67,7 +71,8 @@
     ],
     "elapsed": 4.963192462921143,
     "log_ref": "log_live_context_1.md:L235",
-    "db_ref": "DB msg_id: 5278c21b / 9c40fd9d | ts: 2026-07-23 13:51:15"
+    "db_ref": "DB msg_id: 5278c21b / 9c40fd9d | ts: 2026-07-23 13:51:15",
+    "intent_log_ref": "log_live_context_1.md:L176"
   },
   {
     "query_id": "Q6",
@@ -81,7 +86,8 @@
     ],
     "elapsed": 4.313933372497559,
     "log_ref": "log_live_context_1.md:L290",
-    "db_ref": "DB msg_id: 3d034c2a / 109bcf42 | ts: 2026-07-23 13:50:00"
+    "db_ref": "DB msg_id: 3d034c2a / 109bcf42 | ts: 2026-07-23 13:50:00",
+    "intent_log_ref": "log_live_context_1.md:L176"
   },
   {
     "query_id": "Q7",
@@ -95,7 +101,8 @@
     ],
     "elapsed": 3.7468204498291016,
     "log_ref": "log_live_context_1.md:L340",
-    "db_ref": "DB msg_id: db41d7df / b90af32b | ts: 2026-07-23 13:50:21"
+    "db_ref": "DB msg_id: db41d7df / b90af32b | ts: 2026-07-23 13:50:21",
+    "intent_log_ref": "log_live_context_1.md:L409"
   },
   {
     "query_id": "Q8",
@@ -109,7 +116,8 @@
     ],
     "elapsed": 3.877443313598633,
     "log_ref": "log_live_context_1.md:L395",
-    "db_ref": "DB msg_id: 54dda791 / 5d163e47 | ts: 2026-07-23 13:50:45"
+    "db_ref": "DB msg_id: 54dda791 / 5d163e47 | ts: 2026-07-23 13:50:45",
+    "intent_log_ref": "log_live_context_1.md:L409"
   },
   {
     "query_id": "Q9",
@@ -123,7 +131,8 @@
     ],
     "elapsed": 3.2715375423431396,
     "log_ref": "log_live_context_1.md:L450",
-    "db_ref": "DB msg_id: 08abdb2d / f2535adb | ts: 2026-07-23 13:51:44"
+    "db_ref": "DB msg_id: 08abdb2d / f2535adb | ts: 2026-07-23 13:51:44",
+    "intent_log_ref": "log_live_context_1.md:L409"
   },
   {
     "query_id": "Q10",
@@ -137,7 +146,8 @@
     ],
     "elapsed": 4.319574594497681,
     "log_ref": "log_live_context_1.md:L510",
-    "db_ref": "DB msg_id: c8a84aa0 / b859ea90 | ts: 2026-07-23 13:52:03"
+    "db_ref": "DB msg_id: c8a84aa0 / b859ea90 | ts: 2026-07-23 13:52:03",
+    "intent_log_ref": "log_live_context_1.md:L548"
   },
   {
     "query_id": "Q11",
@@ -151,7 +161,8 @@
     ],
     "elapsed": 2.9918229579925537,
     "log_ref": "log_live_context_1.md:L560",
-    "db_ref": "DB msg_id: b785e74b / ea748b63 | ts: 2026-07-23 13:54:06"
+    "db_ref": "DB msg_id: b785e74b / ea748b63 | ts: 2026-07-23 13:54:06",
+    "intent_log_ref": "log_live_context_1.md:L548"
   },
   {
     "query_id": "Q12",
@@ -165,7 +176,8 @@
     ],
     "elapsed": 4.65704345703125,
     "log_ref": "log_live_context_1.md:L620",
-    "db_ref": "DB msg_id: 680b89fd / 5e6ba13f | ts: 2026-07-23 13:53:40"
+    "db_ref": "DB msg_id: 680b89fd / 5e6ba13f | ts: 2026-07-23 13:53:40",
+    "intent_log_ref": "log_live_context_1.md:L621"
   },
   {
     "query_id": "Q13",
@@ -179,11 +191,12 @@
     ],
     "elapsed": 1.269012451171875,
     "log_ref": "log_live_context_1.md:L680",
-    "db_ref": "DB msg_id: 36d5d62b / d427b90f | ts: 2026-07-23 13:52:32"
+    "db_ref": "DB msg_id: 36d5d62b / d427b90f | ts: 2026-07-23 13:52:32",
+    "intent_log_ref": "log_live_context_1.md:L692"
   },
   {
     "query_id": "Q14",
-    "user_input": "Thông tin giá Bitcoin không nằm trong sách. Hệ thống cần sự cho phép của người dùng để tìm trên Web.",
+    "user_input": "Giá Bitcoin hiện tại là bao nhiêu?",
     "reference": "Thông tin giá Bitcoin không nằm trong sách. Hệ thống cần sự cho phép của người dùng để tìm trên Web.",
     "intent": "external_current_info",
     "route": "web_policy",
@@ -193,7 +206,8 @@
     ],
     "elapsed": 0.7650909423828125,
     "log_ref": "log_live_context_1.md:L740",
-    "db_ref": "DB Policy External query"
+    "db_ref": "DB Policy External query",
+    "intent_log_ref": "log_live_context_1.md:L732"
   },
   {
     "query_id": "Q15",
@@ -207,7 +221,8 @@
     ],
     "elapsed": 0.6715211868286133,
     "log_ref": "log_live_context_1.md:L770",
-    "db_ref": "DB Policy Declined"
+    "db_ref": "DB Policy Declined",
+    "intent_log_ref": "log_live_context_1.md:L774"
   },
   {
     "query_id": "Q16",
@@ -221,7 +236,8 @@
     ],
     "elapsed": 4.908836126327515,
     "log_ref": "log_live_context_1.md:L810",
-    "db_ref": "DB msg_id: f990159a / cf758fa5 | ts: 2026-07-12 02:54:38"
+    "db_ref": "DB msg_id: f990159a / cf758fa5 | ts: 2026-07-12 02:54:38",
+    "intent_log_ref": "log_live_context_1.md:L801"
   },
   {
     "query_id": "Q17",
@@ -235,7 +251,8 @@
     ],
     "elapsed": 1.4687230587005615,
     "log_ref": "log_live_context_1.md:L840",
-    "db_ref": "DB msg_id: b869ad23 / 6f2f0d9f | ts: 2026-07-12 02:54:46"
+    "db_ref": "DB msg_id: b869ad23 / 6f2f0d9f | ts: 2026-07-12 02:54:46",
+    "intent_log_ref": "log_live_context_1.md:L843"
   },
   {
     "query_id": "Q18",
@@ -249,7 +266,8 @@
     ],
     "elapsed": 11.637491703033447,
     "log_ref": "log_live_context_1.md:L880",
-    "db_ref": "DB msg_id: 5af44162 / c0fbdc42 | ts: 2026-07-23 13:54:22"
+    "db_ref": "DB msg_id: 5af44162 / c0fbdc42 | ts: 2026-07-23 13:54:22",
+    "intent_log_ref": "log_live_context_1.md:L885"
   },
   {
     "query_id": "Q19",
@@ -263,7 +281,8 @@
     ],
     "elapsed": 1.321284532546997,
     "log_ref": "log_live_context_1.md:L910",
-    "db_ref": "DB msg_id: 0e962b50 / ad79868d | ts: 2026-07-23 13:54:40"
+    "db_ref": "DB msg_id: 0e962b50 / ad79868d | ts: 2026-07-23 13:54:40",
+    "intent_log_ref": "log_live_context_1.md:L911"
   },
   {
     "query_id": "Q20",
@@ -277,7 +296,8 @@
     ],
     "elapsed": 0.7888202667236328,
     "log_ref": "log_live_context_1.md:L940",
-    "db_ref": "DB Closing Chitchat"
+    "db_ref": "DB Closing Chitchat",
+    "intent_log_ref": "log_live_context_1.md:L936"
   },
   {
     "query_id": "Q21",
@@ -291,7 +311,8 @@
     ],
     "elapsed": 1.487006425857544,
     "log_ref": "log_live_context_2.md:L269",
-    "db_ref": "DB msg_id: 5f88f109 / 5b55d0a7 | ts: 2026-07-23 02:27:22"
+    "db_ref": "DB msg_id: 5f88f109 / 5b55d0a7 | ts: 2026-07-23 02:27:22",
+    "intent_log_ref": "log_live_context_2.md:L354"
   },
   {
     "query_id": "Q22",
@@ -305,7 +326,8 @@
     ],
     "elapsed": 1.1936335563659668,
     "log_ref": "log_live_context_2_1.md:L47",
-    "db_ref": "DB msg_id: 258d1cf3 / DB msg_ai | ts: 2026-07-23 13:59:25"
+    "db_ref": "DB msg_id: 258d1cf3 / DB msg_ai | ts: 2026-07-23 13:59:25",
+    "intent_log_ref": "log_live_context_2_1.md:L46"
   },
   {
     "query_id": "Q23",
@@ -319,7 +341,8 @@
     ],
     "elapsed": 4.652966499328613,
     "log_ref": "log_live_context_2_1.md:L75",
-    "db_ref": "DB msg_id: 550c397c / 4ba3b15a | ts: 2026-07-23 13:59:49"
+    "db_ref": "DB msg_id: 550c397c / 4ba3b15a | ts: 2026-07-23 13:59:49",
+    "intent_log_ref": "log_live_context_2_1.md:L74"
   },
   {
     "query_id": "Q24",
@@ -333,7 +356,8 @@
     ],
     "elapsed": 1.2992937564849854,
     "log_ref": "log_live_context_2_1.md:L120",
-    "db_ref": "DB msg_id: 836be473 / DB msg_ai | ts: 2026-07-23 14:00:09"
+    "db_ref": "DB msg_id: 836be473 / DB msg_ai | ts: 2026-07-23 14:00:09",
+    "intent_log_ref": "log_live_context_2_1.md:L115"
   },
   {
     "query_id": "Q25",
@@ -347,7 +371,8 @@
     ],
     "elapsed": 1.2745964527130127,
     "log_ref": "log_live_context_2.md:L491",
-    "db_ref": "DB msg_id: 4e78d8aa / 0fe925d6 | ts: 2026-07-23 02:28:00"
+    "db_ref": "DB msg_id: 4e78d8aa / 0fe925d6 | ts: 2026-07-23 02:28:00",
+    "intent_log_ref": "log_live_context_2.md:L459"
   },
   {
     "query_id": "Q26",
@@ -361,7 +386,8 @@
     ],
     "elapsed": 3.437676191329956,
     "log_ref": "log_live_context_2_1.md:L139",
-    "db_ref": "DB msg_id: 477f6831 / 26fbde7b | ts: 2026-07-23 14:00:31"
+    "db_ref": "DB msg_id: 477f6831 / 26fbde7b | ts: 2026-07-23 14:00:31",
+    "intent_log_ref": "log_live_context_2_1.md:L141"
   },
   {
     "query_id": "Q27",
@@ -375,7 +401,8 @@
     ],
     "elapsed": 3.1636035442352295,
     "log_ref": "log_live_context_2_1.md:L169",
-    "db_ref": "DB msg_id: 53c1ac2a / DB msg_ai | ts: 2026-07-23 14:00:55"
+    "db_ref": "DB msg_id: 53c1ac2a / DB msg_ai | ts: 2026-07-23 14:00:55",
+    "intent_log_ref": "log_live_context_2_1.md:L186"
   },
   {
     "query_id": "Q28",
@@ -389,7 +416,8 @@
     ],
     "elapsed": 3.1687381267547607,
     "log_ref": "log_live_context_2_1.md:L214",
-    "db_ref": "DB msg_id: 5a12615f / DB msg_ai | ts: 2026-07-23 14:01:21"
+    "db_ref": "DB msg_id: 5a12615f / DB msg_ai | ts: 2026-07-23 14:01:21",
+    "intent_log_ref": "log_live_context_2_1.md:L216"
   },
   {
     "query_id": "Q29",
@@ -403,7 +431,8 @@
     ],
     "elapsed": 3.568751811981201,
     "log_ref": "log_live_context_2_1.md:L239",
-    "db_ref": "DB msg_id: 5a12615f / DB msg_ai | ts: 2026-07-23 14:01:37"
+    "db_ref": "DB msg_id: 5a12615f / DB msg_ai | ts: 2026-07-23 14:01:37",
+    "intent_log_ref": "log_live_context_2_1.md:L241"
   },
   {
     "query_id": "Q30",
@@ -417,7 +446,8 @@
     ],
     "elapsed": 4.590789079666138,
     "log_ref": "log_live_context_2.md:L955",
-    "db_ref": "DB msg_id: 23813b45 / DB msg_ai | ts: 2026-07-23 01:55:59"
+    "db_ref": "DB msg_id: 23813b45 / DB msg_ai | ts: 2026-07-23 01:55:59",
+    "intent_log_ref": "log_live_context_2.md:L996"
   },
   {
     "query_id": "Q31",
@@ -431,7 +461,8 @@
     ],
     "elapsed": 3.4996492862701416,
     "log_ref": "log_live_context_2.md:L1019",
-    "db_ref": "DB msg_id: 3e08235d / DB msg_ai | ts: 2026-07-23 02:29:07"
+    "db_ref": "DB msg_id: 3e08235d / DB msg_ai | ts: 2026-07-23 02:29:07",
+    "intent_log_ref": "log_live_context_2.md:L1022"
   },
   {
     "query_id": "Q32",
@@ -445,7 +476,8 @@
     ],
     "elapsed": 5.251432657241821,
     "log_ref": "log_live_context_2_1.md:L311",
-    "db_ref": "DB msg_id: 7fd21225 / DB msg_ai | ts: 2026-07-23 14:02:18"
+    "db_ref": "DB msg_id: 7fd21225 / DB msg_ai | ts: 2026-07-23 14:02:18",
+    "intent_log_ref": "log_live_context_2_1.md:L284"
   },
   {
     "query_id": "Q33",
@@ -459,7 +491,8 @@
     ],
     "elapsed": 3.954768180847168,
     "log_ref": "log_live_context_2_1.md:L379",
-    "db_ref": "DB msg_id: 7f135449 / DB msg_ai | ts: 2026-07-23 14:02:52"
+    "db_ref": "DB msg_id: 7f135449 / DB msg_ai | ts: 2026-07-23 14:02:52",
+    "intent_log_ref": "log_live_context_2_1.md:L378"
   },
   {
     "query_id": "Q34",
@@ -473,7 +506,8 @@
     ],
     "elapsed": 3.0990774631500244,
     "log_ref": "log_live_context_2_1.md:L397",
-    "db_ref": "DB msg_id: 60910324 / 609f7024 | ts: 2026-07-23 14:03:10"
+    "db_ref": "DB msg_id: 60910324 / 609f7024 | ts: 2026-07-23 14:03:10",
+    "intent_log_ref": "log_live_context_2_1.md:L399"
   },
   {
     "query_id": "Q35",
@@ -487,7 +521,8 @@
     ],
     "elapsed": 4.2585015296936035,
     "log_ref": "log_live_context_2_1.md:L441",
-    "db_ref": "DB msg_id: 5b328f4f / 75846aba | ts: 2026-07-23 14:03:41"
+    "db_ref": "DB msg_id: 5b328f4f / 75846aba | ts: 2026-07-23 14:03:41",
+    "intent_log_ref": "log_live_context_2_1.md:L414"
   },
   {
     "query_id": "Q36",
@@ -501,7 +536,8 @@
     ],
     "elapsed": 2.8772177696228027,
     "log_ref": "log_live_context_2_1.md:L483",
-    "db_ref": "DB msg_id: 3735a341 / DB msg_ai | ts: 2026-07-23 14:04:07"
+    "db_ref": "DB msg_id: 3735a341 / DB msg_ai | ts: 2026-07-23 14:04:07",
+    "intent_log_ref": "log_live_context_2_1.md:L482"
   },
   {
     "query_id": "Q37",
@@ -515,7 +551,8 @@
     ],
     "elapsed": 1.287778615951538,
     "log_ref": "log_live_context_2_1.md:L624",
-    "db_ref": "DB msg_id: 293031ca / DB msg_ai | ts: 2026-07-23 14:04:26"
+    "db_ref": "DB msg_id: 293031ca / DB msg_ai | ts: 2026-07-23 14:04:26",
+    "intent_log_ref": "log_live_context_2_1.md:L611"
   },
   {
     "query_id": "Q38",
@@ -529,7 +566,8 @@
     ],
     "elapsed": 1.1502964496612549,
     "log_ref": "log_live_context_2_1.md:L655",
-    "db_ref": "DB msg_id: 293031ca / DB msg_ai | ts: 2026-07-23 14:04:26"
+    "db_ref": "DB msg_id: 293031ca / DB msg_ai | ts: 2026-07-23 14:04:26",
+    "intent_log_ref": "log_live_context_2_1.md:L654"
   },
   {
     "query_id": "Q39",
@@ -541,7 +579,8 @@
     "contexts": [],
     "elapsed": 2.915588855743408,
     "log_ref": "log_live_context_2_1.md:L687",
-    "db_ref": "DB msg_id: 78da6702 / DB msg_ai | ts: 2026-07-23 14:04:56"
+    "db_ref": "DB msg_id: 78da6702 / DB msg_ai | ts: 2026-07-23 14:04:56",
+    "intent_log_ref": "log_live_context_2_1.md:L691"
   },
   {
     "query_id": "Q40",
@@ -555,7 +594,8 @@
     ],
     "elapsed": 1.2635583877563477,
     "log_ref": "log_live_context_2.md:L1602",
-    "db_ref": "DB msg_id: 57082078 / 0d09ee51 | ts: 2026-07-23 02:32:20"
+    "db_ref": "DB msg_id: 57082078 / 0d09ee51 | ts: 2026-07-23 02:32:20",
+    "intent_log_ref": "log_live_context_2.md:L1601"
   },
   {
     "query_id": "Q41",
@@ -569,7 +609,8 @@
     ],
     "elapsed": 1.1912670135498047,
     "log_ref": "log_live_context_3.md:L42",
-    "db_ref": "DB msg_id: a82e8c06 / a2eddd75 | ts: 2026-07-23 14:13:05"
+    "db_ref": "DB msg_id: a82e8c06 / a2eddd75 | ts: 2026-07-23 14:13:05",
+    "intent_log_ref": "log_live_context_3.md:L41"
   },
   {
     "query_id": "Q42",
@@ -583,7 +624,8 @@
     ],
     "elapsed": 5.320379734039307,
     "log_ref": "log_live_context_3_1.md:L147",
-    "db_ref": "DB msg_id: 0dbc009b / 8679ba18 | ts: 2026-07-23 14:13:26"
+    "db_ref": "DB msg_id: 0dbc009b / 8679ba18 | ts: 2026-07-23 14:13:26",
+    "intent_log_ref": "log_live_context_3_1.md:L146"
   },
   {
     "query_id": "Q43",
@@ -597,7 +639,8 @@
     ],
     "elapsed": 1.1149210929870605,
     "log_ref": "log_live_context_3_1.md:L178",
-    "db_ref": "DB msg_id: 2276bd67 / 717d4eed | ts: 2026-07-23 14:14:01"
+    "db_ref": "DB msg_id: 2276bd67 / 717d4eed | ts: 2026-07-23 14:14:01",
+    "intent_log_ref": "log_live_context_3_1.md:L177"
   },
   {
     "query_id": "Q44",
@@ -611,7 +654,8 @@
     ],
     "elapsed": 3.790384292602539,
     "log_ref": "log_live_context_3_1.md:L251",
-    "db_ref": "DB msg_id: 560e80dd / DB msg_speech | ts: 2026-07-23 14:14:20"
+    "db_ref": "DB msg_id: 560e80dd / DB msg_speech | ts: 2026-07-23 14:14:20",
+    "intent_log_ref": "log_live_context_3_1.md:L250"
   },
   {
     "query_id": "Q45",
@@ -625,7 +669,8 @@
     ],
     "elapsed": 1.0084547996520996,
     "log_ref": "log_live_context_3_1.md:L368",
-    "db_ref": "DB msg_id: 2e941f60 / DB msg_speech | ts: 2026-07-23 14:14:48"
+    "db_ref": "DB msg_id: 2e941f60 / DB msg_speech | ts: 2026-07-23 14:14:48",
+    "intent_log_ref": "log_live_context_3_1.md:L367"
   },
   {
     "query_id": "Q46",
@@ -639,7 +684,8 @@
     ],
     "elapsed": 1.2796251773834229,
     "log_ref": "log_live_context_3_1.md:L404",
-    "db_ref": "DB msg_id: ad909937 / 42003b0a | ts: 2026-07-23 14:15:15"
+    "db_ref": "DB msg_id: ad909937 / 42003b0a | ts: 2026-07-23 14:15:15",
+    "intent_log_ref": "log_live_context_3_1.md:L403"
   },
   {
     "query_id": "Q47",
@@ -653,7 +699,8 @@
     ],
     "elapsed": 1.5584745407104492,
     "log_ref": "log_live_context_3_1.md:L506",
-    "db_ref": "DB msg_id: 9f277b0f / 103aa9dd | ts: 2026-07-23 14:16:27"
+    "db_ref": "DB msg_id: 9f277b0f / 103aa9dd | ts: 2026-07-23 14:16:27",
+    "intent_log_ref": "log_live_context_3_1.md:L505"
   },
   {
     "query_id": "Q48",
@@ -667,7 +714,8 @@
     ],
     "elapsed": 1.1487114429473877,
     "log_ref": "log_live_context_3_1.md:L554",
-    "db_ref": "DB msg_id: 7ab4d28d / 7325f180 | ts: 2026-07-23 14:16:56"
+    "db_ref": "DB msg_id: 7ab4d28d / 7325f180 | ts: 2026-07-23 14:16:56",
+    "intent_log_ref": "log_live_context_3_1.md:L553"
   },
   {
     "query_id": "Q49",
@@ -681,7 +729,8 @@
     ],
     "elapsed": 6.842663288116455,
     "log_ref": "log_live_context_3.md:L241",
-    "db_ref": "DB msg_id: a6a282d8 / 7ef41afc | ts: 2026-07-23 06:49:52"
+    "db_ref": "DB msg_id: a6a282d8 / 7ef41afc | ts: 2026-07-23 06:49:52",
+    "intent_log_ref": "log_live_context_3.md:L240"
   },
   {
     "query_id": "Q50",
@@ -695,7 +744,8 @@
     ],
     "elapsed": 5.544074773788452,
     "log_ref": "log_live_context_3.md:L200",
-    "db_ref": "DB msg_id: 3bd8c42b / 5c086be3 | ts: 2026-07-23 06:50:38"
+    "db_ref": "DB msg_id: 3bd8c42b / 5c086be3 | ts: 2026-07-23 06:50:38",
+    "intent_log_ref": "log_live_context_3.md:L199"
   },
   {
     "query_id": "Q51",
@@ -709,7 +759,8 @@
     ],
     "elapsed": 7.769691705703735,
     "log_ref": "log_live_context_3.md:L341",
-    "db_ref": "DB msg_id: 270f339b / 2062b687 | ts: 2026-07-23 06:52:00"
+    "db_ref": "DB msg_id: 270f339b / 2062b687 | ts: 2026-07-23 06:52:00",
+    "intent_log_ref": "log_live_context_3.md:L340"
   },
   {
     "query_id": "Q52",
@@ -723,7 +774,8 @@
     ],
     "elapsed": 4.492739200592041,
     "log_ref": "log_live_context_3.md:L371",
-    "db_ref": "DB msg_id: b0ee6fd2 / 91897e3c | ts: 2026-07-23 06:52:17"
+    "db_ref": "DB msg_id: b0ee6fd2 / 91897e3c | ts: 2026-07-23 06:52:17",
+    "intent_log_ref": "log_live_context_3.md:L370"
   },
   {
     "query_id": "Q53",
@@ -737,7 +789,8 @@
     ],
     "elapsed": 5.136457920074463,
     "log_ref": "log_live_context_3.md:L417",
-    "db_ref": "DB msg_id: 5ebddadd / 72d85afc | ts: 2026-07-23 06:53:00"
+    "db_ref": "DB msg_id: 5ebddadd / 72d85afc | ts: 2026-07-23 06:53:00",
+    "intent_log_ref": "log_live_context_3.md:L416"
   },
   {
     "query_id": "Q54",
@@ -751,7 +804,8 @@
     ],
     "elapsed": 4.784047842025757,
     "log_ref": "log_live_context_3.md:L476",
-    "db_ref": "DB msg_id: be126e10 / 485cf76f | ts: 2026-07-23 06:53:35"
+    "db_ref": "DB msg_id: be126e10 / 485cf76f | ts: 2026-07-23 06:53:35",
+    "intent_log_ref": "log_live_context_3.md:L475"
   },
   {
     "query_id": "Q55",
@@ -765,7 +819,8 @@
     ],
     "elapsed": 1.1611497402191162,
     "log_ref": "log_live_context_3.md:L727",
-    "db_ref": "DB msg_id: 2cced047 / a1339d0e | ts: 2026-07-23 06:54:39"
+    "db_ref": "DB msg_id: 2cced047 / a1339d0e | ts: 2026-07-23 06:54:39",
+    "intent_log_ref": "log_live_context_3.md:L726"
   },
   {
     "query_id": "Q56",
@@ -779,7 +834,8 @@
     ],
     "elapsed": 2.906860828399658,
     "log_ref": "log_live_context_3.md:L793",
-    "db_ref": "DB msg_id: 0eb79690 / 8ce8161f | ts: 2026-07-23 06:57:09"
+    "db_ref": "DB msg_id: 0eb79690 / 8ce8161f | ts: 2026-07-23 06:57:09",
+    "intent_log_ref": "log_live_context_3.md:L792"
   },
   {
     "query_id": "Q57",
@@ -793,7 +849,8 @@
     ],
     "elapsed": 7.254278659820557,
     "log_ref": "log_live_context_3.md:L876",
-    "db_ref": "DB msg_id: d4adfca / 33d89b8d | ts: 2026-07-23 06:58:13"
+    "db_ref": "DB msg_id: d4adfca / 33d89b8d | ts: 2026-07-23 06:58:13",
+    "intent_log_ref": "log_live_context_3.md:L875"
   },
   {
     "query_id": "Q58",
@@ -807,7 +864,8 @@
     ],
     "elapsed": 5.438891410827637,
     "log_ref": "log_live_context_3_1.md:L740",
-    "db_ref": "DB msg_id: 69e7c25a / 810e75a | ts: 2026-07-23 14:17:57"
+    "db_ref": "DB msg_id: 69e7c25a / 810e75a | ts: 2026-07-23 14:17:57",
+    "intent_log_ref": "log_live_context_3_1.md:L739"
   },
   {
     "query_id": "Q59",
@@ -821,7 +879,8 @@
     ],
     "elapsed": 1.668766975402832,
     "log_ref": "log_live_context_3.md:L907",
-    "db_ref": "DB msg_id: 8a878fc2 / 53621592 | ts: 2026-07-23 06:59:16"
+    "db_ref": "DB msg_id: 8a878fc2 / 53621592 | ts: 2026-07-23 06:59:16",
+    "intent_log_ref": "log_live_context_3.md:L906"
   },
   {
     "query_id": "Q60",
@@ -835,6 +894,7 @@
     ],
     "elapsed": 1.4381275177001953,
     "log_ref": "log_live_context_3.md:L920",
-    "db_ref": "DB msg_id: 67954880 / DB msg_ai | ts: 2026-07-23 06:59:59"
+    "db_ref": "DB msg_id: 67954880 / DB msg_ai | ts: 2026-07-23 06:59:59",
+    "intent_log_ref": "log_live_context_3.md:L919"
   }
 ]
