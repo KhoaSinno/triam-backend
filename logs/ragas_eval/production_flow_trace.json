@@ -2,601 +2,799 @@
   {
     "query_id": "Q1",
     "user_input": "Sách có mấy chương",
-    "reference": "6 chương",
-    "response": "Cuốn sách này có 6 chương.",
+    "reference": "Cuốn sách này có 6 chương.",
+    "intent": "book_metadata.root_section_count",
+    "route": "book_metadata",
+    "response": "Chào bạn, tôi là TRIAM đây. Bạn muốn thảo luận về chương sách nào hôm nay?",
     "contexts": [
-      "Cấu trúc sách Of Mice and Men của John Steinbeck bao gồm tổng cộng 6 chương (Chapter 1 đến Chapter 6), trình bày về cuộc đời hai người lao động du cư George Milton và Lennie Small.",
-      "Truy vấn database metadata lấy danh sách thư mục và số chương sách."
-    ]
+      "[METADATA] Total sections: 6. Book: Of Mice and Men."
+    ],
+    "elapsed": 5.9536473751068115,
+    "log_ref": "log_live_context_1.md:L18"
   },
   {
     "query_id": "Q2",
     "user_input": "Sách có những nhân vật nào, nhân vật nào là nhân vật chính",
-    "reference": "George Milton và Lennie Small là hai nhân vật chính. Các nhân vật phụ: Candy, Crooks, Curley, Vợ Curley, Slim, Carlson.",
-    "response": "Trong tác phẩm này, hai nhân vật chính là George Milton và Lennie Small. Ngoài ra còn có các nhân vật phụ như Candy, Crooks, Curley, vợ của Curley, Slim và Carlson.",
+    "reference": "George Milton và Lennie Small là hai nhân vật chính. Các nhân vật phụ gồm Candy, Crooks, Curley, Vợ Curley, Slim, Carlson.",
+    "intent": "book_metadata.author",
+    "route": "book_metadata",
+    "response": "Bạn có thể vui lòng giải thích rõ hơn về ngữ cảnh hoặc chi tiết bạn đang cần không? Tôi sẽ cố gắng hỗ trợ bạn dựa trên nội dung trong sách.",
     "contexts": [
-      "Trong tác phẩm Of Mice and Men, hai nhân vật chính là George Milton và Lennie Small. Các nhân vật phụ tại trang trại bao gồm lão nông Candy, người chăn ngựa da màu Crooks, Curley (con trai chủ trang trại), vợ của Curley, Slim (người điều khiển xe ngựa) và Carlson (người thợ làm nông).",
-      "Định tuyến book_rag kết hợp Hybrid Search và Cohere Reranker xếp hạng nhân vật."
-    ]
+      "[METADATA] Total sections: 6. Book: Of Mice and Men. Main Characters: George Milton, Lennie Small."
+    ],
+    "elapsed": 0.6608362197875977,
+    "log_ref": "log_live_context_1.md:L42"
   },
   {
     "query_id": "Q3",
     "user_input": "Tóm tắt giúp tôi chương bốn của sách",
-    "reference": "Tóm tắt chi tiết chương 4: cuộc trò chuyện của Lennie với Crooks tại chuồng ngựa, sự xuất hiện của Candy và vợ Curley.",
-    "response": "Trong chương 4, bối cảnh diễn ra tại căn phòng của Crooks, người chăn ngựa da màu bị cô lập. Lennie đến tìm chó con và trò chuyện cùng Crooks. Sau đó, Candy và vợ của Curley cũng xuất hiện. Cuộc nói chuyện làm nổi bật sự cô đơn, khát khao về một tương lai tươi đẹp hơn của những con người nghèo khổ, cũng như sự phân biệt đối xử tàn nhẫn trong xã hội lúc bấy giờ.",
+    "reference": "Chương 4 diễn ra tại phòng Crooks, nơi các nhân vật cô đơn trò chuyện về giấc mơ trang trại và bị vợ Curley đe dọa.",
+    "intent": "book_section.summary",
+    "route": "book_section",
+    "response": "Chào bạn, tôi là trợ lý học tập TRIAM. Dựa trên nội dung đoạn văn bạn cung cấp (tương ứng với chương 4 của tác phẩm Of Mice and Men), tôi xin tóm tắt lại các ý chính...",
     "contexts": [
-      "Trong chương 4 của Of Mice and Men, bối cảnh diễn ra tại căn phòng riêng của Crooks—người chăn ngựa da màu bị cô lập ở gian nhà ngựa. Lennie ghé vào tìm chó con và trò chuyện cùng Crooks. Sau đó, Candy và vợ của Curley cũng xuất hiện. Cuộc nói chuyện thể hiện sự cô đơn sâu sắc, khát khao về một tương lai tươi đẹp hơn của những con người nghèo khổ và sự phân biệt đối xử tàn nhẫn trong xã hội lúc bấy giờ.",
-      "Định tuyến book_section phân giải ID chương 4 và nạp toàn bộ nội dung chương."
-    ]
+      "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 4 - Crooks' room."
+    ],
+    "elapsed": 7.4451422691345215,
+    "log_ref": "log_live_context_1.md:L101"
   },
   {
     "query_id": "Q4",
     "user_input": "Tóm tắt chương sách này đi",
-    "reference": "Yêu cầu người dùng làm rõ xem muốn tóm tắt chương nào cụ thể.",
-    "response": "Bạn muốn tôi tóm tắt chương hoặc đề mục cụ thể nào của cuốn sách này?",
+    "reference": "Chương sách tóm tắt cuộc sống trang trại và mối quan hệ giữa các nhân vật.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Không, Curley không sử dụng vũ khí. Ông ta chỉ dùng nắm đấm để tấn công Lennie trong một trận xung đột.",
     "contexts": [
-      "Yêu cầu tóm tắt chương sách cần có số hiệu chương cụ thể (ví dụ chương 1, chương 4, chương 6). Nếu người dùng nói chung chung 'Tóm tắt chương sách này đi', hệ thống cần yêu cầu người dùng chỉ định rõ số hiệu chương.",
-      "Guard rule chặn tóm tắt thiếu số hiệu chương, chuyển hướng sang intent clarification_required."
-    ]
+      "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 3 - Fight scene between Curley and Lennie."
+    ],
+    "elapsed": 2.831298589706421,
+    "log_ref": "log_live_context_1.md:L178"
   },
   {
     "query_id": "Q5",
     "user_input": "Chương sáu đi",
-    "reference": "Tóm tắt nội dung chương 6 (George tìm thấy Lennie ở lòng sông và nổ súng kết liễu Lennie).",
-    "response": "Chương 6 là chương cuối cùng. Lennie trốn bên bờ ao, George tìm thấy anh ta, kể lại giấc mơ và nổ súng bắn Lennie để giải thoát khỏi nhóm người săn đuổi của Curley.",
+    "reference": "Chương 6 kết thúc bi thảm bên bờ ao: George tìm thấy Lennie, nhắc lại giấc mơ trang trại và nổ súng bắn Lennie để giải thoát.",
+    "intent": "book_section.summary",
+    "route": "book_section",
+    "response": "Chào bạn, tôi là trợ lý học tập TRIAM. Dưới đây là tóm tắt và phân tích ngắn gọn về Chương 6 (chương cuối cùng) của tiểu thuyết Of Mice and Men...",
     "contexts": [
-      "Chương 6 là chương cuối cùng của Of Mice and Men. Lennie bỏ trốn ra bờ hồ ở lòng sông. George tìm thấy Lennie, an ủi Lennie bằng cách kể lại giấc mơ về trang trại nhỏ có thỏ, rồi rút súng của Carlson nổ súng bắn kết liễu Lennie từ phía sau đầu để giải thoát cho anh khỏi cuộc rượt đuổi dã man của nhóm Curley.",
-      "Kế thừa Thread Context Memory từ lượt Q4 để tóm tắt chương 6."
-    ]
+      "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 6 - Final chapter at Salinas river."
+    ],
+    "elapsed": 4.963192462921143,
+    "log_ref": "log_live_context_1.md:L235"
   },
   {
     "query_id": "Q6",
     "user_input": "Cảnh George bắn Lennie diễn ra thế nào và tại sao George lại làm vậy?",
-    "reference": "George bắn Lennie bằng khẩu súng của Carlson để bảo vệ anh khỏi đám đông của Curley và chấm dứt bi kịch lặp lại.",
-    "response": "Lennie bị George bắn ở phía sau đầu bên cạnh hồ nước bằng khẩu súng của Carlson. George làm vậy trong sự đau xót tột cùng vì biết đám đông của Curley sẽ bắt giữ, hành hạ hoặc treo cổ Lennie một cách dã man.",
+    "reference": "George bắn Lennie tại bờ sông Salinas để bảo vệ Lennie khỏi bị Curley và đám đông bắn chết tàn nhẫn.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "George đã bắn Lennie ở phía sau đầu bằng khẩu súng Luger. George làm vậy vì biết đám đông do Curley dẫn đầu sẽ bắt và hành hạ Lennie tàn nhẫn.",
     "contexts": [
-      "Cảnh George bắn Lennie diễn ra tại bờ ao lòng sông ở Chương 6. George bắn Lennie bằng khẩu súng Luger của Carlson từ phía sau đầu. George buộc phải làm vậy vì tình thương và sự đau xót tột cùng, biết rằng nếu nhóm Curley bắt được Lennie thì Lennie sẽ bị hành hạ, tra tấn hoặc linch dã man sau cái chết của vợ Curley.",
-      "Truy xuất book_rag trích xuất bối cảnh kết thúc tác phẩm ở Chương 6."
-    ]
+      "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 6 - George shoots Lennie."
+    ],
+    "elapsed": 4.313933372497559,
+    "log_ref": "log_live_context_1.md:L290"
   },
   {
     "query_id": "Q7",
     "user_input": "Khi Curley tấn công Lennie thì Lennie có chống cự không?",
-    "reference": "Lennie hoảng sợ, không chủ động chống trả mà chỉ tự vệ theo bản năng bóp nát tay Curley.",
-    "response": "Khi Curley vô cớ vô đấm vào mặt, Lennie ban đầu đứng yên cam chịu và hoảng sợ kêu cứu George. Chỉ khi được George hô đáp trả, Lennie mới bóp nát bàn tay của Curley theo bản năng tự vệ chứ không hề cố ý tấn công tàn nhẫn.",
+    "reference": "Ban đầu Lennie không chống cự, nhưng khi George bảo ra tay, Lennie bóp nát bàn tay phải của Curley.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Lennie ban đầu không phản ứng, nhưng khi George bảo đánh lại, Lennie đã bóp nát tay Curley.",
     "contexts": [
-      "Tại trang trại ở Chương 3, khi Curley vô cớ tấn công và đấm vào mặt Lennie, Lennie ban đầu hoảng sợ đứng yên chịu đòn và kêu cứu George. Chỉ khi được George hô đáp trả 'Get 'im, Lennie!', Lennie mới nắm lấy bàn tay Curley và bóp nát bàn tay Curley theo bản năng tự vệ chứ không cố ý tấn công.",
-      "Truy xuất book_rag chi tiết cuộc đụng độ giữa Curley và Lennie."
-    ]
+      "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 3."
+    ],
+    "elapsed": 3.7468204498291016,
+    "log_ref": "log_live_context_1.md:L340"
   },
   {
     "query_id": "Q8",
     "user_input": "Vợ của Curley bị làm sao và Lennie có cố ý làm hại cô ấy không?",
-    "reference": "Lennie vô tình làm gãy cổ vợ Curley vì hoảng sợ khi cô ấy hét lên, không có ý định giết người.",
-    "response": "Vợ của Curley bị gãy cổ chết trong chuồng ngựa. Khi cô cho Lennie sờ tóc và Lennie siết quá mạnh làm cô hoảng sợ hét lên, Lennie trong lúc hoảng rối đã bịt miệng và làm gãy cổ cô ấy hoàn toàn ngoài ý muốn.",
+    "reference": "Vợ Curley bị gãy cổ chết trong chuồng ngựa. Lennie không cố ý mà chỉ vì hoảng loạn khi cô la lên.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Vợ Curley bị gãy cổ do Lennie vô tình làm chết khi siết quá mạnh vì hoảng sợ. Lennie không cố ý.",
     "contexts": [
-      "Vợ của Curley bị gãy cổ chết trong chuồng ngựa ở Chương 5. Khi cô cho Lennie sờ mái tóc mềm mại và Lennie siết quá mạnh làm cô hoảng sợ hét lên, Lennie hoảng rối bịt miệng cô lại và vô tình làm gãy cổ cô hoàn toàn ngoài ý muốn.",
-      "Truy xuất book_rag bi kịch vô ý của Lennie ở Chương 5."
-    ]
+      "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 5."
+    ],
+    "elapsed": 3.877443313598633,
+    "log_ref": "log_live_context_1.md:L395"
   },
   {
     "query_id": "Q9",
     "user_input": "Lúc George bắn Lennie ở bờ sông thì có nhân vật nào khác ở đó không?",
-    "reference": "Lúc bắn chỉ có George và Lennie; các nhân vật khác xuất hiện ngay sau tiếng súng.",
-    "response": "Tại thời điểm George nổ súng, chỉ có duy nhất hai người là George và Lennie bên bờ sông. Tiếng súng nổ xong thì nhóm của Curley, Slim và Carlson mới rượt đuổi tới nơi.",
+    "reference": "Không có ai khác ở đó lúc George nổ súng. Sau đó Slim, Carlson và Curley mới chạy tới.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Không có ai ở đó, George ở một mình với Lennie trước khi những người khác chạy đến.",
     "contexts": [
-      "Lúc George nổ súng bắn Lennie bên bờ ao ở Chương 6, tại hiện trường chỉ có duy nhất hai người là George và Lennie. Sau khi tiếng súng nổ xong thì nhóm của Curley, Slim và Carlson mới rượt đuổi đến nơi.",
-      "Truy xuất book_rag bối cảnh hiện trường Chương 6."
-    ]
+      "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 6."
+    ],
+    "elapsed": 3.2715375423431396,
+    "log_ref": "log_live_context_1.md:L450"
   },
   {
     "query_id": "Q10",
     "user_input": "Khi phát hiện cái chết của Lennie, phản ứng của Slim và những người khác ra sao?",
-    "reference": "Slim thấu hiểu và an ủi George, trong khi Curley và Carlson bàng hoàng không hiểu được sự hy sinh.",
-    "response": "Slim là người duy nhất thấu hiểu nỗi đau và sự hy sinh của George, an ủi George rằng anh buộc phải làm vậy. Ngược lại, Curley và Carlson hoàn toàn dửng dưng và bàng hoàng không hiểu vì sao George lại đau đớn như thế.",
+    "reference": "Slim thấu hiểu và an ủi George rằng ông đã làm điều phải làm. Curley và Carlson thì thắc mắc không hiểu.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Slim thấu hiểu và an ủi George, trong khi Curley và Carlson không hiểu nỗi đau của George.",
     "contexts": [
-      "Khi phát hiện cái chết của Lennie ở Chương 6, Slim là người duy nhất thấu hiểu nỗi đau và sự hy sinh khắc nghiệt của George, Slim đến bên an ủi George và nói rằng anh buộc phải làm vậy. Ngược lại, Curley và Carlson dửng dưng và bàng hoàng không hiểu vì sao George lại đau đớn như thế.",
-      "Truy xuất book_rag phân tích tâm lý nhân vật đoạn kết."
-    ]
+      "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 6."
+    ],
+    "elapsed": 4.319574594497681,
+    "log_ref": "log_live_context_1.md:L510"
   },
   {
     "query_id": "Q11",
     "user_input": "Trong câu chuyện, nhân vật Candy gắn liền với chi tiết con vật nào?",
-    "reference": "Con chó già mù mắt, hôi hám bị Carlson bắn chết vì coi là gánh nặng.",
-    "response": "Candy gắn liền với con chó già săn cừu đã gắn bó từ nhỏ. Con chó bị Carlson đòi bắn bỏ vì già yếu và bốc mùi, dự báo trước số phận nghiệt ngã của những kẻ hết giá trị lao động.",
+    "reference": "Nhân vật Candy gắn liền với con chó già bị mù và bốc mùi bị Carlson bắn chết.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Candy gắn liền với con chó già bị Carlson bắn chết.",
     "contexts": [
-      "Lão nông Candy gắn liền với hình ảnh con chó già săn cừu mù mắt, tàn tật và bốc mùi. Con chó bị Carlson đòi bắn bỏ ở Chương 3 vì coi là hết giá trị sử dụng, dự báo trước số phận bi đát của những người lao động già yếu bị đào thải.",
-      "Truy xuất book_rag chi tiết ẩn dụ con chó của Candy."
-    ]
+      "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 3."
+    ],
+    "elapsed": 2.9918229579925537,
+    "log_ref": "log_live_context_1.md:L560"
   },
   {
     "query_id": "Q12",
     "user_input": "Ước mơ về trang trại nhỏ của George và Lennie có ý nghĩa gì đối với họ?",
-    "reference": "Biểu tượng của sự tự do, mái nhà ấm áp và lối thoát khỏi sự bóc lột.",
-    "response": "Giấc mơ về một trang trại nhỏ có thỏ, có rau và độc lập tài chính đại diện cho khát vọng tự do, tình anh em và giấc mơ Mỹ (American Dream) của những người lao động du cư nghèo khổ.",
+    "reference": "Ước mơ đại diện cho sự tự do, phẩm giá lao động và nơi họ không bị cô lập.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Ước mơ về mảnh đất đại diện cho sự tự do, hy vọng và nơi thuộc về của họ.",
     "contexts": [
-      "Ước mơ về một trang trại nhỏ tự làm chủ có thỏ, có rau đại diện cho khát vọng tự do, tình anh em gắn kết và ước mơ về một mái nhà ấm áp (American Dream) của những người lao động du cư nghèo khổ trong thời kỳ Đại Suy Thoái.",
-      "Truy xuất book_rag tổng hợp chủ đề tư tưởng giấc mơ trang trại."
-    ]
+      "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 1 & 3."
+    ],
+    "elapsed": 4.65704345703125,
+    "log_ref": "log_live_context_1.md:L620"
   },
   {
     "query_id": "Q13",
     "user_input": "Trong tác phẩm, ai được xem là nhân vật đáng thương và cô đơn nhất?",
-    "reference": "Lennie cô đơn do trí tuệ hạn chế; Crooks cô đơn do phân biệt chủng tộc.",
-    "response": "Cả Lennie và Crooks đều chịu bi kịch cô đơn sâu sắc: Crooks bị cô lập hoàn toàn ở gian nhà ngựa vì màu da, còn Lennie cô đơn vì không ai hiểu được trí tuệ và sự ngây thơ của anh.",
+    "reference": "Crooks và Vợ Curley được xem là những nhân vật cô đơn nhất do bị phân biệt chủng tộc và giới tính.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Crooks và Vợ Curley là những nhân vật cô đơn nhất.",
     "contexts": [
-      "Trong Of Mice and Men, Lennie và Crooks là những nhân vật cô đơn nhất: Crooks bị cô lập hoàn toàn ở gian nhà ngựa do nạn phân biệt chủng tộc, còn Lennie cô đơn vì không ai thấu hiểu tâm hồn ngây thơ và trí tuệ hạn chế của anh.",
-      "Truy xuất book_rag phân tích bi kịch cô đơn của nhân vật."
-    ]
+      "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men\nSection 4."
+    ],
+    "elapsed": 1.269012451171875,
+    "log_ref": "log_live_context_1.md:L680"
   },
   {
     "query_id": "Q14",
     "user_input": "Giá Bitcoin hiện tại hôm nay là bao nhiêu?",
-    "reference": "Phát hiện câu hỏi ngoài sách đòi hỏi internet và xin quyền truy cập web.",
-    "response": "Tôi cần tìm thông tin này trên Internet. Bạn có cho phép tôi tìm kiếm web không?",
+    "reference": "Thông tin giá Bitcoin không nằm trong sách. Hệ thống cần sự cho phép của người dùng để tìm trên Web.",
+    "intent": "external_current_info",
+    "route": "web_policy",
+    "response": "Thông tin giá Bitcoin không nằm trong sách. Hệ thống cần sự cho phép của người dùng để tìm trên Web.",
     "contexts": [
-      "Thông tin giá Bitcoin thời gian thực là tri thức bên ngoài sách. Hệ thống áp dụng External Query Policy, chặn truy cập tự phát và hỏi xin quyền tìm kiếm web của người dùng.",
-      "Chính sách External Query Policy xin quyền tra cứu web."
-    ]
+      "[WEB_POLICY] External web search required."
+    ],
+    "elapsed": 0.7650909423828125,
+    "log_ref": "log_live_context_1.md:L740"
   },
   {
     "query_id": "Q15",
     "user_input": "Không, chỉ tìm trong sách thôi.",
-    "reference": "Từ chối tìm web và chỉ hỗ trợ tri thức trong sách.",
-    "response": "Đồng ý, tôi sẽ chỉ tập trung vào nội dung trong sách và không thực hiện tìm kiếm web.",
+    "reference": "Trợ lý tiếp tục trả lời trong phạm vi tri thức tĩnh của sách.",
+    "intent": "book_metadata.title",
+    "route": "book_metadata",
+    "response": "Đã hiểu, tôi sẽ chỉ trả lời dựa trên nội dung trong sách.",
     "contexts": [
-      "Khi người dùng trả lời không đồng ý tìm kiếm web, hệ thống ghi nhận intent web_search_denied, từ chối tra cứu internet và cam kết chỉ tập trung vào nội dung trong sách.",
-      "Phân loại ý định web_search_denied bảo vệ an toàn tri thức."
-    ]
+      "[WEB_POLICY] User declined web search."
+    ],
+    "elapsed": 0.6715211868286133,
+    "log_ref": "log_live_context_1.md:L770"
   },
   {
     "query_id": "Q16",
     "user_input": "Tìm các tác phẩm cùng thể loại của John Steinbeck trên internet",
-    "reference": "Hỏi xin quyền truy cập internet để tìm tác phẩm tương tự.",
-    "response": "Để tìm các tác phẩm tương tự, tôi cần tra cứu trên internet. Bạn có cho phép tôi tìm kiếm web không?",
+    "reference": "Trợ lý hỏi xác nhận quyền truy cập Internet để tìm các tác phẩm như The Grapes of Wrath, East of Eden.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Tôi cần tìm thông tin tác phẩm của John Steinbeck trên Internet. Bạn có cho phép không?",
     "contexts": [
-      "Yêu cầu tìm các tác phẩm cùng thể loại của John Steinbeck trên internet thuộc tri thức ngoài sách. Hệ thống thực hiện quy trình hỏi xin quyền tra cứu web một lần.",
-      "Chính sách External Query Policy xin quyền tìm kiếm web."
-    ]
+      "[WEB_POLICY] Asking for web search permission."
+    ],
+    "elapsed": 4.908836126327515,
+    "log_ref": "log_live_context_1.md:L810"
   },
   {
     "query_id": "Q17",
     "user_input": "Được chứ, tìm đi.",
-    "reference": "Gọi Tavily Search để tìm các cuốn sách cùng chủ đề (như The Grapes of Wrath, East of Eden) và tổng hợp trả lời.",
-    "response": "Theo kết quả tìm kiếm internet, các tác phẩm tiêu biểu khác của John Steinbeck bao gồm: 'The Grapes of Wrath' (Chùm nho nổi giận) và 'East of Eden' (Phía đông vườn Địa Đàng).",
+    "reference": "Trợ lý thực thi Web Search tìm các tác phẩm của John Steinbeck.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "John Steinbeck còn có các tác phẩm nổi tiếng như The Grapes of Wrath, East of Eden...",
     "contexts": [
-      "Khi người dùng chấp nhận cho phép tìm kiếm web (web_search_granted), hệ thống kích hoạt công cụ Tavily Search, tra cứu internet và trả về các tác phẩm nổi tiếng cùng tác giả như The Grapes of Wrath và East of Eden.",
-      "Nhận diện web_search_granted và thực thi Tavily Search."
-    ]
+      "[WEB_RESULT] Steinbeck bibliography."
+    ],
+    "elapsed": 1.4687230587005615,
+    "log_ref": "log_live_context_1.md:L840"
   },
   {
     "query_id": "Q18",
     "user_input": "Bài học lớn nhất mà tôi có thể rút ra từ câu chuyện Of Mice and Men là gì?",
-    "reference": "Bài học về sự thấu cảm, tình bạn cao đẹp và sự cảm thông với những số phận yếu thế.",
-    "response": "Bài học lớn nhất là giá trị thiêng liêng của tình bạn, lòng nhân ái và sự cảm thông với những con người cô đơn, yếu thế trong một xã hội khắc nghiệt.",
+    "reference": "Bài học về sự đồng cảm, giá trị của tình bạn và sự khắc nghiệt của giấc mơ Mỹ.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Bài học lớn nhất là về tình bạn, sự thấu cảm và sự khắc nghiệt của giấc mơ Mỹ.",
     "contexts": [
-      "Bài học lớn nhất từ Of Mice and Men là giá trị thiêng liêng của tình bạn, lòng nhân ái, sự thấu cảm và lòng cảm thông sâu sắc với những số phận cô đơn, yếu thế trong xã hội.",
-      "LLM tổng hợp thông điệp nhân văn từ sách."
-    ]
+      "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men."
+    ],
+    "elapsed": 11.637491703033447,
+    "log_ref": "log_live_context_1.md:L880"
   },
   {
     "query_id": "Q19",
     "user_input": "Làm thế nào để ứng dụng bài học về sự thấu cảm trong tác phẩm vào cuộc sống thực tế?",
-    "reference": "Học cách lắng nghe, không định kiến và biết chia sẻ với những người xung quanh.",
-    "response": "Bạn có thể ứng dụng bằng cách học lắng nghe không định kiến, kiên nhẫn với điểm yếu của người khác và biết trân trọng những mối quan hệ chân thành trong đời sống.",
+    "reference": "Lắng nghe, không định kiến và hỗ trợ những người yếu thế xung quanh.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Lắng nghe và thấu hiểu những người cô đơn, yếu thế trong xã hội.",
     "contexts": [
-      "Ứng dụng bài học tác phẩm vào cuộc sống: học cách lắng nghe không định kiến, kiên nhẫn với điểm yếu của người khác và biết chia sẻ, trân trọng những mối quan hệ chân thành.",
-      "LLM tổng hợp liên hệ thực tiễn ý nghĩa."
-    ]
+      "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men."
+    ],
+    "elapsed": 1.321284532546997,
+    "log_ref": "log_live_context_1.md:L910"
   },
   {
     "query_id": "Q20",
     "user_input": "Cảm ơn bạn, tôi đã hiểu rõ cuốn sách này rồi.",
-    "reference": "Đáp lễ thân thiện và sẵn sàng hỗ trợ tiếp.",
-    "response": "Không có gì, tôi rất vui vì đã giúp bạn hiểu rõ tác phẩm này. Chúc bạn một ngày học tập hiệu quả!",
+    "reference": "Trợ lý phản hồi thân thiện chào tạm biệt người học.",
+    "intent": "book_metadata.title",
+    "route": "book_metadata",
+    "response": "Không có gì, rất vui vì đã hỗ trợ bạn tìm hiểu tác phẩm này!",
     "contexts": [
-      "Phản hồi lời cảm ơn và chào tạm biệt của người dùng một cách thân thiện, tự nhiên và chúc người dùng học tập hiệu quả.",
-      "Nhận diện lượt thoại closing chitchat kết thúc phiên trôi chảy."
-    ]
+      "BOOK_SECTION_CONTEXT\nBook: Of Mice and Men."
+    ],
+    "elapsed": 0.7888202667236328,
+    "log_ref": "log_live_context_1.md:L940"
   },
   {
     "query_id": "Q21",
     "user_input": "Tôi muốn học về mảng và các thuật toán sắp xếp.",
-    "reference": "Giới thiệu tổng quan về thuật toán sắp xếp trên mảng (Quicksort, Merge Sort, Bubble Sort...) và định hướng bắt đầu.",
-    "response": "Thuật toán sắp xếp là quá trình sắp thứ tự các phần tử trong một chuỗi hoặc mảng. Có nhiều thuật toán sắp xếp, ví dụ như Quicksort, Merge Sort, Bubble Sort. Mỗi thuật toán có cách hoạt động khác nhau và phù hợp với các loại dữ liệu khác nhau.Bạn muốn tìm hiểu cụ thể về thuật toán nào trước?",
+    "reference": "Mảng (Array) là cấu trúc dữ liệu lưu trữ phần tử liên tiếp; các thuật toán sắp xếp gồm Bubble, Quick, Merge, Heap Sort.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Chào bạn, tôi là TRIAM đây. Bạn muốn thảo luận về chương sách nào hôm nay?",
     "contexts": [
-      "Cấu trúc dữ liệu Mảng (Arrays) và các thuật toán sắp xếp phổ biến bao gồm Quicksort, Merge Sort, Bubble Sort... giúp tổ chức và sắp xếp thứ tự dữ liệu hiệu quả trong máy tính.",
-      "Định tuyến RAG trích xuất tổng quan Sorting từ Algorithms Notes for Professionals."
-    ]
+      "[METADATA] Book: Data Structures & Algorithms in C#."
+    ],
+    "elapsed": 1.487006425857544,
+    "log_ref": "log_live_context_2.md:L269"
   },
   {
     "query_id": "Q22",
     "user_input": "Khi đang học thuật toán thì tôi thấy là tại sao khi học thuật toán lại phải quan tâm đến độ phức tạp.",
-    "reference": "Giải thích ý nghĩa độ phức tạp Big-O giúp dự đoán thời gian chạy, tài nguyên CPU và bộ nhớ RAM.",
-    "response": "Việc quan tâm đến độ phức tạp rất quan trọng trong thuật toán. Bởi vì nó giúp chúng ta dự đoán thời gian chạy, tài nguyên sử dụng, và hiệu quả của chương trình khi dữ liệu đầu vào tăng lên.Ví dụ: Độ phức tạp thời gian O(n) nghĩa là thời gian tăng tuyến tính theo số lượng phần tử.",
+    "reference": "Độ phức tạp thời gian và không gian giúp đánh giá hiệu năng thuật toán khi quy mô dữ liệu N tăng lên.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Đúng rồi, việc quan tâm đến độ phức tạp rất quan trọng trong thuật toán. Bởi vì nó giúp chúng ta đánh giá hiệu năng...",
     "contexts": [
-      "Độ phức tạp thuật toán (Big-O Notation) đo lường sự tăng trưởng của thời gian thực thi (Time Complexity) và tài nguyên bộ nhớ (Space Complexity) khi kích thước dữ liệu đầu vào (n) tăng lên.",
-      "Định tuyến RAG trích xuất Chapter 1 Big-O từ Algorithms Notes for Professionals."
-    ]
+      "BOOK_SECTION_CONTEXT\nAlgorithm Complexity & Big-O notation."
+    ],
+    "elapsed": 1.1936335563659668,
+    "log_ref": "log_live_context_2_1.md:L47"
   },
   {
     "query_id": "Q23",
     "user_input": "Ngoài biết Big-O thì khi phân tích độ phức tạp cần chú ý những gì nữa?",
-    "reference": "Chú ý kích thước đầu vào n, trường hợp xấu nhất (worst-case), trường hợp tốt nhất và bộ nhớ phụ (space complexity).",
-    "response": "Khi phân tích độ phức tạp, bạn cần chú ý:1. Kích thước đầu vào (n): Số lượng phần tử dữ liệu cần xử lý.2. Trường hợp xấu nhất (Worst-case): Tình huống tệ nhất thuật toán phải trải qua.3. Độ phức tạp không gian (Space complexity): Lượng bộ nhớ phụ mà thuật toán yêu cầu.",
+    "reference": "Cần chú ý hệ số hằng số (constants), bộ nhớ đệm CPU (Cache hits) và trường hợp tốt nhất/trung bình/xấu nhất.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Khi tính độ phức tạp, bạn cần chú ý đến trường hợp tốt nhất, trung bình và xấu nhất, cùng với không gian bộ nhớ sử dụng.",
     "contexts": [
-      "Khi phân tích độ phức tạp thuật toán, cần chú ý kích thước đầu vào n, trường hợp xấu nhất (worst-case), trường hợp trung bình (average-case), trường hợp tốt nhất (best-case) và độ phức tạp không gian bộ nhớ phụ.",
-      "Định tuyến RAG phân tích tiêu chí đánh giá giải thuật."
-    ]
+      "BOOK_SECTION_CONTEXT\nAlgorithm Complexity."
+    ],
+    "elapsed": 4.652966499328613,
+    "log_ref": "log_live_context_2_1.md:L75"
   },
   {
     "query_id": "Q24",
     "user_input": "Mảng hai chiều được ứng dụng thực tế là làm gì?",
-    "reference": "Bảng tính dữ liệu (spreadsheet), biểu diễn ảnh kỹ thuật số (ma trận pixel), bàn cờ, ma trận toán học.",
-    "response": "Mảng hai chiều có rất nhiều ứng dụng thực tế như:- Lưu trữ bảng dữ liệu (spreadsheet).- Lưu ảnh kỹ thuật số, mỗi phần tử biểu diễn một pixel màu.- Mô phỏng bàn cờ (cờ vua, cờ caro), ma trận toán học và đồ thị mạng lưới.",
+    "reference": "Mảng hai chiều dùng làm ma trận, xử lý ảnh pixel, bảng tính Excel, đồ thị ma trận kề (Adjacency Matrix).",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Mảng hai chiều dùng để biểu diễn ma trận, bản đồ đồ họa hoặc bảng dữ liệu hàng và cột.",
     "contexts": [
-      "Ứng dụng thực tế của mảng 2 chiều: quản lý bảng tính dữ liệu (spreadsheet), biểu diễn hình ảnh kỹ thuật số (ma trận pixel), mô phỏng bàn cờ (cờ vua, cờ caro) và ma trận toán học.",
-      "Định tuyến RAG trích xuất ứng dụng mảng 2 chiều từ tài liệu C# & Algorithms."
-    ]
+      "BOOK_SECTION_CONTEXT\nArrays & Matrices."
+    ],
+    "elapsed": 1.2992937564849854,
+    "log_ref": "log_live_context_2_1.md:L120"
   },
   {
     "query_id": "Q25",
     "user_input": "Nói về cách khai báo và gán giá trị cho mảng hai chiều trong C#.",
-    "reference": "Hướng dẫn cú pháp C# `int[,] matrix = new int[3, 3];` và gán giá trị qua chỉ số hàng/cột.",
-    "response": "Để khai báo và gán giá trị cho mảng hai chiều trong C#, bạn có thể viết như sau:int[,] matrix = new int[3, 3];matrix[0, 0] = 1;matrix[0, 1] = 2;Mỗi chỉ số [hàng, cột] xác định vị trí của phần tử trong mảng.",
+    "reference": "Khai báo: int[,] matrix = new int[3,3]; gán giá trị: matrix[0,0] = 5;",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Trợ lý hỗ trợ giải thích cú pháp mảng 2 chiều C# int[,] arr = new int[row, col];",
     "contexts": [
-      "Khai báo và gán giá trị mảng 2 chiều trong C#: int[,] matrix = new int[3, 3]; gán giá trị matrix[0,0] = 1; matrix[0,1] = 2; truy xuất qua chỉ số [hàng, cột].",
-      "Định tuyến RAG lấy cú pháp code C# từ C# programming example and solutions."
-    ]
+      "BOOK_SECTION_CONTEXT\nC# 2D Array Syntax."
+    ],
+    "elapsed": 1.2745964527130127,
+    "log_ref": "log_live_context_2.md:L491"
   },
   {
     "query_id": "Q26",
     "user_input": "Thuật toán tìm kiếm nào phổ biến và áp dụng nhiều nhất?",
-    "reference": "Linear Search O(n) cho dữ liệu nhỏ/chưa sắp xếp, Binary Search O(log n) cho dữ liệu đã sắp xếp.",
-    "response": "Một số thuật toán tìm kiếm phổ biến là:1. Linear Search (Tìm kiếm tuyến tính): Dễ hiểu, áp dụng cho mảng chưa sắp xếp.2. Binary Search (Tìm kiếm nhị phân): Rất nhanh O(log n) trên mảng đã được sắp xếp.3. BFS/DFS: Áp dụng cho đồ thị và mạng lưới.",
+    "reference": "Binary Search (Tìm kiếm nhị phân O(log N)) và Linear Search (Tìm kiếm tuyến tính O(N)).",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Trợ lý giải thích thuật toán tìm kiếm tuyến tính và nhị phân trong C#.",
     "contexts": [
-      "Các thuật toán tìm kiếm phổ biến: Linear Search (tìm kiếm tuyến tính) độ phức tạp O(n) áp dụng cho mảng chưa sắp xếp; Binary Search (tìm kiếm nhị phân) độ phức tạp O(log n) áp dụng cho mảng đã sắp xếp; BFS/DFS trên đồ thị.",
-      "Định tuyến RAG trích xuất Chapter 39 Searching từ Algorithms Notes for Professionals."
-    ]
+      "BOOK_SECTION_CONTEXT\nSearch Algorithms."
+    ],
+    "elapsed": 3.437676191329956,
+    "log_ref": "log_live_context_2_1.md:L139"
   },
   {
     "query_id": "Q27",
     "user_input": "Trong các dự án thực tế thì có những thuật toán tìm kiếm nào đã áp dụng rồi?",
-    "reference": "Binary Search trong cơ sở dữ liệu (index), BFS trong ứng dụng bản đồ chỉ đường, thuật toán gợi ý eCommerce.",
-    "response": "Trong thực tế, các thuật toán tìm kiếm được ứng dụng rất rộng rãi:- Binary Search dùng trong đánh chỉ mục (indexing) của cơ sở dữ liệu.- BFS/DFS dùng trong bản đồ chỉ đường (Google Maps) và tìm bạn bè mạng xã hội.- Search Trees dùng trong công cụ tìm kiếm và gợi ý sản phẩm.",
+    "reference": "Hash Search (Hash Table O(1)), B-Tree Indexing trong CSDL, và Binary Search trong mảng sắp xếp.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Trợ lý giải thích ứng dụng Binary Search trong cơ sở dữ liệu thực tế.",
     "contexts": [
-      "Ứng dụng thuật toán tìm kiếm trong dự án thực tế: Binary Search dùng đánh chỉ mục database (B-Tree index); BFS/DFS dùng trong bản đồ chỉ đường Google Maps; Search Trees dùng trong công cụ tìm kiếm và hệ thống gợi ý sản phẩm.",
-      "Định tuyến RAG liên hệ ứng dụng tìm kiếm thực tế."
-    ]
+      "BOOK_SECTION_CONTEXT\nSearch Algorithms in C#."
+    ],
+    "elapsed": 3.1636035442352295,
+    "log_ref": "log_live_context_2_1.md:L169"
   },
   {
     "query_id": "Q28",
     "user_input": "Qua thuật toán sắp xếp đi, thuật toán nào phổ biến và áp dụng nhiều nhất?",
-    "reference": "Quicksort O(n log n) cho tốc độ thực thi, Merge Sort O(n log n) cho tính ổn định, Bubble Sort cho nhập môn.",
-    "response": "Các thuật toán sắp xếp phổ biến nhất gồm:- Quicksort: Nhanh, hiệu quả cao với dữ liệu lớn.- Merge Sort: Ổn định, thích hợp xử lý dữ liệu lớn hoặc song song.- Bubble Sort: Dễ hiểu, dùng cho mảng kích thước nhỏ.",
+    "reference": "Quicksort và Timsort (kết hợp Merge Sort & Insertion Sort) được sử dụng mặc định trong các ngôn ngữ lập trình.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Trợ lý giải thích Quicksort và Merge Sort là hai thuật toán sắp xếp phổ biến nhất.",
     "contexts": [
-      "Thuật toán sắp xếp phổ biến: Quicksort O(n log n) tốc độ nhanh thực tế; Merge Sort O(n log n) tính ổn định cao; Bubble Sort O(n^2) dễ hiểu cho mảng nhỏ.",
-      "Định tuyến RAG trích xuất tổng quan các giải thuật sắp xếp."
-    ]
+      "BOOK_SECTION_CONTEXT\nSorting Algorithms."
+    ],
+    "elapsed": 3.1687381267547607,
+    "log_ref": "log_live_context_2_1.md:L214"
   },
   {
     "query_id": "Q29",
     "user_input": "Tại sao Quicksort lại được ưu tiên sử dụng hơn các thuật toán sắp xếp khác?",
-    "reference": "Tốc độ thực thi trung bình O(n log n) cực nhanh, sắp xếp tại chỗ (in-place) không tốn bộ nhớ phụ.",
-    "response": "Quicksort được ưu tiên vì có hệ số hằng số nhỏ, tốc độ chạy thực tế cực nhanh O(n log n) và là thuật toán sắp xếp tại chỗ (in-place), không đòi hỏi cấp phát bộ nhớ phụ như Merge Sort.",
+    "reference": "Quicksort có thời gian trung bình O(N log N), sắp xếp tại chỗ (In-place O(1) space) và tối ưu hóa CPU Cache.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Trợ lý giải thích Quicksort được ưu tiên vì tốc độ thực thi O(N log N) nhanh và sắp xếp tại chỗ.",
     "contexts": [
-      "Quicksort được ưu tiên vì có tốc độ chạy thực tế cực nhanh O(n log n), hệ số hằng số nhỏ và là thuật toán sắp xếp tại chỗ (in-place) không đòi hỏi cấp phát thêm bộ nhớ phụ như Merge Sort.",
-      "Định tuyến RAG trích xuất Chapter 33 Quicksort từ Algorithms Notes for Professionals."
-    ]
+      "BOOK_SECTION_CONTEXT\nQuicksort analysis."
+    ],
+    "elapsed": 3.568751811981201,
+    "log_ref": "log_live_context_2_1.md:L239"
   },
   {
     "query_id": "Q30",
     "user_input": "Rồi ok ok, tôi thấy có chương 29 nói về bubble sort á, thảo luận về nó đi.",
-    "reference": "Giải thích cơ chế so sánh từng cặp kề nhau và đẩy phần tử lớn nhất nổi về cuối mảng.",
-    "response": "Bubble Sort so sánh từng cặp phần tử lân cận và hoán đổi chúng nếu sai thứ tự. Sau mỗi lần duyệt qua danh sách, phần tử lớn nhất sẽ 'nổi' về cuối mảng. Quá trình lặp lại cho đến khi mảng được sắp xếp hoàn toàn.",
+    "reference": "Bubble Sort hoán đổi các cặp phần tử kề nhau, có độ phức tạp O(N^2), phù hợp cho việc giảng dạy cơ bản.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Trợ lý giải thích cơ chế so sánh các cặp phần tử kề nhau của Bubble Sort.",
     "contexts": [
-      "Thuật toán Bubble Sort (Sắp xếp nổi bọt) trong Chapter 29 so sánh từng cặp phần tử lân cận và hoán đổi nếu sai thứ tự. Sau mỗi lượt duyệt, phần tử lớn nhất sẽ nổi về cuối mảng.",
-      "Định tuyến RAG trích xuất chi tiết Chapter 29 Bubble Sort."
-    ]
+      "BOOK_SECTION_CONTEXT\nBubble Sort C# Implementation."
+    ],
+    "elapsed": 4.590789079666138,
+    "log_ref": "log_live_context_2.md:L955"
   },
   {
     "query_id": "Q31",
     "user_input": "À, ok, có cốt không, có cốt không? (Cho tôi xem code C#)",
-    "reference": "Cung cấp mẫu code C# hoàn chỉnh triển khai lớp `BubbleSort` với hàm `SortBubble(int[] input)`.",
-    "response": "Chắc chắn rồi, dưới đây là ví dụ code C# cho Bubble Sort:public class BubbleSort {&nbsp;&nbsp;public static void SortBubble(int[] input) {&nbsp;&nbsp;&nbsp;&nbsp;for (var i = input.Length - 1; i >= 0; i--) {&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;for (var j = 0; j &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;if (input[j] > input[j + 1]) {&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;var temp = input[j]; input[j] = input[j + 1]; input[j + 1] = temp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;&nbsp;&nbsp;}&nbsp;&nbsp;}}",
+    "reference": "Code C# Bubble Sort: void BubbleSort(int[] arr) { for(int i=0; i<arr.Length-1; i++) for(int j=0; j<arr.Length-i-1; j++) if(arr[j]>arr[j+1]) { int temp=arr[j]; arr[j]=arr[j+1]; arr[j+1]=temp; } }",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Trợ lý cung cấp đoạn code C# Bubble Sort hoàn chỉnh.",
     "contexts": [
-      "Đoạn code C# mẫu cho Bubble Sort: triển khai lớp BubbleSort với hàm SortBubble(int[] input) dùng 2 vòng lặp for hoán đổi biến tạm temp khi input[j] > input[j+1].",
-      "Thread State Memory kế thừa ngữ cảnh xin code C# cho Bubble Sort."
-    ]
+      "BOOK_SECTION_CONTEXT\nBubble Sort C# Implementation."
+    ],
+    "elapsed": 3.4996492862701416,
+    "log_ref": "log_live_context_2.md:L1019"
   },
   {
     "query_id": "Q32",
     "user_input": "Bạn biết khái niệm Edge relation trong thuật toán ghi chép hoạt động như thế nào không?",
-    "reference": "Mối quan hệ giữa các đỉnh qua các cạnh (edges), kỹ thuật relaxation cập nhật đường đi ngắn nhất.",
-    "response": "Edge relation trong đồ thị thể hiện mối quan hệ giữa các đỉnh (nodes) thông qua các cạnh (edges). Trong các thuật toán tìm đường như Dijkstra hay Bellman-Ford, kỹ thuật 'relax' cạnh giúp cập nhật khoảng cách ngắn nhất dựa trên trọng số cạnh.",
+    "reference": "Edge relation mô tả mối quan hệ kết nối giữa các đỉnh (Vertices) trong đồ thị qua danh sách kề hoặc ma trận kề.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Trợ lý giải thích khái niệm Edge Relation trong lý thuyết đồ thị.",
     "contexts": [
-      "Edge relation trong đồ thị thể hiện mối quan hệ giữa các đỉnh (nodes) thông qua các cạnh (edges). Trong các thuật toán tìm đường như Dijkstra hay Bellman-Ford, kỹ thuật 'relax' cạnh giúp cập nhật khoảng cách ngắn nhất dựa trên trọng số cạnh.",
-      "Định tuyến RAG trích xuất Graph Theory từ Algorithms Notes for Professionals."
-    ]
+      "BOOK_SECTION_CONTEXT\nSearch Algorithms."
+    ],
+    "elapsed": 5.251432657241821,
+    "log_ref": "log_live_context_2_1.md:L311"
   },
   {
     "query_id": "Q33",
     "user_input": "Vậy thuật toán Dijkstra sử dụng cơ chế Edge Relaxation như thế nào?",
-    "reference": "Dijkstra duyệt các cạnh kề và cập nhật d[v] = d[u] + w(u,v) nếu tìm thấy đường đi ngắn hơn.",
-    "response": "Thuật toán Dijkstra sử dụng edge relaxation để liên tục cập nhật khoảng cách ngắn nhất từ đỉnh nguồn đến đỉnh kề v: nếu d[u] + w(u,v) < d[v] thì gán d[v] = d[u] + w(u,v) và cập nhật hàng đợi ưu tiên.",
+    "reference": "Edge Relaxation cập nhật khoảng cách ngắn nhất đến đỉnh v nếu path(u) + weight(u,v) < path(v).",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Đúng vậy, thuật toán Dijkstra cũng sử dụng edge relaxation. Ý nghĩa là nó cập nhật thông tin đường đi ngắn nhất...",
     "contexts": [
-      "Cơ chế Edge Relaxation trong Dijkstra: liên tục kiểm tra và cập nhật khoảng cách d[v] = d[u] + w(u,v) nếu tìm thấy đường đi từ nguồn qua đỉnh u đến v ngắn hơn khoảng cách d[v] hiện tại.",
-      "Định tuyến RAG trích xuất Chapter 27 Dijkstra Algorithm."
-    ]
+      "BOOK_SECTION_CONTEXT\nDijkstra Edge Relaxation."
+    ],
+    "elapsed": 3.954768180847168,
+    "log_ref": "log_live_context_2_1.md:L379"
   },
   {
     "query_id": "Q34",
     "user_input": "Cho tôi một ví dụ đơn giản để dễ hình dung hơn đi.",
-    "reference": "Ví dụ 3 đỉnh A, B, C với trọng số A->B=5, B->C=3 để tính khoảng cách A->C = 8.",
-    "response": "Ví dụ đơn giản: Giả sử có 3 đỉnh A, B, C. Cạnh A→B nặng 5, cạnh B→C nặng 3. Ban đầu d[C] = ∞. Khi relax cạnh B→C, ta tính d[A] + 5 + 3 = 8 < ∞, nên gán khoảng cách ngắn nhất từ A đến C là 8.",
+    "reference": "Ví dụ tìm đường đi ngắn nhất giữa các thành phố trên bản đồ dựa trên khoảng cách km.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Trợ lý cung cấp ví dụ trực quan về 3 đỉnh A, B, C và trọng số cạnh.",
     "contexts": [
-      "Ví dụ đơn giản Edge Relaxation: Đồ thị 3 đỉnh A, B, C. Cạnh A->B nặng 5, B->C nặng 3. Ban đầu d[C]=infinity. Khi relax cạnh B->C, ta tính d[A]+5+3 = 8 < infinity, gán khoảng cách ngắn nhất A->C là 8.",
-      "LLM sinh ví dụ minh họa trực quan thuật toán Dijkstra."
-    ]
+      "BOOK_SECTION_CONTEXT\nDijkstra Example."
+    ],
+    "elapsed": 3.0990774631500244,
+    "log_ref": "log_live_context_2_1.md:L397"
   },
   {
     "query_id": "Q35",
     "user_input": "Ok, bây giờ chuyển qua C# đi. Clean kill trong C# là gì?",
-    "reference": "Không tìm thấy thông tin trong sách, đề xuất tra cứu internet.",
-    "response": "Hiện tại trong ngữ cảnh tài liệu chưa tìm thấy thông tin về 'Clean kill' trong C#. Bạn có muốn mình tra cứu thêm trên internet không?",
+    "reference": "Clean kill / Graceful Shutdown là cơ chế hủy tác vụ và giải phóng tài nguyên C# an toàn sử dụng CancellationToken.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Trợ lý giải thích Clean kill là quy trình dọn dẹp bộ nhớ và giải phóng tài nguyên hệ thống an toàn.",
     "contexts": [
-      "Hiện tại trong tài liệu chưa có thông tin về thuật ngữ 'Clean kill' trong C#. Hệ thống nhận diện book_context_not_found, chặn ảo giác và xin phép người dùng tra cứu web.",
-      "Kiểm tra ranh giới tri thức book_context_not_found và xin phép tra cứu web."
-    ]
+      "BOOK_SECTION_CONTEXT\nResource Management in C#."
+    ],
+    "elapsed": 4.2585015296936035,
+    "log_ref": "log_live_context_2_1.md:L441"
   },
   {
     "query_id": "Q36",
     "user_input": "Khỏi cần, qua cái khác đi. Thế Linked Queue trong C# là gì?",
-    "reference": "Hàng đợi liên kết cấu tạo từ các Node có con trỏ trỏ đến Node tiếp theo.",
-    "response": "Linked Queue là cấu trúc dữ liệu hàng đợi (Queue) được cài đặt bằng danh sách liên kết (Linked List). Mỗi phần tử là một Node chứa dữ liệu và con trỏ trỏ đến Node tiếp theo, giúp thêm/xóa phần tử O(1) linh hoạt.",
+    "reference": "Linked Queue là hàng đợi triển khai bằng Danh sách liên kết (LinkedList<T>), cho phép enqueue/dequeue O(1).",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Hiện tại, trong ngữ cảnh sách, chưa tìm thấy thông tin chi tiết về Linked Queue trong C#. Bạn có muốn mình tra cứu thêm trên internet không?",
     "contexts": [
-      "Linked Queue (Hàng đợi liên kết) trong C# là cấu trúc dữ liệu Queue cài đặt bằng danh sách liên kết (Linked List), mỗi phần tử là một Node chứa data và con trỏ trỏ đến Node tiếp theo, giúp thêm/xóa phần tử O(1).",
-      "Phân loại từ chối web và trả lời kiến thức Linked Queue C#."
-    ]
+      "BOOK_SECTION_CONTEXT\nLinked Queue Data Structure."
+    ],
+    "elapsed": 2.8772177696228027,
+    "log_ref": "log_live_context_2_1.md:L483"
   },
   {
     "query_id": "Q37",
     "user_input": "Recursion (Đệ quy) là gì vậy?",
-    "reference": "Đệ quy là kỹ thuật hàm tự gọi lại chính nó với bài toán con nhỏ hơn cho đến khi đạt điều kiện dừng (base case).",
-    "response": "Đệ quy (Recursion) là kỹ thuật trong đó một hàm tự gọi lại chính nó để giải quyết các bài toán con nhỏ hơn cùng loại, cho đến khi chạm điều kiện dừng (base case).",
+    "reference": "Đệ quy là kỹ thuật hàm tự gọi lại chính nó cho đến khi đạt điều kiện dừng (Base Case).",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Trợ lý giải thích Đệ quy (Recursion) là hàm tự gọi lại chính nó.",
     "contexts": [
-      "Đệ quy (Recursion) là kỹ thuật lập trình trong đó một hàm tự gọi lại chính nó để giải quyết các bài toán con nhỏ hơn cùng loại, cho đến khi đạt điều kiện dừng (base case).",
-      "Định tuyến RAG trích xuất định nghĩa Recursion từ Algorithms Notes for Professionals."
-    ]
+      "BOOK_SECTION_CONTEXT\nRecursion Concepts."
+    ],
+    "elapsed": 1.287778615951538,
+    "log_ref": "log_live_context_2_1.md:L624"
   },
   {
     "query_id": "Q38",
     "user_input": "Khi sử dụng đệ quy thì có tốn CPU và bộ nhớ không, như vậy có tốt không?",
-    "reference": "Tốn bộ nhớ Stack frames cho mỗi lần gọi, nếu không tối ưu dễ tràn bộ nhớ (StackOverflowException).",
-    "response": "Đệ quy giúp code ngắn gọn và dễ hiểu cho các cấu trúc dạng cây/đồ thị. Tuy nhiên, nó tốn bộ nhớ Stack cho mỗi lần gọi hàm. Nếu độ sâu đệ quy quá lớn mà không tối ưu (như tail-call optimization), có thể gây tràn bộ nhớ Stack.",
+    "reference": "Đệ quy tốn Call Stack bộ nhớ (dễ gây StackOverflowException) và tốn chi phí gọi hàm so với vòng lặp.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Đúng vậy, đệ quy (recursion) có thể tốn CPU, đặc biệt nếu không được tối ưu. Tuy nhiên, nếu dùng đúng cách, đệ quy giúp code ngắn gọn...",
     "contexts": [
-      "Đệ quy tốn bộ nhớ Stack frames cho mỗi lần gọi hàm. Nếu độ sâu đệ quy quá lớn mà không có điều kiện dừng hoặc tối ưu tail-recursion, có thể gây ra lỗi tràn bộ nhớ Stack (StackOverflowException).",
-      "Định tuyến RAG phân tích hiệu năng và rủi ro đệ quy."
-    ]
+      "BOOK_SECTION_CONTEXT\nRecursion Overhead & Performance."
+    ],
+    "elapsed": 1.1502964496612549,
+    "log_ref": "log_live_context_2_1.md:L655"
   },
   {
     "query_id": "Q39",
     "user_input": "Làm thế nào để đảo ngược vị trí giữa chữ số đầu tiên và chữ số cuối cùng của một số nguyên trong C#?",
-    "reference": "Chuyển số thành chuỗi, hoán đổi ký tự index 0 và length-1, ép lại về số nguyên.",
-    "response": "Để hoán đổi chữ số đầu và cuối trong C#, bạn có thể:1. Chuyển số thành chuỗi (`string s = num.ToString();`).2. Hoán đổi ký tự đầu `s[0]` và ký tự cuối `s[s.Length - 1]`.3. Ép chuỗi kết quả trở lại số nguyên (`int.Parse(...)`).",
-    "contexts": [
-      "Hoán đổi chữ số đầu tiên và chữ số cuối cùng của số nguyên trong C#: chuyển số thành chuỗi s = num.ToString(); hoán đổi ký tự s[0] và s[s.Length-1]; ép chuỗi trở lại số int.Parse(...).",
-      "Định tuyến RAG trích xuất ví dụ xử lý chuỗi/số trong C#."
-    ]
+    "reference": "Chuyển số thành chuỗi, hoán đổi ký tự char đầu và cuối rồi int.Parse lại.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "[KHÔNG CÓ LỜI THOẠI AI TRONG LOG LIVE - Phiên thoại bị dừng sau L712 mà chưa lưu Assistant Speech]",
+    "contexts": [],
+    "elapsed": 2.915588855743408,
+    "log_ref": "log_live_context_2_1.md:L687"
   },
   {
     "query_id": "Q40",
     "user_input": "Cho tôi một lộ trình học 7 ngày tiếp cận các thuật toán nền tảng này đi.",
-    "reference": "Tạo lộ trình 7 ngày từ Cấu trúc dữ liệu -> Sắp xếp -> Tìm kiếm -> Đệ quy -> Đồ thị -> Thực hành.",
-    "response": "Dưới đây là lộ trình 7 ngày tiếp cận thuật toán nền tảng:1. Ngày 1: Mảng và Chuỗi.2. Ngày 2: Thuật toán sắp xếp cơ bản (Bubble, Insertion).3. Ngày 3: Thuật toán sắp xếp nâng cao (Quicksort, Merge sort).4. Ngày 4: Tìm kiếm nhị phân (Binary Search).5. Ngày 5: Đệ quy và Cấu trúc cây.6. Ngày 6: Đồ thị và thuật toán Dijkstra.7. Ngày 7: Ôn tập và giải bài tập C# tổng hợp.",
+    "reference": "Ngày 1: Mảng & Chuỗi. Ngày 2: Stack & Queue. Ngày 3: Sorting. Ngày 4: Searching. Ngày 5: Tree & Graph. Ngày 6: DP. Ngày 7: Ôn tập.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Vâng, tôi nghe được bạn. Bạn muốn lên một lộ trình học trong 7 ngày, tập trung vào các thuật toán nền tảng...",
     "contexts": [
-      "Lộ trình 7 ngày tiếp cận thuật toán nền tảng: Ngày 1 Mảng & Chuỗi; Ngày 2 Sắp xếp cơ bản; Ngày 3 Quicksort/Merge sort; Ngày 4 Binary Search; Ngày 5 Đệ quy & Cây; Ngày 6 Đồ thị & Dijkstra; Ngày 7 Ôn tập & Bài tập C#.",
-      "Sinh Lộ trình học tập 7 ngày (Pareto Learning Plan) cá nhân hóa."
-    ]
+      "BOOK_SECTION_CONTEXT\nStudy plan."
+    ],
+    "elapsed": 1.2635583877563477,
+    "log_ref": "log_live_context_2.md:L1602"
   },
   {
     "query_id": "Q41",
-    "user_input": "Ok, bây giờ tôi muốn học về tài chính.",
-    "reference": "Chào đón người học và gợi ý các chủ đề: Đầu tư, Quản lý chi tiêu, Tiết kiệm.",
-    "response": "Chắc chắn rồi, chúng ta có thể bắt đầu với những khái niệm tài chính cơ bản. Bạn muốn tìm hiểu về chủ đề nào trước: đầu tư, quản lý chi tiêu hay là tiết kiệm?",
+    "user_input": "Tôi đang học tài chính đúng không?",
+    "reference": "Tài chính cá nhân xoay quanh việc quản lý dòng tiền, tiết kiệm, đầu tư và kiểm soát cảm xúc.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Đúng rồi, chúng ta đang tập trung vào chủ đề tài chính. Bạn có muốn tìm hiểu thêm về khái niệm nào cụ thể không?",
     "contexts": [
-      "Chào đón người dùng học về tài chính cá nhân và định hướng 3 chủ đề nền tảng: Đầu tư, Quản lý chi tiêu, hoặc Tiết kiệm từ hai cuốn sách The Psychology of Money và Rich Dad Poor Dad.",
-      "Nhận diện chitchat/introduction và chủ động gợi ý chủ đề học tập."
-    ]
+      "[METADATA] Book: Rich Dad Poor Dad & Psychology of Money."
+    ],
+    "elapsed": 1.1912670135498047,
+    "log_ref": "log_live_context_3.md:L42",
+    "db_ref": "DB msg_id: a82e8c06 / a2eddd75 | ts: 2026-07-23 14:13:05"
   },
   {
     "query_id": "Q42",
-    "user_input": "Tôi thắc mắc là trong sách có nói là ngôi nhà là tài sản lớn nhất và là khoản đầu tư tối ưu nhất. Vậy thì tại sao lại nói vậy?",
-    "reference": "Giải thích quan điểm truyền thống xem nhà là tài sản do niềm tin và cảm xúc, nhưng Kiyosaki lưu ý nhà ở gia đình cũng phát sinh chi phí duy trì.",
-    "response": "Trong sách, tác giả đề cập rằng nhiều người coi ngôi nhà là tài sản lớn nhất do niềm tin và cảm xúc ổn định. Tuy nhiên, ông cũng nhấn mạnh rằng một ngôi nhà lớn có thể trở thành gánh nặng tài chính vì chi phí duy trì cao.",
+    "user_input": "Tôi thắc mắc là trong sách có nói là ngôi nhà là tài sản lớn nhất và là khoản đầu tư tối ưu nhất. Vậy thì tại sao phải nói vậy?",
+    "reference": "Theo Kiyosaki, nhà ở tiêu tiền bảo trì/thế chấp nên là tiêu sản; nhưng quan điểm truyền thống coi đó là tài sản.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Trong sách, tác giả Robert Kiyosaki đề cập rằng nhiều người coi ngôi nhà là tài sản lớn nhất và là khoản đầu tư tối ưu do niềm tin và cảm xúc. Tuy nhiên, ông cũng nhấn mạnh rằng một ngôi nhà lớn có thể trở thành gánh nặng tài chính, vì chi phí duy trì cao hơn so với lợi ích đầu tư.\n\n**Những lý do chính bao gồm:**\n- Chi phí bảo trì, thuế bất động sản và khoản vay dài hạn.\n- Ngôi nhà thường không tạo ra dòng tiền như các tài sản sinh lợi khác.\n\nBạn có thấy ý kiến này phù hợp với những gì bạn đang nghĩ không?",
     "contexts": [
-      "Nhiều người coi ngôi nhà là tài sản lớn nhất do niềm tin an cư và giá trị cảm xúc. Tuy nhiên, Robert Kiyosaki trong Rich Dad Poor Dad chỉ ra rằng ngôi nhà cá nhân cũng đòi hỏi chi phí bảo trì, thuế và nợ vay nên cần quản lý cẩn trọng.",
-      "Định tuyến RAG trích xuất quan điểm về nhà ở trong Rich Dad Poor Dad."
-    ]
+      "BOOK_SECTION_CONTEXT\nHome ownership as liability vs asset."
+    ],
+    "elapsed": 5.320379734039307,
+    "log_ref": "log_live_context_3_1.md:L147",
+    "db_ref": "DB msg_id: 0dbc009b / 8679ba18 | ts: 2026-07-23 14:13:26"
   },
   {
     "query_id": "Q43",
     "user_input": "Tôi nghĩ nó có hại chứ đâu có lợi đâu.",
-    "reference": "Phân tích chi phí thuế, bảo trì, nợ vay khiến nhà ở cá nhân không tạo ra dòng tiền dương.",
-    "response": "Tôi hiểu quan điểm của bạn. Một ngôi nhà cá nhân đòi hỏi chi phí bảo trì, thuế bất động sản và trả nợ vay hàng tháng mà không tạo ra dòng tiền dương, nên nếu không quản lý tốt nó sẽ là một tiêu sản.",
+    "reference": "Nếu không kiểm soát dòng tiền chi ra, ngôi nhà sẽ làm giảm khả năng đầu tư vào các tài sản sinh lời khác.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Tôi hiểu quan điểm của bạn. Một ngôi nhà có thể đem lại lợi ích tinh thần, sự ổn định, nhưng cũng cần xem xét kỹ về chi phí duy trì. Bạn có muốn tìm hiểu thêm về cách phân biệt tài sản và chi phí không?",
     "contexts": [
-      "Một ngôi nhà cá nhân đòi hỏi chi phí bảo trì, thuế bất động sản và trả nợ vay hàng tháng mà không tạo ra dòng tiền dương, do đó nếu không tạo ra thu nhập thì nó là một tiêu sản làm giảm tài sản tích lũy.",
-      "Phân tích phản biện ngữ cảnh và dòng tiền tiêu sản."
-    ]
+      "BOOK_SECTION_CONTEXT\nReal estate maintenance cost."
+    ],
+    "elapsed": 1.1149210929870605,
+    "log_ref": "log_live_context_3_1.md:L178",
+    "db_ref": "DB msg_id: 2276bd67 / 717d4eed | ts: 2026-07-23 14:14:01"
   },
   {
     "query_id": "Q44",
-    "user_input": "Trong cụm từ 'Pay Yourself First' nghĩa là gì?",
-    "reference": "Trích 10-20% thu nhập tích lũy/đầu tư ngay khi nhận lương trước khi chi trả hóa đơn.",
-    "response": "'Pay yourself first' nghĩa là bạn nên trích ngay một phần tiền (ví dụ 10%) cho bản thân để đầu tư tích lũy ngay khi nhận thu nhập, rồi mới chi trả cho các hóa đơn và sinh hoạt phí khác.",
+    "user_input": "Trong cụm từ \"Pay Yourself First\" nghĩa là gì?",
+    "reference": "Pay Yourself First có nghĩa là trích một phần thu nhập để đầu tư/tiết kiệm ngay khi nhận lương trước khi chi tiêu.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "\"Pay yourself first\" nghĩa là bạn nên dành một phần tiền cho bản thân trước, ngay khi nhận thu nhập, rồi mới chi trả các chi phí khác. Điều này giúp bạn ưu tiên việc tích lũy và xây dựng tài sản thay vì tiêu hết tiền trước rồi mới tính đến tiết kiệm.",
     "contexts": [
-      "Nguyên tắc 'Pay Yourself First' (Trả cho bản thân trước): trích ngay một phần thu nhập (ví dụ 10-20%) để đầu tư tích lũy tài sản ngay khi nhận lương, trước khi chi trả hóa đơn sinh hoạt khác.",
-      "Định tuyến RAG trích xuất nguyên tắc quản lý tài chính từ Rich Dad Poor Dad."
-    ]
+      "BOOK_SECTION_CONTEXT\nPay Yourself First principle."
+    ],
+    "elapsed": 3.790384292602539,
+    "log_ref": "log_live_context_3_1.md:L251",
+    "db_ref": "DB msg_id: 560e80dd / DB msg_speech | ts: 2026-07-23 14:14:20"
   },
   {
     "query_id": "Q45",
-    "user_input": "Tại sao việc 'Trả cho bản thân trước' lại giúp xây dựng sự tự do tài chính?",
-    "reference": "Tạo thói quen tích lũy tài sản sinh lời trước, ép bản thân kiểm soát chi tiêu phần còn lại.",
-    "response": "Việc này giúp ưu tiên xây dựng cột tài sản trước. Khi trích tiền đầu tư ngay từ đầu, bạn buộc bản thân phải kiểm soát chi tiêu trong ngân sách còn lại, từ đó gia tăng tài sản tích lũy theo thời gian.",
+    "user_input": "Gia giao phản đối những gì?",
+    "reference": "Giúp kỷ luật tích lũy tài sản và buộc bạn phải tối ưu hóa chi tiêu theo phần còn lại.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Tôi hiểu bạn đang băn khoăn rằng nhiều người cảm thấy việc “pay yourself first” có thể mâu thuẫn với việc thanh toán hóa đơn hay nghĩa vụ tài chính khác. Tác giả khuyên rằng việc ưu tiên bản thân sẽ tạo động lực tìm cách tăng thu nhập và quản lý tài chính chủ động hơn.",
     "contexts": [
-      "'Trả cho bản thân trước' giúp xây dựng tự do tài chính vì nó ưu tiên tích lũy cột tài sản trước, đồng thời ép bản thân phải kỷ luật kiểm soát chi tiêu trong phần ngân sách còn lại.",
-      "Định tuyến RAG phân tích cơ chế tích lũy tài sản."
-    ]
+      "BOOK_SECTION_CONTEXT\nRich Dad Poor Dad comparison."
+    ],
+    "elapsed": 1.0084547996520996,
+    "log_ref": "log_live_context_3_1.md:L368",
+    "db_ref": "DB msg_id: 2e941f60 / DB msg_speech | ts: 2026-07-23 14:14:48"
   },
   {
     "query_id": "Q46",
-    "user_input": "Trong sách Cha giàu cha nghèo, người cha giàu và người cha nghèo đại diện cho điều gì?",
-    "reference": "Cha nghèo: tư duy an toàn, làm việc vì lương; Cha giàu: tư duy đầu tư, xây dựng tài sản và dòng tiền.",
-    "response": "Hai người cha đại diện cho hai tư duy tài chính đối lập:- Người cha nghèo: Coi trọng sự an toàn, làm việc vì lương và bằng cấp.- Người cha giàu: Tập trung vào học cách đầu tư, tạo tài sản và xây dựng nguồn thu nhập thụ động.",
+    "user_input": "Chào bạn! Hôm nay chúng ta sẽ cùng thảo luận về các thuật ngữ... cha giàu ổng phản đối những điều gì?",
+    "reference": "Cha nghèo đại diện cho tư duy làm công ăn lương an toàn; Cha giàu đại diện cho tư duy làm chủ và đầu tư tài sản.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Từ ngữ “cha giàu” và “cha nghèo” trong sách “Rich Dad Poor Dad” phản đối những quan điểm tài chính truyền thống:\n- “Cha nghèo” cho rằng kiếm tiền và làm việc vì lương là quan trọng.\n- “Cha giàu” nhấn mạnh đầu tư, tạo ra tài sản và xây dựng nguồn thu nhập thụ động.",
     "contexts": [
-      "Hình ảnh hai người cha trong Rich Dad Poor Dad: Người cha nghèo đại diện cho tư duy an toàn, làm việc vì lương và bằng cấp; Người cha giàu đại diện cho tư duy đầu tư, xây dựng tài sản và tạo dòng tiền thụ động.",
-      "Định tuyến RAG trích xuất chủ đề tư tưởng hai người cha."
-    ]
+      "BOOK_SECTION_CONTEXT\nRich Dad vs Poor Dad mindset."
+    ],
+    "elapsed": 1.2796251773834229,
+    "log_ref": "log_live_context_3_1.md:L404",
+    "db_ref": "DB msg_id: ad909937 / 42003b0a | ts: 2026-07-23 14:15:15"
   },
   {
     "query_id": "Q47",
-    "user_input": "Tại sao người cha giàu chấp nhận rủi ro và làm việc nhiều hơn?",
-    "reference": "Chấp nhận rủi ro có tính toán và dành thời gian học hỏi kiến thức tài chính để đạt tự do lâu dài.",
-    "response": "Người cha giàu chấp nhận rủi ro có tính toán và chấp nhận bỏ thời gian học hỏi vì ông hiểu rằng để đạt sự tự do tài chính lâu dài, cần phải dám đầu tư và chịu trách nhiệm với quyết định của mình.",
+    "user_input": "Đối với tôi thì tôi nghĩ là người cha giàu thì cần phải hoạt động nhiều hơn người cha nghèo. Cho nên, có những cái mà người cha giàu phải chấp nhận. Như là bỏ thời gian nhiều hơn để đạt sự thành công đó.",
+    "reference": "Người cha giàu chấp nhận rủi ro có tính toán để xây dựng hệ thống kinh doanh và tài sản sinh tiền.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Đúng vậy, người cha giàu chấp nhận rủi ro và phải đầu tư thời gian để học hỏi. Quan trọng là tìm sự cân bằng giữa nỗ lực hôm nay và lợi ích lâu dài.",
     "contexts": [
-      "Người cha giàu chấp nhận rủi ro có tính toán và dành thời gian học hỏi kiến thức tài chính vì ông hiểu rằng muốn đạt tự do tài chính lâu dài thì phải dám đầu tư và làm chủ dòng tiền.",
-      "Định tuyến RAG phân tích tư duy rủi ro đầu tư."
-    ]
+      "BOOK_SECTION_CONTEXT\nRisk taking & financial literacy."
+    ],
+    "elapsed": 1.5584745407104492,
+    "log_ref": "log_live_context_3_1.md:L506",
+    "db_ref": "DB msg_id: 9f277b0f / 103aa9dd | ts: 2026-07-23 14:16:27"
   },
   {
     "query_id": "Q48",
-    "user_input": "Nếu tôi chọn làm một người cha nghèo có lương ổn định để lo cho gia đình thì có sao không?",
-    "reference": "Hoàn toàn ổn nếu hài lòng với cuộc sống, quan trọng là hiểu rõ mục tiêu tài chính cá nhân.",
-    "response": "Điều đó hoàn toàn ổn nếu bạn cảm thấy hạnh phúc và gia đình sống ổn định. Quan trọng là bạn hiểu rõ mục tiêu cá nhân và quản lý tài chính phù hợp với mong muốn của mình.",
+    "user_input": "Nếu tôi là một người cha nghèo thì cũng đâu sao, tôi vẫn có lương bình thường, tôi vẫn sống tốt bình thường mà. Tôi vẫn lo cho gia đình tôi bình thường.",
+    "reference": "Đó là sự lựa chọn cá nhân hướng tới sự an toàn, nhưng cần quản lý tài chính tốt để tránh bẫy lạm phát.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Đúng, như vậy cũng ổn nếu bạn cảm thấy hạnh phúc và ổn định. Quan trọng là hiểu rõ mục tiêu tài chính của bạn, và bạn cảm thấy hài lòng với lựa chọn của mình.",
     "contexts": [
-      "Lựa chọn phong cách sống an toàn có lương ổn định hoàn toàn ổn nếu bản thân cảm thấy hạnh phúc và gia đình sống tốt, quan trọng là thấu hiểu mục tiêu tài chính cá nhân.",
-      "Thấu hiểu tâm lý và trả lời tự nhiên không áp đặt."
-    ]
+      "BOOK_SECTION_CONTEXT\nFinancial goals & choices."
+    ],
+    "elapsed": 1.1487114429473877,
+    "log_ref": "log_live_context_3_1.md:L554",
+    "db_ref": "DB msg_id: 7ab4d28d / 7325f180 | ts: 2026-07-23 14:16:56"
   },
   {
     "query_id": "Q49",
-    "user_input": "Tôi đọc sách thấy làm giàu... Ba chữ giàu khác nhau như thế nào vậy? (Rich vs Wealth)",
-    "reference": "Rich là thu nhập cao/chi tiêu phô trương; Wealth là tài sản tích lũy chưa tiêu mang lại tự do.",
-    "response": "Theo sách 'The Psychology of Money', sự khác biệt là:- Rich (Làm giàu/Thu nhập cao): Hiển thị qua chi tiêu bên ngoài như xe sang, đồ hiệu.- Wealth (Giàu có/Tích lũy): Là tài sản chưa tiêu, mang lại sự tự do và lựa chọn trong tương lai.",
+    "user_input": "Tôi đọc sách ta thì tôi thấy là làm giàu Ba chữ giàu khác nhau như thế nào vậy?",
+    "reference": "Rich thể hiện thu nhập cao và chi tiêu phô trương; Wealthy là tài sản ẩn tạo ra tự do và không phụ thuộc vào công việc.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Trong sách, sự khác biệt giữa “rich” và “wealth” được giải thích như sau:\n- **Rich** là thu nhập hiện tại, mọi người dễ nhận ra qua những khoản chi tiêu lớn, như xe sang hay nhà rộng.\n- **Wealth** là tài sản chưa tiêu, là sự lựa chọn chưa được thực hiện, mang lại sự linh hoạt và tự do trong tương lai.\n\nĐây là triết lý quan trọng để hiểu rõ về cách quản lý tiền bạc.",
     "contexts": [
-      "Trong The Psychology of Money (Chương 9): Rich (Làm giàu) là thu nhập hiện tại cao, hiển thị qua chi tiêu bên ngoài như xe sang, nhà rộng; Wealth (Giàu có) là tài sản chưa tiêu, mang lại tự do và sự lựa chọn cho tương lai.",
-      "Định tuyến RAG trích xuất Chương 9 Rich vs Wealth của Morgan Housel."
-    ]
+      "BOOK_SECTION_CONTEXT\nRich vs Wealth distinction."
+    ],
+    "elapsed": 6.842663288116455,
+    "log_ref": "log_live_context_3.md:L241",
+    "db_ref": "DB msg_id: a6a282d8 / 7ef41afc | ts: 2026-07-23 06:49:52"
   },
   {
     "query_id": "Q50",
-    "user_input": "Sức mạnh của Lãi kép (Compounding) được giải thích qua câu chuyện của Warren Buffett như thế nào?",
-    "reference": "81.5 tỷ USD trong 84.5 tỷ USD tài sản của Buffett có được sau tuổi 65; chìa khóa là sự kiên trì đầu tư từ 10 tuổi.",
-    "response": "Sức mạnh lãi kép thể hiện ở việc Warren Buffett bắt đầu đầu tư từ năm 10 tuổi và kiên trì suốt 80 năm. Hơn 99% tài sản của ông được tạo ra sau tuổi 50 nhờ yếu tố thời gian và sự tích lũy liên tục.",
+    "user_input": "Vậy thì sức mạnh của đại kép được giải thích như thế nào qua câu chuyện của Warren Buffett trong sách?",
+    "reference": "81.5 tỷ USD trong 84.5 tỷ USD tài sản của Buffett có được sau khi ông 65 tuổi nhờ bắt đầu đầu tư từ năm 10 tuổi.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Sức mạnh của lãi kép trong câu chuyện của Warren Buffett thể hiện rõ ở việc ông đã đầu tư một cách kiên trì từ rất sớm, không bỏ cuộc trước những biến động. Ông tập trung vào sự bền bỉ, không sử dụng đòn bẩy quá lớn, và duy trì lợi nhuận ổn định trong nhiều thập kỷ—điều giúp lãi kép phát huy tối đa hiệu quả theo thời gian.",
     "contexts": [
-      "Sức mạnh Lãi kép (Compounding) ở Chương 4 The Psychology of Money: 81.5 tỷ USD trong 84.5 tỷ USD tài sản của Warren Buffett có được sau tuổi 65. Chìa khóa là bắt đầu đầu tư từ năm 10 tuổi và duy trì sự kiên nhẫn qua 80 năm.",
-      "Định tuyến RAG trích xuất Chương 4 Lãi kép Warren Buffett."
-    ]
+      "BOOK_SECTION_CONTEXT\nWarren Buffett compounding effect."
+    ],
+    "elapsed": 5.544074773788452,
+    "log_ref": "log_live_context_3.md:L200",
+    "db_ref": "DB msg_id: 3bd8c42b / 5c086be3 | ts: 2026-07-23 06:50:38"
   },
   {
     "query_id": "Q51",
-    "user_input": "Phân biệt sự khác nhau giữa 'Tài sản' và 'Tiêu sản' theo Robert Kiyosaki.",
-    "reference": "Tài sản bỏ tiền vào túi bạn; Tiêu sản rút tiền ra khỏi túi bạn.",
-    "response": "Theo Robert Kiyosaki:- Tài sản (Assets): Là thứ cho tiền vào túi bạn (như cổ phiếu, bất động sản cho thuê).- Tiêu sản (Liabilities): Là thứ rút tiền ra khỏi túi bạn (như khoản nợ vay, xe cộ cá nhân).",
+    "user_input": "Tôi hỏi tài sản khác tiêu sản như thế nào?",
+    "reference": "Tài sản (Asset) bỏ tiền vào túi bạn; Tiêu sản (Liability) rút tiền ra khỏi túi bạn.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Để phân biệt, **tài sản** là thứ bạn sở hữu và giữ lại, như tiền đầu tư, bất động sản, cổ phiếu. Còn **tiêu sản** là những khoản chi tiêu, mua sắm tức thời, làm giảm tài sản. Sự khác biệt chính là ở chỗ sự lâu dài và tích lũy.",
     "contexts": [
-      "Theo Robert Kiyosaki trong Rich Dad Poor Dad: Tài sản (Assets) là thứ bỏ tiền vào túi bạn (cổ phiếu, bất động sản cho thuê); Tiêu sản (Liabilities) là thứ rút tiền ra khỏi túi bạn (khoản nợ vay, xe cộ cá nhân).",
-      "Định tuyến RAG trích xuất định nghĩa Tài sản vs Tiêu sản."
-    ]
+      "BOOK_SECTION_CONTEXT\nAsset vs Liability definition."
+    ],
+    "elapsed": 7.769691705703735,
+    "log_ref": "log_live_context_3.md:L341",
+    "db_ref": "DB msg_id: 270f339b / 2062b687 | ts: 2026-07-23 06:52:00"
   },
   {
     "query_id": "Q52",
-    "user_input": "Khái niệm bẫy tài chính 'Rat Race' (Vòng luẩn quẩn) là gì và làm sao để thoát khỏi nó?",
-    "reference": "Vòng làm việc -> kiếm tiền -> trả nợ -> hết tiền -> làm việc tiếp; thoát khỏi bằng cách mua tài sản sinh dòng tiền.",
-    "response": "Vòng 'Rat Race' là cái bẫy khi bạn làm việc chăm chỉ để kiếm tiền, dùng tiền trả nợ/chi tiêu, rồi lại phải tiếp tục làm việc. Để thoát khỏi nó, bạn cần tích lũy tài sản tạo ra thu nhập thụ động.",
+    "user_input": "Có một khái niệm đó là vòng rat race là gì?",
+    "reference": "Rat Race là vòng lặp: Đi làm -> Kiếm tiền -> Chi tiêu -> Hết tiền -> Đi làm. Thoát bằng cách mua tài sản sinh dòng tiền.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Vòng \"rat race\" trong tài chính là thuật ngữ miêu tả trạng thái làm việc liên tục, bận rộn, chạy đua để kiếm tiền mà không thoát ra được. Nó khiến bạn luôn cảm thấy bị mắc kẹt trong vòng xoáy kiếm sống.\n\nBạn có muốn tìm hiểu sâu hơn về cách thoát khỏi vòng này không?",
     "contexts": [
-      "Bẫy tài chính 'Rat Race' (Vòng luẩn quẩn) trong Rich Dad Poor Dad là trạng thái làm việc chăm chỉ kiếm tiền -> trả nợ/chi tiêu -> hết tiền -> lại tiếp tục làm việc. Thoát khỏi nó bằng cách mua tài sản sinh dòng tiền thụ động.",
-      "Định tuyến RAG trích xuất bẫy tài chính Rat Race ở Chương 1."
-    ]
+      "BOOK_SECTION_CONTEXT\nRat Race trap & escape strategy."
+    ],
+    "elapsed": 4.492739200592041,
+    "log_ref": "log_live_context_3.md:L371",
+    "db_ref": "DB msg_id: b0ee6fd2 / 91897e3c | ts: 2026-07-23 06:52:17"
   },
   {
     "query_id": "Q53",
-    "user_input": "Tại sao người giàu lại chú trọng việc thành lập công ty/tập đoàn (Corporation)?",
-    "reference": "Công ty giúp kiếm tiền -> chi tiêu chi phí hợp lệ -> nộp thuế trên phần còn lại.",
-    "response": "Người giàu thành lập tập đoàn/công ty vì cơ chế thuế ưu đãi: Công ty kiếm tiền, chi trả các chi phí hợp lệ trước, rồi mới nộp thuế trên phần lợi nhuận còn lại; trong khi cá nhân đi làm bị trừ thuế trước rồi mới chi tiêu.",
+    "user_input": "Tôi thắc mắc là tự nhiên là người giàu thì họ sẽ thích gặp tập đoàn, vậy để làm gì?",
+    "reference": "Vì công ty được kiếm tiền -> chi tiêu chi phí hợp lý -> rồi mới nộp thuế; còn cá nhân phải nộp thuế trước rồi mới chi tiêu.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Đúng, người giàu thường tham gia các tập đoàn vì họ muốn chia sẻ kiến thức, xây dựng mối quan hệ và tìm kiếm cơ hội đầu tư. Việc này cũng giúp họ giữ được nguồn thông tin và xu hướng mới.",
     "contexts": [
-      "Người giàu thành lập công ty/tập đoàn (Corporation) vì ưu đãi thuế: Công ty kiếm tiền -> chi trả chi phí hợp lệ trước -> nộp thuế trên lợi nhuận còn lại; cá nhân đi làm bị trừ thuế trước -> chi tiêu phần còn lại.",
-      "Định tuyến RAG trích xuất bài học thuế và tập đoàn ở Chương 4 Rich Dad Poor Dad."
-    ]
+      "BOOK_SECTION_CONTEXT\nCorporation tax advantages."
+    ],
+    "elapsed": 5.136457920074463,
+    "log_ref": "log_live_context_3.md:L417",
+    "db_ref": "DB msg_id: 5ebddadd / 72d85afc | ts: 2026-07-23 06:53:00"
   },
   {
     "query_id": "Q54",
-    "user_input": "Chương 4 của sách Tâm lý học về tiền và Cha giàu cha nghèo thảo luận về nội dung gì?",
-    "reference": "Thảo luận về sự kỳ diệu của Lãi kép và việc để tiền làm việc cho bạn.",
-    "response": "Chương 4 của 'The Psychology of Money' nói về sự kỳ diệu của Lãi kép và sức mạnh thời gian. Chương 4 của 'Rich Dad Poor Dad' nói về lịch sử thuế và sức mạnh của việc sở hữu công ty để bảo vệ tài sản.",
+    "user_input": "Thế chương bốn của Cha giàu cha nghèo nói về gì?",
+    "reference": "Thảo luận về sức mạnh của lãi suất kép, lịch sử thuế và sự thông minh tài chính.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Chương 4 của “Rich Dad Poor Dad” nói về sức mạnh của lãi kép và tầm quan trọng của việc đầu tư sớm, kiên nhẫn. Sách nhấn mạnh rằng việc tăng trưởng tài sản không phải chỉ dựa vào thu nhập, mà là việc để tiền làm việc cho bạn qua thời gian.",
     "contexts": [
-      "Chương 4 của The Psychology of Money nói về sự kỳ diệu của Lãi kép và thời gian. Chương 4 của Rich Dad Poor Dad nói về lịch sử thuế và sức mạnh của việc sở hữu công ty để bảo vệ tài sản.",
-      "Định tuyến RAG liên tài liệu tóm tắt Chương 4 của 2 cuốn sách."
-    ]
+      "BOOK_SECTION_CONTEXT\nPsychology of Money Chapter 4 - Compounding."
+    ],
+    "elapsed": 4.784047842025757,
+    "log_ref": "log_live_context_3.md:L476",
+    "db_ref": "DB msg_id: be126e10 / 485cf76f | ts: 2026-07-23 06:53:35"
   },
   {
     "query_id": "Q55",
-    "user_input": "Thời điểm hiện tại giá cổ phiếu của Apple bây giờ là bao nhiêu rồi?",
-    "reference": "Phát hiện thông tin ngoài sách, thực thi hỏi xin quyền tìm kiếm web và trả về giá cổ phiếu Apple mới nhất.",
-    "response": "Tôi cần tra cứu thông tin giá cổ phiếu mới nhất trên Internet. Bạn có cho phép tôi tìm kiếm web không?(Sau khi user đồng ý): Giá cổ phiếu của Apple (AAPL) hiện tại ở mức khoảng 224.50 USD.",
+    "user_input": "À không đi, giờ tôi muốn biết giá cổ phiếu của Apple bây giờ là bao nhiêu rồi?",
+    "reference": "Giá cổ phiếu Apple hiện tại không thuộc sách tĩnh. Trợ lý xin phép người dùng tìm kiếm thông tin trên Web.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Xin lỗi về sự chậm trễ. Giá cổ phiếu của Apple hiện tại là khoảng 326,40 USD. Nếu bạn cần thêm thông tin, cứ cho mình biết nhé.",
     "contexts": [
-      "Giá cổ phiếu Apple thời gian thực là thông tin ngoài sách. Hệ thống áp dụng Web Search Security Guard, xin quyền tra cứu internet và gọi Tavily Search trả về khoảng 224.50 USD.",
-      "Web Search Security Guard xin phép tra cứu web và trả về dữ liệu thời gian thực."
-    ]
+      "[WEB_POLICY] External stock price check."
+    ],
+    "elapsed": 1.1611497402191162,
+    "log_ref": "log_live_context_3.md:L727",
+    "db_ref": "DB msg_id: 2cced047 / a1339d0e | ts: 2026-07-23 06:54:39"
   },
   {
     "query_id": "Q56",
-    "user_input": "Trong hai cuốn sách này có đề cập đến khái niệm Liquidity Mining không?",
-    "reference": "Xác nhận trung thực khái niệm Liquidity Mining (DeFi) không có trong hai cuốn sách.",
-    "response": "Trong cả hai cuốn sách 'The Psychology of Money' và 'Rich Dad Poor Dad' đều không đề cập đến khái niệm 'Liquidity Mining' (đây là thuật ngữ trong tài chính phi tập trung DeFi).",
+    "user_input": "Trong sách nào có cái khái niệm liquidity mining không?",
+    "reference": "Khái niệm Liquidity Mining trong crypto không có trong sách. Trợ lý thông báo từ chối hoặc tìm web.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Xin lỗi vì sự cố. Mình sẽ lặp lại: Trong sách hiện tại không có khái niệm \"liquidity mining\". Nếu bạn muốn, chúng ta có thể khám phá các khái niệm khác. Bạn cần thêm thông tin gì nữa không?",
     "contexts": [
-      "Khái niệm Liquidity Mining (khai thác thanh khoản trong tài chính phi tập trung DeFi) không xuất hiện trong hai cuốn sách The Psychology of Money và Rich Dad Poor Dad.",
-      "Kiểm tra ranh giới tri thức book_context_not_found."
-    ]
+      "BOOK_SECTION_CONTEXT\nOut of scope terms check."
+    ],
+    "elapsed": 2.906860828399658,
+    "log_ref": "log_live_context_3.md:L793",
+    "db_ref": "DB msg_id: 0eb79690 / 8ce8161f | ts: 2026-07-23 06:57:09"
   },
   {
     "query_id": "Q57",
-    "user_input": "Tác giả Morgan Housel khuyên gì về 'Biên an toàn' (Margin of Safety / Room for Error) trong tài chính?",
-    "reference": "Luôn chừa khoảng trống cho sai số và rủi ro không lường trước để không bị loại khỏi cuộc chơi.",
-    "response": "Tác giả khuyên bạn luôn phải có 'Biên an toàn' (Room for Error). Điều quan trọng nhất trong tài chính không phải là tối đa hóa lợi nhuận mà là đảm bảo bạn không bị loại khỏi cuộc chơi khi có sự cố bất ngờ xảy ra.",
+    "user_input": "Thôi đi, bây giờ chúng ta quay lại cái sách nói về tâm lý về tiền đi, tác giả khuyên gì về cái biên an toàn của tài chính?",
+    "reference": "Biên an toàn là chừa khoảng trống cho những rủi ro bất ngờ không lường trước được trong kế hoạch tài chính.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Xin lỗi vì sự chậm trễ. Bây giờ mình sẽ tóm tắt: Trong sách, tác giả khuyên rằng nên có “biên an toàn” để chuẩn bị cho những rủi ro không lường trước. Đó là cách giữ cho bạn vững vàng, tránh bị tổn thất lớn. Đây là nền tảng quan trọng để bảo vệ tài chính.",
     "contexts": [
-      "Tác giả Morgan Housel ở Chương 13 khuyên nên luôn có 'Biên an toàn' (Margin of Safety / Room for Error) để dự phòng rủi ro không lường trước, giúp bạn không bị loại khỏi cuộc chơi khi có sự cố.",
-      "Định tuyến RAG trích xuất Chương 13 Biên an toàn từ Morgan Housel."
-    ]
+      "BOOK_SECTION_CONTEXT\nMargin of Safety & Room for Error."
+    ],
+    "elapsed": 7.254278659820557,
+    "log_ref": "log_live_context_3.md:L876",
+    "db_ref": "DB msg_id: d4adfca / 33d89b8d | ts: 2026-07-23 06:58:13"
   },
   {
     "query_id": "Q58",
-    "user_input": "Đối với một người trẻ tuổi thì nên ưu tiên đầu tư vào điều gì nhất?",
-    "reference": "Đầu tư vào tri thức, kỹ năng bản thân và thói quen tiết kiệm/tích lũy nhỏ đều đặn.",
-    "response": "Đối với người trẻ, khoản đầu tư tốt nhất là đầu tư vào bản thân: học hỏi kỹ năng mới, nâng cao tri thức tài chính và bắt đầu rèn luyện thói quen tiết kiệm, tích lũy nhỏ đều đặn từ sớm.",
+    "user_input": "Với tuổi còn trẻ thì tôi nên đầu tư gì cho bản thân?",
+    "reference": "Ưu tiên đầu tư vào kiến thức, kỹ năng bản thân và xây dựng thói quen tiết kiệm/đầu tư sớm.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Bạn có thể bắt đầu với việc đầu tư vào kiến thức, kỹ năng, hoặc những khoản tiết kiệm nhỏ. Dần dần, bạn sẽ tìm ra lĩnh vực phù hợp để phát triển lâu dài.",
     "contexts": [
-      "Đối với người trẻ tuổi, khoản đầu tư tốt nhất là đầu tư vào tri thức, kỹ năng bản thân và rèn luyện thói quen tiết kiệm, tích lũy nhỏ đều đặn từ sớm.",
-      "Định tuyến RAG tư vấn đầu tư bản thân."
-    ]
+      "BOOK_SECTION_CONTEXT\nSelf-investment & youth advice."
+    ],
+    "elapsed": 5.438891410827637,
+    "log_ref": "log_live_context_3_1.md:L740",
+    "db_ref": "DB msg_id: 69e7c25a / 810e75a | ts: 2026-07-23 14:17:57"
   },
   {
     "query_id": "Q59",
-    "user_input": "Tổng kết lại, bài học quan trọng nhất rút ra từ cả hai cuốn sách này là gì?",
-    "reference": "Tư duy tài sản/dòng tiền từ Kiyosaki + Sự kiên nhẫn, khiêm tốn và biên an toàn từ Housel.",
-    "response": "Tổng kết lại:- Rich Dad Poor Dad dạy bạn thay đổi tư duy: mua tài sản thay vì tiêu sản và để tiền làm việc cho mình.- The Psychology of Money dạy bạn sự khiêm tốn, kiên nhẫn, tận dụng lãi kép và giữ biên an toàn.",
+    "user_input": "Qua hai quyển sách này thì tôi sẽ học được gì?",
+    "reference": "Bài học: Làm chủ tư duy tài chính, mua tài sản sinh dòng tiền, kiên nhẫn với lãi suất kép và giữ biên an toàn.",
+    "intent": "book_metadata.title",
+    "route": "book_metadata",
+    "response": "Chắc chắn, từ hai cuốn sách bạn có thể học được nhiều điều. “The Psychology of Money” giúp bạn hiểu về tâm lý, cảm xúc với tiền, cách quản lý rủi ro, và lãi kép. Còn “Rich Dad Poor Dad” tập trung vào sự khác biệt giữa tài sản và nợ, cách đầu tư thông minh và tư duy làm giàu. Nếu bạn muốn, mình có thể đi sâu vào từng khía cạnh.",
     "contexts": [
-      "Tổng kết bài học 2 cuốn sách: Rich Dad Poor Dad giúp thay đổi tư duy mua tài sản thay vì tiêu sản; The Psychology of Money giúp rèn luyện sự kiên nhẫn, tận dụng lãi kép và giữ biên an toàn.",
-      "Tổng hợp tri thức liên tài liệu Cross-document synthesis."
-    ]
+      "BOOK_SECTION_CONTEXT\nKey takeaways from both books."
+    ],
+    "elapsed": 1.668766975402832,
+    "log_ref": "log_live_context_3.md:L907",
+    "db_ref": "DB msg_id: 8a878fc2 / 53621592 | ts: 2026-07-23 06:59:16"
   },
   {
     "query_id": "Q60",
-    "user_input": "Cảm ơn bạn, bài học hôm nay rất bổ ích. Bye bye!",
-    "reference": "Đáp lễ thân thiện, chúc người học nghỉ ngơi và chào tạm biệt.",
-    "response": "Không có gì, rất vui được hỗ trợ bạn. Chúc bạn áp dụng thành công các bài học tài chính này vào cuộc sống. Tạm biệt và hẹn gặp lại!",
+    "user_input": "Bye bye, nghỉ rồi.",
+    "reference": "Trợ lý chào tạm biệt và chúc người học áp dụng tốt kiến thức tài chính.",
+    "intent": "book_semantic_question",
+    "route": "book_rag",
+    "response": "Được, bạn nghỉ ngơi nhé. Nếu sau này bạn cần hỗ trợ thêm, cứ quay lại. Chúc bạn một ngày tốt lành!",
     "contexts": [
-      "Đáp lễ thân thiện, chúc người học áp dụng thành công các bài học tài chính vào cuộc sống và chào tạm biệt.",
-      "Nhận diện lượt thoại farewell kết thúc phiên an toàn."
-    ]
+      "BOOK_SECTION_CONTEXT\nFinal session conclusion."
+    ],
+    "elapsed": 1.4381275177001953,
+    "log_ref": "log_live_context_3.md:L920",
+    "db_ref": "DB msg_id: 67954880 / DB msg_ai | ts: 2026-07-23 06:59:59"
   }
 ]
