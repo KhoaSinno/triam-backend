@@ -655,3 +655,83 @@ Ran command: `.venv\Scripts\python.exe scratch/final_status.py 2>&1`
 - [`scripts/fill_contexts_from_db.py`](file:///w:/WorkSpace_IT/_CAPSTON_PROJECT/triam-backend/scripts/fill_contexts_from_db.py) — main script với backward scan
 - [`scripts/fill_no_rag_contexts_v2.py`](file:///w:/WorkSpace_IT/_CAPSTON_PROJECT/triam-backend/scripts/fill_no_rag_contexts_v2.py) — fill no-RAG items theo book keyword
 - [`scripts/fix_metadata_contexts.py`](file:///w:/WorkSpace_IT/_CAPSTON_PROJECT/triam-backend/scripts/fix_metadata_contexts.py) — fix Q20/Q59 metadata items
+
+
+
+---
+
+Script `eval_llm_as_judge.py` của bạn hoạt động dựa trên mô hình **LLM-as-a-Judge (Dùng LLM làm giám khảo)**, mô phỏng lại toàn bộ bộ tiêu chuẩn đánh giá hệ thống RAG nổi tiếng mang tên **RAGAS (Retrieval Augmented Generation Assessment)**.
+
+Thay vì phải đi chấm điểm thủ công từng câu trả lời của trợ lý AI, script này sẽ tự động hóa toàn bộ quá trình chấm điểm thông qua các bước tuần tự sau:
+
+---
+
+### Sơ đồ luồng hoạt động tổng quát (Workflow)
+
+```text
+[ Đọc file log production_flow_trace.json ] (Chứa 60 Test Cases gồm: câu hỏi, câu trả lời của AI, dữ liệu chuẩn, danh sách chunks văn bản)
+                   │
+                   ▼
+       [ Chia lô xử lý bất đồng bộ ] (Dùng asyncio.Semaphore giới hạn 5 luồng chạy song song để tránh nghẽn API)
+                   │
+                   ├──► 1. Đánh giá Context Precision (MAP@K dựa trên thứ tự chunk hữu ích)
+                   ├──► 2. Đánh giá Context Recall (Tỷ lệ ý chính của đáp án chuẩn nằm trong chunks)
+                   ├──► 3. Đánh giá Faithfulness (Tách atomic claims và soi xem có bịa đặt so với context không)
+                   ├──► 4. Đánh giá Answer Relevancy (Độ bám sát trọng tâm câu hỏi của câu trả lời)
+                   └──► 5. Đánh giá Answer Correctness (So sánh độ chính xác thực tế so với reference)
+                   │
+                   ▼
+         [ Tổng hợp thành DataFrame ] ──► [ In báo cáo chi tiết ra màn hình Terminal ]
+                   │
+                   ├──► Xuất file lịch sử: production_flow_ragas_report_YYYYMMDD_HHMMSS.csv
+                   └──► Xuất file mới nhất: production_flow_ragas_report.csv
+
+```
+
+---
+
+### Giải chi tiết cách vận hành của từng phần trong Code:
+
+#### 1. Khởi tạo và Tải dữ liệu (`run_evaluation`)
+
+* Script tìm đến file `logs/ragas_eval/production_flow_trace.json` (nơi lưu lại lịch sử các câu hỏi thực tế của người dùng cùng với ngữ cảnh mà RAG đã kéo về).
+* Đọc toàn bộ danh sách (60 Test Cases) vào bộ nhớ.
+
+#### 2. Xử lý bất đồng bộ thông minh (`asyncio.gather` & `Semaphore`)
+
+* Để không phải đợi từng câu chấm xong rồi mới chấm câu tiếp theo (rất lâu), script dùng thư viện `asyncio` để gửi các request đánh giá **chạy đồng thời**.
+* `asyncio.Semaphore(5)` đóng vai trò là "chốt kiểm soát", chỉ cho phép tối đa 5 yêu cầu gửi lên Google Gemini API cùng một lúc, giúp chống lỗi nghẽn mạng (Rate Limit).
+
+#### 3. Cách Gemini làm "Giám khảo" chấm từng chỉ số (LLM-as-a-Judge)
+
+Mỗi một Test Case sẽ được bóc tách và gửi prompt riêng biệt tới mô hình trọng tài (`gemini-3.5-flash-lite` với `temperature=0.0` để đảm bảo tính khách quan, không sáng tạo lung tung):
+
+* **Xử lý đặc biệt cho `AGENT_CONTEXT`:**
+* Nếu câu hỏi thuộc dạng trò chuyện xã hội (small-talk) hoặc dùng bộ nhớ nội tại, không tra cứu tài liệu sách, mảng `contexts` sẽ chứa chuỗi `"AGENT_CONTEXT"`.
+* Script lập tức nhận diện và gán mức điểm chuẩn giả định (`0.70`) để không làm tụt điểm hệ thống một cách oan ức.
+
+
+* **Chỉ số 1 - Context Precision (Độ chính xác ngữ cảnh):**
+* LLM nhận danh sách các đoạn văn bản trích xuất (Chunks từ Top 1 đến Top K) và chấm xem đoạn nào thực sự hữu ích (`true/false`).
+* Sau đó, Python tự dùng thuật toán **MAP@K (Mean Average Precision)** để tính xem các đoạn hữu ích có nằm ở vị trí cao (Top đầu) hay không.
+
+
+* **Chỉ số 2 - Context Recall (Độ bao phủ ngữ cảnh):**
+* LLM so sánh **Đáp án chuẩn (Reference)** với các đoạn ngữ cảnh trích xuất xem thông tin trong đáp án đã xuất hiện đầy đủ trong tài liệu hay chưa, trả về một điểm số từ `0.0` đến `1.0`.
+
+
+* **Chỉ số 3 - Faithfulness (Độ trung thực / Chống ảo giác):**
+* LLM phân rã câu trả lời của AI thành các mệnh đề nhỏ độc lập (*atomic claims*).
+* Python tự kiểm tra xem từng mệnh đề có được suy ra trực tiếp từ ngữ cảnh hay không và tự chia tỷ lệ (`số mệnh đề đúng / tổng số mệnh đề`) để tránh tình trạng LLM bị "ngáo toán" khi tự tính.
+
+
+* **Chỉ số 4 & 5 - Answer Relevancy & Answer Correctness:**
+* LLM đóng vai trò đối chiếu trực tiếp câu trả lời thực tế với Câu hỏi (Relevancy) và với Đáp án chuẩn (Correctness) để đưa ra điểm số phản ánh độ thông minh và chính xác của trợ lý.
+
+
+
+#### 4. Chuẩn hóa và Lưu trữ Kết quả
+
+* Hàm `clamp(val)` luôn đảm bảo mọi điểm số trả về nằm chặt trong khoảng từ `0.0` đến `1.0`, không có hiện tượng điểm âm hay vượt quá 1.
+* Sau khi chấm xong toàn bộ 60 câu, script tính toán điểm trung bình toàn cục (Summary), hiển thị một bảng tổng hợp trực quan ngay trên cửa sổ dòng lệnh (Terminal).
+* Đồng thời, script tự động sinh ra một file CSV đính kèm mốc thời gian chi tiết (Ví dụ: `production_flow_ragas_report_20260728_111045.csv`) để lưu lại lịch sử thực nghiệm làm minh chứng cho báo cáo đồ án.
