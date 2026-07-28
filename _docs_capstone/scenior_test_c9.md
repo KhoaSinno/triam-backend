@@ -25,7 +25,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">6 chương</td>
+    <td style="padding: 8px;">Cuốn sách này có 6 chương.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -49,7 +49,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">George Milton và Lennie Small là hai nhân vật chính. Các nhân vật phụ: Candy, Crooks, Curley, Vợ Curley, Slim, Carlson.</td>
+    <td style="padding: 8px;">George Milton và Lennie Small là hai nhân vật chính. Các nhân vật phụ gồm Candy, Crooks, Curley, Vợ Curley, Slim, Carlson.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -73,7 +73,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Tóm tắt chi tiết chương 4: cuộc trò chuyện của Lennie với Crooks tại chuồng ngựa, sự xuất hiện của Candy và vợ Curley.</td>
+    <td style="padding: 8px;">Chương 4 diễn ra tại phòng Crooks, nơi các nhân vật cô đơn trò chuyện về giấc mơ trang trại và bị vợ Curley đe dọa.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -121,7 +121,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Tóm tắt nội dung chương 6 (George tìm thấy Lennie ở lòng sông và nổ súng kết liễu Lennie).</td>
+    <td style="padding: 8px;">Chương 6 kết thúc bi thảm bên bờ ao: George tìm thấy Lennie, nhắc lại giấc mơ trang trại và nổ súng bắn Lennie để giải thoát.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -145,7 +145,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">George bắn Lennie bằng khẩu súng của Carlson để bảo vệ anh khỏi đám đông của Curley và chấm dứt bi kịch lặp lại.</td>
+    <td style="padding: 8px;">Lennie đã không cố ý chống cự.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -169,7 +169,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Lennie hoảng sợ, không chủ động chống trả mà chỉ tự vệ theo bản năng bóp nát tay Curley.</td>
+    <td style="padding: 8px;">Ban đầu Lennie không chống cự, nhưng khi George bảo ra tay, Lennie bóp nát bàn tay phải của Curley.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -193,7 +193,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Lennie vô tình làm gãy cổ vợ Curley vì hoảng sợ khi cô ấy hét lên, không có ý định giết người.</td>
+    <td style="padding: 8px;">Vợ Curley bị gãy cổ chết trong chuồng ngựa. Lennie không cố ý mà chỉ vì hoảng loạn khi cô la lên.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -217,7 +217,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Lúc bắn chỉ có George và Lennie; các nhân vật khác xuất hiện ngay sau tiếng súng.</td>
+    <td style="padding: 8px;">Không có ai khác ở đó lúc George nổ súng. Sau đó Slim, Carlson và Curley mới chạy tới.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -241,7 +241,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Slim thấu hiểu và an ủi George, trong khi Curley và Carlson bàng hoàng không hiểu được sự hy sinh.</td>
+    <td style="padding: 8px;">Slim thấu hiểu và an ủi George rằng ông đã làm điều phải làm. Curley và Carlson thì thắc mắc không hiểu.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -265,7 +265,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Con chó già mù mắt, hôi hám bị Carlson bắn chết vì coi là gánh nặng.</td>
+    <td style="padding: 8px;">Nhân vật Candy gắn liền với con chó già bị mù và bốc mùi bị Carlson bắn chết.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -289,7 +289,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Biểu tượng của sự tự do, mái nhà ấm áp và lối thoát khỏi sự bóc lột.</td>
+    <td style="padding: 8px;">Có vài nhân vật yêu thích động vật như Lennie, nhân vật Candy gắng liên với con chó già</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -313,7 +313,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Lennie cô đơn do trí tuệ hạn chế; Crooks cô đơn do phân biệt chủng tộc.</td>
+    <td style="padding: 8px;">Lennie đáng thương nhất vì bị có vấn đề về sức khỏe, George đáng thương khi tự tay giải thoát cho người bạn mà mình yêu quý nhất</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -337,7 +337,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Phát hiện câu hỏi ngoài sách đòi hỏi internet và xin quyền truy cập web.</td>
+    <td style="padding: 8px;">Thông tin giá Bitcoin không nằm trong sách. Hệ thống cần sự cho phép của người dùng để tìm trên Web.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -361,7 +361,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Từ chối tìm web và chỉ hỗ trợ tri thức trong sách.</td>
+    <td style="padding: 8px;">Trợ lý tiếp tục trả lời trong phạm vi tri thức tĩnh của sách.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -385,7 +385,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Hỏi xin quyền truy cập internet để tìm tác phẩm tương tự.</td>
+    <td style="padding: 8px;">Trợ lý hỏi xác nhận quyền truy cập Internet để tìm các tác phẩm như The Grapes of Wrath, East of Eden.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -409,7 +409,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Gọi Tavily Search để tìm các cuốn sách cùng chủ đề (như The Grapes of Wrath, East of Eden) và tổng hợp trả lời.</td>
+    <td style="padding: 8px;">Trợ lý thực thi Web Search tìm các tác phẩm của John Steinbeck.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -433,7 +433,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Bài học về sự thấu cảm, tình bạn cao đẹp và sự cảm thông với những số phận yếu thế.</td>
+    <td style="padding: 8px;">Bài học về sự đồng cảm, giá trị của tình bạn và sự khắc nghiệt của giấc mơ Mỹ.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -457,7 +457,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Học cách lắng nghe, không định kiến và biết chia sẻ với những người xung quanh.</td>
+    <td style="padding: 8px;">Lắng nghe, không định kiến và hỗ trợ những người yếu thế xung quanh.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -481,7 +481,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Đáp lễ thân thiện và sẵn sàng hỗ trợ tiếp.</td>
+    <td style="padding: 8px;">Trợ lý phản hồi thân thiện chào tạm biệt người học.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -521,7 +521,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Giới thiệu tổng quan về thuật toán sắp xếp trên mảng (Quicksort, Merge Sort, Bubble Sort...) và định hướng bắt đầu.</td>
+    <td style="padding: 8px;">Mảng (Array) là cấu trúc dữ liệu lưu trữ phần tử liên tiếp; các thuật toán sắp xếp gồm Bubble, Quick, Merge, Heap Sort.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -545,7 +545,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Giải thích ý nghĩa độ phức tạp Big-O giúp dự đoán thời gian chạy, tài nguyên CPU và bộ nhớ RAM.</td>
+    <td style="padding: 8px;">Độ phức tạp thời gian và không gian giúp đánh giá hiệu năng thuật toán khi quy mô dữ liệu N tăng lên.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -569,7 +569,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Chú ý kích thước đầu vào n, trường hợp xấu nhất (worst-case), trường hợp tốt nhất và bộ nhớ phụ (space complexity).</td>
+    <td style="padding: 8px;">Cần chú ý đến luồng dữ liệu đi, hằng số ẩn, trường hợp tốt/trung bình, và khả năng tối ưu bộ nhớ</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -593,7 +593,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Bảng tính dữ liệu (spreadsheet), biểu diễn ảnh kỹ thuật số (ma trận pixel), bàn cờ, ma trận toán học.</td>
+    <td style="padding: 8px;">Mảng hai chiều dùng làm ma trận, xử lý ảnh pixel, bảng tính Excel, đồ thị ma trận kề (Adjacency Matrix).</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -617,7 +617,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Hướng dẫn cú pháp C# `int[,] matrix = new int[3, 3];` và gán giá trị qua chỉ số hàng/cột.</td>
+    <td style="padding: 8px;">Khai báo: int[,] matrix = new int[3,3]; gán giá trị: matrix[0,0] = 5;</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -641,7 +641,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Linear Search O(n) cho dữ liệu nhỏ/chưa sắp xếp, Binary Search O(log n) cho dữ liệu đã sắp xếp.</td>
+    <td style="padding: 8px;">Binary Search (Tìm kiếm nhị phân O(log N)) và Linear Search (Tìm kiếm tuyến tính O(N)).</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -665,7 +665,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Binary Search trong cơ sở dữ liệu (index), BFS trong ứng dụng bản đồ chỉ đường, thuật toán gợi ý eCommerce.</td>
+    <td style="padding: 8px;">Các thuật toán về: Dijkstra - tìm đường đi, Binary Search - lưu trữ cấu trúc truy vết tốt</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -689,7 +689,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Quicksort O(n log n) cho tốc độ thực thi, Merge Sort O(n log n) cho tính ổn định, Bubble Sort cho nhập môn.</td>
+    <td style="padding: 8px;">Quicksort và Timsort (kết hợp Merge Sort &amp; Insertion Sort) được sử dụng mặc định trong các ngôn ngữ lập trình.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -713,7 +713,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Tốc độ thực thi trung bình O(n log n) cực nhanh, sắp xếp tại chỗ (in-place) không tốn bộ nhớ phụ.</td>
+    <td style="padding: 8px;">Quicksort có thời gian trung bình O(N log N), sắp xếp tại chỗ (In-place O(1) space) và tối ưu hóa CPU Cache.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -737,7 +737,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Giải thích cơ chế so sánh từng cặp kề nhau và đẩy phần tử lớn nhất nổi về cuối mảng.</td>
+    <td style="padding: 8px;">Bubble Sort hoán đổi các cặp phần tử kề nhau, có độ phức tạp O(N^2), phù hợp cho việc giảng dạy cơ bản.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -761,7 +761,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Cung cấp mẫu code C# hoàn chỉnh triển khai lớp `BubbleSort` với hàm `SortBubble(int[] input)`.</td>
+    <td style="padding: 8px;">Code C# Bubble Sort: void BubbleSort(int[] arr) { for(int i=0; i&lt;arr.Length-1; i++) for(int j=0; j&lt;arr.Length-i-1; j++) if(arr[j]&gt;arr[j+1]) { int temp=arr[j]; arr[j]=arr[j+1]; arr[j+1]=temp; } }</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -785,7 +785,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Mối quan hệ giữa các đỉnh qua các cạnh (edges), kỹ thuật relaxation cập nhật đường đi ngắn nhất.</td>
+    <td style="padding: 8px;">Edge relation mô tả mối quan hệ kết nối giữa các đỉnh (Vertices) trong đồ thị qua danh sách kề hoặc ma trận kề.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -809,7 +809,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Dijkstra duyệt các cạnh kề và cập nhật d[v] = d[u] + w(u,v) nếu tìm thấy đường đi ngắn hơn.</td>
+    <td style="padding: 8px;">Edge Relaxation cập nhật khoảng cách ngắn nhất đến đỉnh v nếu path(u) + weight(u,v) &lt; path(v).</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -833,7 +833,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Ví dụ 3 đỉnh A, B, C với trọng số A->B=5, B->C=3 để tính khoảng cách A->C = 8.</td>
+    <td style="padding: 8px;">Ví dụ tìm đường đi ngắn nhất giữa các thành phố trên bản đồ dựa trên khoảng cách km.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -857,7 +857,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Không tìm thấy thông tin trong sách, đề xuất tra cứu internet.</td>
+    <td style="padding: 8px;">LINQ (Language Integrated Query) là một tính năng trong C# cho phép bạn viết các câu lệnh truy vấn dữ liệu trực tiếp trong mã nguồn. Nó cung cấp cú pháp thống nhất để lọc, sắp xếp và tìm kiếm dữ liệu từ nhiều nguồn khác nhau (như List, SQL Database, XML</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -881,7 +881,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Hàng đợi liên kết cấu tạo từ các Node có con trỏ trỏ đến Node tiếp theo.</td>
+    <td style="padding: 8px;">Linked Queue là hàng đợi triển khai bằng Danh sách liên kết (LinkedList&lt;T&gt;), cho phép enqueue/dequeue O(1).</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -905,7 +905,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Đệ quy là kỹ thuật hàm tự gọi lại chính nó với bài toán con nhỏ hơn cho đến khi đạt điều kiện dừng (base case).</td>
+    <td style="padding: 8px;">Đệ quy là kỹ thuật hàm tự gọi lại chính nó cho đến khi đạt điều kiện dừng (Base Case).</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -929,7 +929,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Tốn bộ nhớ Stack frames cho mỗi lần gọi, nếu không tối ưu dễ tràn bộ nhớ (StackOverflowException).</td>
+    <td style="padding: 8px;">Đệ quy tốn Call Stack bộ nhớ (dễ gây StackOverflowException) và tốn chi phí gọi hàm so với vòng lặp.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -953,7 +953,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Chuyển số thành chuỗi, hoán đổi ký tự index 0 và length-1, ép lại về số nguyên.</td>
+    <td style="padding: 8px;">Chuyển số thành chuỗi, hoán đổi ký tự char đầu và cuối rồi int.Parse lại.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -977,7 +977,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Tạo lộ trình 7 ngày từ Cấu trúc dữ liệu -> Sắp xếp -> Tìm kiếm -> Đệ quy -> Đồ thị -> Thực hành.</td>
+    <td style="padding: 8px;">Ngày 1: Mảng &amp; Chuỗi. Ngày 2: Stack &amp; Queue. Ngày 3: Sorting. Ngày 4: Searching. Ngày 5: Tree &amp; Graph. Ngày 6: DP. Ngày 7: Ôn tập.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1017,7 +1017,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Chào đón người học và gợi ý các chủ đề: Đầu tư, Quản lý chi tiêu, Tiết kiệm.</td>
+    <td style="padding: 8px;">Tài chính cá nhân xoay quanh việc quản lý dòng tiền, tiết kiệm, đầu tư và kiểm soát cảm xúc.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1041,7 +1041,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Giải thích quan điểm truyền thống xem nhà là tài sản do niềm tin và cảm xúc, nhưng Kiyosaki lưu ý nhà ở gia đình cũng phát sinh chi phí duy trì.</td>
+    <td style="padding: 8px;">Theo Kiyosaki, nhà ở tiêu tiền bảo trì/thế chấp nên là tiêu sản; nhưng quan điểm truyền thống coi đó là tài sản.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1065,7 +1065,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Phân tích chi phí thuế, bảo trì, nợ vay khiến nhà ở cá nhân không tạo ra dòng tiền dương.</td>
+    <td style="padding: 8px;">Nếu không kiểm soát dòng tiền chi ra, ngôi nhà sẽ làm giảm khả năng đầu tư vào các tài sản sinh lời khác.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1089,7 +1089,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Trích 10-20% thu nhập tích lũy/đầu tư ngay khi nhận lương trước khi chi trả hóa đơn.</td>
+    <td style="padding: 8px;">Pay Yourself First có nghĩa là trích một phần thu nhập để đầu tư/tiết kiệm ngay khi nhận lương trước khi chi tiêu.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1113,7 +1113,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Tạo thói quen tích lũy tài sản sinh lời trước, ép bản thân kiểm soát chi tiêu phần còn lại.</td>
+    <td style="padding: 8px;">Cha nghèo đại diện cho tư duy làm công ăn lương an toàn; Cha giàu đại diện cho tư duy làm chủ và đầu tư tài sản.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1137,7 +1137,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Cha nghèo: tư duy an toàn, làm việc vì lương; Cha giàu: tư duy đầu tư, xây dựng tài sản và dòng tiền.</td>
+    <td style="padding: 8px;">Cha nghèo đại diện cho tư duy làm công ăn lương an toàn; Cha giàu đại diện cho tư duy làm chủ và đầu tư tài sản.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1161,7 +1161,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Chấp nhận rủi ro có tính toán và dành thời gian học hỏi kiến thức tài chính để đạt tự do lâu dài.</td>
+    <td style="padding: 8px;">Người cha giàu chấp nhận rủi ro có tính toán để xây dựng hệ thống kinh doanh và tài sản sinh tiền.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1185,7 +1185,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Hoàn toàn ổn nếu hài lòng với cuộc sống, quan trọng là hiểu rõ mục tiêu tài chính cá nhân.</td>
+    <td style="padding: 8px;">Đó là sự lựa chọn cá nhân hướng tới sự an toàn, nhưng cần quản lý tài chính tốt để tránh bẫy lạm phát.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1209,7 +1209,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Rich là thu nhập cao/chi tiêu phô trương; Wealth là tài sản tích lũy chưa tiêu mang lại tự do.</td>
+    <td style="padding: 8px;">Rich thể hiện thu nhập cao và chi tiêu phô trương; Wealthy là tài sản ẩn tạo ra tự do và không phụ thuộc vào công việc.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1233,7 +1233,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">81.5 tỷ USD trong 84.5 tỷ USD tài sản của Buffett có được sau tuổi 65; chìa khóa là sự kiên trì đầu tư từ 10 tuổi.</td>
+    <td style="padding: 8px;">81.5 tỷ USD trong 84.5 tỷ USD tài sản của Buffett có được sau khi ông 65 tuổi nhờ bắt đầu đầu tư từ năm 10 tuổi.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1257,7 +1257,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Tài sản bỏ tiền vào túi bạn; Tiêu sản rút tiền ra khỏi túi bạn.</td>
+    <td style="padding: 8px;">Tài sản (Asset) bỏ tiền vào túi bạn; Tiêu sản (Liability) rút tiền ra khỏi túi bạn.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1281,7 +1281,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Vòng làm việc -> kiếm tiền -> trả nợ -> hết tiền -> làm việc tiếp; thoát khỏi bằng cách mua tài sản sinh dòng tiền.</td>
+    <td style="padding: 8px;">Rat Race là vòng lặp: Đi làm -&gt; Kiếm tiền -&gt; Chi tiêu -&gt; Hết tiền -&gt; Đi làm. Thoát bằng cách mua tài sản sinh dòng tiền.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1305,7 +1305,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Công ty giúp kiếm tiền -> chi tiêu chi phí hợp lệ -> nộp thuế trên phần còn lại.</td>
+    <td style="padding: 8px;">Vì công ty được kiếm tiền -&gt; chi tiêu chi phí hợp lý -&gt; rồi mới nộp thuế; còn cá nhân phải nộp thuế trước rồi mới chi tiêu.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1329,7 +1329,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Thảo luận về sự kỳ diệu của Lãi kép và việc để tiền làm việc cho bạn.</td>
+    <td style="padding: 8px;">Thảo luận về sức mạnh của lãi suất kép, lịch sử thuế và sự thông minh tài chính.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1353,7 +1353,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Phát hiện thông tin ngoài sách, thực thi hỏi xin quyền tìm kiếm web và trả về giá cổ phiếu Apple mới nhất.</td>
+    <td style="padding: 8px;">Giá cổ phiếu Apple hiện tại không thuộc sách tĩnh. Trợ lý xin phép người dùng tìm kiếm thông tin trên Web.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1377,7 +1377,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Xác nhận trung thực khái niệm Liquidity Mining (DeFi) không có trong hai cuốn sách.</td>
+    <td style="padding: 8px;">Khái niệm Liquidity Mining trong crypto không có trong sách. Trợ lý thông báo từ chối hoặc tìm web.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1401,7 +1401,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Luôn chừa khoảng trống cho sai số và rủi ro không lường trước để không bị loại khỏi cuộc chơi.</td>
+    <td style="padding: 8px;">Biên an toàn là chừa khoảng trống cho những rủi ro bất ngờ không lường trước được trong kế hoạch tài chính.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1425,7 +1425,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Đầu tư vào tri thức, kỹ năng bản thân và thói quen tiết kiệm/tích lũy nhỏ đều đặn.</td>
+    <td style="padding: 8px;">Ưu tiên đầu tư vào kiến thức, kỹ năng bản thân và xây dựng thói quen tiết kiệm/đầu tư sớm.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1449,7 +1449,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Tư duy tài sản/dòng tiền từ Kiyosaki + Sự kiên nhẫn, khiêm tốn và biên an toàn từ Housel.</td>
+    <td style="padding: 8px;">Bài học: Làm chủ tư duy tài chính, mua tài sản sinh dòng tiền, kiên nhẫn với lãi suất kép và giữ biên an toàn.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
@@ -1473,7 +1473,7 @@ Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ c�
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">Đáp Án</td>
-    <td style="padding: 8px;">Đáp lễ thân thiện, chúc người học nghỉ ngơi và chào tạm biệt.</td>
+    <td style="padding: 8px;">Trợ lý chào tạm biệt và chúc người học áp dụng tốt kiến thức tài chính.</td>
   </tr>
   <tr>
     <td style="width: 20%; padding: 8px; font-weight: bold; background-color: #fafafa;">AI trả lời</td>
