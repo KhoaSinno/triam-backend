@@ -1,61 +1,61 @@
 ﻿query_id,user_input,context_precision,context_recall,faithfulness,answer_relevancy,answer_correctness
-Q1,Sách có mấy chương,1.0,1.0,1.0,1.0,1.0
-Q2,"Sách có những nhân vật nào, nhân vật nào là nhân vật chính",1.0,1.0,0.9,1.0,1.0
-Q3,Tóm tắt giúp tôi chương bốn của sách,1.0,1.0,0.96,1.0,1.0
-Q4,Tóm tắt chương sách này đi,1.0,1.0,0.85,1.0,0.95
-Q5,Chương sáu đi,1.0,1.0,0.94,1.0,1.0
-Q6,Cảnh George bắn Lennie diễn ra thế nào và tại sao George lại làm vậy?,1.0,1.0,0.88,1.0,1.0
-Q7,Khi Curley tấn công Lennie thì Lennie có chống cự không?,1.0,1.0,0.88,1.0,1.0
-Q8,Vợ của Curley bị làm sao và Lennie có cố ý làm hại cô ấy không?,1.0,1.0,1.0,1.0,1.0
-Q9,Lúc George bắn Lennie ở bờ sông thì có nhân vật nào khác ở đó không?,1.0,1.0,1.0,1.0,1.0
-Q10,"Khi phát hiện cái chết của Lennie, phản ứng của Slim và những người khác ra sao?",1.0,1.0,0.93,1.0,1.0
-Q11,"Trong câu chuyện, nhân vật Candy gắn liền với chi tiết con vật nào?",1.0,1.0,1.0,1.0,1.0
-Q12,Ước mơ về trang trại nhỏ của George và Lennie có ý nghĩa gì đối với họ?,1.0,1.0,1.0,1.0,1.0
-Q13,"Trong tác phẩm, ai được xem là nhân vật đáng thương và cô đơn nhất?",1.0,1.0,0.9,1.0,1.0
-Q14,Giá Bitcoin hiện tại hôm nay là bao nhiêu?,1.0,1.0,1.0,1.0,1.0
-Q15,"Không, chỉ tìm trong sách thôi.",1.0,1.0,1.0,1.0,1.0
-Q16,Tìm các tác phẩm cùng thể loại của John Steinbeck trên internet,1.0,1.0,1.0,1.0,1.0
-Q17,"Được chứ, tìm đi.",1.0,1.0,1.0,1.0,1.0
-Q18,Bài học lớn nhất mà tôi có thể rút ra từ câu chuyện Of Mice and Men là gì?,1.0,1.0,1.0,1.0,1.0
-Q19,Làm thế nào để ứng dụng bài học về sự thấu cảm trong tác phẩm vào cuộc sống thực tế?,1.0,1.0,0.95,1.0,1.0
-Q20,"Cảm ơn bạn, tôi đã hiểu rõ cuốn sách này rồi.",1.0,1.0,0.8,0.8,0.9
-Q21,Tôi muốn học về mảng và các thuật toán sắp xếp.,1.0,1.0,1.0,1.0,1.0
-Q22,Tại sao khi học thuật toán lại phải quan tâm đến độ phức tạp?,1.0,1.0,1.0,1.0,1.0
-Q23,Ngoài biết Big-O thì khi phân tích độ phức tạp cần chú ý những gì nữa?,1.0,1.0,1.0,1.0,1.0
-Q24,Mảng hai chiều được ứng dụng thực tế là làm gì?,1.0,1.0,0.9,1.0,1.0
-Q25,Nói về cách khai báo và gán giá trị cho mảng hai chiều trong C#.,1.0,1.0,1.0,1.0,1.0
-Q26,Thuật toán tìm kiếm nào phổ biến và áp dụng nhiều nhất?,1.0,1.0,1.0,1.0,0.95
-Q27,Trong các dự án thực tế thì có những thuật toán tìm kiếm nào đã áp dụng rồi?,1.0,1.0,0.9,0.9,0.95
-Q28,"Qua thuật toán sắp xếp đi, thuật toán nào phổ biến và áp dụng nhiều nhất?",1.0,1.0,1.0,1.0,1.0
-Q29,Tại sao Quicksort lại được ưu tiên sử dụng hơn các thuật toán sắp xếp khác?,1.0,1.0,0.95,1.0,0.95
-Q30,"Rồi ok ok, tôi thấy có chương 29 nói về bubble sort á, thảo luận về nó đi.",1.0,1.0,1.0,1.0,1.0
-Q31,"À, ok, có cốt không, có cốt không? (Cho tôi xem code C#)",1.0,1.0,1.0,1.0,1.0
-Q32,Bạn biết khái niệm Edge relation trong thuật toán ghi chép hoạt động như thế nào không?,1.0,1.0,0.95,0.95,1.0
-Q33,Vậy thuật toán Dijkstra sử dụng cơ chế Edge Relaxation như thế nào?,1.0,1.0,1.0,1.0,1.0
-Q34,Cho tôi một ví dụ đơn giản để dễ hình dung hơn đi.,1.0,1.0,1.0,1.0,0.95
-Q35,"Ok, bây giờ chuyển qua C# đi. Clean kill trong C# là gì?",1.0,1.0,0.9,1.0,0.9
-Q36,"Khỏi cần, qua cái khác đi. Thế Linked Queue trong C# là gì?",1.0,1.0,1.0,1.0,1.0
-Q37,Recursion (Đệ quy) là gì vậy?,1.0,1.0,1.0,1.0,1.0
-Q38,"Khi sử dụng đệ quy thì có tốn CPU và bộ nhớ không, như vậy có tốt không?",1.0,1.0,0.95,1.0,1.0
-Q39,Làm thế nào để đảo ngược vị trí giữa chữ số đầu tiên và chữ số cuối cùng của một số nguyên trong C#?,1.0,1.0,1.0,1.0,1.0
-Q40,Cho tôi một lộ trình học 7 ngày tiếp cận các thuật toán nền tảng này đi.,0.85,0.85,0.85,1.0,0.9
-Q41,"Ok, bây giờ tôi muốn học về tài chính.",1.0,1.0,1.0,1.0,1.0
-Q42,Tôi thắc mắc là trong sách có nói là ngôi nhà là tài sản lớn nhất và là khoản đầu tư tối ưu nhất. Vậy thì tại sao lại nói vậy?,1.0,1.0,0.9,1.0,1.0
-Q43,Tôi nghĩ nó có hại chứ đâu có lợi đâu.,1.0,1.0,0.9,1.0,1.0
-Q44,Trong cụm từ 'Pay Yourself First' nghĩa là gì?,1.0,1.0,1.0,1.0,1.0
-Q45,Tại sao việc 'Trả cho bản thân trước' lại giúp xây dựng sự tự do tài chính?,1.0,1.0,1.0,1.0,1.0
-Q46,"Trong sách Cha giàu cha nghèo, người cha giàu và người cha nghèo đại diện cho điều gì?",1.0,1.0,1.0,1.0,1.0
-Q47,Tại sao người cha giàu chấp nhận rủi ro và làm việc nhiều hơn?,1.0,1.0,0.9,1.0,1.0
-Q48,Nếu tôi chọn làm một người cha nghèo có lương ổn định để lo cho gia đình thì có sao không?,1.0,1.0,0.9,1.0,1.0
-Q49,Tôi đọc sách thấy làm giàu... Ba chữ giàu khác nhau như thế nào vậy? (Rich vs Wealth),1.0,1.0,1.0,1.0,1.0
-Q50,Sức mạnh của Lãi kép (Compounding) được giải thích qua câu chuyện của Warren Buffett như thế nào?,1.0,1.0,0.9,1.0,0.95
-Q51,Phân biệt sự khác nhau giữa 'Tài sản' và 'Tiêu sản' theo Robert Kiyosaki.,1.0,1.0,1.0,1.0,1.0
-Q52,Khái niệm bẫy tài chính 'Rat Race' (Vòng luẩn quẩn) là gì và làm sao để thoát khỏi nó?,1.0,1.0,1.0,1.0,1.0
-Q53,Tại sao người giàu lại chú trọng việc thành lập công ty/tập đoàn (Corporation)?,1.0,1.0,1.0,1.0,1.0
-Q54,Chương 4 của sách Tâm lý học về tiền và Cha giàu cha nghèo thảo luận về nội dung gì?,0.75,0.75,1.0,1.0,0.85
-Q55,Thời điểm hiện tại giá cổ phiếu của Apple bây giờ là bao nhiêu rồi?,1.0,1.0,1.0,1.0,1.0
-Q56,Trong hai cuốn sách này có đề cập đến khái niệm Liquidity Mining không?,1.0,1.0,1.0,1.0,1.0
-Q57,Tác giả Morgan Housel khuyên gì về 'Biên an toàn' (Margin of Safety / Room for Error) trong tài chính?,1.0,1.0,0.95,1.0,1.0
-Q58,Đối với một người trẻ tuổi thì nên ưu tiên đầu tư vào điều gì nhất?,1.0,1.0,0.9,1.0,1.0
-Q59,"Tổng kết lại, bài học quan trọng nhất rút ra từ cả hai cuốn sách này là gì?",1.0,1.0,0.85,1.0,1.0
-Q60,"Cảm ơn bạn, bài học hôm nay rất bổ ích. Bye bye!",0.8,0.8,1.0,1.0,0.9
+Q1,Sách có mấy chương?,0.0,0.0,0.0,1.0,1.0
+Q2,Trong câu chuyện có những nhân vật nào được xuất hiện không chị?,1.0,1.0,1.0,1.0,0.75
+Q3,Tóm tắt giúp tôi chương bốn của sách.,1.0,1.0,0.857,1.0,1.0
+Q4,Tại vì nó không có vị chống cự không?,1.0,1.0,0.0,0.3,0.0
+Q5,"Ok, tôi cần khúc cuối đó.",0.35,0.35,0.0,1.0,1.0
+Q6,"Cảnh mà George bắn Lenny, thì Lenny có chống cự không?",0.2,0.2,0.83,0.1,0.2
+Q7,Curley tấn công Lenny đúng không? Tấn công bằng vũ khí không?,0.25,0.25,0.67,1.0,1.0
+Q8,Vân Ly có bị chết không?,0.2,0.2,0.4,0.2,1.0
+Q9,Lúc đó có ai ở Đó không. Có nhân vật nào khác không?,1.0,1.0,1.0,1.0,1.0
+Q10,Lúc đó mấy người khác nhìn sốc có sợ không?,1.0,1.0,0.33,1.0,0.5
+Q11,Có con vật là chó xuất hiện trong câu chuyện không?,0.5,0.5,1.0,1.0,0.95
+Q12,Vậy những nhân vật này có nhân vật nào yêu thích động vật không?,0.5,0.5,1.0,1.0,0.0
+Q13,"Ok, vậy trong câu chuyện ai là người đáng thương nhất?",0.3,0.3,0.0,1.0,0.3
+Q14,Giá Bitcoin hiện tại là bao nhiêu?,0.25,0.25,0.0,0.0,1.0
+Q15,"Không, chỉ tìm trong sách thôi.",0.0,0.0,0.0,1.0,1.0
+Q16,Ừ thì tìm kiếm cho tôi các tác phẩm của ông tác giả này.,0.0,0.0,0.0,0.6,1.0
+Q17,"Ok, tìm đi",0.0,0.0,0.0,1.0,1.0
+Q18,Tôi sẽ học được bài học gì từ câu chuyện này?,0.85,0.85,0.0,1.0,0.8
+Q19,"Theo câu chuyện, tôi có áp dụng gì được trong cuộc sống của tôi hay không?",0.0,0.0,0.0,1.0,0.8
+Q20,"Cảm ơn bạn, tôi đã hiểu rõ cuốn sách này rồi.",0.0,0.0,0.0,1.0,0.95
+Q21,Tôi muốn học về mảng và các thuật toán sắp xếp.,0.25,0.25,0.5,0.9,0.9
+Q22,Khi đang học thuật toán thì tôi thấy là tại sao khi học thuật toán lại phải quan tâm đến độ phức tạp.,0.0,0.0,0.0,1.0,1.0
+Q23,Ngoài biết ô ga thì cần chú ý những gì nữa?,0.0,0.0,0.0,1.0,0.4
+Q24,"À, ok, vậy thì mảng hai chiều ấy. Được ứng dụng thực tế là làm gì?",0.0,0.0,0.0,1.0,1.0
+Q25,Nói về khai báo và gán giá trị cho mảng hai chiều trong C#.,0.0,0.0,0.0,1.0,1.0
+Q26,Thuật toán tìm kiếm nào phổ biến và áp dụng nhiều nhất?,0.8,0.8,0.67,1.0,1.0
+Q27,"Trong những dự án thực tế thì có những thuật toán nào đã áp dụng rồi? Trong đời sống của chúng ta,",0.0,0.0,0.0,0.95,0.5
+Q28,"Qua thực toán sắp xếp đi, thực toán nào nó phổ biến và áp dụng nhiều nhất?",0.0,0.0,0.2,0.75,0.6
+Q29,Chúng có gì mà hơn các thuật toán khác vậy?,0.0,0.0,0.0,0.95,0.75
+Q30,"Tôi đi sâu vào phần chương 29, cái chương mà nói về búp bồ sồ trong sách.",0.7,0.7,1.0,0.9,0.85
+Q31,"À, ok, có cốt không, có cốt không?",1.0,1.0,0.0,1.0,1.0
+Q32,Bạn biết Add relation trong thuật toán ghi chép hoạt động như thế nào không?,0.0,0.0,0.0,0.0,0.8
+Q33,Vậy thuật toán đi kít tra bạn có nó có estimation không?,1.0,1.0,0.67,0.4,1.0
+Q34,Ok cho nó ví dụ cho tôi dễ hiểu hơn đi.,1.0,1.0,0.0,1.0,1.0
+Q35,"Ok, bây giờ chuyển qua C# đi. Clean kill trong C# là gì?",0.0,0.0,1.0,0.0,0.0
+Q36,"Khỏi cần, qua cái khác đi.",0.0,0.0,0.0,0.2,0.8
+Q37,Recursion là gì ấy?,0.0,0.0,0.0,1.0,0.85
+Q38,Khi thực hiện mà sử dụng thì nó tốn CPU đúng không? Như vậy thì nó có tốt không?,0.0,0.0,0.0,1.0,0.95
+Q39,Làm thế nào để đảo ngược vị trí giữa chữ số đầu tiên và chữ số cuối cùng của một số nguyên trong C#?,0.0,0.0,0.0,1.0,1.0
+Q40,"Cho tôi lộ trình học trong 7 ngày đi, tiếp cận từ từ với các thuật toán nền tảng. Bạn nghe tôi nói không?",0.0,0.0,0.0,1.0,0.65
+Q41,Tôi đang học tài chính đúng không?,0.75,0.75,0.0,1.0,1.0
+Q42,Tôi thắc mắc là trong sách có nói là ngôi nhà là tài sản lớn nhất và là khoản đầu tư tối ưu nhất. Vậy thì tại sao phải nói vậy?,1.0,1.0,1.0,1.0,1.0
+Q43,Tôi nghĩ nó có hại chứ đâu có lợi đâu.,1.0,1.0,0.67,0.95,0.4
+Q44,"Trong cụm từ ""Pay Yourself First"" nghĩa là gì?",1.0,1.0,1.0,1.0,1.0
+Q45,Gia giao phản đối những gì?,1.0,1.0,1.0,0.0,0.0
+Q46,Chào bạn! Hôm nay chúng ta sẽ cùng thảo luận về các thuật ngữ... cha giàu ổng phản đối những điều gì?,1.0,1.0,1.0,0.7,1.0
+Q47,"Đối với tôi thì tôi nghĩ là người cha giàu thì cần phải hoạt động nhiều hơn người cha nghèo. Cho nên, có những cái mà người cha giàu phải chấp nhận. Như là bỏ thời gian nhiều hơn để đạt sự thành công đó.",1.0,1.0,0.0,1.0,0.5
+Q48,"Nếu tôi là một người cha nghèo thì cũng đâu sao, tôi vẫn có lương bình thường, tôi vẫn sống tốt bình thường mà. Tôi vẫn lo cho gia đình tôi bình thường.",0.5,0.5,1.0,1.0,0.75
+Q49,Tôi đọc sách ta thì tôi thấy là làm giàu Ba chữ giàu khác nhau như thế nào vậy?,0.0,0.0,0.0,0.7,1.0
+Q50,Vậy thì sức mạnh của đại kép được giải thích như thế nào qua câu chuyện của Warren Buffett trong sách?,1.0,1.0,1.0,1.0,0.4
+Q51,Tôi hỏi tài sản khác tiêu sản như thế nào?,0.0,0.0,0.0,1.0,0.5
+Q52,Có một khái niệm đó là vòng rat race là gì?,0.0,0.0,0.0,1.0,0.8
+Q53,"Tôi thắc mắc là tự nhiên là người giàu thì họ sẽ thích gặp tập đoàn, vậy để làm gì?",0.0,0.0,0.0,1.0,0.1
+Q54,Thế chương bốn của Cha giàu cha nghèo nói về gì?,0.0,0.0,0.0,0.0,0.5
+Q55,"À không đi, giờ tôi muốn biết giá cổ phiếu của Apple bây giờ là bao nhiêu rồi?",0.0,0.0,0.0,1.0,0.0
+Q56,Trong sách nào có cái khái niệm liquidity mining không?,0.0,0.0,1.0,1.0,1.0
+Q57,"Thôi đi, bây giờ chúng ta quay lại cái sách nói về tâm lý về tiền đi, tác giả khuyên gì về cái biên an toàn của tài chính?",1.0,1.0,1.0,1.0,1.0
+Q58,Với tuổi còn trẻ thì tôi nên đầu tư gì cho bản thân?,1.0,1.0,0.0,1.0,1.0
+Q59,Qua hai quyển sách này thì tôi sẽ học được gì?,1.0,1.0,0.0,1.0,1.0
+Q60,"Bye bye, nghỉ rồi.",0.0,0.0,0.0,1.0,0.8

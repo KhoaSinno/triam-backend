@@ -28,11 +28,11 @@ judge_client = AsyncOpenAI(
     api_key=settings.GEMINI_API_KEY,
     base_url=settings.GEMINI_BASE_URL,
 )
-JUDGE_MODEL = "gemini-3.6-flash"
+JUDGE_MODEL = "gemini-3.5-flash-lite"
 
 
 async def call_judge_llm(prompt: str) -> str:
-    """Gọi Gemini 3.6 Flash làm Giám khảo với retry loop an toàn."""
+    """Gọi Gemini 3.5 Flash Lite làm Giám khảo với retry loop an toàn."""
     max_retries = 5
     for attempt in range(max_retries):
         try:
