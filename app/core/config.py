@@ -74,7 +74,8 @@ class Settings(BaseSettings):
     VOICE_AGENT_CONSOLE_THREAD_ID: str = "07be00b9-c6da-4801-8ba2-7558205b92b2"
 
     # Dynamic Prompt cho OpenAI Realtime Transcription
-    OPENAI_REALTIME_TRANSCRIPTION_MODEL: str = "gpt-4o-transcribe"
+    # OPENAI_REALTIME_TRANSCRIPTION_MODEL: str = "gpt-4o-transcribe"
+    OPENAI_REALTIME_TRANSCRIPTION_MODEL: str = "gpt-live-transcribe"
     OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE: str = "vi"
     OPENAI_REALTIME_TRANSCRIPTION_PROMPT: str = "Vietnamese audio in the TRIAM audiobook study app. Expect terms: Tri Âm, chương, sách, định lý, phương pháp, GPT, Gemini."
     OPENAI_REALTIME_DYNAMIC_TRANSCRIPTION_PROMPT_ENABLED: bool = True
