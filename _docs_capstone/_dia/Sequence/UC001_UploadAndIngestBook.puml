@@ -1,0 +1,54 @@
+@startuml SequenceUploadAndIngestBook
+
+actor "User" as user
+boundary "UI: Giao upload sách" as ui_app
+control "Ctrl: Ingestion service" as ctrl_ingest
+control "Ctrl: Validator" as ctrl_val
+control "Ctrl: Outline extractor" as ctrl_parser
+entity "PostgreSQL DB" as db
+entity "Storage" as storage
+
+activate user
+user -> ui_app: Chọn tài liệu thô và tải lên
+activate ui_app
+
+ui_app -> ctrl_ingest: Upload sách
+activate ctrl_ingest
+
+ctrl_ingest -> storage: Lưu file
+activate storage
+storage --> ctrl_ingest: Return file path
+deactivate storage
+
+ctrl_ingest -> ctrl_val: Validation Gate
+activate ctrl_val
+
+alt#Gold #Pink Tài liệu không hợp lệ
+    ctrl_val --> ctrl_ingest: Báo lỗi invalid
+    ctrl_ingest --> ui_app: Hiển thị lỗi
+    ui_app --> user: Hiển thị lỗi
+else #LightBlue Tài liệu hợp lệ
+    ctrl_val --> ctrl_ingest: Xác nhận tài liệu hợp lệ
+    deactivate ctrl_val
+
+    ctrl_ingest -> ctrl_parser: Trích xuất BookSection
+    activate ctrl_parser
+    ctrl_parser -> ctrl_parser: Phân tách cấu trúc sách
+    ctrl_parser --> ctrl_ingest: Cấu trúc cây BookSection
+    deactivate ctrl_parser
+
+    ctrl_ingest -> db: Tạo Book DRAFT và danh sách BookSection
+    activate db
+    db --> ctrl_ingest: Xác nhận lưu CSDL thành công
+    deactivate db
+
+    ctrl_ingest --> ui_app: Trả về thông tin sách và\ncây mục lục xem trước
+    deactivate ctrl_ingest
+
+    ui_app --> user: Hiển thị mục lục xem trước\nsẵn sàng lập kế hoạch
+end
+
+deactivate ui_app
+deactivate user
+
+@enduml

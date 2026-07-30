@@ -1,0 +1,61 @@
+@startuml SequenceRealtimeVoiceAgentRAG
+
+actor "User" as user
+boundary "UI: Giao diện đàm thoại AI" as ui_voice
+control "LiveKit WebRTC Server" as livekit
+control "LiveKit Voice Agent Worker" as agent
+control "RAG service" as rag
+control "Google Gemini LLM" as llm
+control "Web Search service" as web_search
+
+activate user
+user -> ui_voice: Bắt đầu phiên đàm thoại
+activate ui_voice
+
+ui_voice -> livekit: Connect room WebRTC
+activate livekit
+livekit --> ui_voice: Connnect success
+deactivate livekit
+
+user -> ui_voice: User voice
+ui_voice -> agent: Audio stream
+activate agent
+
+agent -> agent: Agent hiểu lại query người dùng
+agent -> rag: Hybrid RAG
+activate rag
+rag -> rag: Hybrid Search
+rag --> agent: Chunks reranked
+deactivate rag
+
+alt#Gold #LightBlue Tri thức có sẵn trong nội dung sách
+    agent -> llm: Đóng gói context cùng các chunk
+    activate llm
+    llm --> agent: Nội dung câu trả lời chuẩn xác
+    deactivate llm
+else #Pink Tri thức nằm ngoài phạm vi nội dung sách
+    agent -> ui_voice: Web Search Permission
+    ui_voice --> user: Yêu cầu cấp quyền
+    user -> ui_voice: Đồng ý cấp quyền 
+    ui_voice -> agent: Xác nhận đã cấp quyền
+
+    agent -> web_search: Web Search
+    activate web_search
+    web_search --> agent: Kết quả từ search web
+    deactivate web_search
+
+    agent -> llm: Tổng hợp phản hồi từ kết quả tìm kiếm
+    activate llm
+    llm --> agent: Phản hồi
+    deactivate llm
+end
+
+agent -> agent: Tổng hợp văn bản thành âm thanh (Text-to-Speech)
+agent -> ui_voice: Audio stream
+ui_voice --> user: Audio stream
+
+deactivate agent
+deactivate ui_voice
+deactivate user
+
+@enduml

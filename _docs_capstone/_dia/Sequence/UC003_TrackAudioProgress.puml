@@ -1,0 +1,65 @@
+@startuml SequenceTrackAudioProgress
+
+actor "User" as user
+boundary "UI: Trình phát Audio" as ui_player
+control "Ctrl: Dịch vụ tiến độ học tập" as ctrl_progress
+control "Ctrl: Throttling Filter" as ctrl_throttle
+entity "PostgreSQL DB" as db
+
+activate user
+user -> ui_player: Audio stream
+activate ui_player
+
+loop Theo dõi nghe thời gian thực
+    ui_player -> ctrl_progress: Gửi thời gian nghe hiện tại
+    activate ctrl_progress
+
+    ctrl_progress -> ctrl_progress: Tính tiến độ nghe tích lũy
+    ctrl_progress -> ctrl_progress: Cập nhật tiến độ cao nhất
+
+    ctrl_progress -> ctrl_throttle: Kiểm tra Throttling Filter
+    activate ctrl_throttle
+
+    alt#Gold #Pink Không thỏa điều kiện lưu
+        ctrl_throttle --> ctrl_progress: Bỏ qua ghi CSDL
+    else #LightBlue Thỏa điều kiện lưu
+        ctrl_throttle --> ctrl_progress: Ghi CSDL
+        deactivate ctrl_throttle
+
+        ctrl_progress -> db: Cập nhật tiến trình học
+        activate db
+        db --> ctrl_progress: Xác nhận lưu tiến độ
+        deactivate db
+    end
+
+    alt#Gold #LightGreen Bài học đạt ngưỡng hoàn thành (max_progress_percent >= 80%)
+        ctrl_progress -> db: Cập nhật trạng thái bài học = COMPLETED
+        activate db
+        db --> ctrl_progress: Xác nhận hoàn thành bài học
+        deactivate db
+
+        ctrl_progress -> ctrl_progress: Kích hoạt tạo mốc ôn tập ngắt quãng
+        ctrl_progress -> db: Cập nhật trạng thái tổng thể sách
+        activate db
+        db --> ctrl_progress: Trạng thái sách đã cập nhật
+        deactivate db
+    end
+
+    ctrl_progress --> ui_player: Trả về trạng thái tiến độ mới nhất
+    deactivate ctrl_progress
+    ui_player --> user: Cập nhật thanh tiến độ
+end
+
+== Trường hợp User tua ngược Audio ==
+user -> ui_player: Tua ngược về vị trí nghe trước đó
+ui_player -> ctrl_progress: Gửi vị trí nghe mới
+activate ctrl_progress
+ctrl_progress -> ctrl_progress: Tiến độ hiện tại giảm\nnhưng max_progress_percent không đổi
+ctrl_progress --> ui_player: Bảo toàn trạng thái COMPLETED
+deactivate ctrl_progress
+ui_player --> user: Phát âm thanh bình thường\ntiến độ hoàn thành được bảo toàn
+
+deactivate ui_player
+deactivate user
+
+@enduml

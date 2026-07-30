@@ -1,0 +1,78 @@
+@startuml SequenceSpacedRepetitionNotification
+
+actor "User" as user
+boundary "UI: Thông báo di động" as ui_mobile
+control "Ctrl: Dịch vụ ôn tập SRS" as ctrl_srs
+control "Celery Beat" as beat
+control "Notification Worker" as worker
+entity "PostgreSQL DB" as db
+entity "Redis Queue" as redis
+entity "Firebase FCM" as fcm
+
+activate ctrl_srs
+== Giai đoạn 1: Khởi tạo mốc ôn tập ngắt quãng ==
+ctrl_srs -> db: Bài học đạt trạng thái COMPLETED
+activate db
+db --> ctrl_srs: Xác nhận sự kiện bài học hoàn thành
+deactivate db
+
+ctrl_srs -> ctrl_srs: Tính toán mốc thời gian ôn tập
+ctrl_srs -> db: Tạo mốc ôn tiếp theo
+activate db
+db --> ctrl_srs: Đã tạo mốc ôn tập
+deactivate db
+
+ctrl_srs -> db: Lưu event vào notification_outbox
+activate db
+db --> ctrl_srs: Lưu thành công
+deactivate db
+deactivate ctrl_srs
+
+== Giai đoạn 2: Quét và phân phối thông báo ==
+loop Quét định kỳ mỗi 60 giây
+    beat -> db: Quét các thông báo đến hạn\n(scheduled_at <= now AND status = PENDING)
+    activate beat
+    activate db
+    db --> beat: Danh sách các thông báo cần gửi
+    deactivate db
+
+    beat -> redis: Đẩy tác vụ gửi thông báo vào queue
+    activate redis
+    redis --> beat: Xác nhận đẩy hàng đợi
+    deactivate redis
+    deactivate beat
+
+    worker -> redis: Nhận tác vụ từ hàng đợi
+    activate worker
+    activate redis
+    redis --> worker: Dữ liệu tác vụ thông báo
+    deactivate redis
+
+    worker -> fcm: Gửi thông báo đẩy qua FCM
+    activate fcm
+
+    alt#Gold #LightBlue Gửi thông báo thành công
+        fcm --> worker: Phản hồi thành công
+        worker -> db: Cập nhật status = SENT
+        activate db
+        db --> worker: Trạng thái đã gửi được ghi nhận
+        deactivate db
+
+        fcm -> ui_mobile: Phát thông báo đẩy đến thiết bị di động
+        activate ui_mobile
+        ui_mobile --> user: Hiển thị thông báo
+        deactivate ui_mobile
+    else #Pink FCM lỗi hoặc thiết bị mất mạng
+        fcm --> worker: Phản hồi thất bại 
+        deactivate fcm
+        worker -> db: Cập nhật status = FAILED
+        activate db
+        db --> worker: Ghi nhận lỗi và lên lịch thử lại
+        deactivate db
+    end
+    deactivate worker
+end
+
+deactivate user
+
+@enduml

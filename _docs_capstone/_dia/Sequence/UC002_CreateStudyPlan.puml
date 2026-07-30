@@ -1,0 +1,59 @@
+@startuml SequenceCreateStudyPlan
+
+actor "User" as user
+boundary "UI: Cấu hình kế hoạch" as ui_plan
+control "Ctrl: Dịch vụ kế hoạch đọc" as ctrl_plan
+control "Ctrl: Thuật toán lập bài học" as ctrl_planner
+control "Ctrl: Celery Worker" as ctrl_worker
+entity "PostgreSQL DB" as db
+entity "Redis Queue" as redis
+
+activate user
+user -> ui_plan: Chọn chế độ học (Full/Pareto)\nthứ học, giờ nhắc nhở
+activate ui_plan
+
+ui_plan -> ctrl_plan: Yêu cầu lập kế hoạch\n(POST /generate-plan)
+activate ctrl_plan
+
+ctrl_plan -> db: Lưu bảng kế hoạch
+activate db
+db --> ctrl_plan: Lưu thành công
+deactivate db
+
+alt#Gold #LightBlue Full Mode
+    ctrl_plan -> ctrl_planner: Gọi giải thuật Heuristic gộp/tách đề mục
+    activate ctrl_planner
+    ctrl_planner -> ctrl_planner: Quét cây BookSection\nphân tách/gộp theo ngưỡng token
+    ctrl_planner --> ctrl_plan: Danh sách LearningUnit
+    deactivate ctrl_planner
+else #LightGreen Pareto Mode
+    ctrl_plan -> ctrl_planner: Gọi giải thuật Pareto Planner
+    activate ctrl_planner
+    ctrl_planner -> ctrl_planner: Trích xuất SectionCard\nĐánh nhãn với Cosine Similarity
+    ctrl_planner -> ctrl_planner: Gọi LLM sinh bài học
+    ctrl_planner --> ctrl_plan: Danh sách LearningUnit
+    deactivate ctrl_planner
+end
+
+ctrl_plan -> db: Lưu danh sách LearningUnit và liên kết nguồn
+activate db
+db --> ctrl_plan: Xác nhận lưu thành công
+deactivate db
+
+ctrl_plan -> ctrl_worker: Khởi tạo tác vụ TTS
+activate ctrl_worker
+ctrl_worker -> redis: Đẩy tác vụ vào queue "document"
+activate redis
+redis --> ctrl_worker: Xác nhận đã nhận tác vụ
+deactivate redis
+ctrl_worker --> ctrl_plan: Trả về job background tasks
+deactivate ctrl_worker
+
+ctrl_plan --> ui_plan: Kế hoạch học tập hoàn chỉnh
+deactivate ctrl_plan
+
+ui_plan --> user: Hiển thị lộ trình bài học\ntiến trình sinh audio ngầm
+deactivate ui_plan
+deactivate user
+
+@enduml
