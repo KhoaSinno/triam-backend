@@ -5,7 +5,7 @@ boundary "UI: Giao upload sách" as ui_app
 control "Ctrl: Ingestion service" as ctrl_ingest
 control "Ctrl: Validator" as ctrl_val
 control "Ctrl: Outline extractor" as ctrl_parser
-entity "PostgreSQL DB" as db
+entity "PostgreSQL" as db
 entity "Storage" as storage
 
 activate user
@@ -42,10 +42,10 @@ else #LightBlue Tài liệu hợp lệ
     db --> ctrl_ingest: Xác nhận lưu CSDL thành công
     deactivate db
 
-    ctrl_ingest --> ui_app: Trả về thông tin sách và\ncây mục lục xem trước
+    ctrl_ingest --> ui_app: BookSection preview
     deactivate ctrl_ingest
 
-    ui_app --> user: Hiển thị mục lục xem trước\nsẵn sàng lập kế hoạch
+    ui_app --> user: BookSection preview
 end
 
 deactivate ui_app

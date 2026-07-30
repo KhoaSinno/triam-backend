@@ -2,10 +2,10 @@
 
 actor "User" as user
 boundary "UI: Thông báo di động" as ui_mobile
-control "Ctrl: Dịch vụ ôn tập SRS" as ctrl_srs
+control "Ctrl: Dịch vụ ôn tập" as ctrl_srs
 control "Celery Beat" as beat
 control "Notification Worker" as worker
-entity "PostgreSQL DB" as db
+entity "PostgreSQL" as db
 entity "Redis Queue" as redis
 entity "Firebase FCM" as fcm
 

@@ -4,10 +4,10 @@ actor "User" as user
 boundary "UI: Trình phát Audio" as ui_player
 control "Ctrl: Dịch vụ tiến độ học tập" as ctrl_progress
 control "Ctrl: Throttling Filter" as ctrl_throttle
-entity "PostgreSQL DB" as db
+entity "PostgreSQL" as db
 
 activate user
-user -> ui_player: Audio stream
+user -> ui_player: Nghe audio bài học
 activate ui_player
 
 loop Theo dõi nghe thời gian thực
@@ -57,7 +57,7 @@ activate ctrl_progress
 ctrl_progress -> ctrl_progress: Tiến độ hiện tại giảm\nnhưng max_progress_percent không đổi
 ctrl_progress --> ui_player: Bảo toàn trạng thái COMPLETED
 deactivate ctrl_progress
-ui_player --> user: Phát âm thanh bình thường\ntiến độ hoàn thành được bảo toàn
+ui_player --> user: Tiến độ hoàn thành được bảo toàn
 
 deactivate ui_player
 deactivate user
