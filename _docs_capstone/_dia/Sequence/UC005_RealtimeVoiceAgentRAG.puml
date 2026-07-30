@@ -1,12 +1,13 @@
 @startuml SequenceRealtimeVoiceAgentRAG
 
 actor "User" as user
-boundary "UI: Giao diện đàm thoại AI" as ui_voice
-control "LiveKit WebRTC Server" as livekit
-control "LiveKit Voice Agent Worker" as agent
-control "RAG service" as rag
-control "Google Gemini LLM" as llm
-control "Web Search service" as web_search
+boundary "UI: Đàm thoại AI" as ui_voice
+control "LiveKit WebRTC\nServer" as livekit
+control "LiveKit Voice\nAgent Worker" as agent
+control "Semantic Grounding\nRouter" as router
+control "Hybrid RAG\nService" as rag
+entity "OpenAI Realtime" as openai
+control "Internet Search\nService" as internet_search
 
 activate user
 user -> ui_voice: Bắt đầu phiên đàm thoại
@@ -14,44 +15,56 @@ activate ui_voice
 
 ui_voice -> livekit: Connect room WebRTC
 activate livekit
-livekit --> ui_voice: Connnect success
+livekit --> ui_voice: Connect success
 deactivate livekit
 
-user -> ui_voice: User voice
-ui_voice -> agent: Audio stream
+ui_voice -> livekit: User Voice
+activate livekit
+livekit -> agent: Audio stream
 activate agent
+deactivate livekit
 
-agent -> agent: Agent hiểu lại query người dùng
-agent -> rag: Hybrid RAG
-activate rag
-rag -> rag: Hybrid Search
-rag --> agent: Chunks reranked
-deactivate rag
+agent -> router: Phân tích ý định
+activate router
+router -> router: Phân loại ý định
 
-alt#Gold #LightBlue Tri thức có sẵn trong nội dung sách
-    agent -> llm: Đóng gói context cùng các chunk
-    activate llm
-    llm --> agent: Nội dung câu trả lời chuẩn xác
-    deactivate llm
-else #Pink Tri thức nằm ngoài phạm vi nội dung sách
-    agent -> ui_voice: Web Search Permission
+alt#Gold #LightBlue Câu hỏi thuộc phạm vi sách
+    router -> rag: Hybrid RAG retrieval
+    deactivate router
+    activate rag
+    rag -> rag: RRF\nCohere Reranker
+    rag --> agent: Chunks reranked
+    deactivate rag
+
+    agent -> openai: Đóng gói context cùng các chunk
+    activate openai
+    openai --> agent: Audio stream
+    deactivate openai
+else #Pink Câu hỏi nằm ngoài phạm vi sách
+    router --> agent: Yêu cầu Internet search
+    deactivate router
+
+    agent -> ui_voice: Internet Search Permission
     ui_voice --> user: Yêu cầu cấp quyền
-    user -> ui_voice: Đồng ý cấp quyền 
+    user -> ui_voice: Đồng ý cấp quyền
     ui_voice -> agent: Xác nhận đã cấp quyền
 
-    agent -> web_search: Web Search
-    activate web_search
-    web_search --> agent: Kết quả từ search web
-    deactivate web_search
+    agent -> internet_search: Internet Search
+    activate internet_search
+    internet_search --> agent: Kết quả từ Internet search
+    deactivate internet_search
 
-    agent -> llm: Tổng hợp phản hồi từ kết quả tìm kiếm
-    activate llm
-    llm --> agent: Phản hồi
-    deactivate llm
+    agent -> openai: Tổng hợp phản hồi từ kết quả tìm kiếm
+    activate openai
+    openai --> agent: Luồng phản hồi âm thanh thời gian thực
+    deactivate openai
 end
 
-agent -> agent: Tổng hợp văn bản thành âm thanh (Text-to-Speech)
-agent -> ui_voice: Audio stream
+agent -> livekit: Audio stream
+activate livekit
+livekit -> ui_voice: Audio stream
+deactivate livekit
+
 ui_voice --> user: Audio stream
 
 deactivate agent
