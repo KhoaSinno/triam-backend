@@ -1,4 +1,5 @@
 @startuml SequenceTrackAudioProgress
+skinparam shadowing false
 
 actor "User" as user
 boundary "UI: Trình phát Audio" as ui_player

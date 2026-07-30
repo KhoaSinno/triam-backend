@@ -1,4 +1,5 @@
 @startuml SequenceSpacedRepetitionNotification
+skinparam shadowing false
 
 actor "User" as user
 boundary "UI: Thông báo di động" as ui_mobile

@@ -1,4 +1,5 @@
 @startuml SequenceCreateStudyPlan
+skinparam shadowing false
 
 actor "User" as user
 boundary "UI: Cấu hình kế hoạch" as ui_plan

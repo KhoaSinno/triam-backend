@@ -1,4 +1,5 @@
 @startuml SequenceUploadAndIngestBook
+skinparam shadowing false
 
 actor "User" as user
 boundary "UI: Giao upload sách" as ui_app

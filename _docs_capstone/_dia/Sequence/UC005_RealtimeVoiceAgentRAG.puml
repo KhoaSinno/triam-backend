@@ -1,4 +1,5 @@
 @startuml SequenceRealtimeVoiceAgentRAG
+skinparam shadowing false
 
 actor "User" as user
 boundary "UI: Đàm thoại AI" as ui_voice
