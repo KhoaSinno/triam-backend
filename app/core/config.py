@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     GOOGLE_TTS_ENABLE_COST_LOG: bool = True
     LIVEKIT_API_KEY: str
     LIVEKIT_API_SECRET: str
-    LIVEKIT_AGENT_NAME: str
+    LIVEKIT_AGENT_NAME: str = "triam-agent-livekit"
     LIVEKIT_ROOM_EMPTY_TIMEOUT_SECONDS: int = 60
     LIVEKIT_ROOM_DEPARTURE_TIMEOUT_SECONDS: int = 20
     LIVEKIT_AGENT_EMPTY_ROOM_GRACE_SECONDS: float = 8.0
@@ -62,11 +62,12 @@ class Settings(BaseSettings):
     AI_SUMMARY_AUTO_ENQUEUE_ENABLED: bool = True
 
     # Realtime voice agent behavior
-    OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-mini"
+    OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-2.1-mini"
     OPENAI_REALTIME_VOICE: str = "cedar"
     # Text and local console test behavior
     VOICE_AGENT_HISTORY_LIMIT: int = 24
-    VOICE_AGENT_RAG_MAX_CHARS: int = 12000
+    VOICE_AGENT_RAG_MAX_CHARS: int = 32000
+
     # Local console fallback only. Production LiveKit rooms must provide
     # thread_id and document_ids through job metadata from the backend token flow.
     VOICE_AGENT_CONSOLE_BOOK_ID: str = "c3f13d07-4494-4995-ba75-30a12589b8fc"
@@ -87,6 +88,7 @@ class Settings(BaseSettings):
     VOICE_AGENT_LOG_TRANSCRIPT_TEXT: bool = True
     VOICE_AGENT_DEDUPE_WINDOW_SECONDS: int = 3
     VOICE_AGENT_WEB_PERMISSION_TTL_SECONDS: int = 180
+
     # Policy websearch
     VOICE_AGENT_WEB_IMPLICIT_GRANT_WINDOW_SECONDS: int = 20
     VOICE_AGENT_WEB_RESULT_CACHE_TTL_SECONDS: int = 120
@@ -97,12 +99,14 @@ class Settings(BaseSettings):
     VOICE_AGENT_QUERY_GUARD_ENABLED: bool = True
     VOICE_AGENT_QUERY_GUARD_MIN_CHARS: int = 6
     VOICE_AGENT_QUERY_GUARD_MIN_TOKENS: int = 2
+
     VOICE_AGENT_QUERY_GUARD_TRANSCRIPT_TTL_SECONDS: float = 15.0
     VOICE_AGENT_QUERY_GUARD_LOG_DETAILS: bool = True
     VOICE_AGENT_CLARIFICATION_STATE_ENABLED: bool = True
     VOICE_AGENT_CLARIFICATION_STATE_TTL_SECONDS: float = 30.0
     VOICE_AGENT_CLARIFICATION_CONFIRMATION_MAX_TOKENS: int = 4
     VOICE_AGENT_CLARIFICATION_MIN_QUERY_PROMPT_OVERLAP: float = 0.45
+
     VOICE_AGENT_ASSISTANT_CLARIFICATION_HEURISTIC_ENABLED: bool = False
     VOICE_AGENT_INTERRUPTION_MIN_DURATION_SECONDS: float = 0.8
     VOICE_AGENT_INTERRUPTION_MIN_WORDS: int = 2
@@ -110,14 +114,15 @@ class Settings(BaseSettings):
     VOICE_AGENT_PREEMPTIVE_GENERATION_ENABLED: bool = False
 
     # Phase 10.11 Voice Tool Reply Watchdog config
-    VOICE_AGENT_TOOL_REPLY_WATCHDOG_ENABLED: bool = True
+    VOICE_AGENT_TOOL_REPLY_WATCHDOG_ENABLED: bool = False
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_GRACE_SECONDS: float = 8.0
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_THINKING_GRACE_SECONDS: float = 12.0
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_TOOLS: str = "search_book_knowledge,ask_web_search_permission,execute_web_search"
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_ALLOW_ERROR_OUTPUTS: bool = False
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_FORCE_TOOL_CHOICE_NONE: bool = True
     VOICE_AGENT_CLOSE_ON_DISCONNECT: bool = False
-
+    
+    # Phase 10.0 safe agent trace. It never logs raw transcript, answer, or source content.
     AGENT_MODEL_PROFILE: str = "baseline"
     AGENT_TRACE_ENABLED: bool = True
     AGENT_TRACE_SCORE_PRECISION: int = 4
@@ -127,7 +132,8 @@ class Settings(BaseSettings):
     AGENT_INTENT_CLASSIFIER_MODEL: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     AGENT_INTENT_CLASSIFIER_THRESHOLD: float = 0.60
     AGENT_SECTION_CONTEXT_MAX_CHARS: int = 24000
-
+    
+    # Phase 10.3 hybrid retrieval. Keep disabled until search_text is backfilled.
     AGENT_HYBRID_MIN_FINAL_SCORE: float = 0.25
     AGENT_HYBRID_LEXICAL_CANDIDATES: int = 20
     AGENT_HYBRID_MAX_CONTEXT_CHUNKS: int = 12
@@ -161,15 +167,18 @@ class Settings(BaseSettings):
     CELERY_LOG_LEVEL: str = "info"
     CELERY_VISIBILITY_TIMEOUT_SECONDS: int = 3600
     CELERY_WORKER_CANCEL_LONG_RUNNING_ON_CONNECTION_LOSS: bool = False
-    ENABLE_CELERY_WORKER: bool = False
-    ENABLE_NOTIFICATION_WORKER: bool = False
-    ENABLE_CELERY_BEAT: bool = False
+    
+    # WOKER WORKING
+    ENABLE_CELERY_WORKER: bool = True
+    ENABLE_NOTIFICATION_WORKER: bool = True
+    ENABLE_CELERY_BEAT: bool = True
 
     # Runtime process toggles
     ENABLE_VOICE_AGENT: bool = True
     RUN_MIGRATIONS_ON_START: bool = False
     UVICORN_RELOAD: bool = False
-    UV_NO_SYNC: bool = False
+    UV_NO_SYNC: bool = True
+    BACKEND_PORT: int = 7860 # HUGGINGFACE SPACE
 
     # LiveKit agent runtime hardening
     LIVEKIT_AGENT_JOB_EXECUTOR_TYPE: str = "thread"
