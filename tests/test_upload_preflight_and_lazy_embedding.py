@@ -86,7 +86,7 @@ def test_check_book_preflight_limits_valid():
 
 
 def test_check_book_preflight_limits_exceeded():
-    sections = [_create_mock_section_node(1, 35000)]
+    sections = [_create_mock_section_node(1, 100000)]
     is_valid, est_seconds, err_msg = check_book_preflight_limits(sections)
     assert is_valid is False
     assert est_seconds > settings.MAX_ESTIMATED_AUDIO_SECONDS_PER_BOOK
@@ -102,7 +102,7 @@ async def test_upload_document_preflight_audio_limit_rejection():
     mock_file.content_type = "application/pdf"
     mock_file.read = AsyncMock(return_value=b"mock pdf bytes")
 
-    large_sections = [_create_mock_section_node(i, 10000) for i in range(1, 5)]
+    large_sections = [_create_mock_section_node(i, 35000) for i in range(1, 4)]
     mock_parsed_doc = ParsedDocument(document_type="pdf", sections=large_sections)
 
     mock_file_handle = AsyncMock()

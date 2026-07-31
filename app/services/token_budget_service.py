@@ -23,14 +23,51 @@ def estimate_tokens(text: str) -> int:
 
 def estimate_audio_seconds(text: str) -> int:
     """
-    Conservative Vietnamese speech estimate.
-
-    130 words/minute avoids underestimating long audio generation cost.
+    Standard audiobook & TTS narration speech estimate (~150 WPM / 2.5 words per second).
     """
     words = len(text.split())
     if words == 0:
         return 0
-    return int(words / 130 * 60)
+    return int(words / 150 * 60)
+
+
+def extract_unique_book_text(flat_sections: list) -> str:
+    """
+    Khử trùng lặp nội dung khi gom tổng văn bản của sách từ flat_sections:
+    1. Nếu các section có `source_href` (file EPUB), deduplicate theo file HTML duy nhất.
+    2. Ngược lại (PDF/DOCX), gom text từ các node lá (leaf nodes) hoặc các block text không trùng lặp.
+    """
+    seen_hrefs: set[str] = set()
+    texts: list[str] = []
+
+    has_href = any(getattr(sec, "source_href", None) for sec in flat_sections)
+
+    if has_href:
+        for sec in flat_sections:
+            href = getattr(sec, "source_href", None)
+            if href:
+                if href not in seen_hrefs:
+                    seen_hrefs.add(href)
+                    t = (getattr(sec, "text", "") or getattr(sec, "content", "") or "").strip()
+                    if t:
+                        texts.append(t)
+            else:
+                if not getattr(sec, "children", None):
+                    t = (getattr(sec, "text", "") or getattr(sec, "content", "") or "").strip()
+                    if t:
+                        texts.append(t)
+    else:
+        for sec in flat_sections:
+            if not getattr(sec, "children", None):
+                t = (getattr(sec, "text", "") or getattr(sec, "content", "") or "").strip()
+                if t:
+                    texts.append(t)
+            elif (getattr(sec, "text", "") or getattr(sec, "content", "") or "").strip():
+                child_texts = [(getattr(c, "text", "") or getattr(c, "content", "") or "").strip() for c in getattr(sec, "children", [])]
+                if not any(child_texts):
+                    texts.append((getattr(sec, "text", "") or getattr(sec, "content", "") or "").strip())
+
+    return " ".join(texts)
 
 
 def estimate_text_budget(text: str) -> TextBudget:
@@ -56,12 +93,12 @@ def check_book_preflight_limits(flat_sections: list) -> tuple[bool, int, str | N
     Trả về:
         (is_valid, estimated_audio_seconds, error_message)
     """
-    total_text = " ".join([getattr(sec, "content", None) or getattr(sec, "text", "") or "" for sec in flat_sections])
-    words = len(total_text.split())
+    unique_text = extract_unique_book_text(flat_sections)
+    words = len(unique_text.split())
     if words == 0:
         return True, 0, None
 
-    estimated_audio_seconds = estimate_audio_seconds(total_text)
+    estimated_audio_seconds = estimate_audio_seconds(unique_text)
     max_allowed_seconds = settings.MAX_ESTIMATED_AUDIO_SECONDS_PER_BOOK
 
     if estimated_audio_seconds > max_allowed_seconds:

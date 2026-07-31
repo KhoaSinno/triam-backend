@@ -59,7 +59,7 @@ class Settings(BaseSettings):
     TOTAL_TOKEN_LIMIT: int = 800_000
     AI_SUMMARY_MAX_RETRIES: int = 2
     AI_SUMMARY_RETRY_DELAY_SECONDS: int = 15
-    AI_SUMMARY_AUTO_ENQUEUE_ENABLED: bool = True
+    AI_SUMMARY_AUTO_ENQUEUE_ENABLED: bool = False
 
     # Realtime voice agent behavior
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-2.1-mini"
@@ -194,7 +194,7 @@ class Settings(BaseSettings):
     LLM_INPUT_HARD_TOKEN_LIMIT: int = 150000
     LLM_CHUNK_TARGET_TOKENS: int = 5000
     LLM_CHUNK_OVERLAP_TOKENS: int = 300
-    MAX_ESTIMATED_AUDIO_SECONDS_PER_BOOK: int = 4 * 60 * 60
+    MAX_ESTIMATED_AUDIO_SECONDS_PER_BOOK: int = 10 * 60 * 60
     FIRST_PLAYABLE_UNITS: int = 1
 
     # Provider concurrency
