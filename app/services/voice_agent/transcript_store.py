@@ -60,13 +60,15 @@ class VoiceTranscriptStore:
         role: TranscriptRole,
         text: str,
         *,
+        transcript_id: uuid.UUID | None = None,
         message_id: uuid.UUID | None = None,
+        status: str = "committed",
     ) -> None:
         normalized = normalize_transcript_text(text)
         if not normalized or not self._room.isconnected():
             return
 
-        transcript_id = message_id or uuid.uuid4()
+        transcript_id = transcript_id or message_id or uuid.uuid4()
         payload = {
             "v": 1,
             "type": "transcript",
@@ -76,7 +78,7 @@ class VoiceTranscriptStore:
             "message_id": str(message_id) if message_id else None,
             "thread_id": str(self._thread_id) if self._thread_id else None,
             "source": "livekit",
-            "status": "committed",
+            "status": status,
             "ts": datetime.now(timezone.utc).isoformat(),
         }
         try:
@@ -99,8 +101,10 @@ class VoiceTranscriptStore:
             return False
         self._seen_user_texts[normalized] = now
 
+        transcript_id = uuid.uuid4()
+        await self.publish_transcript("user", normalized, transcript_id=transcript_id, status="pending")
         message_id = await self._save_message_for_transcript(normalized, True)
-        await self.publish_transcript("user", normalized, message_id=message_id)
+        await self.publish_transcript("user", normalized, transcript_id=transcript_id, message_id=message_id)
         return True
 
     async def save_and_publish_assistant(self, text: str) -> bool:
@@ -108,8 +112,10 @@ class VoiceTranscriptStore:
         if not normalized:
             return False
 
+        transcript_id = uuid.uuid4()
+        await self.publish_transcript("assistant", normalized, transcript_id=transcript_id, status="pending")
         message_id = await self._save_message_for_transcript(normalized, False)
-        await self.publish_transcript("assistant", normalized, message_id=message_id)
+        await self.publish_transcript("assistant", normalized, transcript_id=transcript_id, message_id=message_id)
         return True
 
     async def load_recent_history(self, limit: int) -> list[ChatMessage]:
