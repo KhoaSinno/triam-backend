@@ -6,11 +6,8 @@ from dataclasses import dataclass
 from app.core.config import settings
 from app.core.constant import PlanMode
 from app.models.db_models import BookSection
+from app.services.pareto_planner_service import plan_pareto_learning_units
 from app.services.token_budget_service import estimate_text_budget
-
-FULL_UNIT_TARGET_TOKENS = 5000
-FULL_UNIT_MAX_TOKENS = 12000
-MIN_UNIT_TOKENS = 300
 
 
 @dataclass(frozen=True)
@@ -74,8 +71,9 @@ def _split_large_group(
     source_sections: list[BookSection],
     unit_type: str,
     *,
-    max_tokens: int = FULL_UNIT_MAX_TOKENS,
+    max_tokens: int | None = None,
 ) -> list[PlannedLearningUnit]:
+    limit_tokens = max_tokens if max_tokens is not None else settings.FULL_UNIT_MAX_TOKENS
     chunks: list[list[BookSection]] = []
     current: list[BookSection] = []
     current_tokens = 0
@@ -83,7 +81,7 @@ def _split_large_group(
     for section in sorted(source_sections, key=lambda item: item.section_index):
         section_text = section.text_content or ""
         section_tokens = estimate_text_budget(section_text).estimated_tokens if section_text.strip() else 0
-        if current and current_tokens > 0 and current_tokens + section_tokens > max_tokens:
+        if current and current_tokens > 0 and current_tokens + section_tokens > limit_tokens:
             chunks.append(current)
             current = []
             current_tokens = 0
@@ -138,9 +136,9 @@ def _merge_tiny_units(units: list[PlannedLearningUnit]) -> list[PlannedLearningU
         buffer.clear()
 
     for unit in units:
-        if unit.estimated_tokens < MIN_UNIT_TOKENS:
+        if unit.estimated_tokens < settings.MIN_UNIT_TOKENS:
             buffer.append(unit)
-            if sum(item.estimated_tokens for item in buffer) >= MIN_UNIT_TOKENS:
+            if sum(item.estimated_tokens for item in buffer) >= settings.MIN_UNIT_TOKENS:
                 flush()
             continue
         flush()
@@ -164,8 +162,8 @@ def _plan_full_from_roots(roots: list[BookSection], children: dict[uuid.UUID | N
         unit = _make_unit(root.title, "full_chapter", subtree, "Full mode giữ đầy đủ nội dung trong cụm mục gốc.")
         if not unit:
             continue
-        if unit.estimated_tokens > FULL_UNIT_MAX_TOKENS:
-            units.extend(_split_large_group(root.title, subtree, "full_group", max_tokens=FULL_UNIT_MAX_TOKENS))
+        if unit.estimated_tokens > settings.FULL_UNIT_MAX_TOKENS:
+            units.extend(_split_large_group(root.title, subtree, "full_group", max_tokens=settings.FULL_UNIT_MAX_TOKENS))
         else:
             units.append(unit)
     return units
@@ -177,7 +175,7 @@ def _plan_full_from_flat_sections(sections: list[BookSection]) -> list[PlannedLe
     current_tokens = 0
     for section in sorted(sections, key=lambda item: item.section_index):
         section_tokens = estimate_text_budget(section.text_content or "").estimated_tokens
-        if current and current_tokens + section_tokens > FULL_UNIT_TARGET_TOKENS:
+        if current and current_tokens + section_tokens > settings.FULL_UNIT_TARGET_TOKENS:
             unit = _make_unit(current[0].title, "full_group", current, "Gộp outline phẳng thành bài nghe theo kích thước hợp lý.")
             if unit:
                 units.append(unit)
@@ -208,5 +206,4 @@ async def plan_learning_units_async(sections: list[BookSection], mode: PlanMode 
     if mode_value == PlanMode.FULL:
         return plan_full_learning_units(sections)
 
-    from app.services.pareto_planner_service import plan_pareto_learning_units
     return await plan_pareto_learning_units(sections)

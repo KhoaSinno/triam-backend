@@ -194,6 +194,10 @@ class Settings(BaseSettings):
     LLM_INPUT_HARD_TOKEN_LIMIT: int = 150000
     LLM_CHUNK_TARGET_TOKENS: int = 5000
     LLM_CHUNK_OVERLAP_TOKENS: int = 300
+    # Full mode config
+    FULL_UNIT_TARGET_TOKENS: int = 5000
+    FULL_UNIT_MAX_TOKENS: int = 12000
+    MIN_UNIT_TOKENS: int = 300
     MAX_ESTIMATED_AUDIO_SECONDS_PER_BOOK: int = 10 * 60 * 60
     FIRST_PLAYABLE_UNITS: int = 1
 

@@ -1,6 +1,4 @@
-# Kịch Bản Đánh Giá Thực Nghiệm Đa Lượt Giọng Nói
-
-Dưới đây là bảng kịch bản đàm thoại liên tục (mỗi ngữ cảnh gồm 20 câu hỏi thử nghiệm từ người dùng, tổng cộng 60 câu hỏi đánh giá) phục vụ đánh giá toàn diện các luồng định tuyến tri thức, xử lý ngữ cảnh, và quản lý chính sách bảo mật Web trong hệ thống trợ lý học tập TRIAM. Bảng này được thiết kế định dạng chuẩn để phục vụ việc trích xuất và đưa vào phần Đánh giá thực nghiệm của Luận văn tốt nghiệp.
+# PHỤC LỤC KỊCH BẢN ĐÁNH GIÁ RAGAS
 
 <table border="1" style="border-collapse: collapse; width: 100%; font-family: Arial, sans-serif; margin-top: 15px;">
   <!-- Header Ngữ cảnh 1 -->

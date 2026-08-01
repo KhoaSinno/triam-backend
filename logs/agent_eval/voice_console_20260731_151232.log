@@ -1,0 +1,19 @@
+2026-07-31 15:12:32.667 | INFO     | app.db.database:create_db_engine:65 - Database engine configured with NullPool.
+2026-07-31 15:12:38.784 | INFO     | logging:callHandlers:1762 - starting worker
+2026-07-31 15:12:38.786 | INFO     | logging:callHandlers:1762 - plugin registered
+2026-07-31 15:12:38.789 | INFO     | logging:callHandlers:1762 - HTTP server listening on :57047
+2026-07-31 15:12:38.792 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-07-31 15:12:38.795 | INFO     | logging:callHandlers:1762 - job runner initialized
+2026-07-31 15:12:38.821 | ERROR    | logging:callHandlers:1762 - unhandled exception while running the job task
+Traceback (most recent call last):
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\opentelemetry\util\_decorator.py", line 71, in async_wrapper
+    return await func(*args, **kwargs)  # type: ignore
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\.venv\Lib\site-packages\livekit\agents\ipc\job_proc_lazy_main.py", line 323, in _traceable_entrypoint
+    await self._job_entrypoint_fnc(job_ctx)
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\app\services\agent_voice_gpt_realtime.py", line 667, in entrypoint
+    job_meta = _parse_job_metadata(ctx.job.metadata, ctx.room.name)
+  File "W:\WorkSpace_IT\_CAPSTON_PROJECT\triam-backend\app\services\agent_voice_gpt_realtime.py", line 202, in _parse_job_metadata
+    if not document_ids and settings.VOICE_AGENT_CONSOLE_BOOK_ID:
+AttributeError: 'Settings' object has no attribute 'VOICE_AGENT_CONSOLE_BOOK_ID'. Did you mean: 'VOICE_AGENT_CONSOLE_THREAD_ID'?
+2026-07-31 15:12:38.939 | INFO     | logging:callHandlers:1762 - initializing job runner
+2026-07-31 15:12:38.941 | INFO     | logging:callHandlers:1762 - job runner initialized

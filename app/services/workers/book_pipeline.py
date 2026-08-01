@@ -290,6 +290,7 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
         started_at=datetime.now(timezone.utc),
     )
 
+    # Priority Processing Unit firstable to listing immediately user
     first_count = min(total_units, max(1, settings.FIRST_PLAYABLE_UNITS))
     completed = 0
     for item in work_items[:first_count]:
@@ -318,6 +319,7 @@ async def _run_unit_pipeline(book_id: uuid.UUID, mode: str, job_id: uuid.UUID | 
             )
     _create_first_playable_notification_safely(book, mode_value.value)
 
+    # Processing remaining units except first unit
     remaining_items = work_items[first_count:]
     if remaining_items:
         tasks = [
