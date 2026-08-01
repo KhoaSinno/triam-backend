@@ -48,7 +48,9 @@ _docs_capstone/admin_img
 temp_logs
 scratch
 # Local/generated project material
-_codebase/
+_codebase/*
+!_codebase/session/
+
 scratch_*.py
 .codegraph/
 
