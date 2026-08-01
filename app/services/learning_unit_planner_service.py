@@ -6,7 +6,6 @@ from dataclasses import dataclass
 from app.core.config import settings
 from app.core.constant import PlanMode
 from app.models.db_models import BookSection
-from app.services.pareto_planner_service import plan_pareto_learning_units
 from app.services.token_budget_service import estimate_text_budget
 
 
@@ -206,4 +205,5 @@ async def plan_learning_units_async(sections: list[BookSection], mode: PlanMode 
     if mode_value == PlanMode.FULL:
         return plan_full_learning_units(sections)
 
+    from app.services.pareto_planner_service import plan_pareto_learning_units
     return await plan_pareto_learning_units(sections)
