@@ -1,6 +1,6 @@
 <mxfile host="65bd71144e">
     <diagram name="TRIAM UseCase Overview" id="triam-usecase-combined-page" background="#FFFFFF">
-        <mxGraphModel dx="1440" dy="3344" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2000" pageHeight="2100" math="0" shadow="0">
+        <mxGraphModel dx="720" dy="2722" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2000" pageHeight="2100" math="0" shadow="0">
             <root>
                 <mxCell id="0"/>
                 <mxCell id="1" parent="0"/>
@@ -21,14 +21,14 @@
                 <mxCell id="system_boundary" value="&amp;lt;b&amp;gt;Usecase hệ thống sách nói tương tác thông minh hỗ trợ học tập&amp;lt;/b&amp;gt;" style="swimlane;whiteSpace=wrap;html=1;startSize=35;horizontal=1;fillColor=#FFFFFF;strokeColor=#1E3A8A;fontStyle=0;fontSize=15;fontColor=#0F172A;swimlaneFillColor=#FFFFFF;" parent="1" vertex="1">
                     <mxGeometry x="140" y="-70" width="1660" height="1520" as="geometry"/>
                 </mxCell>
-                <mxCell id="UC_Login" value="Đăng nhập" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#334155;fontSize=12;fontColor=#0F172A;" vertex="1" parent="system_boundary">
-                    <mxGeometry x="60" y="80" width="160" height="50" as="geometry"/>
+                <mxCell id="UC_Login" value="&amp;lt;b&amp;gt;Đăng nhập&amp;lt;/b&amp;gt;" style="ellipse;whiteSpace=wrap;html=1;fillColor=#EFF6FF;strokeColor=#1D4ED8;fontSize=13;fontColor=#1E3A8A;strokeWidth=2;" vertex="1" parent="system_boundary">
+                    <mxGeometry x="750" y="750" width="160" height="55" as="geometry"/>
                 </mxCell>
                 <mxCell id="UC_Register" value="Đăng ký" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#334155;fontSize=12;fontColor=#0F172A;" vertex="1" parent="system_boundary">
-                    <mxGeometry x="380" y="80" width="150" height="45" as="geometry"/>
+                    <mxGeometry x="880" y="580" width="150" height="45" as="geometry"/>
                 </mxCell>
                 <mxCell id="UC_Logout" value="Đăng xuất" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#334155;fontSize=12;fontColor=#0F172A;" vertex="1" parent="system_boundary">
-                    <mxGeometry x="60" y="145" width="150" height="50" as="geometry"/>
+                    <mxGeometry x="580" y="752" width="130" height="50" as="geometry"/>
                 </mxCell>
                 <mxCell id="UC_ResetPass" value="Đổi mật khẩu" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#334155;fontSize=12;fontColor=#0F172A;" parent="system_boundary" vertex="1">
                     <mxGeometry x="60" y="210" width="160" height="50" as="geometry"/>
@@ -327,6 +327,108 @@
                 <mxCell id="UC_Audit" value="Xem nhật ký hệ thống" style="ellipse;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#334155;fontSize=12;fontColor=#0F172A;" parent="system_boundary" vertex="1">
                     <mxGeometry x="1300" y="1180" width="200" height="50" as="geometry"/>
                 </mxCell>
+                <mxCell id="8" style="endArrow=open;endSize=8;dashed=1;html=1;rounded=0;strokeWidth=1.2;strokeColor=#334155;entryX=1;entryY=0.5;entryDx=0;entryDy=0;exitX=0;exitY=0.5;exitDx=0;exitDy=0;" edge="1" parent="system_boundary" source="UC_AdminUser" target="UC_Login">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1132.569432832619" y="714.2126567161581" as="sourcePoint"/>
+                        <mxPoint x="1319.9975595566582" y="730.0047966297207" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="9" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#334155;labelBackgroundColor=#FFFFFF;" connectable="0" vertex="1" parent="8">
+                    <mxGeometry x="0.1" relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_inc_logout" style="endArrow=open;endSize=8;dashed=1;html=1;rounded=0;strokeWidth=1.2;strokeColor=#334155;" edge="1" parent="system_boundary" source="UC_Logout" target="UC_Login">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="lbl_inc_logout" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#334155;labelBackgroundColor=#FFFFFF;" connectable="0" vertex="1" parent="edge_inc_logout">
+                    <mxGeometry x="0.1" relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="10" style="endArrow=open;endSize=8;dashed=1;html=1;rounded=0;strokeWidth=1.2;strokeColor=#334155;entryX=0.258;entryY=0.089;entryDx=0;entryDy=0;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryPerimeter=0;" edge="1" parent="system_boundary" source="UC_Logout" target="UC_Login">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="1310.0000000000018" y="835" as="sourcePoint"/>
+                        <mxPoint x="980" y="805" as="targetPoint"/>
+                    </mxGeometry>
+                </mxCell>
+                <mxCell id="11" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#334155;labelBackgroundColor=#FFFFFF;" connectable="0" vertex="1" parent="10">
+                    <mxGeometry x="0.1" relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_inc_reset" style="endArrow=open;endSize=8;dashed=1;html=1;rounded=0;strokeWidth=1.2;strokeColor=#334155;" edge="1" parent="system_boundary" source="UC_ResetPass" target="UC_Login">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="lbl_inc_reset" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#334155;labelBackgroundColor=#FFFFFF;" connectable="0" vertex="1" parent="edge_inc_reset">
+                    <mxGeometry x="0.1" relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_inc_lib" style="endArrow=open;endSize=8;dashed=1;html=1;rounded=0;strokeWidth=1.2;strokeColor=#334155;" edge="1" parent="system_boundary" source="UC_Library" target="UC_Login">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="lbl_inc_lib" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#334155;labelBackgroundColor=#FFFFFF;" connectable="0" vertex="1" parent="edge_inc_lib">
+                    <mxGeometry x="0.1" relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_inc_plan" style="endArrow=open;endSize=8;dashed=1;html=1;rounded=0;strokeWidth=1.2;strokeColor=#334155;" edge="1" parent="system_boundary" source="UC_Plan" target="UC_Login">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="lbl_inc_plan" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#334155;labelBackgroundColor=#FFFFFF;" connectable="0" vertex="1" parent="edge_inc_plan">
+                    <mxGeometry x="0.1" relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_inc_listen" style="endArrow=open;endSize=8;dashed=1;html=1;rounded=0;strokeWidth=1.2;strokeColor=#334155;" edge="1" parent="system_boundary" source="UC_ListenProgress" target="UC_Login">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="lbl_inc_listen" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#334155;labelBackgroundColor=#FFFFFF;" connectable="0" vertex="1" parent="edge_inc_listen">
+                    <mxGeometry x="0.1" relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_inc_session" style="endArrow=open;endSize=8;dashed=1;html=1;rounded=0;strokeWidth=1.2;strokeColor=#334155;" edge="1" parent="system_boundary" source="UC_ManageSession" target="UC_Login">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="lbl_inc_session" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#334155;labelBackgroundColor=#FFFFFF;" connectable="0" vertex="1" parent="edge_inc_session">
+                    <mxGeometry x="0.1" relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_inc_ws" style="endArrow=open;endSize=8;dashed=1;html=1;rounded=0;strokeWidth=1.2;strokeColor=#334155;" edge="1" parent="system_boundary" source="UC_Workspace" target="UC_Login">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="lbl_inc_ws" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#334155;labelBackgroundColor=#FFFFFF;" connectable="0" vertex="1" parent="edge_inc_ws">
+                    <mxGeometry x="0.1" relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_inc_rev" style="endArrow=open;endSize=8;dashed=1;html=1;rounded=0;strokeWidth=1.2;strokeColor=#334155;" edge="1" parent="system_boundary" source="UC_Review" target="UC_Login">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="lbl_inc_rev" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#334155;labelBackgroundColor=#FFFFFF;" connectable="0" vertex="1" parent="edge_inc_rev">
+                    <mxGeometry x="0.1" relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_inc_noti" style="endArrow=open;endSize=8;dashed=1;html=1;rounded=0;strokeWidth=1.2;strokeColor=#334155;" edge="1" parent="system_boundary" source="UC_Notification" target="UC_Login">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="lbl_inc_noti" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#334155;labelBackgroundColor=#FFFFFF;" connectable="0" vertex="1" parent="edge_inc_noti">
+                    <mxGeometry x="0.1" relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_inc_adm_dash" style="endArrow=open;endSize=8;dashed=1;html=1;rounded=0;strokeWidth=1.2;strokeColor=#334155;" edge="1" parent="system_boundary" source="UC_AdminDashboard" target="UC_Login">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="lbl_inc_adm_dash" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#334155;labelBackgroundColor=#FFFFFF;" connectable="0" vertex="1" parent="edge_inc_adm_dash">
+                    <mxGeometry x="0.1" relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_inc_adm_cat" style="endArrow=open;endSize=8;dashed=1;html=1;rounded=0;strokeWidth=1.2;strokeColor=#334155;" edge="1" parent="system_boundary" source="UC_AdminCatalog" target="UC_Login">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="lbl_inc_adm_cat" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#334155;labelBackgroundColor=#FFFFFF;" connectable="0" vertex="1" parent="edge_inc_adm_cat">
+                    <mxGeometry x="0.1" relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_inc_adm_exp" style="endArrow=open;endSize=8;dashed=1;html=1;rounded=0;strokeWidth=1.2;strokeColor=#334155;" edge="1" parent="system_boundary" source="UC_ExportData" target="UC_Login">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="lbl_inc_adm_exp" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#334155;labelBackgroundColor=#FFFFFF;" connectable="0" vertex="1" parent="edge_inc_adm_exp">
+                    <mxGeometry x="0.1" relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_inc_adm_job" style="endArrow=open;endSize=8;dashed=1;html=1;rounded=0;strokeWidth=1.2;strokeColor=#334155;" edge="1" parent="system_boundary" source="UC_AdminJob" target="UC_Login">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="lbl_inc_adm_job" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#334155;labelBackgroundColor=#FFFFFF;" connectable="0" vertex="1" parent="edge_inc_adm_job">
+                    <mxGeometry x="0.1" relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_inc_adm_audit" style="endArrow=open;endSize=8;dashed=1;html=1;rounded=0;strokeWidth=1.2;strokeColor=#334155;" edge="1" parent="system_boundary" source="UC_Audit" target="UC_Login">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="lbl_inc_adm_audit" value="&amp;lt;&amp;lt;include&amp;gt;&amp;gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=11;fontColor=#334155;labelBackgroundColor=#FFFFFF;" connectable="0" vertex="1" parent="edge_inc_adm_audit">
+                    <mxGeometry x="0.1" relative="1" as="geometry"/>
+                </mxCell>
                 <mxCell id="edge_u_login" style="endArrow=none;html=1;rounded=0;strokeWidth=1.5;strokeColor=#1D4ED8;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_user" target="UC_Login">
                     <mxGeometry relative="1" as="geometry"/>
                 </mxCell>
@@ -374,6 +476,16 @@
                 </mxCell>
                 <mxCell id="edge_a_audit" style="endArrow=none;html=1;rounded=0;strokeWidth=1.5;strokeColor=#1D4ED8;exitX=0;exitY=0.5;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="actor_admin" target="UC_Audit">
                     <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="7" style="endArrow=none;html=1;rounded=0;strokeWidth=1.5;strokeColor=#1D4ED8;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;exitPerimeter=0;" edge="1" parent="1" source="actor_user" target="UC_Register">
+                    <mxGeometry relative="1" as="geometry">
+                        <mxPoint x="110" y="750" as="sourcePoint"/>
+                        <mxPoint x="210" y="602.5" as="targetPoint"/>
+                        <Array as="points">
+                            <mxPoint x="90" y="-90"/>
+                            <mxPoint x="900" y="130"/>
+                        </Array>
+                    </mxGeometry>
                 </mxCell>
             </root>
         </mxGraphModel>
