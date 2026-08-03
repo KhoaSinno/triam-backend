@@ -55,16 +55,18 @@ Khi Pareto planner khởi động lần đầu, hệ thống cần có các vect
    ```
    Kết quả là `_ANCHOR_VECTORS_CACHE` trở thành một map có dạng: `{ "core_concept": [0.021, -0.004, ...], "definition": [...] }`. Biến này sẽ tồn tại suốt thời gian sống của tiến trình Python Backend để phục vụ các luồng phân loại sau đó.
 
-### Bước 2: Tạo thẻ đại diện mục lục (Section Cards)
-Hệ thống không gửi toàn bộ nội dung chữ của cả cuốn sách lên LLM vì sẽ bị tràn ngữ cảnh (context limit) và tốn chi phí. Thay vào đó, nó tạo ra các thẻ mục lục tóm tắt.
+### Bước 2: Tạo thẻ đại diện mục lục cho TẤT CẢ các phân đoạn (Parent & Child Section Cards)
+Hệ thống không gửi toàn bộ nội dung chữ của cả cuốn sách lên LLM vì sẽ bị tràn ngữ cảnh (context limit) và tốn chi phí. Thay vào đó, nó tạo ra các thẻ mục lục tóm tắt (`SectionCard`) cho **tất cả các đề mục trong sách (bao gồm cả mục cha Level 1 và tất cả tiểu mục con Level 2, Level 3...)**.
+
 *   **Mã nguồn**: Hàm [build_section_cards](file:///w:/WorkSpace_IT/_CAPSTON_PROJECT/triam-backend/app/services/pareto_planner_service.py#L117-L161).
-*   Hệ thống đọc danh sách cấu trúc mục lục sách (`BookSection`) và truy vấn một lần duy nhất (Batch query) các vector embedding RAG tương ứng từ bảng database `book_section_knowledge` thông qua SQLModel Session.
+*   **Cơ chế gom Vector**: Mỗi `BookSection` độc lập (dù là mục cha hay mục con) đều có bản ghi vector 1536 chiều riêng trong CSDL PostgreSQL (`book_section_knowledge`). Hàm `build_section_cards` thực hiện truy vấn Batch lấy vector riêng cho từng phân đoạn để so khớp Cosine ở Bước 3.
+*   **Thuộc tính phân cấp**: Mỗi thẻ `SectionCard` đóng gói thông tin đường dẫn cây mục lục (`path`, `level`, `parent_path`, `child_count`) để cung cấp cho LLM bức tranh toàn cảnh về cấu trúc phân cấp của cuốn sách.
 
 ### Bước 3: Phân loại nhãn ngữ nghĩa bằng tương đồng Vector (Arg-max)
 Đây là trái tim công nghệ của V2, thay thế hoàn toàn việc so khớp từ khóa cứng V1.
 *   **Mã nguồn**: Hàm [extract_pareto_signal_hints](file:///w:/WorkSpace_IT/_CAPSTON_PROJECT/triam-backend/app/services/pareto_signal_service.py#L82-L105).
-*   **Thuật toán**: Đối với mỗi chương mục, hệ thống sử dụng phép nhân vô hướng `np.dot` của NumPy để nhân vector của chương mục đó với 8 vector neo của nhãn.
-*   **Bộ lọc Arg-max**: Nhãn nào có điểm tương đồng Cosine cao nhất và vượt ngưỡng **`0.20`** sẽ được gán làm thuộc tính `signal_hints` trên thẻ `SectionCard` (Ví dụ: `["formula"]` hoặc `["method"]`).
+*   **Thuật toán**: Đối với **từng phân đoạn sách độc lập** (cả cha và con), hệ thống sử dụng phép nhân vô hướng `np.dot` của NumPy để nhân vector riêng của phân đoạn đó với 8 vector neo của nhãn.
+*   **Bộ lọc Arg-max**: Nhãn nào có điểm tương đồng Cosine cao nhất và vượt ngưỡng **`0.20`** sẽ được gán làm thuộc tính `signal_hints` trên thẻ `SectionCard` của phân đoạn đó (Ví dụ: Mục 1.1 có nhãn `["definition"]`, Mục 1.2 có nhãn `["formula"]`).
 
 ### Bước 4: LLM lập kế hoạch học tập tối ưu
 Hệ thống đóng gói danh sách các `SectionCard` (chỉ chứa tiêu đề, ước lượng token, trích đoạn ngắn `excerpt`, và các nhãn gợi ý `signal_hints` vừa tìm được ở Bước 3) thành một cấu trúc JSON gửi lên LLM.
@@ -225,6 +227,8 @@ Hệ thống sử dụng phương thức `client.beta.chat.completions.parse` c�
    * **Ràng buộc an toàn**: Không được tự bịa ra UUID mới, không tự sinh kịch bản đọc audio script (chỉ lập dàn ý bài nghe).
 
 2. **Dữ liệu người dùng gửi kèm (User Payload JSON)**:
+   > *Lưu ý quan trọng*: Payload gửi cho LLM bao gồm **tất cả các phân đoạn (cả Chương gốc Level 1 lẫn các Tiểu mục con Level 2, Level 3...)**. Thuộc tính `parent_path`, `level` và `child_count` giúp LLM hiểu được cấu trúc hình cây phân cấp để nhóm các tiểu mục con phù hợp.
+   
    ```json
    {
      "mode": "pareto",
@@ -234,37 +238,59 @@ Hệ thống sử dụng phương thức `client.beta.chat.completions.parse` c�
      "max_units": 8,
      "section_cards": [
        {
-         "id": "0075703e-8f03-411f-9243-a8c31441bfe6",
-         "title": "Chương 4: Phương pháp luận nghiên cứu",
+         "id": "11111111-1111-1111-1111-111111111111",
+         "title": "Chương 1: Logic Mệnh Đề và Tập Hợp",
          "path": "1",
          "level": 1,
          "parent_path": null,
-         "estimated_tokens": 1964,
-         "child_count": 0,
-         "signal_hints": ["method"],
-         "excerpt": "Nghiên cứu này áp dụng phương pháp tổng quan tài liệu có hệ thống (SLR)..."
+         "estimated_tokens": 500,
+         "child_count": 2,
+         "signal_hints": ["core_concept"],
+         "excerpt": "Chương này giới thiệu về cơ sở logic học và lý thuyết tập hợp..."
        },
        {
-         "id": "1d3f1fe0-8d14-4a0b-94b0-4727157431a1",
-         "title": "Chương 5: Kết quả phân tích và so sánh",
+         "id": "11111111-1111-1111-1111-222222222222",
+         "title": "1.1 Mệnh Đề và Phép Toán Logic",
+         "path": "1.1",
+         "level": 2,
+         "parent_path": "1",
+         "estimated_tokens": 3200,
+         "child_count": 0,
+         "signal_hints": ["definition"],
+         "excerpt": "Mệnh đề là một phát biểu có tính đúng hoặc sai rõ ràng. Các phép toán..."
+       },
+       {
+         "id": "11111111-1111-1111-1111-333333333333",
+         "title": "1.2 Lý Thuyết Tập Hợp",
+         "path": "1.2",
+         "level": 2,
+         "parent_path": "1",
+         "estimated_tokens": 2800,
+         "child_count": 0,
+         "signal_hints": ["formula"],
+         "excerpt": "Tập hợp là sự thu thập các đối tượng có thuộc tính chung. Các phép toán..."
+       },
+       {
+         "id": "22222222-2222-2222-2222-111111111111",
+         "title": "Chương 2: Lý Thuyết Đồ Thị Nâng Cao",
          "path": "2",
          "level": 1,
          "parent_path": null,
-         "estimated_tokens": 7674,
-         "child_count": 0,
-         "signal_hints": ["core_concept"],
-         "excerpt": "Trong chương này chúng tôi sẽ so sánh ChatGPT (GPT-5) và Gemini 2.5..."
+         "estimated_tokens": 800,
+         "child_count": 1,
+         "signal_hints": ["method"],
+         "excerpt": "Chương 2 tập trung vào nghiên cứu cấu trúc đồ thị và thuật toán Dijkstra..."
        },
        {
-         "id": "c5d450a4-198f-45df-be23-abd3cb49b60c",
-         "title": "Chương 6: Bàn luận và Khuyến nghị",
-         "path": "3",
-         "level": 1,
-         "parent_path": null,
-         "estimated_tokens": 6506,
+         "id": "22222222-2222-2222-2222-222222222222",
+         "title": "2.1 Thuật Toán Dijkstra Tìm Đường Đi Ngắn Nhất",
+         "path": "2.1",
+         "level": 2,
+         "parent_path": "2",
+         "estimated_tokens": 9500,
          "child_count": 0,
-         "signal_hints": ["example"],
-         "excerpt": "Dựa trên các kết quả đối chiếu, chúng tôi đưa ra khuyến nghị thực tế..."
+         "signal_hints": ["procedure"],
+         "excerpt": "Thuật toán Dijkstra giải bài toán tìm đường đi ngắn nhất từ một đỉnh..."
        }
      ]
    }
