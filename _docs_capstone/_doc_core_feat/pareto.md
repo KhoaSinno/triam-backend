@@ -16,29 +16,15 @@ Trong học tập, nguyên lý Pareto (nguyên lý 80/20) chỉ ra rằng: **Ng�
 
 Dưới đây là sơ đồ luồng đi của dữ liệu từ khi người dùng gọi API cho đến khi lưu trữ thành công:
 
-```text
-[Bản ghi BookSection từ DB] 
-        │
-        ▼ (Bước 1 & 2)
-[build_section_cards] ──> Truy xuất Vector Embedding từ postgres (pgvector)
-        │
-        ▼ (Bước 3)
-[extract_pareto_signal_hints] ──> Nhân vô hướng (np.dot) với 8 Neo Ngữ Nghĩa (threshold >= 0.20)
-        │
-        ▼
-[SectionCard (có signal_hints)]
-        │
-        ▼ (Bước 4)
-[_call_pareto_llm] ──> Gửi JSON Outline kèm gợi ý tín hiệu sang Gemini-3.5-Flash
-        │
-        ▼
-[Gemini phân tích cấu trúc, gộp nhóm và chọn lọc mục tinh hoa]
-        │
-        ▼ (Bước 5)
-[_validate_planner_payload] ──> Hậu kiểm tra trùng lặp & Sắp xếp thứ tự đọc
-        │
-        ▼
-[create_learning_units] ──> Lưu vào PostgreSQL (Bảng LearningUnit)
+```mermaid
+flowchart TD
+    A["Bản ghi BookSection từ PostgreSQL"] --> B["build_section_cards<br/>Truy xuất Vector Embedding (pgvector)"]
+    B --> C["extract_pareto_signal_hints<br/>Nhân vô hướng np.dot với 8 Neo Ngữ Nghĩa (threshold >= 0.20)"]
+    C --> D["SectionCard (kèm signal_hints & excerpt 1400 chars)"]
+    D --> E["_call_pareto_llm<br/>Gửi JSON Payload sang gemini-3.6-flash"]
+    E --> F["Gemini phân tích cấu trúc, gộp nhóm và chọn lọc bài học tinh hoa"]
+    F --> G["_validate_planner_payload<br/>Hậu kiểm tra ID & Cắt tỉa theo điểm giá trị (_trim_to_target)"]
+    G --> H["create_learning_units<br/>Lưu vào PostgreSQL (Bảng learning_unit & learning_unit_source)"]
 ```
 
 ### Bước 1: Trích xuất và Cache Vector Neo (RAM Cache)
@@ -226,15 +212,15 @@ Khi người học gọi API lập kế hoạch, hàm `build_section_cards` ti�
 
 ### 4.3 LLM lập kế hoạch học tập (LLM Pareto Planner)
 
-Đây là nơi TRIAM tận dụng sức mạnh trí tuệ nhân tạo của LLM (Gemini-3.5-Flash) để tổ chức lộ trình học tập. Thay vì gửi toàn bộ cuốn sách (gây lãng phí token và chi phí), hệ thống chỉ gửi dữ liệu mục lục thông minh (`SectionCard`) kèm các gợi ý ngữ nghĩa được gán tự động ở Bước 3.
+Đây là nơi TRIAM tận dụng sức mạnh trí tuệ nhân tạo của LLM (`gemini-3.6-flash`) để tổ chức lộ trình học tập. Thay vì gửi toàn bộ cuốn sách (gây lãng phí token và chi phí), hệ thống chỉ gửi dữ liệu mục lục thông minh (`SectionCard`) kèm các gợi ý ngữ nghĩa được gán tự động ở Bước 3. Mỗi thẻ `SectionCard` đóng gói tiêu đề, ước tính token, và trích đoạn ngắn nội dung khoảng **1,400 ký tự** (`PARETO_SECTION_EXCERPT_CHARS`).
 
 #### 4.3.1 Đầu vào cung cấp cho LLM (Input Payload JSON)
-Hệ thống sử dụng phương thức `client.beta.chat.completions.parse` của thư viện OpenAI, truyền vào hai khối thông tin chính:
+Hệ thống sử dụng phương thức `client.beta.chat.completions.parse` của thư viện OpenAI SDK, truyền vào hai khối thông tin chính:
 
 1. **System Prompt (`PARETO_PLANNER_SYSTEM_PROMPT`)**: Ràng buộc hành vi của AI:
    * **Nhiệm vụ chính**: Không tóm tắt tài liệu mà chọn lọc nhóm thông tin tinh hoa thiết thực nhất (vital few).
    * **Ngôn ngữ**: Giữ nguyên ngôn ngữ gốc của tiêu đề chương (hỗ trợ tự nhiên cả tiếng Việt, tiếng Anh và song ngữ).
-   * **Số lượng bài học**: Giới hạn từ 3 đến 8 units trừ khi tài liệu quá ngắn.
+   * **Số lượng bài học**: Giới hạn từ 3 đến 8 units trừ khi tài liệu quá ngắn (`PARETO_PLANNER_MIN_UNITS = 3`, `PARETO_PLANNER_MAX_UNITS = 8`).
    * **Nguyên tắc gộp**: Gộp các chương mục nhỏ, liên kề nhau có cùng chủ đề thành một bài học lớn để tránh bài học nghe bị vụn vặt.
    * **Ràng buộc an toàn**: Không được tự bịa ra UUID mới, không tự sinh kịch bản đọc audio script (chỉ lập dàn ý bài nghe).
 
@@ -242,8 +228,8 @@ Hệ thống sử dụng phương thức `client.beta.chat.completions.parse` c�
    ```json
    {
      "mode": "pareto",
-     "target_coverage_ratio": 0.25,
-     "target_tokens": 10500,
+     "target_coverage_ratio": 0.40,
+     "target_tokens": 16800,
      "min_units": 3,
      "max_units": 8,
      "section_cards": [
@@ -333,13 +319,13 @@ Kết quả trả về của LLM cho ví dụ `c4ppnc.pdf`:
 Sau khi nhận dữ liệu từ LLM, backend TRIAM thực thi các luật hậu kiểm để bảo vệ tính toàn vẹn của dữ liệu:
 1. **Kiểm tra tính hợp lệ của ID (ID Integrity Check)**: Hàm `_make_planned_unit_from_payload` kiểm tra xem các ID trong `source_section_ids` có thực sự tồn tại trong danh sách sách gốc hay không. Loại bỏ hoàn toàn các ID lỗi hoặc ID giả lập do LLM tạo ra.
 2. **Sắp xếp thứ tự chương (Order Alignment)**: Đảm bảo các phân đoạn nguồn cấu thành bài nghe được sắp xếp lại theo đúng thứ tự xuất hiện gốc trong mục lục sách (`section_index`), tránh việc đọc lộn xộn từ trang sau ra trang trước.
-3. **Cắt tỉa theo ngân sách Token (Token Budget Trimming)**: Hàm `_trim_to_target` sắp xếp các bài học theo thứ tự đọc. Nếu tổng số token tích lũy của các bài học vượt quá tỉ lệ phủ mục tiêu (`PARETO_TARGET_COVERAGE_RATIO` - mặc định là 25%), hệ thống sẽ ưu tiên giữ lại các bài học ở đầu sách và cắt bỏ các bài học kém quan trọng ở cuối sách để đảm bảo tính tinh gọn tối đa.
+3. **Cắt tỉa theo ngân sách Token (Token Budget Trimming)**: Hàm `_trim_to_target` sắp xếp các bài học theo thứ tự đọc. Nếu tổng số token tích lũy của các bài học vượt quá tỉ lệ phủ mục tiêu (`PARETO_TARGET_COVERAGE_RATIO` - mặc định là **40%** kèm trần sai số 15%), hệ thống sẽ ưu tiên giữ lại các bài học có điểm `importance_score` cao nhất và cắt bỏ các bài học ít quan trọng hơn ở cuối sách để đảm bảo ngân sách.
 4. **Báo lỗi trực tiếp (Fail-fast)**: Mọi lỗi định dạng hoặc lỗi rỗng (không có bài học nào được sinh ra) sẽ lập tức kích hoạt ngoại lệ `ValueError` và trả về mã lỗi HTTP 500, đảm bảo tính nhất quán của hệ thống.
 
 ---
 
-### 4.4 Quy trình TTS phía sau (Celery Worker):
+### 4.4 Quy trình TTS phía sau (Celery Worker & Normalization Pipeline):
 Sau khi lập xong kế hoạch:
-1.  Celery worker sẽ nhận bài học 1. Gọi LLM để chuẩn hóa văn bản nói (ví dụ chuyển ký tự viết tắt `"SLR"` thành chữ đọc *"Systematic Literature Review"*).
-2.  Edge TTS sinh giọng đọc cho 7 phân đoạn nhỏ (`segments`) và 1 đoạn tóm tắt bài học (`review_text`).
-3.  Lưu trữ file `.mp3` lên Supabase Storage và cập nhật trạng thái bài học thành `"ready"`.
+1. Celery worker sẽ nhận bài học. Gọi LLM (`normalize_text_for_speech` với `SYSTEM_PROMPT_REWRITE_PARETO`) để chuẩn hóa văn bản thô thành kịch bản thoại tập trung vào khái niệm, công thức và quy trình cốt lõi.
+2. **Google Cloud TTS (giọng Chirp 3 HD)** sinh giọng đọc chất lượng cao cho các đoạn kịch bản thoại (`main_scripts`) và đoạn tóm tắt bài học (`review_script`).
+3. Lưu trữ các file `.mp3` lên Supabase Storage, lưu vết thời lượng và URL vào bảng `learning_unit_segment`, và cập nhật trạng thái bài học thành `"ready"`.
