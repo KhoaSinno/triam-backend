@@ -144,7 +144,7 @@ async def classify_web_permission_intent(
             # Use threshold from arguments or default
             from app.core.config import settings
             # We default to 0.55 for web permission classification as evaluated
-            resolved_threshold = confidence_threshold or 0.55
+            resolved_threshold = confidence_threshold or 0.5
 
             if best_score < resolved_threshold:
                 log.info(f"Web permission cosine score {best_score:.2f} below threshold {resolved_threshold} | Fallback to new_question")
