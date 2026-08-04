@@ -63,7 +63,7 @@ class Settings(BaseSettings):
 
     # Realtime voice agent behavior
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-2.1-mini"
-    OPENAI_REALTIME_VOICE: str = "cedar"
+    OPENAI_REALTIME_VOICE: str = "shimmer"
     # Text and local console test behavior
     VOICE_AGENT_HISTORY_LIMIT: int = 24
     VOICE_AGENT_RAG_MAX_CHARS: int = 32000
