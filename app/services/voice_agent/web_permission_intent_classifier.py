@@ -8,6 +8,7 @@ from typing import Any
 from app.core.logger import log
 from app.services.voice_agent.contracts import WebPermissionIntent, WebPermissionIntentResult
 from app.services.voice_agent.voice_intent_classifier import (
+    POSITIVE_ACTION_PHRASES,
     classify_voice_reply_intent_fast_path,
     normalize_voice_intent_text,
     looks_like_new_question,
@@ -22,7 +23,8 @@ L12_WEB_PERMISSION_PROTOTYPES = {
     "grant": [
         "đồng ý cho tìm kiếm", "ừ tìm trên internet đi", "cho phép tra cứu google",
         "tìm giúp mình trên mạng", "search hộ mình thông tin này", "đồng ý nha",
-        "được chứ tìm đi", "yes search it", "go ahead and search", "nhất trí tìm đi"
+        "được chứ tìm đi", "yes search it", "go ahead and search", "nhất trí tìm đi",
+        "cho phép tìm", "bạn tìm đi", "tìm kiếm thông tin đi", "em đi", "ừm đi", "ý đi"
     ],
     "deny": [
         "không cần tìm đâu", "đừng tra cứu internet", "thôi khỏi cần",
@@ -70,23 +72,85 @@ async def _initialize_permission_prototypes_async() -> None:
             loop = asyncio.get_running_loop()
             await loop.run_in_executor(None, _initialize_permission_prototypes)
 
-def classify_web_permission_intent_fast_path(user_reply: str) -> WebPermissionIntentResult | None:
-    normalized = normalize_voice_intent_text(user_reply)
-    if not normalized:
-        return None
+async def pre_warm_permission_classifier() -> None:
+    """
+    [Clean Code & Best Practice]
+    Khởi tạo pre-warm mô hình L12 ngầm lúc kết nối session.
+    """
+    try:
+        log.info("Pre-warming Web Permission Classifier (L12 Embedding)...")
+        await _initialize_permission_prototypes_async()
+        log.info("Pre-warming Web Permission Classifier hoan tat!")
+    except Exception as exc:
+        log.warning(f"Pre-warming Web Permission Classifier gap loi: {exc}")
 
-    # Layer 1 (Fast-Path): Apply to short permission replies <= 3 words
-    token_count = len(normalized.split())
-    if token_count <= 3:
-        result = classify_voice_reply_intent_fast_path(user_reply, max_grant_tokens=3)
-        if result is not None:
+def classify_web_permission_intent_fast_path(user_reply: str) -> WebPermissionIntentResult | None:
+    """
+    [Clean Code Wrapper]
+    Gọi Fast-Path từ voice_intent_classifier và chuyển đổi kết quả sang WebPermissionIntentResult.
+    """
+    voice_res = classify_voice_reply_intent_fast_path(user_reply, max_grant_tokens=6)
+    if voice_res is None:
+        return None
+        
+    return WebPermissionIntentResult(
+        intent=voice_res.intent,  # type: ignore[arg-type]
+        confidence=voice_res.confidence,
+        reason=voice_res.reason,
+        source="fast_path",
+    )
+
+def _compute_cosine_similarity_sync(
+    user_reply: str,
+    threshold: float,
+) -> WebPermissionIntentResult:
+    """
+    Hàm tính toán Cosine Similarity đồng bộ (CPU-bound), chạy trong Executor Thread.
+    """
+    tokenizer = _classifier.tokenizer
+    model_obj = _classifier.model
+
+    if tokenizer is None or model_obj is None or not _proto_embeddings:
+        return WebPermissionIntentResult(
+            intent="unclear",
+            confidence=0.0,
+            reason="Model parameters or prototypes not loaded",
+            source="local_embedding",
+        )
+
+    with torch.no_grad():
+        inputs = tokenizer([user_reply.strip().lower()], padding=True, truncation=True, return_tensors="pt")
+        outputs = model_obj(**inputs)
+        query_emb = mean_pooling(outputs, inputs['attention_mask'])
+        query_emb = torch.nn.functional.normalize(query_emb, p=2, dim=1)
+
+        best_intent: WebPermissionIntent = "unclear"
+        best_score = -1.0
+
+        # Thread Safety Fix: Snapshot dictionary để tránh RuntimeError khi iterate trong ThreadPool
+        proto_snapshot = dict(_proto_embeddings)
+        for intent, proto_embs in proto_snapshot.items():
+            sims = torch.matmul(query_emb, proto_embs.T).squeeze(0)
+            max_sim = torch.max(sims).item()
+            if max_sim > best_score:
+                best_score = max_sim
+                best_intent = intent  # type: ignore[assignment]
+
+        if best_score < threshold:
+            log.info(f"Web permission cosine score {best_score:.2f} below threshold {threshold} | Fallback to new_question")
             return WebPermissionIntentResult(
-                intent=result.intent,
-                confidence=result.confidence,
-                reason=result.reason,
-                source=result.source,
+                intent="new_question",
+                confidence=best_score,
+                reason="Below similarity threshold",
+                source="local_embedding",
             )
-    return None
+
+        return WebPermissionIntentResult(
+            intent=best_intent,
+            confidence=best_score,
+            reason="Classified by local L12 Cosine",
+            source="local_embedding",
+        )
 
 async def classify_web_permission_intent(
     *,
@@ -99,68 +163,38 @@ async def classify_web_permission_intent(
 ) -> WebPermissionIntentResult:
     """
     Classifies the user reply regarding web search permission using a local multilingual L12 model.
+    Fully async & non-blocking execution via Thread Executor.
     """
-    # 1. Run Fast-path Layer 1:
+    # 1. Run Fast-path Layer 1 (< 1ms)
     fast_result = classify_web_permission_intent_fast_path(user_reply)
     if fast_result is not None:
         return fast_result
 
-    # Layer 2: Local Embedding
     # 2. Run Local Embedding Cosine Similarity Layer 2
     normalized = normalize_voice_intent_text(user_reply)
 
-    # Fast-check if query looks like a new question (e.g. contains question marks or keywords)
-    if looks_like_new_question(user_reply, normalized):
+    # Only treat as new_question if it does NOT contain any positive action phrase
+    has_positive_phrase = any(phrase in normalized for phrase in POSITIVE_ACTION_PHRASES)
+    if looks_like_new_question(user_reply, normalized) and not has_positive_phrase:
         return WebPermissionIntentResult(
             intent="new_question",
             confidence=1.0,
-            reason="looks_like_new_question",
+            reason="looks_like_new_question_without_positive_intent",
             source="local_embedding",
         )
 
     try:
-        # Load prototypes asynchronously to prevent event loop blocking
+        # Load prototypes asynchronously if not already pre-warmed
         await _initialize_permission_prototypes_async()
         
-        tokenizer = _classifier.tokenizer
-        model_obj = _classifier.model
-
-        with torch.no_grad():
-            inputs = tokenizer([user_reply.strip().lower()], padding=True, truncation=True, return_tensors="pt")
-            outputs = model_obj(**inputs)
-            query_emb = mean_pooling(outputs, inputs['attention_mask'])
-            query_emb = torch.nn.functional.normalize(query_emb, p=2, dim=1)
-
-            best_intent: WebPermissionIntent = "unclear"
-            best_score = -1.0
-
-            for intent, proto_embs in _proto_embeddings.items():
-                sims = torch.matmul(query_emb, proto_embs.T).squeeze(0)
-                max_sim = torch.max(sims).item()
-                if max_sim > best_score:
-                    best_score = max_sim
-                    best_intent = intent  # type: ignore[assignment]
-
-            # Use threshold from arguments or default
-            from app.core.config import settings
-            # We default to 0.55 for web permission classification as evaluated
-            resolved_threshold = confidence_threshold or 0.5
-
-            if best_score < resolved_threshold:
-                log.info(f"Web permission cosine score {best_score:.2f} below threshold {resolved_threshold} | Fallback to new_question")
-                return WebPermissionIntentResult(
-                    intent="new_question",
-                    confidence=best_score,
-                    reason="Below similarity threshold",
-                    source="local_embedding",
-                )
-
-            return WebPermissionIntentResult(
-                intent=best_intent,
-                confidence=best_score,
-                reason="Classified by local L12 Cosine",
-                source="local_embedding",
-            )
+        resolved_threshold = confidence_threshold or 0.50
+        loop = asyncio.get_running_loop()
+        return await loop.run_in_executor(
+            None,
+            _compute_cosine_similarity_sync,
+            user_reply,
+            resolved_threshold,
+        )
             
     except Exception as exc:
         log.error(f"Web permission local classifier failed: {exc} | Fallback to unclear")

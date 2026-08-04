@@ -45,9 +45,14 @@ from app.services.voice_agent.tool_reply_watchdog import VoiceToolReplyWatchdog,
 from app.services.voice_agent.transcript_store import VoiceTranscriptStore, normalize_transcript_text
 from app.services.voice_agent.transcription_prompt import build_realtime_transcription_prompt
 from app.services.voice_agent.turn_state import VoiceTurnState
-from app.services.voice_agent.web_permission_intent_classifier import normalize_intent_text
+from app.services.voice_agent.web_permission_intent_classifier import (
+    normalize_intent_text,
+    pre_warm_permission_classifier,
+)
 from app.services.voice_agent.web_permission_policy import WebSearchPermissionPolicy
 from app.services.web_search_service import search_web as web_search
+
+_BACKGROUND_TASKS: set[asyncio.Task] = set()
 
 # FIX 1: Ép API Key vào biến môi trường để LiveKit SDK tự động nhận diện ngầm
 os.environ["OPENAI_API_KEY"] = settings.OPENAI_API_KEY
@@ -603,34 +608,35 @@ class TriamAssistant(Agent):
 
     async def _execute_web_search_for_mode(self, query: str, input_mode: AgentInputMode) -> str:
         self.tracer.record_tool(input_mode, "execute_web_search")
+        
+        cached_result = self._get_cached_web_result(query)
+        if cached_result is not None:
+            self.tracer.record_answer_source(input_mode, AgentAnswerSource.WEB)
+            log.info(f"Voice web search cached result reused | query_chars={len(query)}")
+            return cached_result
+
+        allowed, reason = await self.web_search_policy.resolve_before_web_search(query)
+        if not allowed:
+            self.tracer.record_answer_source(input_mode, AgentAnswerSource.POLICY)
+            log.info(f"Voice web search blocked | reason={reason}")
+            return reason
+
         async with self._web_search_lock:
-            cached_result = self._get_cached_web_result(query)
-            if cached_result is not None:
-                self.tracer.record_answer_source(input_mode, AgentAnswerSource.WEB)
-                log.info(f"Voice web search cached result reused | query_chars={len(query)}")
-                return cached_result
+            self.web_search_policy.mark_search_consumed()
 
-            allowed, reason = await self.web_search_policy.resolve_before_web_search(query)
-            if not allowed:
-                self.tracer.record_answer_source(input_mode, AgentAnswerSource.POLICY)
-                log.info(f"Voice web search blocked | reason={reason}")
-                return reason
-
-            log.info(f"Voice web search executing | query_chars={len(query)}")
-            started = time.perf_counter()
-            try:
-                result = await web_search(query)
-                self._remember_web_result(query, result)
-                log.info(f"Voice web search completed | query_chars={len(query)} | result_chars={len(result or '')}")
-                self.tracer.record_latency(input_mode, "web_search", int((time.perf_counter() - started) * 1000))
-                self.tracer.record_answer_source(input_mode, AgentAnswerSource.WEB)
-                return result
-            except Exception:
-                self.tracer.record_latency(input_mode, "web_search", int((time.perf_counter() - started) * 1000))
-                self.tracer.record_error(input_mode, "web_search_error")
-                raise
-            finally:
-                self.web_search_policy.mark_search_consumed()
+        log.info(f"Voice web search executing non-blocking | query_chars={len(query)}")
+        started = time.perf_counter()
+        try:
+            result = await web_search(query)
+            self._remember_web_result(query, result)
+            log.info(f"Voice web search completed | query_chars={len(query)} | result_chars={len(result or '')}")
+            self.tracer.record_latency(input_mode, "web_search", int((time.perf_counter() - started) * 1000))
+            self.tracer.record_answer_source(input_mode, AgentAnswerSource.WEB)
+            return result
+        except Exception:
+            self.tracer.record_latency(input_mode, "web_search", int((time.perf_counter() - started) * 1000))
+            self.tracer.record_error(input_mode, "web_search_error")
+            raise
 
     @function_tool
     async def ask_web_search_permission(
@@ -663,6 +669,10 @@ def _tool_reply_watchdog_config() -> VoiceToolReplyWatchdogConfig:
 
 async def entrypoint(ctx: JobContext):  # noqa: C901
     await ctx.connect()
+
+    warmup_task = asyncio.create_task(pre_warm_permission_classifier())
+    _BACKGROUND_TASKS.add(warmup_task)
+    warmup_task.add_done_callback(_BACKGROUND_TASKS.discard)
 
     job_meta = _parse_job_metadata(ctx.job.metadata, ctx.room.name)
     thread_id = job_meta.thread_id
