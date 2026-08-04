@@ -1,0 +1,271 @@
+<mxfile host="65bd71144e">
+    <diagram name="Page-1" id="triam_db_erd_v2">
+        <mxGraphModel dx="320" dy="2698" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2400" pageHeight="2200" math="0" shadow="0">
+            <root>
+                <mxCell id="0"/>
+                <mxCell id="1" parent="0"/>
+                <mxCell id="tbl_books" value="books" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="60" width="260" height="360" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_books_attrs" value="PK: id: uuid&#10;+ user_id: uuid&#10;+ title: text&#10;+ author: text (Nullable)&#10;+ file_url: text (Nullable)&#10;+ document_type: text (Nullable)&#10;+ total_sections: int4 (Nullable)&#10;+ total_units: int4 (Nullable)&#10;+ status: text (Nullable)&#10;+ error_message: text (Nullable)&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz&#10;+ is_shared: bool&#10;FK: parent_shared_id: uuid (Nullable)&#10;+ ai_summary: json (Nullable)&#10;+ ai_summary_status: text&#10;+ ai_summary_error: text (Nullable)" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_books" vertex="1">
+                    <mxGeometry y="40" width="260" height="320" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_book_sections" value="book_sections" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="480" width="260" height="330" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_book_sections_attrs" value="PK: id: uuid&#10;FK: book_id: uuid&#10;FK: parent_id: uuid (Nullable)&#10;+ section_index: int4&#10;+ title: text&#10;+ level: int4&#10;+ path: text&#10;+ text_content: text (Nullable)&#10;+ text_char_count: int4&#10;+ page_start: int4 (Nullable)&#10;+ page_end: int4 (Nullable)&#10;+ source_href: text (Nullable)&#10;+ source_anchor: text (Nullable)&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_book_sections" vertex="1">
+                    <mxGeometry y="40" width="260" height="290" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_book_section_knowledge" value="book_section_knowledge" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="60" y="870" width="260" height="310" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_book_section_knowledge_attrs" value="PK: id: int4&#10;FK: book_id: uuid&#10;FK: section_id: uuid&#10;+ chunk_index: int4&#10;+ content: text&#10;+ content_hash: text&#10;+ embedding_model: text&#10;+ embedding_version: text&#10;+ char_count: int4&#10;+ token_count: int4 (Nullable)&#10;+ embedding: vector (Nullable)&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz&#10;+ search_text: text" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_book_section_knowledge" vertex="1">
+                    <mxGeometry y="40" width="260" height="270" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_learning_units" value="learning_units" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="400" y="60" width="260" height="410" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_learning_units_attrs" value="PK: id: uuid&#10;+ user_id: uuid&#10;FK: book_id: uuid&#10;+ mode: planmode&#10;+ unit_index: int4&#10;+ title: text&#10;+ unit_type: text&#10;+ status: processingjobstatus&#10;+ source_text_char_count: int4&#10;+ estimated_tokens: int4&#10;+ estimated_audio_seconds: int4&#10;+ main_segment_count: int4&#10;+ review_audio_url: text (Nullable)&#10;+ review_text: text (Nullable)&#10;+ planner_reason: text (Nullable)&#10;+ error_message: text (Nullable)&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz&#10;+ started_at: timestamptz (Nullable)&#10;+ finished_at: timestamptz (Nullable)" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_learning_units" vertex="1">
+                    <mxGeometry y="40" width="260" height="370" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_learning_unit_sources" value="learning_unit_sources" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="400" y="520" width="260" height="110" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_learning_unit_sources_attrs" value="PK, FK: learning_unit_id: uuid&#10;PK, FK: section_id: uuid&#10;+ source_order: int4" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_learning_unit_sources" vertex="1">
+                    <mxGeometry y="40" width="260" height="70" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_learning_unit_segments" value="learning_unit_segments" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="400" y="680" width="260" height="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_learning_unit_segments_attrs" value="PK: id: int4&#10;FK: learning_unit_id: uuid&#10;+ segment_index: int4&#10;+ audio_url: text (Nullable)&#10;+ text_content: text (Nullable)&#10;+ duration_ms: int4 (Nullable)&#10;+ created_at: timestamptz" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_learning_unit_segments" vertex="1">
+                    <mxGeometry y="40" width="260" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_learning_unit_progress" value="learning_unit_progress" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="400" y="910" width="260" height="380" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_learning_unit_progress_attrs" value="PK: id: uuid&#10;+ user_id: uuid&#10;FK: book_id: uuid&#10;FK: learning_unit_id: uuid&#10;+ mode: planmode&#10;FK: current_segment_id: int4 (Nullable)&#10;+ last_segment_index: int4&#10;+ position_ms: int4&#10;+ listened_ms: int4&#10;+ total_duration_ms: int4&#10;+ progress_percent: int4&#10;+ max_progress_percent: int4&#10;+ status: learningprogressstatus&#10;+ started_at: timestamptz (Nullable)&#10;+ last_activity_at: timestamptz (Nullable)&#10;+ completed_at: timestamptz (Nullable)&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_learning_unit_progress" vertex="1">
+                    <mxGeometry y="40" width="260" height="340" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_book_learning_states" value="book_learning_states" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="400" y="1340" width="260" height="360" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_book_learning_states_attrs" value="PK: id: uuid&#10;+ user_id: uuid&#10;FK: book_id: uuid&#10;+ mode: planmode&#10;+ status: text&#10;+ book_progress_percent: int4&#10;+ completed_units: int4&#10;+ playable_units: int4&#10;FK: last_learning_unit_id: uuid (Nullable)&#10;FK: last_segment_id: int4 (Nullable)&#10;+ last_segment_index: int4 (Nullable)&#10;+ position_ms: int4&#10;+ started_at: timestamptz (Nullable)&#10;+ last_activity_at: timestamptz (Nullable)&#10;+ completed_at: timestamptz (Nullable)&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_book_learning_states" vertex="1">
+                    <mxGeometry y="40" width="260" height="320" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_reading_plans" value="reading_plans" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="740" y="60" width="260" height="260" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_reading_plans_attrs" value="PK: id: uuid&#10;FK: book_id: uuid&#10;+ mode: planmode&#10;+ pace: int4&#10;+ status: text&#10;+ reminder_time: text&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz&#10;+ started_at: timestamptz (Nullable)&#10;+ paused_at: timestamptz (Nullable)&#10;+ completed_at: timestamptz (Nullable)" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_reading_plans" vertex="1">
+                    <mxGeometry y="40" width="260" height="220" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_reading_plan_schedule_slots" value="reading_plan_schedule_slots" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="740" y="370" width="260" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_reading_plan_schedule_slots_attrs" value="PK: id: uuid&#10;+ user_id: uuid&#10;FK: plan_id: uuid&#10;FK: book_id: uuid&#10;+ weekday: int4&#10;+ reminder_time: text&#10;+ timezone: text&#10;+ is_active: bool&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_reading_plan_schedule_slots" vertex="1">
+                    <mxGeometry y="40" width="260" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_reading_plan_sessions" value="reading_plan_sessions" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="740" y="660" width="260" height="410" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_reading_plan_sessions_attrs" value="PK: id: uuid&#10;+ user_id: uuid&#10;FK: plan_id: uuid&#10;FK: book_id: uuid&#10;+ mode: planmode&#10;+ session_index: int4&#10;+ scheduled_at: timestamptz&#10;+ local_date: text&#10;+ reminder_time: text&#10;+ timezone: text&#10;+ status: text&#10;+ completed_units: int4&#10;+ total_units: int4&#10;+ started_at: timestamptz (Nullable)&#10;+ completed_at: timestamptz (Nullable)&#10;+ skipped_at: timestamptz (Nullable)&#10;+ missed_at: timestamptz (Nullable)&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz&#10;+ missed_notified_at: timestamptz (Nullable)" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_reading_plan_sessions" vertex="1">
+                    <mxGeometry y="40" width="260" height="370" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_reading_plan_session_units" value="reading_plan_session_units" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="740" y="1120" width="260" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_reading_plan_session_units_attrs" value="PK: id: uuid&#10;FK: session_id: uuid&#10;FK: plan_id: uuid&#10;FK: book_id: uuid&#10;FK: learning_unit_id: uuid&#10;+ unit_order: int4&#10;+ status: text&#10;+ completed_at: timestamptz (Nullable)&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_reading_plan_session_units" vertex="1">
+                    <mxGeometry y="40" width="260" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_study_contexts" value="study_contexts" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1080" y="60" width="250" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_study_contexts_attrs" value="PK: id: uuid&#10;+ user_id: uuid&#10;+ title: text&#10;+ is_auto_generated: bool&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_study_contexts" vertex="1">
+                    <mxGeometry y="40" width="250" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_study_context_document_links" value="study_context_document_links" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1075" y="-110" width="250" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_study_context_document_links_attrs" value="PK, FK: context_id: uuid&#10;PK, FK: book_id: uuid" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_study_context_document_links" vertex="1">
+                    <mxGeometry y="40" width="250" height="50" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_direct_book_context" value="direct_book_context" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1080" y="410" width="250" height="130" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_direct_book_context_attrs" value="PK: user_id: uuid&#10;PK, FK: book_id: uuid&#10;FK: context_id: uuid&#10;FK: primary_thread_id: uuid" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_direct_book_context" vertex="1">
+                    <mxGeometry y="40" width="250" height="90" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_chat_threads" value="chat_threads" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1080" y="590" width="250" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_chat_threads_attrs" value="PK: id: uuid&#10;FK: context_id: uuid&#10;+ title: text&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_chat_threads" vertex="1">
+                    <mxGeometry y="40" width="250" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_chat_messages" value="chat_messages" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1080" y="780" width="250" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_chat_messages_attrs" value="PK: id: uuid&#10;FK: thread_id: uuid&#10;+ is_user: bool&#10;+ text: text&#10;+ source: text&#10;+ timestamp: timestamptz" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_chat_messages" vertex="1">
+                    <mxGeometry y="40" width="250" height="120" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_spaced_review_items" value="spaced_review_items" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1410" y="60" width="260" height="360" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_spaced_review_items_attrs" value="PK: id: uuid&#10;+ user_id: uuid&#10;FK: book_id: uuid&#10;FK: learning_unit_id: uuid (Nullable)&#10;+ mode: planmode&#10;+ interval_days: int4&#10;+ sequence_index: int4&#10;+ due_at: timestamptz&#10;+ status: reviewitemstatus&#10;+ review_text_snapshot: text (Nullable)&#10;+ anchor_completed_at: timestamptz (Nullable)&#10;FK: source_unit_progress_id: uuid (Nullable)&#10;+ notified_at: timestamptz (Nullable)&#10;+ last_reviewed_at: timestamptz (Nullable)&#10;+ completed_at: timestamptz (Nullable)&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_spaced_review_items" vertex="1">
+                    <mxGeometry y="40" width="260" height="320" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_processing_jobs" value="processing_jobs" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1410" y="470" width="260" height="380" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_processing_jobs_attrs" value="PK: id: uuid&#10;+ user_id: uuid&#10;FK: book_id: uuid (Nullable)&#10;+ job_type: processingjobtype&#10;+ status: processingjobstatus&#10;+ mode: planmode (Nullable)&#10;+ progress_percent: int4&#10;+ current_step: text (Nullable)&#10;+ total_units: int4&#10;+ done_units: int4&#10;+ failed_units: int4&#10;+ estimated_input_tokens: int4 (Nullable)&#10;+ estimated_audio_seconds: int4 (Nullable)&#10;+ error_message: text (Nullable)&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz&#10;+ started_at: timestamptz (Nullable)&#10;+ finished_at: timestamptz (Nullable)" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_processing_jobs" vertex="1">
+                    <mxGeometry y="40" width="260" height="340" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_notification_settings" value="notification_settings" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1410" y="900" width="250" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_notification_settings_attrs" value="PK: user_id: uuid&#10;+ timezone: text&#10;+ reminders_enabled: bool&#10;+ spaced_review_enabled: bool&#10;+ reminder_time: text&#10;+ quiet_hours_start: text&#10;+ quiet_hours_end: text&#10;+ daily_cap: int4&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_notification_settings" vertex="1">
+                    <mxGeometry y="40" width="250" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_notification_outbox" value="notification_outbox" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1410" y="1190" width="260" height="340" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_notification_outbox_attrs" value="PK: id: uuid&#10;+ user_id: uuid&#10;+ type: notificationtype&#10;+ channel: notificationchannel&#10;+ status: notificationstatus&#10;+ payload: jsonb&#10;+ due_at: timestamptz&#10;+ next_retry_at: timestamptz (Nullable)&#10;+ locked_at: timestamptz (Nullable)&#10;+ locked_by: text (Nullable)&#10;+ sent_at: timestamptz (Nullable)&#10;+ attempts: int4&#10;+ error_message: text (Nullable)&#10;+ idempotency_key: text (Unique)&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_notification_outbox" vertex="1">
+                    <mxGeometry y="40" width="260" height="300" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_user_notifications" value="user_notifications" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1410" y="1580" width="260" height="240" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_user_notifications_attrs" value="PK: id: uuid&#10;+ user_id: uuid&#10;FK: outbox_id: uuid (Nullable Unique)&#10;+ type: notificationtype&#10;+ title: text&#10;+ body: text&#10;+ action_type: text (Nullable)&#10;+ action_payload: jsonb (Nullable)&#10;+ read_at: timestamptz (Nullable)&#10;+ created_at: timestamptz" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_user_notifications" vertex="1">
+                    <mxGeometry y="40" width="260" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_user_device_tokens" value="user_device_tokens" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1410" y="1870" width="250" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_user_device_tokens_attrs" value="PK: id: uuid&#10;+ user_id: uuid&#10;+ device_token: text&#10;+ created_at: timestamptz&#10;+ updated_at: timestamptz" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_user_device_tokens" vertex="1">
+                    <mxGeometry y="40" width="250" height="100" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_admin_users" value="admin_users" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1740" y="60" width="230" height="200" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_admin_users_attrs" value="PK: user_id: uuid&#10;+ role: text&#10;+ is_active: bool&#10;+ note: text (Nullable)&#10;FK: created_by: uuid (Nullable)&#10;FK: revoked_by: uuid (Nullable)&#10;+ created_at: timestamptz&#10;+ revoked_at: timestamptz (Nullable)" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_admin_users" vertex="1">
+                    <mxGeometry y="40" width="230" height="160" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_admin_audit_logs" value="admin_audit_logs" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1740" y="300" width="230" height="180" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_admin_audit_logs_attrs" value="PK: id: uuid&#10;FK: admin_user_id: uuid&#10;+ action: text&#10;+ target_type: text (Nullable)&#10;+ target_id: uuid (Nullable)&#10;+ metadata: jsonb (Nullable)&#10;+ created_at: timestamptz" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_admin_audit_logs" vertex="1">
+                    <mxGeometry y="40" width="230" height="140" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_alembic_version" value="alembic_version" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" parent="1" vertex="1">
+                    <mxGeometry x="1740" y="530" width="200" height="80" as="geometry"/>
+                </mxCell>
+                <mxCell id="tbl_alembic_version_attrs" value="PK: version_num: varchar" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" parent="tbl_alembic_version" vertex="1">
+                    <mxGeometry y="40" width="200" height="40" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_sec_books" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.17;exitY=1.0;exitDx=0;exitDy=0;entryX=0.5;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_books" target="tbl_book_sections" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_know_books" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.33;exitY=1.0;exitDx=0;exitDy=0;entryX=0.33;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_books" target="tbl_book_section_knowledge" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_know_sec" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.5;exitY=1.0;exitDx=0;exitDy=0;entryX=0.67;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_book_sections" target="tbl_book_section_knowledge" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_scdl_ctx" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.25;exitY=1.0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" parent="1" source="tbl_study_contexts" target="tbl_study_context_document_links_attrs" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_scdl_books" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=1.0;exitY=0.11;exitDx=0;exitDy=0;entryX=0.0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="tbl_books" target="tbl_study_context_document_links" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_dbc_books" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=1.0;exitY=0.22;exitDx=0;exitDy=0;entryX=0.0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="tbl_books" target="tbl_direct_book_context" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_dbc_ctx" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.5;exitY=1.0;exitDx=0;exitDy=0;entryX=0.5;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_study_contexts" target="tbl_direct_book_context" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_dbc_threads" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.33;exitY=0.0;exitDx=0;exitDy=0;entryX=0.5;entryY=1.0;entryDx=0;entryDy=0;" parent="1" source="tbl_chat_threads" target="tbl_direct_book_context" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_threads_ctx" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.75;exitY=1.0;exitDx=0;exitDy=0;entryX=0.67;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_study_contexts" target="tbl_chat_threads" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_msg_threads" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.5;exitY=1.0;exitDx=0;exitDy=0;entryX=0.5;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_chat_threads" target="tbl_chat_messages" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_lu_books" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=1.0;exitY=0.33;exitDx=0;exitDy=0;entryX=0.0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="tbl_books" target="tbl_learning_units" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_lus_lu" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.17;exitY=1.0;exitDx=0;exitDy=0;entryX=0.5;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_learning_units" target="tbl_learning_unit_sources" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_lus_sec" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=1.0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="tbl_book_sections" target="tbl_learning_unit_sources" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_luseg_lu" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.33;exitY=1.0;exitDx=0;exitDy=0;entryX=0.5;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_learning_units" target="tbl_learning_unit_segments" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_lup_books" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.5;exitY=1.0;exitDx=0;exitDy=0;entryX=0.25;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_books" target="tbl_learning_unit_progress" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_lup_lu" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.5;exitY=1.0;exitDx=0;exitDy=0;entryX=0.5;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_learning_units" target="tbl_learning_unit_progress" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_lup_seg" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.33;exitY=1.0;exitDx=0;exitDy=0;entryX=0.75;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_learning_unit_segments" target="tbl_learning_unit_progress" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_bls_books" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.67;exitY=1.0;exitDx=0;exitDy=0;entryX=0.25;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_books" target="tbl_book_learning_states" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_bls_lu" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.67;exitY=1.0;exitDx=0;exitDy=0;entryX=0.5;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_learning_units" target="tbl_book_learning_states" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_bls_seg" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.67;exitY=1.0;exitDx=0;exitDy=0;entryX=0.75;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_learning_unit_segments" target="tbl_book_learning_states" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_rp_books" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=1.0;exitY=0.44;exitDx=0;exitDy=0;entryX=0.0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="tbl_books" target="tbl_reading_plans" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_rps_rp" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.25;exitY=1.0;exitDx=0;exitDy=0;entryX=0.5;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_reading_plans" target="tbl_reading_plan_schedule_slots" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_rps_books" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=1.0;exitY=0.56;exitDx=0;exitDy=0;entryX=0.0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="tbl_books" target="tbl_reading_plan_schedule_slots" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_sess_rp" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.5;exitY=1.0;exitDx=0;exitDy=0;entryX=0.5;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_reading_plans" target="tbl_reading_plan_sessions" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_sess_books" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=1.0;exitY=0.67;exitDx=0;exitDy=0;entryX=0.0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="tbl_books" target="tbl_reading_plan_sessions" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_rpsu_sess" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.5;exitY=1.0;exitDx=0;exitDy=0;entryX=0.2;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_reading_plan_sessions" target="tbl_reading_plan_session_units" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_rpsu_rp" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.75;exitY=1.0;exitDx=0;exitDy=0;entryX=0.4;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_reading_plans" target="tbl_reading_plan_session_units" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_rpsu_books" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.83;exitY=1.0;exitDx=0;exitDy=0;entryX=0.6;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_books" target="tbl_reading_plan_session_units" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_rpsu_lu" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.83;exitY=1.0;exitDx=0;exitDy=0;entryX=0.8;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_learning_units" target="tbl_reading_plan_session_units" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_sri_books" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=1.0;exitY=0.78;exitDx=0;exitDy=0;entryX=0.0;entryY=0.25;entryDx=0;entryDy=0;" parent="1" source="tbl_books" target="tbl_spaced_review_items" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_sri_lu" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=1.0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="tbl_learning_units" target="tbl_spaced_review_items" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_sri_lup" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=1.0;exitY=0.5;exitDx=0;exitDy=0;entryX=0.0;entryY=0.75;entryDx=0;entryDy=0;" parent="1" source="tbl_learning_unit_progress" target="tbl_spaced_review_items" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_pj_books" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=1.0;exitY=0.89;exitDx=0;exitDy=0;entryX=0.0;entryY=0.5;entryDx=0;entryDy=0;" parent="1" source="tbl_books" target="tbl_processing_jobs" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_un_outbox" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.5;exitY=1.0;exitDx=0;exitDy=0;entryX=0.5;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_notification_outbox" target="tbl_user_notifications" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+                <mxCell id="edge_audit_admin" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.5;exitY=1.0;exitDx=0;exitDy=0;entryX=0.5;entryY=0.0;entryDx=0;entryDy=0;" parent="1" source="tbl_admin_users" target="tbl_admin_audit_logs" edge="1">
+                    <mxGeometry relative="1" as="geometry"/>
+                </mxCell>
+            </root>
+        </mxGraphModel>
+    </diagram>
+</mxfile>

@@ -12,7 +12,7 @@ skinparam actor {
 skinparam usecase {
   BackgroundColor #FEF3C7
   BorderColor #B45309
-}
+} 
 
 left to right direction
 

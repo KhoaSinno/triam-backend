@@ -1,38 +1,34 @@
-@startuml TRIAM_UseCase_LoggedIn_Clean
+@startuml TRIAM_UseCase_Overview_Combined
 skinparam Shadowing false
 skinparam backgroundColor #FFFFFF
 skinparam defaultFontName Arial
-skinparam defaultFontSize 13
-skinparam roundcorner 18
+skinparam defaultFontSize 12
+skinparam roundcorner 14
 skinparam linetype ortho
-skinparam packageStyle rectangle
-skinparam nodesep 35
-skinparam ranksep 40
 
 skinparam actor {
   BackgroundColor #DBEAFE
   BorderColor #1D4ED8
   FontColor #111827
 }
+
 skinparam rectangle {
   BackgroundColor #F8FAFC
   BorderColor #1E3A8A
   FontColor #111827
 }
+
 skinparam package {
   BackgroundColor #FFFFFF
-  BorderColor #CBD5E1
-  FontColor #111827
+  BorderColor #94A3B8
+  FontColor #0F172A
+  FontStyle bold
 }
+
 skinparam usecase {
-  BackgroundColor #EEF2FF
-  BorderColor #4338CA
+  BackgroundColor #FEF3C7
+  BorderColor #B45309
   FontColor #111827
-}
-skinparam note {
-  BackgroundColor #FFF7ED
-  BorderColor #FB923C
-  FontColor #7C2D12
 }
 
 left to right direction
@@ -40,110 +36,132 @@ left to right direction
 '------------- Actors -------------
 actor "User" as Reader
 actor "Admin" as Admin
+actor "Supabase Auth" as Supabase <<System>>
+
 Admin -|> Reader
 
-'------------- Boundary -------------
-rectangle "TRIAM Assistant - Hệ thống sách nói AI" {
+'------------- System Boundary -------------
+rectangle "Hệ thống TRIAM Assistant" {
 
-  package "Tài khoản" #F1F5F9 {
-    (Đăng nhập) as UC_Login
-    (Đăng ký) as UC_Register
+  package "Phân hệ: Xác thực & Tài khoản" #F1F5F9 {
+    (Đăng nhập / Đăng ký) as UC_Auth
     (Đăng xuất) as UC_Logout
-    (Đổi mật khẩu) as UC_ChangePass
+    (Đổi / Đặt lại mật khẩu) as UC_ResetPass
   }
 
-  package "Tài liệu & kế hoạch học" #ECFDF5 {
-    (Quản lý thư viện sách) as UC_Library
-    (Tải lên tài liệu PDF/EPUB/DOCX) as UC_UploadBook
+  package "Phân hệ: Tài liệu và kế hoạch học" #ECFDF5 {
+    (Upload sách) as UC_UploadBook
     (Chọn sách từ thư viện) as UC_SelectBook
-
-    (Quản lý kế hoạch học tập) as UC_Plan
-    (Tạo kế hoạch học mới) as UC_CreatePlan
-    (Chọn chế độ học Full/Pareto) as UC_SelectMode
+    (Tạo và điều chỉnh kế hoạch học tập) as UC_CreatePlan
+    (Xem tóm tắt AI của sách) as UC_AI_SUM
+    (Tạo lại tóm tắt) as UC_RE_AI_SUM
     (Theo dõi tiến trình xử lý) as UC_TrackJob
     (Nghe sớm bài học) as UC_ListenEarly
+
+    UC_AI_SUM <.. UC_RE_AI_SUM : <<extend>>
+    UC_TrackJob <.. UC_ListenEarly : <<extend>>
   }
 
-  package "Nghe sách nói & tiến độ" #FEF3C7 {
-    (Nghe sách nói & quản lý tiến độ) as UC_ListenBook
+  package "Phân hệ: Nghe sách nói và tiến độ" #FFFBEB {
     (Nghe audio bài học) as UC_Listen
     (Chuyển đổi chế độ học) as UC_SwitchMode
     (Cập nhật tiến độ nghe) as UC_Progress
+    (Theo dõi và điều chỉnh lịch học) as UC_TrackSchedule
   }
 
-  package "Trợ lý AI theo ngữ cảnh" #F3E8FF {
-    (Tương tác với trợ lý AI) as UC_AIAssistant
-    (Hỏi đáp bằng Text/Voice thường) as UC_QA
-    (Đàm thoại LiveKit thời gian thực) as UC_LiveKit
-    (Tìm kiếm Internet qua Tavily) as UC_Web
+  package "Phân hệ: Trợ lý AI theo ngữ cảnh sách" #F3E8FF {
+    (Quản lý phiên đàm thoại) as UC_ManageSession
+    (Hỏi đáp theo phạm vi tài liệu) as UC_QA
+    (Đàm thoại thời gian thực) as UC_LiveKit
+    (Yêu cầu tìm kiếm Internet) as UC_Web
+    (Cấp quyền tìm kiếm) as UC_Perm
+
+    UC_ManageSession <.. UC_QA : <<extend>>
+    UC_ManageSession <.. UC_LiveKit : <<extend>>
+    UC_QA <.. UC_Web : <<extend>>
+    UC_LiveKit <.. UC_Web : <<extend>>
+    UC_Web .> UC_Perm : <<include>>
   }
 
-  package "Workspace, ôn tập & thông báo" #FFE4E6 {
-    (Quản lý Workspace & Ôn tập) as UC_WorkspaceReview
-    (Quản lý workspace & luồng chat) as UC_Workspace
-    (Xem lịch ôn tập ngắt quãng) as UC_Review
-    (Cấu hình & nhận thông báo) as UC_Notification
+  package "Phân hệ: Không gian học, ôn tập và thông báo" #FFE4E6 {
+    (Quản lý Không gian học tập) as UC_Workspace
+    (Liên kết sách vào không gian) as UC_ManageWSBooks
+    (Khởi tạo hội thoại trong không gian) as UC_WSChat
+    (Hội thoại trực tiếp với sách) as UC_DirectChat
+
+    (Quản lý lịch ôn tập) as UC_Review
+    (Theo dõi bài ôn tới hạn) as UC_TrackDueReview
+    (Hoàn thành bài ôn) as UC_CompleteReview
+    (Bỏ qua bài ôn) as UC_SkipReview
+
+    (Quản lý thông báo) as UC_Notification
+    (Theo dõi thông báo) as UC_TrackNotification
+    (Cài đặt thông báo) as UC_SetupNotification
+
+    UC_Workspace <.. UC_ManageWSBooks : <<extend>>
+    UC_Workspace <.. UC_WSChat : <<extend>>
+    UC_Workspace <.. UC_DirectChat : <<extend>>
+
+    UC_Review <.. UC_TrackDueReview : <<extend>>
+    UC_Review <.. UC_CompleteReview : <<extend>>
+    UC_Review <.. UC_SkipReview : <<extend>>
+
+    UC_Notification <.. UC_TrackNotification : <<extend>>
+    UC_Notification <.. UC_SetupNotification : <<extend>>
   }
 
-  package "Quản trị hệ thống" #F8FAFC {
-    (Quản trị hệ thống) as UC_AdminSystem
+  package "Phân hệ: Quản trị hệ thống" #F8FAFC {
     (Xem dashboard) as UC_AdminDashboard
     (Quản lý người dùng) as UC_AdminUser
-    (Quản lý catalog sách) as UC_AdminCatalog
-    (Giám sát & retry job lỗi) as UC_AdminJob
-    (Xem audit log) as UC_Audit
-  }
+    (Quản lý sách hệ thống) as UC_AdminCatalog
+    (Cấu hình chia sẻ sách) as UC_ShareBook
+    (Xuất dữ liệu) as UC_ExportData
+    (Quản lý tác vụ) as UC_AdminJob
+    (Giám sát tác vụ) as UC_MonitorJob
+    (Kích hoạt tác vụ) as UC_ActivateJob
+    (Xem nhật ký hệ thống) as UC_Audit
 
-  '------------- Notes for Grouped UCs -------------
-  note bottom of UC_Library: Tải lên tài liệu (PDF/EPUB/DOCX);\nChọn sách từ thư viện;\nKiểm tra cấu trúc mục lục;
-  note bottom of UC_Plan: Tạo kế hoạch học (Full/Pareto);\nChọn chế độ học;\nTheo dõi tiến trình xử lý nền;\nNghe sớm khi partial_ready;
-  note bottom of UC_ListenBook: Xem playlist bài học;\nNghe audio phân đoạn;\nChuyển đổi chế độ học (Full/Pareto);\nCập nhật tiến độ nghe (>=80% hoàn thành);
-  note bottom of UC_AIAssistant: Hỏi đáp Text/Voice;\nKết nối phòng thoại LiveKit;\nTruy xuất ngữ cảnh RAG;\nTìm kiếm Internet (Tavily);
-  note bottom of UC_WorkspaceReview: Quản lý workspace & luồng chat;\nXem lịch ôn tập ngắt quãng;\nHoàn thành/Bỏ qua ôn tập;\nCấu hình & nhận thông báo đẩy (FCM);
-  note bottom of UC_AdminSystem: Xem dashboard;\nQuản lý người dùng & catalog sách;\nUpload/Publish sách hệ thống;\nGiám sát & retry job xử lý;\nXem audit log;
+    UC_AdminCatalog <.. UC_UploadBook : <<extend>>
+    UC_AdminCatalog <.. UC_ShareBook : <<extend>>
+    UC_AdminJob <.. UC_MonitorJob : <<extend>>
+    UC_AdminJob <.. UC_ActivateJob : <<extend>>
+  }
 }
 
-'------------- Actor Connections (Straight Lines, No Arrowheads) -------------
-' User chưa đăng nhập vẫn tương tác được với 2 UC này
-Reader -- UC_Login
-Reader -- UC_Register
-
-' Các chức năng yêu cầu trạng thái Logged In
+'------------- Connections: Actors to Use Cases -------------
+' Auth & Account
+Reader -- UC_Auth
+UC_Auth -- Supabase
 Reader -- UC_Logout
-Reader -- UC_ChangePass
-Reader -- UC_Library
-Reader -- UC_Plan
-Reader -- UC_ListenBook
-Reader -- UC_AIAssistant
-Reader -- UC_WorkspaceReview
+Reader -- UC_ResetPass
 
-Admin -- UC_AdminSystem
+' Library & Plan
+Reader -- UC_UploadBook
+Reader -- UC_SelectBook
+Reader -- UC_CreatePlan
+Reader -- UC_AI_SUM
+Reader -- UC_TrackJob
 
-'------------- UC Details & Relationships (Hierarchical, No Sequences) -------------
-UC_Library ..> UC_UploadBook : <<include>>
-UC_Library ..> UC_SelectBook : <<include>>
+' Listen & Progress
+Reader -- UC_Listen
+Reader -- UC_SwitchMode
+Reader -- UC_Progress
+Reader -- UC_TrackSchedule
 
-UC_Plan ..> UC_CreatePlan : <<include>>
-UC_Plan ..> UC_SelectMode : <<include>>
-UC_Plan ..> UC_TrackJob : <<include>>
-UC_ListenEarly ..> UC_Plan : <<extend>> 
+' AI Assistant
+Reader -- UC_ManageSession
 
-UC_ListenBook ..> UC_Listen : <<include>>
-UC_ListenBook ..> UC_SwitchMode : <<include>>
-UC_ListenBook ..> UC_Progress : <<include>>
+' Workspace, Review & Notification
+Reader -- UC_Workspace
+Reader -- UC_Review
+Reader -- UC_Notification
 
-UC_AIAssistant ..> UC_QA : <<extend>>
-UC_AIAssistant ..> UC_LiveKit : <<extend>>
-UC_Web ..> UC_QA : <<extend>> 
-
-UC_WorkspaceReview ..> UC_Workspace : <<include>>
-UC_WorkspaceReview ..> UC_Review : <<include>>
-UC_WorkspaceReview ..> UC_Notification : <<include>>
-
-UC_AdminSystem ..> UC_AdminDashboard : <<include>>
-UC_AdminSystem ..> UC_AdminUser : <<include>>
-UC_AdminSystem ..> UC_AdminCatalog : <<include>>
-UC_AdminSystem ..> UC_AdminJob : <<include>>
-UC_AdminSystem ..> UC_Audit : <<include>>
+' Admin
+Admin -- UC_AdminDashboard
+Admin -- UC_AdminUser
+Admin -- UC_AdminCatalog
+Admin -- UC_ExportData
+Admin -- UC_AdminJob
+Admin -- UC_Audit
 
 @enduml
