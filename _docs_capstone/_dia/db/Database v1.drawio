@@ -18,7 +18,7 @@
           <mxGeometry height="310" width="260" y="40" as="geometry" />
         </mxCell>
         <mxCell id="Lv2ZUhgwhOfESiquF2LV-9" parent="1" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" value="learning_unit_sources" vertex="1">
-          <mxGeometry height="110" width="260" x="425" y="433" as="geometry" />
+          <mxGeometry height="110" width="260" x="420" y="360" as="geometry" />
         </mxCell>
         <mxCell id="Lv2ZUhgwhOfESiquF2LV-10" parent="Lv2ZUhgwhOfESiquF2LV-9" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" value="PK, FK: learning_unit_id: uuid&#xa;PK, FK: section_id: uuid&#xa;+ source_order: int4" vertex="1">
           <mxGeometry height="70" width="260" y="40" as="geometry" />
@@ -72,7 +72,7 @@
           <mxGeometry height="90" width="250" y="40" as="geometry" />
         </mxCell>
         <mxCell id="Lv2ZUhgwhOfESiquF2LV-31" parent="1" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" value="chat_threads" vertex="1">
-          <mxGeometry height="140" width="250" x="420" y="220" as="geometry" />
+          <mxGeometry height="140" width="250" x="420" y="138" as="geometry" />
         </mxCell>
         <mxCell id="Lv2ZUhgwhOfESiquF2LV-32" parent="Lv2ZUhgwhOfESiquF2LV-31" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" value="PK: id: uuid&#xa;FK: context_id: uuid&#xa;+ title: text&#xa;+ created_at: timestamptz&#xa;+ updated_at: timestamptz" vertex="1">
           <mxGeometry height="100" width="250" y="40" as="geometry" />
@@ -90,7 +90,7 @@
           <mxGeometry height="280" width="260" y="40" as="geometry" />
         </mxCell>
         <mxCell id="Lv2ZUhgwhOfESiquF2LV-39" parent="1" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" value="notification_settings" vertex="1">
-          <mxGeometry height="200" width="250" x="430" y="568" as="geometry" />
+          <mxGeometry height="200" width="250" x="425" y="522" as="geometry" />
         </mxCell>
         <mxCell id="Lv2ZUhgwhOfESiquF2LV-40" parent="Lv2ZUhgwhOfESiquF2LV-39" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" value="PK: user_id: uuid&#xa;+ timezone: text&#xa;+ reminders_enabled: bool&#xa;+ spaced_review_enabled: bool&#xa;+ reminder_time: text&#xa;+ quiet_hours_start: text&#xa;+ quiet_hours_end: text&#xa;+ daily_cap: int4&#xa;+ created_at: timestamptz&#xa;+ updated_at: timestamptz" vertex="1">
           <mxGeometry height="160" width="250" y="40" as="geometry" />
@@ -134,7 +134,7 @@
         <mxCell id="Lv2ZUhgwhOfESiquF2LV-53" edge="1" parent="1" source="Lv2ZUhgwhOfESiquF2LV-2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.099;exitY=1.003;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;exitPerimeter=0;" target="Lv2ZUhgwhOfESiquF2LV-4" value="">
           <mxGeometry relative="1" as="geometry">
             <Array as="points">
-              <mxPoint x="1025.69" y="532.5" />
+              <mxPoint x="1025.72" y="517.52" />
             </Array>
           </mxGeometry>
         </mxCell>
@@ -155,7 +155,7 @@
         <mxCell id="Lv2ZUhgwhOfESiquF2LV-59" edge="1" parent="1" source="Lv2ZUhgwhOfESiquF2LV-25" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.5;exitY=1.0;exitDx=0;exitDy=0;entryX=0.5;entryY=0.0;entryDx=0;entryDy=0;" target="Lv2ZUhgwhOfESiquF2LV-29" value="">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
-        <mxCell id="Lv2ZUhgwhOfESiquF2LV-60" edge="1" parent="1" source="Lv2ZUhgwhOfESiquF2LV-32" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.5;entryY=1.0;entryDx=0;entryDy=0;" target="Lv2ZUhgwhOfESiquF2LV-29" value="">
+        <mxCell id="Lv2ZUhgwhOfESiquF2LV-60" edge="1" parent="1" source="Lv2ZUhgwhOfESiquF2LV-32" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" target="Lv2ZUhgwhOfESiquF2LV-29" value="">
           <mxGeometry relative="1" as="geometry" />
         </mxCell>
         <mxCell id="Lv2ZUhgwhOfESiquF2LV-61" edge="1" parent="1" source="Lv2ZUhgwhOfESiquF2LV-26" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0;exitY=0.25;exitDx=0;exitDy=0;entryX=1;entryY=0.25;entryDx=0;entryDy=0;" target="Lv2ZUhgwhOfESiquF2LV-31" value="">
@@ -267,17 +267,8 @@
         <mxCell id="Lv2ZUhgwhOfESiquF2LV-2" parent="Lv2ZUhgwhOfESiquF2LV-1" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" value="PK: id: uuid&#xa;+ user_id: uuid&#xa;+ title: text&#xa;+ author: text (Nullable)&#xa;+ file_url: text (Nullable)&#xa;+ document_type: text (Nullable)&#xa;+ total_sections: int4 (Nullable)&#xa;+ total_units: int4 (Nullable)&#xa;+ status: text (Nullable)&#xa;+ error_message: text (Nullable)&#xa;+ created_at: timestamptz&#xa;+ updated_at: timestamptz&#xa;+ is_shared: bool&#xa;FK: parent_shared_id: uuid (Nullable)&#xa;+ ai_summary: json (Nullable)&#xa;+ ai_summary_status: text&#xa;+ ai_summary_error: text (Nullable)" vertex="1">
           <mxGeometry height="270" width="260" y="40" as="geometry" />
         </mxCell>
-        <mxCell id="Lv2ZUhgwhOfESiquF2LV-90" edge="1" parent="1" source="Lv2ZUhgwhOfESiquF2LV-8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" target="Lv2ZUhgwhOfESiquF2LV-33" value="">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="497.51" y="-19" />
-            </Array>
-            <mxPoint x="260" y="320" as="sourcePoint" />
-            <mxPoint x="630" y="460" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
         <mxCell id="Lv2ZUhgwhOfESiquF2LV-33" parent="1" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" value="chat_messages" vertex="1">
-          <mxGeometry height="160" width="250" x="435" y="-6" as="geometry" />
+          <mxGeometry height="160" width="250" x="435" y="-61" as="geometry" />
         </mxCell>
         <mxCell id="Lv2ZUhgwhOfESiquF2LV-34" parent="Lv2ZUhgwhOfESiquF2LV-33" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" value="PK: id: uuid&#xa;FK: thread_id: uuid&#xa;+ is_user: bool&#xa;+ text: text&#xa;+ source: text&#xa;+ timestamp: timestamptz" vertex="1">
           <mxGeometry height="120" width="250" y="40" as="geometry" />
@@ -297,27 +288,11 @@
         <mxCell id="Lv2ZUhgwhOfESiquF2LV-14" parent="Lv2ZUhgwhOfESiquF2LV-13" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" value="PK: id: uuid&lt;br&gt;+ user_id: uuid&lt;br&gt;FK: book_id: uuid&lt;br&gt;FK: learning_unit_id: uuid&lt;br&gt;+ mode: planmode&lt;br&gt;current_segment_id: int4 (Nullable)&lt;br&gt;+ last_segment_index: int4&lt;br&gt;+ position_ms: int4&lt;br&gt;+ listened_ms: int4&lt;br&gt;+ total_duration_ms: int4&lt;br&gt;+ progress_percent: int4&lt;br&gt;+ max_progress_percent: int4&lt;br&gt;+ status: learningprogressstatus&lt;br&gt;+ started_at: timestamptz (Nullable)&lt;br&gt;+ last_activity_at: timestamptz (Nullable)&lt;br&gt;+ completed_at: timestamptz (Nullable)&lt;br&gt;+ created_at: timestamptz&lt;br&gt;+ updated_at: timestamptz" vertex="1">
           <mxGeometry height="278" width="260" y="40" as="geometry" />
         </mxCell>
-        <mxCell id="Lv2ZUhgwhOfESiquF2LV-93" edge="1" parent="1" source="Lv2ZUhgwhOfESiquF2LV-3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.5;exitY=1.0;exitDx=0;exitDy=0;entryX=0.001;entryY=0.064;entryDx=0;entryDy=0;entryPerimeter=0;" target="Lv2ZUhgwhOfESiquF2LV-22" value="">
-          <mxGeometry relative="1" as="geometry">
-            <Array as="points">
-              <mxPoint x="880" y="710" />
-              <mxPoint x="1090" y="710" />
-            </Array>
-            <mxPoint x="990" y="770" as="sourcePoint" />
-            <mxPoint x="1594" y="-300" as="targetPoint" />
-          </mxGeometry>
-        </mxCell>
         <mxCell id="Lv2ZUhgwhOfESiquF2LV-21" parent="1" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" value="reading_plan_sessions" vertex="1">
           <mxGeometry height="340" width="260" x="1140" y="651" as="geometry" />
         </mxCell>
         <mxCell id="Lv2ZUhgwhOfESiquF2LV-22" parent="Lv2ZUhgwhOfESiquF2LV-21" style="align=left;strokeColor=none;fillColor=none;spacingLeft=4;spacingRight=4;fontSize=12;verticalAlign=top;resizable=0;rotatable=0;part=1;html=1;whiteSpace=wrap;" value="PK: id: uuid&#xa;+ user_id: uuid&#xa;FK: plan_id: uuid&#xa;FK: book_id: uuid&#xa;+ mode: planmode&#xa;+ session_index: int4&#xa;+ scheduled_at: timestamptz&#xa;+ local_date: text&#xa;+ reminder_time: text&#xa;+ timezone: text&#xa;+ status: text&#xa;+ completed_units: int4&#xa;+ total_units: int4&#xa;+ started_at: timestamptz (Nullable)&#xa;+ completed_at: timestamptz (Nullable)&#xa;+ skipped_at: timestamptz (Nullable)&#xa;+ missed_at: timestamptz (Nullable)&#xa;+ created_at: timestamptz&#xa;+ updated_at: timestamptz&#xa;+ missed_notified_at: timestamptz (Nullable)" vertex="1">
           <mxGeometry height="300" width="260" y="40" as="geometry" />
-        </mxCell>
-        <mxCell id="Lv2ZUhgwhOfESiquF2LV-94" edge="1" parent="1" source="Lv2ZUhgwhOfESiquF2LV-13" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERoneToMany;startArrow=none;fontSize=12;exitX=0.25;exitY=0;exitDx=0;exitDy=0;entryX=0.25;entryY=1;entryDx=0;entryDy=0;" target="Lv2ZUhgwhOfESiquF2LV-4" value="">
-          <mxGeometry relative="1" as="geometry">
-            <mxPoint x="760" y="970" as="sourcePoint" />
-            <mxPoint x="1000" y="280" as="targetPoint" />
-          </mxGeometry>
         </mxCell>
         <mxCell id="Lv2ZUhgwhOfESiquF2LV-3" parent="1" style="swimlane;childLayout=stackLayout;horizontal=1;startSize=40;horizontalStack=0;rounded=1;fontSize=14;fontStyle=1;strokeWidth=2;resizeParent=0;resizeLast=1;shadow=0;dashed=0;align=center;arcSize=4;whiteSpace=wrap;html=1;" value="book_sections" vertex="1">
           <mxGeometry height="270" width="260" x="750" y="420" as="geometry" />
