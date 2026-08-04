@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from time import perf_counter
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -29,6 +30,42 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def request_response_log_middleware(request: Request, call_next):
+    path = request.url.path
+    query_keys = sorted(request.query_params.keys())
+    log.debug(
+        "HTTP -> {} {} query_keys={} client={}",
+        request.method,
+        path,
+        query_keys,
+        request.client.host if request.client else "unknown",
+    )
+    started = perf_counter()
+    try:
+        response = await call_next(request)
+    except Exception:
+        elapsed_ms = int((perf_counter() - started) * 1000)
+        log.exception(
+            "HTTP <- {} {} status=500 elapsed_ms={} error=unhandled",
+            request.method,
+            path,
+            elapsed_ms,
+        )
+        raise
+
+    elapsed_ms = int((perf_counter() - started) * 1000)
+    log.debug(
+        "HTTP <- {} {} status={} elapsed_ms={} content_length={}",
+        request.method,
+        path,
+        response.status_code,
+        elapsed_ms,
+        response.headers.get("content-length", "streaming"),
+    )
+    return response
 
 
 @app.exception_handler(AppException)
