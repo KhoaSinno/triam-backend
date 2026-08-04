@@ -184,8 +184,9 @@ class WebSearchPermissionPolicy:
             self.clear()
             return False, "WEB_SEARCH_PERMISSION_EXPIRED: Quyền tìm kiếm đã hết hạn. Hãy xin phép lại."
 
-        if not _query_matches(self.state.granted_query, query):
-            return False, "WEB_SEARCH_PERMISSION_QUERY_MISMATCH: Query khác với nội dung user đã đồng ý."
+        # Commented out: allow LLM to rephrase or optimize search queries freely without triggering QUERY_MISMATCH
+        # if not _query_matches(self.state.granted_query, query):
+        #     return False, "WEB_SEARCH_PERMISSION_QUERY_MISMATCH: Query khác với nội dung user đã đồng ý."
 
         return True, ""
 
