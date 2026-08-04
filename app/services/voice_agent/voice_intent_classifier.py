@@ -42,6 +42,10 @@ POSITIVE_ACTION_PHRASES = (
     "tim ho",
     "tim di ban",
     "u tim",
+    "em di",
+    "um di",
+    "y di",
+    "tim thong tin di",
 )
 POSITIVE_SHORT_REPLIES = (
     "co",
@@ -120,14 +124,14 @@ def looks_like_new_question(original_text: str, normalized_text: str) -> bool:
     return "?" in original_text
 
 
-def classify_voice_reply_intent_fast_path(text: str, *, max_grant_tokens: int = 4) -> VoiceReplyIntentResult | None:
+def classify_voice_reply_intent_fast_path(text: str, *, max_grant_tokens: int = 6) -> VoiceReplyIntentResult | None:
     normalized = normalize_voice_intent_text(text)
     if not normalized:
         return None
 
     token_count = len(normalized.split())
     # Constrain fast path positive/negative matching to short replies only
-    if token_count > max(4, max_grant_tokens):
+    if token_count > max(6, max_grant_tokens):
         if looks_like_new_question(text, normalized):
             return VoiceReplyIntentResult("new_question", 0.88, "Explicit question mark detected", "fast_path")
         return None
