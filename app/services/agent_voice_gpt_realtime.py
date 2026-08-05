@@ -30,15 +30,19 @@ from livekit.plugins import noise_cancellation
 from livekit.plugins.openai import LLM as OpenAILLM
 from livekit.plugins.openai.realtime import RealtimeModel
 from openai.types.realtime import AudioTranscription
+from sqlmodel import Session
 
 from app.core.config import settings
 from app.core.logger import log
+from app.db.database import engine
 from app.repositories.agent_grounding_repo import load_grounding_scope, load_scoped_section_texts
+from app.repositories.voice_context_repo import get_owned_voice_context_for_thread
 from app.services.agent_grounding import GroundingResult, GroundingRoute, GroundingRouter
 from app.services.agent_grounding.response_renderer import format_grounding_tool_result
 from app.services.agent_observability import AgentAnswerSource, AgentInputMode, AgentTurnTracer
 from app.services.agent_policy import AgentPolicyAction, AgentPolicyRequest, SharedAgentPolicy, render_text_direct_message, render_voice_tool_result
-from app.services.voice_agent.contracts import LK_CHAT_TOPIC, LK_CONTROL_TOPIC, VoiceJobMetadata
+from app.services.voice_agent.context_runtime import ActiveVoiceContext, ActiveVoiceContextState
+from app.services.voice_agent.contracts import LK_CHAT_TOPIC, LK_CONTROL_TOPIC, VoiceContextResolution, VoiceJobMetadata
 from app.services.voice_agent.query_guard import VoiceQueryGuardConfig, VoiceQueryGuardResult, guard_voice_book_query
 from app.services.voice_agent.rag_context import format_rag_context, search_voice_book_context, trim_text
 from app.services.voice_agent.tool_reply_watchdog import VoiceToolReplyWatchdog, VoiceToolReplyWatchdogConfig
@@ -196,6 +200,8 @@ def _parse_job_metadata(raw_metadata: str | None, room_name: str) -> VoiceJobMet
         payload = {}
 
     thread_id = str(payload.get("thread_id") or "")
+    context_id = str(payload.get("context_id") or "")
+    user_id = str(payload.get("user_id") or "")
     document_ids = _coerce_string_list(payload.get("document_ids"))
     book_id = str(payload.get("book_id") or "")
 
@@ -208,7 +214,77 @@ def _parse_job_metadata(raw_metadata: str | None, room_name: str) -> VoiceJobMet
         if not document_ids and settings.VOICE_AGENT_CONSOLE_BOOK_ID:
             document_ids = [settings.VOICE_AGENT_CONSOLE_BOOK_ID]
 
-    return VoiceJobMetadata(thread_id=thread_id, document_ids=document_ids)
+    return VoiceJobMetadata(
+        thread_id=thread_id,
+        document_ids=document_ids,
+        context_id=context_id,
+        user_id=user_id,
+    )
+
+
+def _voice_context_instructions(grounding_router: GroundingRouter | None) -> str:
+    books_str = ""
+    if grounding_router and grounding_router.scope.books:
+        books_list = []
+        for book in grounding_router.scope.books:
+            book_desc = f"- Sách: '{book.title}'"
+            if book.author:
+                book_desc += f" của tác giả {book.author}"
+            books_list.append(book_desc)
+        books_str = "\n\nNgữ cảnh học tập hiện tại:\n" + "\n".join(books_list)
+
+        headings_list = [
+            f"  + Chương {section.path}: {section.title}"
+            for section in grounding_router.scope.sections
+            if section.level == 1
+        ]
+        if headings_list:
+            books_str += "\n\nDanh sách các chương trong sách:\n" + "\n".join(headings_list)
+    return VOICE_AGENT_INSTRUCTIONS + books_str
+
+
+async def _build_grounding_router(document_ids: list[str]) -> tuple[Any, GroundingRouter | None]:
+    if not settings.AGENT_GROUNDING_ROUTER_ENABLED:
+        return None, None
+    try:
+        started = time.perf_counter()
+        grounding_scope = await asyncio.to_thread(load_grounding_scope, document_ids)
+
+        async def _load_section_texts(book_id: uuid.UUID, section_ids: tuple[uuid.UUID, ...]):
+            return await asyncio.to_thread(
+                load_scoped_section_texts,
+                book_id,
+                section_ids,
+                grounding_scope.allowed_book_ids,
+            )
+
+        router = GroundingRouter(
+            grounding_scope,
+            _load_section_texts,
+            section_context_max_chars=settings.AGENT_SECTION_CONTEXT_MAX_CHARS,
+        )
+        log.info(
+            "Grounding router ready | "
+            f"books={len(grounding_scope.books)} | sections={len(grounding_scope.sections)} | "
+            f"load_ms={int((time.perf_counter() - started) * 1000)}"
+        )
+        return grounding_scope, router
+    except Exception:
+        log.exception("Failed to initialize grounding router")
+        return None, None
+
+
+def _resolve_owned_voice_context(
+    user_id: uuid.UUID,
+    thread_id: uuid.UUID,
+) -> VoiceContextResolution | None:
+    """Worker-side DB boundary for a requested runtime context switch."""
+    with Session(engine) as db_session:
+        return get_owned_voice_context_for_thread(
+            db_session,
+            user_id=user_id,
+            thread_id=thread_id,
+        )
 
 
 def _extract_conversation_item_text(item: LLMMessage) -> str:
@@ -281,25 +357,7 @@ class TriamAssistant(Agent):
         voice_turn_state: VoiceTurnState | None = None,
         shared_policy: SharedAgentPolicy | None = None,
     ) -> None:
-        books_str = ""
-        if grounding_router and grounding_router.scope.books:
-            books_list = []
-            for b in grounding_router.scope.books:
-                book_desc = f"- Sách: '{b.title}'"
-                if b.author:
-                    book_desc += f" của tác giả {b.author}"
-                books_list.append(book_desc)
-            books_str = "\n\nNgữ cảnh học tập hiện tại:\n" + "\n".join(books_list)
-
-            # Trích xuất và nạp danh sách chương cấp 1 động từ GroundingScope để LLM làm điểm tựa sửa lỗi
-            headings_list = []
-            for s in grounding_router.scope.sections:
-                if s.level == 1:  # Chỉ lấy tiêu đề chương chính để tránh quá tải prompt
-                    headings_list.append(f"  + Chương {s.path}: {s.title}")
-            if headings_list:
-                books_str += "\n\nDanh sách các chương trong sách:\n" + "\n".join(headings_list)
-
-        super().__init__(instructions=VOICE_AGENT_INSTRUCTIONS + books_str)
+        super().__init__(instructions=_voice_context_instructions(grounding_router))
         self.document_ids = document_ids
         self.web_search_policy = web_search_policy
         self.tracer = tracer
@@ -310,6 +368,23 @@ class TriamAssistant(Agent):
         self._cached_web_query: str | None = None
         self._cached_web_result: str | None = None
         self._cached_web_at: datetime | None = None
+
+    async def update_study_context(
+        self,
+        *,
+        document_ids: list[str],
+        grounding_router: GroundingRouter | None,
+        shared_policy: SharedAgentPolicy,
+    ) -> None:
+        """Atomically replace the scope used by both voice tools and text chat."""
+        self.document_ids = document_ids
+        self.grounding_router = grounding_router
+        self.shared_policy = shared_policy
+        self.voice_turn_state.clear_pending_clarification()
+        self._cached_web_query = None
+        self._cached_web_result = None
+        self._cached_web_at = None
+        await self.update_instructions(_voice_context_instructions(grounding_router))
 
     def _voice_query_guard_config(self) -> VoiceQueryGuardConfig:
         return VoiceQueryGuardConfig(
@@ -609,7 +684,7 @@ class TriamAssistant(Agent):
 
     async def _execute_web_search_for_mode(self, query: str, input_mode: AgentInputMode) -> str:
         self.tracer.record_tool(input_mode, "execute_web_search")
-        
+
         cached_result = self._get_cached_web_result(query)
         if cached_result is not None:
             self.tracer.record_answer_source(input_mode, AgentAnswerSource.WEB)
@@ -700,6 +775,29 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             log.info(f"Invalid thread_id UUID; skipping DB persistence: {thread_id}")
             thread_uuid = None
 
+    context_uuid: uuid.UUID | None = None
+    if job_meta.context_id:
+        try:
+            context_uuid = uuid.UUID(job_meta.context_id)
+        except ValueError:
+            log.info("Invalid context_id UUID; context switching is unavailable for this job")
+
+    user_uuid: uuid.UUID | None = None
+    if job_meta.user_id:
+        try:
+            user_uuid = uuid.UUID(job_meta.user_id)
+        except ValueError:
+            log.info("Invalid user_id UUID; context switching is unavailable for this job")
+
+    active_context_state = ActiveVoiceContextState(
+        ActiveVoiceContext(
+            context_id=context_uuid,
+            thread_id=thread_uuid,
+            document_ids=tuple(document_ids),
+            version=1,
+        )
+    )
+
     def _is_model_not_found(exc: Exception) -> bool:
         msg = str(exc)
         return "NOT_FOUND" in msg or "404" in msg or "model" in msg.lower() and "not" in msg.lower() and "found" in msg.lower()
@@ -730,35 +828,12 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         late_transcript_window_seconds=settings.AGENT_TRACE_LATE_TRANSCRIPT_WINDOW_SECONDS,
     )
 
-    grounding_scope = None
-    grounding_router: GroundingRouter | None = None
-    if settings.AGENT_GROUNDING_ROUTER_ENABLED:
-        try:
-            grounding_started = time.perf_counter()
-            grounding_scope = await asyncio.to_thread(load_grounding_scope, document_ids)
+    grounding_scope, grounding_router = await _build_grounding_router(document_ids)
+    if grounding_router is not None:
+        # Pre-warm local embedding classifiers in the background.
+        from app.services.voice_agent.web_permission_intent_classifier import _initialize_permission_prototypes_async
 
-            async def _load_section_texts(book_id: uuid.UUID, section_ids: tuple[uuid.UUID, ...]):
-                return await asyncio.to_thread(
-                    load_scoped_section_texts,
-                    book_id,
-                    section_ids,
-                    grounding_scope.allowed_book_ids,
-                )
-
-            grounding_router = GroundingRouter(
-                grounding_scope,
-                _load_section_texts,
-                section_context_max_chars=settings.AGENT_SECTION_CONTEXT_MAX_CHARS,
-            )
-            log.info(f"Grounding router ready | books={len(grounding_scope.books)} | sections={len(grounding_scope.sections)} | load_ms={int((time.perf_counter() - grounding_started) * 1000)}")
-
-            # Pre-warm local embedding classifiers in the background
-            from app.services.voice_agent.web_permission_intent_classifier import _initialize_permission_prototypes_async
-            asyncio.create_task(_initialize_permission_prototypes_async())
-        except Exception:
-            log.exception("Failed to initialize grounding router")
-            grounding_scope = None
-            grounding_router = None
+        asyncio.create_task(_initialize_permission_prototypes_async())
 
     voice_turn_state = VoiceTurnState()
     shared_policy = SharedAgentPolicy(
@@ -781,12 +856,191 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         dedupe_window_seconds=settings.VOICE_AGENT_DEDUPE_WINDOW_SECONDS,
     )
 
-    session: AgentSession
+    session: AgentSession | None = None
     text_turn_lock = asyncio.Lock()
+    context_switch_lock = asyncio.Lock()
 
     def _truncate_session_history() -> None:
-        if hasattr(session, "history") and session.history is not None:
+        if session is not None and hasattr(session, "history") and session.history is not None:
             session.history.truncate(max_items=settings.VOICE_AGENT_HISTORY_LIMIT)
+
+    def _active_thread_id() -> uuid.UUID | None:
+        return active_context_state.current.thread_id
+
+    async def _history_chat_context(thread_id: uuid.UUID | None) -> agents_llm.ChatContext:
+        history_msgs = await transcript_store.load_recent_history(
+            settings.VOICE_AGENT_HISTORY_LIMIT,
+            thread_id=thread_id,
+        )
+        chat_ctx = agents_llm.ChatContext.empty()
+        for msg in history_msgs:
+            chat_ctx.add_message(role="user" if msg.is_user else "assistant", content=msg.text)
+        return chat_ctx
+
+    async def _load_history_into_agent(thread_id: uuid.UUID | None) -> None:
+        await agent_instance.update_chat_ctx(await _history_chat_context(thread_id))
+
+    async def _publish_context_control(payload: dict[str, Any]) -> None:
+        if not ctx.room.isconnected():
+            return
+        try:
+            await ctx.room.local_participant.publish_data(
+                json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+                reliable=True,
+                topic=LK_CONTROL_TOPIC,
+            )
+        except Exception as exc:
+            log.info(f"Context control publish failed | error_type={type(exc).__name__}")
+
+    async def _publish_context_switch_result(
+        *,
+        request_id: str,
+        ok: bool,
+        code: str,
+        context: ActiveVoiceContext | None = None,
+    ) -> None:
+        payload: dict[str, Any] = {
+            "type": "context.switch.ack" if ok else "context.switch.nack",
+            "request_id": request_id,
+            "ok": ok,
+            "code": code,
+        }
+        if context is not None:
+            payload.update(
+                {
+                    "context_id": str(context.context_id) if context.context_id else None,
+                    "thread_id": str(context.thread_id) if context.thread_id else None,
+                    "context_title": context.context_title,
+                    "thread_title": context.thread_title,
+                    "version": context.version,
+                }
+            )
+        await _publish_context_control(payload)
+
+    async def _handle_context_switch(payload: dict[str, Any]) -> None:  # noqa: C901
+        nonlocal document_ids, grounding_scope, grounding_router, shared_policy
+        request_id = str(payload.get("request_id") or "")[:128]
+        requested_thread = str(payload.get("thread_id") or "")
+        if not request_id or not requested_thread:
+            await _publish_context_switch_result(
+                request_id=request_id or "unknown",
+                ok=False,
+                code="invalid_request",
+            )
+            return
+        if not settings.VOICE_AGENT_CONTEXT_SWITCH_ENABLED:
+            await _publish_context_switch_result(request_id=request_id, ok=False, code="feature_disabled")
+            return
+        if user_uuid is None:
+            await _publish_context_switch_result(request_id=request_id, ok=False, code="missing_user_scope")
+            return
+        try:
+            requested_thread_id = uuid.UUID(requested_thread)
+        except ValueError:
+            await _publish_context_switch_result(request_id=request_id, ok=False, code="invalid_thread")
+            return
+        if requested_thread_id == _active_thread_id():
+            await _publish_context_switch_result(
+                request_id=request_id,
+                ok=True,
+                code="already_active",
+                context=active_context_state.current,
+            )
+            return
+        if (
+            session is None
+            or text_turn_lock.locked()
+            or tracer.has_active_turn(AgentInputMode.TEXT)
+            or tracer.has_active_turn(AgentInputMode.VOICE)
+        ):
+            await _publish_context_switch_result(request_id=request_id, ok=False, code="turn_in_progress")
+            return
+        current_agent_state = str(getattr(session, "agent_state", "")).lower()
+        if "speaking" in current_agent_state or "thinking" in current_agent_state:
+            await _publish_context_switch_result(request_id=request_id, ok=False, code="turn_in_progress")
+            return
+
+        async with context_switch_lock:
+            # Re-check after waiting for another switch request.
+            if requested_thread_id == _active_thread_id():
+                await _publish_context_switch_result(
+                    request_id=request_id,
+                    ok=True,
+                    code="already_active",
+                    context=active_context_state.current,
+                )
+                return
+            resolved = await asyncio.to_thread(
+                _resolve_owned_voice_context,
+                user_uuid,
+                requested_thread_id,
+            )
+            if resolved is None:
+                await _publish_context_switch_result(request_id=request_id, ok=False, code="context_not_available")
+                return
+
+            new_document_ids = list(resolved.document_ids)
+            new_scope, new_router = await _build_grounding_router(new_document_ids)
+            new_policy = SharedAgentPolicy(
+                document_ids=new_document_ids,
+                grounding_router=new_router,
+                tracer=tracer,
+            )
+            try:
+                new_chat_ctx = await _history_chat_context(resolved.thread_id)
+                await agent_instance.update_study_context(
+                    document_ids=new_document_ids,
+                    grounding_router=new_router,
+                    shared_policy=new_policy,
+                )
+                await agent_instance.update_chat_ctx(new_chat_ctx)
+            except Exception as exc:
+                # The old scope remains authoritative until an acknowledgement is
+                # sent. Restore it best-effort if the realtime update partly ran.
+                try:
+                    await agent_instance.update_study_context(
+                        document_ids=document_ids,
+                        grounding_router=grounding_router,
+                        shared_policy=shared_policy,
+                    )
+                    await _load_history_into_agent(_active_thread_id())
+                except Exception:
+                    log.warning("Context switch rollback failed")
+                log.warning(
+                    "Context switch runtime update failed | "
+                    f"error_type={type(exc).__name__}"
+                )
+                await _publish_context_switch_result(request_id=request_id, ok=False, code="runtime_update_failed")
+                return
+
+            document_ids = new_document_ids
+            grounding_scope = new_scope
+            grounding_router = new_router
+            shared_policy = new_policy
+            current = active_context_state.replace(resolved)
+            tracer.switch_thread(str(current.thread_id) if current.thread_id else None)
+            web_search_policy.clear()
+            await _publish_context_switch_result(
+                request_id=request_id,
+                ok=True,
+                code="switched",
+                context=current,
+            )
+            await _publish_context_control(
+                {
+                    "type": "context.changed",
+                    "context_id": str(current.context_id) if current.context_id else None,
+                    "thread_id": str(current.thread_id) if current.thread_id else None,
+                    "context_title": current.context_title,
+                    "thread_title": current.thread_title,
+                    "version": current.version,
+                }
+            )
+            log.info(
+                "Live context switched | "
+                f"thread_id={current.thread_id} | version={current.version} | "
+                f"document_count={len(current.document_ids)}"
+            )
 
     def _record_web_permission_reply(text: str) -> None:
         web_search_policy.record_user_reply(text)
@@ -994,7 +1248,10 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         if not full_reply:
             return
 
-        await transcript_store.save_and_publish_assistant(full_reply)
+        await transcript_store.save_and_publish_assistant(
+            full_reply,
+            thread_id=_active_thread_id(),
+        )
         try:
             await ctx.room.local_participant.publish_data(
                 full_reply.encode("utf-8"),
@@ -1019,12 +1276,16 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 char_count=len(normalized_text),
                 language="text",
             )
-            log.info(f"Data input received | participant={participant_id or 'unknown'} | chars={len(normalized_text)} | thread_id={thread_uuid}")
+            turn_thread_id = _active_thread_id()
+            log.info(f"Data input received | participant={participant_id or 'unknown'} | chars={len(normalized_text)} | thread_id={turn_thread_id}")
             if settings.VOICE_AGENT_LOG_TRANSCRIPT_TEXT:
                 log.debug(f"Data input preview: {trim_text(normalized_text, 160)}")
 
             # Save DB and update transcript immediately (await to guarantee insertion order)
-            await transcript_store.save_and_publish_user(normalized_text)
+            await transcript_store.save_and_publish_user(
+                normalized_text,
+                thread_id=turn_thread_id,
+            )
             permission_decision = await _observe_web_permission_reply(normalized_text)
 
             # Interrupt if livekit is currently speaking
@@ -1078,10 +1339,12 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             log.info(f"Data input decode failed: {exc}")
             return
 
-        # --- Kênh điều khiển: bật/tắt web search ---
+        # --- Kênh điều khiển: web-search and mutable study context ---
         if packet.topic == LK_CONTROL_TOPIC:
             try:
                 payload = json.loads(raw)
+                if not isinstance(payload, dict):
+                    raise ValueError("control payload must be an object")
                 if payload.get("type") == "toggle_web_search":
                     web_search_policy.set_enabled(bool(payload.get("enabled", False)))
                     if payload.get("allowed"):
@@ -1089,7 +1352,15 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                     else:
                         web_search_policy.clear()
                     log.info(f"Web search toggle: {'BẬT' if web_search_policy.enabled else 'TẮT'} | allowed={payload.get('allowed')}")
-            except json.JSONDecodeError:
+                elif payload.get("type") == "context.switch.request":
+                    asyncio.create_task(_handle_context_switch(payload))
+                elif payload.get("type") == "context.snapshot":
+                    # P1 records only a lightweight UI hint. It must never change
+                    # server scope without a separately validated switch request.
+                    route = str(payload.get("route") or "")[:80]
+                    has_book = bool(payload.get("book_id"))
+                    log.info(f"Context snapshot received | route={route or 'unknown'} | has_book={has_book}")
+            except (json.JSONDecodeError, ValueError):
                 log.info("lk.control: payload không phải JSON hợp lệ")
             return
 
@@ -1100,7 +1371,6 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
 
     ctx.room.on("data_received", on_data_received)
 
-    session: AgentSession | None = None
     empty_room_cleanup_task: asyncio.Task[None] | None = None
 
     def _remote_participant_identities(exclude_identity: str | None = None) -> list[str]:
@@ -1158,7 +1428,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         is_final = bool(getattr(ev, "is_final", False))
         transcript = str(getattr(ev, "transcript", "") or "").strip()
         language = getattr(ev, "language", None)
-        log.info(f"user_input_transcribed received | final={is_final} | chars={len(transcript)} | thread_id={thread_uuid}")
+        log.info(f"user_input_transcribed received | final={is_final} | chars={len(transcript)} | thread_id={_active_thread_id()}")
         if settings.VOICE_AGENT_LOG_TRANSCRIPT_TEXT and transcript:
             log.debug(f"user_input_transcribed preview: {trim_text(transcript, 160)}")
         if is_final and transcript:
@@ -1183,16 +1453,22 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             return
 
         if item.role == "user":
+            turn_thread_id = _active_thread_id()
             tracer.ensure_turn(AgentInputMode.VOICE)
-            log.info(f"User voice speech saved | text='{text}' | thread_id={thread_uuid}")
+            log.info(f"User voice speech saved | text='{text}' | thread_id={turn_thread_id}")
             voice_turn_state.record_committed_user_text(text)
             _record_web_permission_reply(text)
-            asyncio.create_task(transcript_store.save_and_publish_user(text))
+            asyncio.create_task(
+                transcript_store.save_and_publish_user(text, thread_id=turn_thread_id)
+            )
         elif item.role == "assistant":
+            turn_thread_id = _active_thread_id()
             tracer.record_assistant(AgentInputMode.VOICE, char_count=len(text))
             tracer.complete_turn(AgentInputMode.VOICE)
-            log.info(f"Assistant voice speech saved | text='{text}' | thread_id={thread_uuid}")
-            asyncio.create_task(transcript_store.save_and_publish_assistant(text))
+            log.info(f"Assistant voice speech saved | text='{text}' | thread_id={turn_thread_id}")
+            asyncio.create_task(
+                transcript_store.save_and_publish_assistant(text, thread_id=turn_thread_id)
+            )
             if settings.VOICE_AGENT_ASSISTANT_CLARIFICATION_HEURISTIC_ENABLED and agent_instance._looks_like_assistant_clarification(text):
                 voice_turn_state.set_pending_clarification(
                     prompt_text=text,
@@ -1332,13 +1608,8 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         raise last_start_exc
 
     try:
-        history_msgs = await transcript_store.load_recent_history(settings.VOICE_AGENT_HISTORY_LIMIT)
-        # type: ignore[attr-defined]
-        if hasattr(session, "history") and session.history is not None:
-            for msg in history_msgs:
-                # type: ignore[attr-defined]
-                session.history.add_message(role="user" if msg.is_user else "assistant", content=msg.text)
-            _truncate_session_history()
+        await _load_history_into_agent(_active_thread_id())
+        _truncate_session_history()
     except Exception as e:
         log.info(f"Lỗi khi load history: {e}")
 

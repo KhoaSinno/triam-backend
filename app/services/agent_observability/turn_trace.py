@@ -76,6 +76,12 @@ class AgentTurnTracer:
     def has_active_turn(self, input_mode: AgentInputMode) -> bool:
         return input_mode in self._active
 
+    def switch_thread(self, thread_id: str | None) -> None:
+        """Apply a new attribution target only between completed turns."""
+        if self._active:
+            raise RuntimeError("Cannot switch trace thread while a turn is active")
+        self.thread_id = thread_id
+
     def record_transcript(
         self,
         input_mode: AgentInputMode,

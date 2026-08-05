@@ -1,3 +1,4 @@
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, Literal
@@ -14,6 +15,19 @@ WebPermissionIntent = Literal["grant", "deny", "unclear", "new_question"]
 class VoiceJobMetadata:
     thread_id: str
     document_ids: list[str]
+    context_id: str = ""
+    user_id: str = ""
+
+
+@dataclass(frozen=True)
+class VoiceContextResolution:
+    """Server-validated study scope used by one live voice session."""
+
+    context_id: uuid.UUID
+    thread_id: uuid.UUID
+    document_ids: tuple[str, ...]
+    context_title: str
+    thread_title: str
 
 
 @dataclass(frozen=True)

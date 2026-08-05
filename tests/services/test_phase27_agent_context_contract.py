@@ -1,15 +1,16 @@
 import uuid
+
 import pytest
 from sqlmodel import Session, SQLModel, create_engine
 
-from app.models.db_models import Book, StudyContext, ChatThread, StudyContextDocumentLink, DirectBookContext
-from app.schemas.study_context import StudyContextInput, StudyContextDocumentInput
+from app.models.db_models import Book, ChatThread, DirectBookContext, StudyContext, StudyContextDocumentLink
+from app.repositories.voice_context_repo import get_owned_voice_context_for_thread
+from app.schemas.study_context import StudyContextDocumentInput, StudyContextInput
 from app.services.study_context_service import (
-    create_context,
     add_document_to_context,
+    create_context,
     get_or_create_thread_for_book,
     list_contexts,
-    get_context,
 )
 
 
@@ -101,3 +102,31 @@ def test_list_study_contexts_includes_documents_and_capabilities(db_session: Ses
     assert ctx_data["documents"][0]["title"] == "Đắc Nhân Tâm"
     assert ctx_data["capabilities"]["can_add_documents"] is True
     assert ctx_data["capabilities"]["can_rename_context"] is True
+
+
+def test_voice_context_resolution_reloads_only_owned_thread_documents(db_session: Session):
+    owner_id = uuid.uuid4()
+    other_user_id = uuid.uuid4()
+    book = Book(title="Sách an toàn", user_id=owner_id, status="ready")
+    db_session.add(book)
+    db_session.commit()
+
+    result = get_or_create_thread_for_book(db_session, user_id=owner_id, book_id=book.id)
+    thread_id = result["thread_id"]
+
+    resolved = get_owned_voice_context_for_thread(
+        db_session,
+        user_id=owner_id,
+        thread_id=thread_id,
+    )
+    denied = get_owned_voice_context_for_thread(
+        db_session,
+        user_id=other_user_id,
+        thread_id=thread_id,
+    )
+
+    assert resolved is not None
+    assert resolved.context_id == result["context_id"]
+    assert resolved.thread_id == thread_id
+    assert resolved.document_ids == (str(book.id),)
+    assert denied is None

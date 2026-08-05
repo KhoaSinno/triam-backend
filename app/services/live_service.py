@@ -41,7 +41,10 @@ def get_token_for_book(session: Session, book_id: uuid.UUID, user_id: uuid.UUID)
 
     book_id_value = str(book_id)
     session_room_name = f"triam_{book_id_value[:8]}_{uuid.uuid4().hex[:6]}"
-    return _build_livekit_token(session_room_name, {"book_id": book_id_value})
+    return _build_livekit_token(
+        session_room_name,
+        {"book_id": book_id_value, "user_id": str(user_id)},
+    )
 
 
 def get_token_for_thread(session: Session, thread_id: uuid.UUID, user_id: uuid.UUID) -> dict:
@@ -64,5 +67,6 @@ def get_token_for_thread(session: Session, thread_id: uuid.UUID, user_id: uuid.U
         "thread_id": str(thread_id),
         "context_id": str(thread.context_id),
         "document_ids": document_ids,
+        "user_id": str(user_id),
     }
     return _build_livekit_token(session_room_name, metadata)

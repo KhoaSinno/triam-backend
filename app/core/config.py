@@ -122,6 +122,8 @@ class Settings(BaseSettings):
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_ALLOW_ERROR_OUTPUTS: bool = False
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_FORCE_TOOL_CHOICE_NONE: bool = True
     VOICE_AGENT_CLOSE_ON_DISCONNECT: bool = False
+    # P1 mutable context. Disable to retain the legacy reconnect-only behaviour.
+    VOICE_AGENT_CONTEXT_SWITCH_ENABLED: bool = True
     
     # Phase 10.0 safe agent trace. It never logs raw transcript, answer, or source content.
     AGENT_MODEL_PROFILE: str = "baseline"
