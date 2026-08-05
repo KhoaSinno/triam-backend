@@ -31,6 +31,8 @@ celery_app.conf.update(
         "visibility_timeout": settings.CELERY_VISIBILITY_TIMEOUT_SECONDS,
         "socket_keepalive": True,
         "health_check_interval": 30,
+        "socket_timeout": 3,
+        "connect_timeout": 3,
     },
     task_routes={
         "triam.books.process": {"queue": "document"},

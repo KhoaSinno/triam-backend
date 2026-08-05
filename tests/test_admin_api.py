@@ -224,3 +224,39 @@ def test_admin_retry_rejects_running_job(auth_as):
         assert response.status_code == 409
     finally:
         _cleanup(admin_user_id, [], job_ids)
+
+
+def test_admin_cancel_and_rollback_job(auth_as):
+    admin_user_id = uuid.uuid4()
+    user_id = uuid.uuid4()
+    job_ids: list[uuid.UUID] = []
+
+    with Session(engine) as session:
+        session.add(AdminUser(user_id=admin_user_id, role="admin"))
+        job = ProcessingJob(
+            user_id=user_id,
+            book_id=None,
+            job_type=ProcessingJobType.GENERATE_PLAN,
+            status=ProcessingJobStatus.PROCESSING,
+            mode=PlanMode.FULL,
+        )
+        session.add(job)
+        session.commit()
+        session.refresh(job)
+        job_ids.append(job.id)
+
+    try:
+        auth_as(admin_user_id)
+        response = TestClient(app).post(f"/api/v1/admin/jobs/{job_ids[0]}/cancel")
+
+        assert response.status_code == 200
+        body = response.json()
+        assert body["status"] == "cancelled"
+
+        with Session(engine) as session:
+            saved_job = session.get(ProcessingJob, job_ids[0])
+            assert saved_job is not None
+            assert saved_job.status == ProcessingJobStatus.CANCELLED
+    finally:
+        _cleanup(admin_user_id, [], job_ids)
+

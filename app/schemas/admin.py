@@ -4,7 +4,7 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.core.constant import PlanMode, ProcessingJobStatus, ProcessingJobType
+from app.core.constant import PlanMode, ProcessingJobStatus, ProcessingJobType, SummaryStatus
 
 
 class AdminMeResponse(BaseModel):
@@ -159,6 +159,9 @@ class AdminBookDetailResponse(AdminBookListItem):
     learning_units_by_status: dict[str, int] = Field(default_factory=dict)
     segment_count: int = 0
     owner_info: AdminBookOwnerInfo | None = None
+    ai_summary: dict[str, Any] | None = None
+    ai_summary_status: SummaryStatus = SummaryStatus.PENDING
+    ai_summary_error: str | None = None
 
 
 class AdminRetryJobResponse(BaseModel):
@@ -209,3 +212,59 @@ class AdminBookExportResponse(BaseModel):
     author: str | None = None
     document_type: str | None = None
     sections: list[AdminExportSectionItem] = []
+
+
+class AdminSegmentItem(BaseModel):
+    id: int
+    segment_index: int
+    audio_url: str | None = None
+    text_content: str | None = None
+    duration_ms: int | None = None
+
+
+class AdminLearningUnitItem(BaseModel):
+    id: uuid.UUID
+    unit_index: int
+    title: str
+    unit_type: str
+    mode: str
+    status: str
+    estimated_audio_seconds: int
+    main_segment_count: int
+    review_text: str | None = None
+    review_audio_url: str | None = None
+    planner_reason: str | None = None
+    segments: list[AdminSegmentItem] = []
+
+
+class AdminBookAudioUnitsResponse(BaseModel):
+    book_id: uuid.UUID
+    mode: str
+    total_units: int
+    units: list[AdminLearningUnitItem]
+
+
+class AdminBookUpdateMetadataRequest(BaseModel):
+    title: str | None = Field(default=None, min_length=1, max_length=255)
+    author: str | None = Field(default=None, max_length=255)
+    is_shared: bool | None = None
+
+
+class AdminBookSummaryResponse(BaseModel):
+    book_id: uuid.UUID
+    status: str
+    ai_summary: dict[str, Any] | None = None
+    error_message: str | None = None
+
+
+class AdminBookUploadResponse(BaseModel):
+    book_id: uuid.UUID
+    job_id: uuid.UUID
+    message: str
+
+
+class AdminCancelJobResponse(BaseModel):
+    job_id: uuid.UUID
+    status: str
+    message: str
+    rolled_back: bool = True
