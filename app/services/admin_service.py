@@ -189,6 +189,12 @@ def get_book_detail(session: Session, book_id: uuid.UUID) -> AdminBookDetailResp
                 last_sign_in_at=l_in
             )
 
+    file_url = None
+    if book.document_type:
+        from app.core.supabase import supabase
+        storage_path = f"{book.id}/original.{book.document_type}"
+        file_url = supabase.storage.from_("raw_books").get_public_url(storage_path)
+
     return AdminBookDetailResponse(
         id=book.id,
         user_id=book.user_id,
@@ -205,6 +211,7 @@ def get_book_detail(session: Session, book_id: uuid.UUID) -> AdminBookDetailResp
         has_pareto_mode="pareto" in book_modes,
         created_at=book.created_at,
         updated_at=book.updated_at,
+        file_url=file_url,
         latest_job=AdminJobListItem.model_validate(latest_job) if latest_job else None,
         learning_units_by_status=count_learning_units_by_status(session, book_id),
         segment_count=count_learning_unit_segments_for_book(session, book_id),

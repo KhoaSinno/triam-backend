@@ -2,6 +2,7 @@ from dataclasses import dataclass
 
 import tiktoken
 
+from app.core.constant import PlanMode
 from app.core.config import settings
 
 
@@ -14,6 +15,9 @@ class TextBudget:
 
 _encoding = tiktoken.get_encoding("cl100k_base")
 
+PARETO_SPEECH_COMPRESSION_RATIO = 0.20
+FULL_SPEECH_COMPRESSION_RATIO = 0.80
+
 
 def estimate_tokens(text: str) -> int:
     if not text:
@@ -21,14 +25,18 @@ def estimate_tokens(text: str) -> int:
     return len(_encoding.encode(text))
 
 
-def estimate_audio_seconds(text: str) -> int:
+def estimate_audio_seconds(text: str, mode: PlanMode | str = PlanMode.FULL) -> int:
     """
-    Standard audiobook & TTS narration speech estimate (~150 WPM / 2.5 words per second).
+    Standard audiobook & TTS narration speech estimate (~150 WPM / 2.5 words per second),
+    factoring in LLM normalization speech compression ratios for Pareto vs Full mode.
     """
     words = len(text.split())
     if words == 0:
         return 0
-    return int(words / 150 * 60)
+    mode_str = mode.value if isinstance(mode, PlanMode) else str(mode)
+    ratio = PARETO_SPEECH_COMPRESSION_RATIO if mode_str == "pareto" else FULL_SPEECH_COMPRESSION_RATIO
+    estimated_words = words * ratio
+    return max(10, int(estimated_words / 150 * 60))
 
 
 def extract_unique_book_text(flat_sections: list) -> str:
@@ -70,11 +78,11 @@ def extract_unique_book_text(flat_sections: list) -> str:
     return " ".join(texts)
 
 
-def estimate_text_budget(text: str) -> TextBudget:
+def estimate_text_budget(text: str, mode: PlanMode | str = PlanMode.FULL) -> TextBudget:
     return TextBudget(
         char_count=len(text or ""),
         estimated_tokens=estimate_tokens(text),
-        estimated_audio_seconds=estimate_audio_seconds(text),
+        estimated_audio_seconds=estimate_audio_seconds(text, mode=mode),
     )
 
 
@@ -86,7 +94,7 @@ def should_chunk(text_budget: TextBudget) -> bool:
     return text_budget.estimated_tokens > settings.LLM_INPUT_SOFT_TOKEN_LIMIT
 
 
-def check_book_preflight_limits(flat_sections: list) -> tuple[bool, int, str | None]:
+def check_book_preflight_limits(flat_sections: list, mode: PlanMode | str = PlanMode.FULL) -> tuple[bool, int, str | None]:
     """
     Ước tính nhanh tổng số từ và thời lượng Audio của toàn bộ sách từ flat_sections.
 
@@ -98,7 +106,7 @@ def check_book_preflight_limits(flat_sections: list) -> tuple[bool, int, str | N
     if words == 0:
         return True, 0, None
 
-    estimated_audio_seconds = estimate_audio_seconds(unique_text)
+    estimated_audio_seconds = estimate_audio_seconds(unique_text, mode=mode)
     max_allowed_seconds = settings.MAX_ESTIMATED_AUDIO_SECONDS_PER_BOOK
 
     if estimated_audio_seconds > max_allowed_seconds:

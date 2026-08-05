@@ -69,10 +69,12 @@ def test_admin_can_view_cross_user_books_and_dashboard(auth_as):
     with Session(engine) as session:
         session.add(AdminUser(user_id=admin_user_id, role="admin"))
         # Seed user_a and user_b in auth.users table
+        user_a_email = f"user_a_{uuid.uuid4().hex[:6]}@triam.local"
+        user_b_email = f"user_b_{uuid.uuid4().hex[:6]}@triam.local"
         session.execute(
             auth_users.insert().values(
                 id=user_a,
-                email="user_a@triam.local",
+                email=user_a_email,
                 created_at=datetime.now(timezone.utc),
                 raw_user_meta_data={"name": "User A"},
             )
@@ -80,7 +82,7 @@ def test_admin_can_view_cross_user_books_and_dashboard(auth_as):
         session.execute(
             auth_users.insert().values(
                 id=user_b,
-                email="user_b@triam.local",
+                email=user_b_email,
                 created_at=datetime.now(timezone.utc),
                 raw_user_meta_data={"name": "User B"},
             )
@@ -141,7 +143,7 @@ def test_admin_can_view_cross_user_books_and_dashboard(auth_as):
 def test_admin_can_retry_failed_generation_job(monkeypatch, auth_as):
     calls = []
 
-    def fake_apply_async(*, args, queue):
+    def fake_apply_async(*, args, queue, **kwargs):
         calls.append({"args": args, "queue": queue})
 
     monkeypatch.setattr("app.services.admin_service.process_book_task.apply_async", fake_apply_async)

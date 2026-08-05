@@ -155,6 +155,7 @@ class AdminBookSectionDetailResponse(BaseModel):
 
 
 class AdminBookDetailResponse(AdminBookListItem):
+    file_url: str | None = None
     latest_job: AdminJobListItem | None = None
     learning_units_by_status: dict[str, int] = Field(default_factory=dict)
     segment_count: int = 0

@@ -8,7 +8,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlmodel import Session, select
 
 from app.core.config import settings
-from app.core.constant import BookStatus, DocumentType, PlanStatus, ProcessingJobStatus, ProcessingJobType
+from app.core.constant import BookStatus, DocumentType, PlanStatus, ProcessingJobStatus, ProcessingJobType, PlanMode
 from app.core.exceptions import (
     AppException,
     AudioLimitExceededError,
@@ -216,7 +216,7 @@ async def handle_upload_document(session: Session, file: UploadFile, user_id: uu
             raise DocumentExtractionError()
 
         # Pre-flight Check: Fail fast if estimated audio exceeds system limits before storage/DB operations
-        is_valid, est_seconds, err_msg = check_book_preflight_limits(flat_sections)
+        is_valid, est_seconds, err_msg = check_book_preflight_limits(flat_sections, mode=PlanMode.PARETO)
         if not is_valid:
             logger.warning(f"⛔ Upload rejected by Pre-flight Audio Limit | book_id={book_id} | reason={err_msg}")
             raise AudioLimitExceededError(err_msg)
