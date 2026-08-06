@@ -6,11 +6,11 @@ import uuid
 from dataclasses import dataclass
 
 from openai import AsyncOpenAI
-from pydantic import BaseModel, Field, ValidationError, field_validator
+from pydantic import BaseModel, Field, field_validator
 from sqlmodel import Session, select
 
-from app.core.constant import PlanMode
 from app.core.config import settings
+from app.core.constant import PlanMode
 from app.core.logger import log
 from app.db.database import engine
 from app.models.db_models import BookSection, BookSectionKnowledge
@@ -22,11 +22,7 @@ from app.services.pareto_signal_service import (
 )
 from app.services.token_budget_service import estimate_text_budget
 
-client = AsyncOpenAI(
-    api_key=settings.GEMINI_API_KEY, 
-    base_url=settings.GEMINI_BASE_URL,
-    timeout=60.0
-)
+client = AsyncOpenAI(api_key=settings.GEMINI_API_KEY, base_url=settings.GEMINI_BASE_URL, timeout=60.0)
 
 PARETO_PLANNER_SYSTEM_PROMPT = """
 You are TRIAM's Pareto learning planner.
@@ -37,6 +33,9 @@ Rules:
 - Return only valid JSON matching the requested schema.
 - Section titles may be Vietnamese, English, or mixed-language.
 - Use the original document language when naming learning units unless the source title is unclear.
+- Write `planner_reason` and `learning_objective` entirely in natural Vietnamese for the learner, regardless of the document language.
+- Keep proper nouns and established technical terms unchanged when translating them would reduce clarity (for example: Dijkstra, Big-O, dynamic programming).
+- Do not write English sentences in `planner_reason` or `learning_objective`; the surrounding TRIAM user interface is Vietnamese.
 - Treat signal_hints as helpful hints, not strict rules.
 - Prefer structurally important sections even when there are no obvious keywords.
 - Select 3 to 8 learning units unless the document is very small.
@@ -48,6 +47,10 @@ Rules:
 - Do not include sections that are only decorative, repetitive, or minor examples unless they are necessary to understand a core idea.
 - Each unit must explain why it was selected.
 - Select source sections such that the sum of their estimated_tokens is close to or under the requested target_tokens in the user payload.
+
+For language only, a good `learning_objective` is: "Hiểu cách dùng quy hoạch động để chia bài toán thành các bài toán con có thể tái sử dụng."
+For language only, a good `planner_reason` is: "Phần này trình bày nguyên lý cốt lõi cần có trước khi học các thuật toán tối ưu hóa cụ thể."
+These are field-level language examples, not a complete JSON unit. Always return every field required by the requested schema.
 """.strip()
 
 
@@ -127,10 +130,8 @@ def build_section_cards(sections: list[BookSection], anchor_vectors: dict[str, l
         book_id = sections[0].book_id
         with Session(engine) as session:
             rows = session.exec(
-                select(BookSectionKnowledge.section_id, BookSectionKnowledge.embedding)
-                .where(
-                    BookSectionKnowledge.book_id == book_id,
-                    BookSectionKnowledge.embedding_version == settings.BOOK_SECTION_EMBEDDING_VERSION
+                select(BookSectionKnowledge.section_id, BookSectionKnowledge.embedding).where(
+                    BookSectionKnowledge.book_id == book_id, BookSectionKnowledge.embedding_version == settings.BOOK_SECTION_EMBEDDING_VERSION
                 )
             ).all()
             embeddings_map = {row[0]: row[1] for row in rows if row[1] is not None}
@@ -141,10 +142,10 @@ def build_section_cards(sections: list[BookSection], anchor_vectors: dict[str, l
         excerpt = _excerpt(text)
         budget = estimate_text_budget(text)
         parent = by_id.get(section.parent_id) if section.parent_id else None
-        
+
         # Tìm vector của section hiện tại
         embedding = embeddings_map.get(section.id)
-        
+
         cards.append(
             SectionCard(
                 section_id=section.id,
@@ -156,9 +157,7 @@ def build_section_cards(sections: list[BookSection], anchor_vectors: dict[str, l
                 text_char_count=section.text_char_count,
                 estimated_tokens=budget.estimated_tokens,
                 child_count=len(children.get(section.id, [])),
-                signal_hints=extract_pareto_signal_hints(
-                    embedding=embedding, anchor_vectors=anchor_vectors
-                ),
+                signal_hints=extract_pareto_signal_hints(embedding=embedding, anchor_vectors=anchor_vectors),
                 excerpt=excerpt,
             )
         )
@@ -230,11 +229,7 @@ def _make_planned_unit_from_payload(
         return None
 
     budget = estimate_text_budget(source_text, mode=PlanMode.PARETO)
-    reason = (
-        f"{payload.planner_reason.strip()} "
-        f"Mục tiêu học: {payload.learning_objective.strip()} "
-        f"Điểm quan trọng: {payload.importance_score}/5."
-    )
+    reason = f"{payload.planner_reason.strip()} Mục tiêu học: {payload.learning_objective.strip()} Điểm quan trọng: {payload.importance_score}/5."
     return PlannedLearningUnit(
         title=payload.title.strip(),
         unit_type=payload.unit_type.strip() or "pareto_core",
@@ -267,7 +262,7 @@ def _trim_to_target(units: list[PlannedLearningUnit], *, total_source_tokens: in
     # 3. Tiến hành cắt tỉa dựa trên giá trị (Value-Based)
     # Lưu lại chỉ số gốc (index) đại diện cho thứ tự xuất hiện gốc trong sách
     indexed_units = [(i, unit) for i, unit in enumerate(units)]
-    
+
     # Hàm trích xuất điểm quan trọng từ planner_reason (ví dụ: "Điểm quan trọng: X/5")
     def get_importance_score(unit: PlannedLearningUnit) -> int:
         try:
@@ -277,7 +272,7 @@ def _trim_to_target(units: list[PlannedLearningUnit], *, total_source_tokens: in
             log.warning(f"Failed to parse importance score from planner_reason: {exc}")
         return 3  # Điểm mặc định trung bình nếu lỗi parse
 
-    # Sắp xếp theo: 
+    # Sắp xếp theo:
     # Tiêu chí 1: Importance Score giảm dần (ưu tiên bài quan trọng nhất)
     # Tiêu chí 2: Chỉ số index gốc tăng dần (nếu cùng quan trọng, ưu tiên bài xuất hiện trước trong sách)
     indexed_units.sort(key=lambda item: (-get_importance_score(item[1]), item[0]))
@@ -291,18 +286,15 @@ def _trim_to_target(units: list[PlannedLearningUnit], *, total_source_tokens: in
         # thì dừng lại để không vượt quá ngưỡng 40%.
         if len(selected_indexed) >= settings.PARETO_PLANNER_MIN_UNITS and (selected_tokens + unit.estimated_tokens) > target_tokens:
             break
-            
+
         selected_indexed.append((index, unit))
         selected_tokens += unit.estimated_tokens
 
     # 4. Trả các bài học đã chọn về thứ tự đọc tự nhiên của sách (sắp xếp lại theo index gốc)
     selected_indexed.sort(key=lambda item: item[0])
-    
+
     final_units = [unit for _, unit in selected_indexed]
-    log.info(
-        f"Trimming complete | retained_units={len(final_units)} "
-        f"| retained_tokens={sum(u.estimated_tokens for u in final_units)}/{total_source_tokens}"
-    )
+    log.info(f"Trimming complete | retained_units={len(final_units)} | retained_tokens={sum(u.estimated_tokens for u in final_units)}/{total_source_tokens}")
     return final_units
 
 
@@ -331,15 +323,12 @@ async def plan_pareto_learning_units(sections: list[BookSection]) -> list[Planne
 
     # 3. Gọi trực tiếp LLM để lập kế hoạch, nếu lỗi sẽ Fail-fast ném lỗi lên API
     log.info(f"Pareto planner start | sections={len(sections)} | cards={len(cards)}")
-    
-    payload = await asyncio.wait_for(
-        _call_pareto_llm(cards), 
-        timeout=settings.PARETO_PLANNER_TIMEOUT_SECONDS
-    )
-    
+
+    payload = await asyncio.wait_for(_call_pareto_llm(cards), timeout=settings.PARETO_PLANNER_TIMEOUT_SECONDS)
+
     planned_units = _validate_planner_payload(payload, sections)
     if not planned_units:
         raise ValueError("Pareto planner returned no valid learning units")
-        
+
     log.info(f"Pareto planner result | source=llm | units={len(planned_units)}")
     return planned_units
