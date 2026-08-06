@@ -9,6 +9,7 @@ from openai import AsyncOpenAI
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlmodel import Session, select
 
+from app.core.constant import PlanMode
 from app.core.config import settings
 from app.core.logger import log
 from app.db.database import engine
@@ -228,7 +229,7 @@ def _make_planned_unit_from_payload(
     if not source_text:
         return None
 
-    budget = estimate_text_budget(source_text)
+    budget = estimate_text_budget(source_text, mode=PlanMode.PARETO)
     reason = (
         f"{payload.planner_reason.strip()} "
         f"Mục tiêu học: {payload.learning_objective.strip()} "

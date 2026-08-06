@@ -87,7 +87,7 @@ def _normalize_raw_summary_dict(raw_dict: dict, word_count: int) -> dict:
 
 
 async def generate_ai_book_summary(session: Session, book_id: uuid.UUID) -> dict:
-    """Hàm xử lý nghiệp vụ chính: Kiểm tra token budget, gọi Gemini 2.5 Flash, kiểm duyệt Pydantic và lưu DB."""
+    """Hàm xử lý nghiệp vụ chính: Kiểm tra token budget, gọi Gemini 3.5 Flash Lite, kiểm duyệt Pydantic và lưu DB."""
     book = session.get(Book, book_id)
     if not book:
         raise ValueError(f"Book not found | book_id={book_id}")
@@ -161,7 +161,7 @@ async def generate_ai_book_summary(session: Session, book_id: uuid.UUID) -> dict
         temperature=0.3,
     )
     elapsed_seconds = time.perf_counter() - start_time
-    log.info(f"Gemini 2.5 Flash summary complete | book_id={book_id} | elapsed={elapsed_seconds:.2f}s")
+    log.info(f"Gemini 3.5 Flash Lite summary complete | book_id={book_id} | elapsed={elapsed_seconds:.2f}s")
 
     raw_output = completion.choices[0].message.content.strip()
 

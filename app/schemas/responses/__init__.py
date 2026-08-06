@@ -2,6 +2,7 @@
 from app.schemas.responses.audiobook_res import (
     BookDetailResponse,
     BookResponse,
+    SharedBookPreviewResponse,
     SwitchModeResponse,
 )
 from app.schemas.responses.study_context_res import (
@@ -17,6 +18,7 @@ __all__ = [
     # Audiobook
     "BookResponse",
     "BookDetailResponse",
+    "SharedBookPreviewResponse",
     "SwitchModeResponse",
     # Study Context
     "StudyContextResponse",

@@ -184,7 +184,8 @@ def _build_work_items(units: list[LearningUnit], source_text_by_unit: dict[uuid.
         if not raw_text.strip():
             logger.warning(f"Learning unit {unit.unit_index + 1} '{unit.title}' không có text, bỏ qua.")
             continue
-        work_items.append(UnitWorkItem(unit=unit, raw_text=raw_text, budget=estimate_text_budget(raw_text)))
+        budget = estimate_text_budget(raw_text, mode=unit.mode)
+        work_items.append(UnitWorkItem(unit=unit, raw_text=raw_text, budget=budget))
     return work_items
 
 

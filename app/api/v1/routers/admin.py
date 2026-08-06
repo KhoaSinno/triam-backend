@@ -1,12 +1,12 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from sqlmodel import Session
 
 from app.api.dependencies.admin import AdminUserDependency
 from app.api.dependencies.auth import CurrentUser
-from app.core.constant import BookStatus, DocumentType, PlanMode, ProcessingJobStatus, ProcessingJobType
+from app.core.constant import BookStatus, DocumentType, PlanMode, ProcessingJobStatus, ProcessingJobType, PlanMode 
 from app.db.database import get_session
 from app.models.db_models import Book
 from app.schemas.admin import (
@@ -22,6 +22,11 @@ from app.schemas.admin import (
     AdminBookSectionDetailResponse,
     AdminJobListItem,
     AdminBookExportResponse,
+    AdminBookAudioUnitsResponse,
+    AdminBookUpdateMetadataRequest,
+    AdminBookSummaryResponse,
+    AdminBookUploadResponse,
+    AdminCancelJobResponse,
 )
 from app.schemas.responses import BookResponse
 from app.services import admin_service
@@ -65,6 +70,7 @@ def read_admin_books(
     status: BookStatus | None = None,
     document_type: DocumentType | None = None,
     user_id: uuid.UUID | None = None,
+    is_shared: bool | None = None,
     q: str | None = Query(default=None, min_length=1, max_length=120),
 ):
     return admin_service.get_books(
@@ -74,6 +80,7 @@ def read_admin_books(
         status=status.value if status else None,
         document_type=document_type.value if document_type else None,
         user_id=user_id,
+        is_shared=is_shared,
         q=q,
     )
 
@@ -124,6 +131,44 @@ def export_admin_book_json(
     return admin_service.export_book_json(session, book_id)
 
 
+@router.put("/books/{book_id}", response_model=AdminBookDetailResponse)
+def update_admin_book(
+    book_id: uuid.UUID,
+    payload: AdminBookUpdateMetadataRequest,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.update_admin_book_metadata(session, book_id, payload, admin_user.user_id)
+
+
+@router.get("/books/{book_id}/audio-units", response_model=AdminBookAudioUnitsResponse)
+def read_admin_book_audio_units(
+    book_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+    mode: PlanMode,
+):
+    return admin_service.get_admin_book_audio_units(session, book_id, mode=mode)
+
+
+@router.get("/books/{book_id}/summary", response_model=AdminBookSummaryResponse)
+def read_admin_book_summary(
+    book_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.get_admin_book_summary(session, book_id)
+
+
+@router.post("/books/{book_id}/summary/regenerate")
+def regenerate_admin_book_summary(
+    book_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.regenerate_admin_book_summary(session, book_id, admin_user.user_id)
+
+
 @router.get("/jobs", response_model=AdminJobsResponse)
 def read_admin_jobs(
     admin_user: AdminUserDependency,
@@ -144,6 +189,48 @@ def read_admin_jobs(
         user_id=user_id,
         book_id=book_id,
     )
+
+
+@router.post("/books/upload", response_model=AdminBookUploadResponse)
+async def admin_upload_book(
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+    file: UploadFile = File(...),
+):
+    """
+    Upload sách mới dành riêng cho Admin (Hệ thống/Shared Library).
+    Trả về ngay HTTP 202 trong < 300ms và đẩy tiến trình bóc tách/vector ngầm.
+    """
+    return await admin_service.admin_upload_book_async(session, file=file, admin_user_id=admin_user.user_id)
+
+
+@router.get("/jobs/{job_id}", response_model=AdminJobListItem)
+def read_admin_job_by_id(
+    job_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    """
+    Đọc chi tiết tiến trình ngầm theo Job ID phục vụ Polling Widget góc màn hình Admin.
+    """
+    from app.repositories.processing_job_repo import get_processing_job_by_id
+    from app.core.exceptions import ProcessingJobNotFoundError
+    job = get_processing_job_by_id(session, job_id)
+    if not job:
+        raise ProcessingJobNotFoundError()
+    return AdminJobListItem.model_validate(job)
+
+
+@router.post("/jobs/{job_id}/cancel", response_model=AdminCancelJobResponse)
+def cancel_admin_job(
+    job_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    """
+    Hủy đột ngột tiến trình ngầm Celery và thực thi Clean Rollback dọn dẹp toàn bộ dữ liệu rác.
+    """
+    return admin_service.cancel_and_rollback_admin_job(session, job_id=job_id, admin_user_id=admin_user.user_id)
 
 
 @router.post("/jobs/{job_id}/retry", response_model=AdminRetryJobResponse)
@@ -204,7 +291,7 @@ async def process_admin_book(
     mode: PlanMode,
     admin_user: AdminUserDependency,
     session: Annotated[Session, Depends(get_session)],
-    is_shared: bool = Query(default=True, description="Tự động công khai sách lên thư viện ngay khi xử lý hoàn tất"),
+    is_shared: bool = Query(default=False, description="Tự động công khai sách lên thư viện ngay khi xử lý hoàn tất"),
 ):
     """
     Kích hoạt tiến trình sinh audio + vector RAG cho sách mẫu của Admin.

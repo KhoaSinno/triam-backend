@@ -1,13 +1,11 @@
 import uuid
-import asyncio
 from typing import Optional
 
 from sqlalchemy import or_
 from sqlmodel import Session, col, delete, select
 
-from app.core.exceptions import BookNotFoundError, StorageOperationError
+from app.core.exceptions import BookNotFoundError
 from app.core.logger import log
-from app.core.supabase import supabase
 from app.models.db_models import Book, NotificationOutbox, UserNotification
 from app.schemas.audiobook import BookUpdateRequest
 
@@ -26,6 +24,11 @@ def get_book_by_id(session: Session, book_id: uuid.UUID) -> Optional[Book]:
 
 def get_book_by_id_and_user(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -> Optional[Book]:
     return session.exec(select(Book).where(Book.id == book_id, Book.user_id == user_id)).first()
+
+
+def get_ready_shared_book_by_id(session: Session, book_id: uuid.UUID) -> Optional[Book]:
+    """Return only catalog books that are safe to preview before cloning."""
+    return session.exec(select(Book).where(Book.id == book_id, Book.is_shared, Book.status == "ready")).first()
 
 
 def create_book(session: Session, book: Book) -> Book:
@@ -123,4 +126,3 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uui
             log.info(f"Dispatched background storage purge task for book: {str_book_id}")
         except Exception as exc:
             log.warning(f"Failed to dispatch purge task (will rely on periodic cleanup): {exc}")
-

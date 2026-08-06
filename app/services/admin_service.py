@@ -3,9 +3,11 @@ from datetime import datetime, timezone
 
 from sqlmodel import Session, select, func
 
+from app.core.config import settings
 from app.core.constant import BookStatus, PlanMode, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import BadRequestError, BookNotFoundError, BookStatusConflictError, ExternalServiceError, ProcessingJobNotFoundError, ProcessingJobStatusConflictError
-from app.models.db_models import AdminAuditLog, AdminUser, Book, LearningUnit, ProcessingJob, BookSection, BookSectionKnowledge
+from app.core.logger import log
+from app.models.db_models import AdminAuditLog, AdminUser, Book, LearningUnit, LearningUnitSegment, LearningUnitSource, ProcessingJob, BookSection, BookSectionKnowledge
 from app.repositories.admin_repo import (
     count_learning_unit_segments_for_book,
     count_learning_units_by_status,
@@ -20,6 +22,7 @@ from app.repositories.admin_repo import (
 )
 from app.repositories.learning_unit_repo import create_learning_units
 from app.repositories.processing_job_repo import get_processing_job_by_id
+from fastapi import UploadFile
 from app.schemas.admin import (
     AdminAuditLogItem,
     AdminAuditLogsResponse,
@@ -39,10 +42,18 @@ from app.schemas.admin import (
     AdminBookExportResponse,
     AdminExportSectionItem,
     AdminExportChunkItem,
+    AdminSegmentItem,
+    AdminLearningUnitSourceItem,
+    AdminLearningUnitItem,
+    AdminBookAudioUnitsResponse,
+    AdminBookUpdateMetadataRequest,
+    AdminBookSummaryResponse,
+    AdminBookUploadResponse,
+    AdminCancelJobResponse,
 )
 from app.schemas.user import UserTokenPayload
 from app.services.upload_service import _planned_units_for_book
-from app.tasks.book_tasks import process_book_task, switch_mode_task
+from app.tasks.book_tasks import process_book_task, switch_mode_task, generate_book_summary_task
 from app.repositories.admin_repo import auth_users
 
 RETRYABLE_JOB_STATUSES = {ProcessingJobStatus.ERROR, ProcessingJobStatus.CANCELLED}
@@ -75,6 +86,7 @@ def get_books(
     status: str | None = None,
     document_type: str | None = None,
     user_id: uuid.UUID | None = None,
+    is_shared: bool | None = None,
     q: str | None = None,
 ) -> AdminBooksResponse:
     books, total = list_admin_books(
@@ -84,6 +96,7 @@ def get_books(
         status=status,
         document_type=document_type,
         user_id=user_id,
+        is_shared=is_shared,
         q=q,
     )
 
@@ -179,6 +192,12 @@ def get_book_detail(session: Session, book_id: uuid.UUID) -> AdminBookDetailResp
                 last_sign_in_at=l_in
             )
 
+    file_url = None
+    if book.document_type:
+        from app.core.supabase import supabase
+        storage_path = f"{book.id}/original.{book.document_type}"
+        file_url = supabase.storage.from_("raw_books").get_public_url(storage_path)
+
     return AdminBookDetailResponse(
         id=book.id,
         user_id=book.user_id,
@@ -195,10 +214,14 @@ def get_book_detail(session: Session, book_id: uuid.UUID) -> AdminBookDetailResp
         has_pareto_mode="pareto" in book_modes,
         created_at=book.created_at,
         updated_at=book.updated_at,
+        file_url=file_url,
         latest_job=AdminJobListItem.model_validate(latest_job) if latest_job else None,
         learning_units_by_status=count_learning_units_by_status(session, book_id),
         segment_count=count_learning_unit_segments_for_book(session, book_id),
         owner_info=owner_info,
+        ai_summary=book.ai_summary,
+        ai_summary_status=book.ai_summary_status,
+        ai_summary_error=book.ai_summary_error,
     )
 
 
@@ -295,11 +318,15 @@ def _validate_retryable_job(job: ProcessingJob) -> None:
 
 def _enqueue_retry(job: ProcessingJob) -> None:
     task_args = [str(job.book_id), job.mode.value, str(job.id)]
-    if job.job_type == ProcessingJobType.GENERATE_PLAN:
-        process_book_task.apply_async(args=task_args, queue="document")
-        return
-    if job.job_type == ProcessingJobType.SWITCH_MODE:
-        switch_mode_task.apply_async(args=task_args, queue="document")
+    try:
+        if job.job_type == ProcessingJobType.GENERATE_PLAN:
+            process_book_task.apply_async(args=task_args, task_id=str(job.id), queue="document")
+            return
+        if job.job_type == ProcessingJobType.SWITCH_MODE:
+            switch_mode_task.apply_async(args=task_args, task_id=str(job.id), queue="document")
+            return
+    except Exception as exc:
+        log.warning(f"Could not enqueue Celery retry task for job {job.id}: {exc}")
         return
     raise BadRequestError("Job này không hỗ trợ retry từ admin.")
 
@@ -420,10 +447,14 @@ async def start_admin_book_processing(
     session.commit()
 
     # 7. Kích hoạt Celery Task
-    process_book_task.apply_async(
-        args=[str(book_id), requested_mode.value, str(job.id)],
-        queue="document",
-    )
+    try:
+        process_book_task.apply_async(
+            args=[str(book_id), requested_mode.value, str(job.id)],
+            task_id=str(job.id),
+            queue="document",
+        )
+    except Exception as exc:
+        log.warning(f"Could not enqueue Celery task for job {job.id}: {exc}")
 
     return AdminRetryJobResponse(
         job=AdminJobListItem.model_validate(job),
@@ -598,5 +629,352 @@ def export_book_json(session: Session, book_id: uuid.UUID) -> AdminBookExportRes
         author=book.author,
         document_type=book.document_type,
         sections=section_items
+    )
+
+
+def get_admin_book_audio_units(session: Session, book_id: uuid.UUID, mode: PlanMode) -> AdminBookAudioUnitsResponse:
+    book = get_admin_book_by_id(session, book_id)
+    if not book:
+        raise BookNotFoundError()
+
+    try:
+        mode_value = PlanMode(mode)
+    except ValueError:
+        mode_value = PlanMode.PARETO
+
+    units = session.exec(
+        select(LearningUnit)
+        .where(LearningUnit.book_id == book_id, LearningUnit.mode == mode_value)
+        .order_by(LearningUnit.unit_index.asc())
+    ).all()
+
+    unit_ids = [u.id for u in units]
+    segments_map = {}
+    sources_map = {}
+    if unit_ids:
+        segments = session.exec(
+            select(LearningUnitSegment)
+            .where(LearningUnitSegment.learning_unit_id.in_(unit_ids))
+            .order_by(LearningUnitSegment.learning_unit_id, LearningUnitSegment.segment_index.asc())
+        ).all()
+        for seg in segments:
+            segments_map.setdefault(seg.learning_unit_id, []).append(
+                AdminSegmentItem(
+                    id=seg.id,
+                    segment_index=seg.segment_index,
+                    audio_url=seg.audio_url,
+                    text_content=seg.text_content,
+                    duration_ms=seg.duration_ms,
+                )
+            )
+
+        source_rows = session.exec(
+            select(LearningUnitSource, BookSection)
+            .join(BookSection, BookSection.id == LearningUnitSource.section_id)
+            .where(LearningUnitSource.learning_unit_id.in_(unit_ids))
+            .order_by(LearningUnitSource.learning_unit_id, LearningUnitSource.source_order.asc())
+        ).all()
+        for source, section in source_rows:
+            sources_map.setdefault(source.learning_unit_id, []).append(
+                AdminLearningUnitSourceItem(
+                    section_id=section.id,
+                    section_index=section.section_index,
+                    section_title=section.title,
+                    section_path=section.path,
+                    page_start=section.page_start,
+                    page_end=section.page_end,
+                    source_order=source.source_order,
+                )
+            )
+
+    unit_items = [
+        AdminLearningUnitItem(
+            id=u.id,
+            unit_index=u.unit_index,
+            title=u.title,
+            unit_type=u.unit_type,
+            mode=u.mode.value,
+            status=u.status.value if hasattr(u.status, 'value') else str(u.status),
+            estimated_audio_seconds=u.estimated_audio_seconds,
+            main_segment_count=u.main_segment_count,
+            review_text=u.review_text,
+            review_audio_url=u.review_audio_url,
+            planner_reason=u.planner_reason,
+            segments=segments_map.get(u.id, []),
+            sources=sources_map.get(u.id, []),
+        )
+        for u in units
+    ]
+
+    return AdminBookAudioUnitsResponse(
+        book_id=book.id,
+        mode=mode_value.value,
+        total_units=len(unit_items),
+        units=unit_items,
+    )
+
+
+def update_admin_book_metadata(
+    session: Session,
+    book_id: uuid.UUID,
+    payload: AdminBookUpdateMetadataRequest,
+    admin_user_id: uuid.UUID,
+) -> AdminBookDetailResponse:
+    book = get_admin_book_by_id(session, book_id)
+    if not book:
+        raise BookNotFoundError()
+
+    changes = {}
+    if payload.title is not None and payload.title.strip() and payload.title.strip() != book.title:
+        changes["old_title"] = book.title
+        book.title = payload.title.strip()
+        changes["new_title"] = book.title
+
+    if payload.author is not None and payload.author.strip() != (book.author or ""):
+        changes["old_author"] = book.author
+        book.author = payload.author.strip()
+        changes["new_author"] = book.author
+
+    if payload.is_shared is not None and payload.is_shared != book.is_shared:
+        changes["old_is_shared"] = book.is_shared
+        book.is_shared = payload.is_shared
+        changes["new_is_shared"] = book.is_shared
+
+    if changes:
+        session.add(book)
+        session.commit()
+        session.refresh(book)
+
+        create_admin_audit_log(
+            session,
+            admin_user_id=admin_user_id,
+            action="book.update_metadata",
+            target_type="book",
+            target_id=book_id,
+            metadata=changes,
+        )
+        session.commit()
+
+    return get_book_detail(session, book_id)
+
+
+def get_admin_book_summary(session: Session, book_id: uuid.UUID) -> AdminBookSummaryResponse:
+    book = get_admin_book_by_id(session, book_id)
+    if not book:
+        raise BookNotFoundError()
+
+    return AdminBookSummaryResponse(
+        book_id=book.id,
+        status=book.ai_summary_status,
+        ai_summary=book.ai_summary,
+        error_message=book.ai_summary_error,
+    )
+
+
+def regenerate_admin_book_summary(
+    session: Session,
+    book_id: uuid.UUID,
+    admin_user_id: uuid.UUID,
+) -> dict:
+    from app.core.constant import SummaryStatus
+    book = get_admin_book_by_id(session, book_id)
+    if not book:
+        raise BookNotFoundError()
+
+    prev_status = book.ai_summary_status
+    book.ai_summary_status = SummaryStatus.PENDING.value
+    book.ai_summary_error = None
+    session.add(book)
+    session.commit()
+
+    create_admin_audit_log(
+        session,
+        admin_user_id=admin_user_id,
+        action="book.regenerate_summary",
+        target_type="book",
+        target_id=book_id,
+        metadata={"previous_status": prev_status},
+    )
+    session.commit()
+
+    generate_book_summary_task.delay(str(book.id))
+    return {
+        "message": "Đã gửi yêu cầu tạo lại tóm tắt AI dưới nền.",
+        "status": SummaryStatus.PENDING.value,
+    }
+
+
+async def admin_upload_book_async(
+    session: Session,
+    file: UploadFile,
+    admin_user_id: uuid.UUID,
+) -> AdminBookUploadResponse:
+    import aiofiles
+    import os
+
+    filename = file.filename or "uploaded_book.pdf"
+    filename_lower = filename.lower()
+
+    if filename_lower.endswith(".pdf"):
+        doc_type = "pdf"
+    elif filename_lower.endswith(".epub"):
+        doc_type = "epub"
+    elif filename_lower.endswith(".docx"):
+        doc_type = "docx"
+    else:
+        raise BadRequestError("Chỉ hỗ trợ upload file PDF, EPUB hoặc DOCX.")
+
+    content = await file.read()
+    if len(content) > settings.MAX_FILE_SIZE_BYTES:
+        raise BadRequestError("Dung lượng file vượt quá giới hạn hệ thống cho phép.")
+
+    book_id = uuid.uuid4()
+    job_id = uuid.uuid4()
+
+    tmp_filepath = f"uploads/{book_id}.tmp"
+    os.makedirs("uploads", exist_ok=True)
+
+    async with aiofiles.open(tmp_filepath, "wb") as f:
+        await f.write(content)
+
+    clean_title = os.path.splitext(filename)[0].replace("_", " ").replace("-", " ").title()
+
+    book = Book(
+        id=book_id,
+        user_id=admin_user_id,
+        title=clean_title,
+        author="Tác giả chưa xác định",
+        document_type=doc_type,
+        status=BookStatus.PROCESSING.value,
+        is_shared=False,
+    )
+    session.add(book)
+
+    job = ProcessingJob(
+        id=job_id,
+        user_id=admin_user_id,
+        book_id=book_id,
+        job_type=ProcessingJobType.UPLOAD,
+        status=ProcessingJobStatus.QUEUED,
+        progress_percent=0,
+        current_step="Đang đưa tài liệu vào hàng đợi xử lý ngầm...",
+    )
+    session.add(job)
+    session.commit()
+    session.refresh(book)
+    session.refresh(job)
+
+    create_admin_audit_log(
+        session,
+        admin_user_id=admin_user_id,
+        action="book.admin_upload",
+        target_type="book",
+        target_id=book_id,
+        metadata={"filename": filename, "job_id": str(job.id)},
+    )
+    session.commit()
+
+    from app.tasks.book_tasks import admin_ingest_book_task
+    try:
+        admin_ingest_book_task.apply_async(
+            args=[str(book_id), str(job.id), tmp_filepath, doc_type, filename],
+            task_id=str(job.id),
+            queue="document",
+        )
+    except Exception as exc:
+        log.warning(f"Could not enqueue Celery ingest task for job {job.id}: {exc}")
+
+    return AdminBookUploadResponse(
+        book_id=book.id,
+        job_id=job.id,
+        message="Upload sách thành công. Tiến trình bóc tách và tạo vector đang chạy ngầm.",
+    )
+
+
+def cancel_and_rollback_admin_job(
+    session: Session,
+    job_id: uuid.UUID,
+    admin_user_id: uuid.UUID,
+) -> AdminCancelJobResponse:
+    from app.core.celery_app import celery_app
+    from app.models.db_models import LearningUnitSegment, LearningUnitSource
+
+    job = session.get(ProcessingJob, job_id)
+    if not job:
+        raise ProcessingJobNotFoundError()
+
+    if job.status in [ProcessingJobStatus.READY, ProcessingJobStatus.COMPLETED, ProcessingJobStatus.CANCELLED]:
+        raise ProcessingJobStatusConflictError("Tiến trình đã hoàn thành hoặc đã bị hủy trước đó.")
+
+    # 1. Celery Revoke Task (fire-and-forget in background thread to prevent blocking HTTP endpoint)
+    def _revoke_celery_task_bg():
+        try:
+            celery_app.control.revoke(str(job.id))
+        except Exception as exc:
+            log.warning(f"Could not revoke Celery task {job.id}: {exc}")
+
+    import threading
+    threading.Thread(target=_revoke_celery_task_bg, daemon=True).start()
+
+    target_book_id = job.book_id
+
+    # 2. Clean Rollback Dữ liệu Rác
+    if target_book_id:
+        # Delete BookSectionKnowledge
+        knowledges = session.exec(select(BookSectionKnowledge).where(BookSectionKnowledge.book_id == target_book_id)).all()
+        for k in knowledges:
+            session.delete(k)
+
+        # Delete LearningUnits, Segments & LearningUnitSource associations
+        units = session.exec(select(LearningUnit).where(LearningUnit.book_id == target_book_id)).all()
+        u_ids = [u.id for u in units]
+        if u_ids:
+            segs = session.exec(select(LearningUnitSegment).where(LearningUnitSegment.learning_unit_id.in_(u_ids))).all()
+            for s in segs:
+                session.delete(s)
+            unit_sources = session.exec(select(LearningUnitSource).where(LearningUnitSource.learning_unit_id.in_(u_ids))).all()
+            for us in unit_sources:
+                session.delete(us)
+            for u in units:
+                session.delete(u)
+
+        # Delete BookSections
+        sections = session.exec(select(BookSection).where(BookSection.book_id == target_book_id)).all()
+        for sec in sections:
+            session.delete(sec)
+
+        # Delete Book if it was an Upload job; otherwise set status to CANCELLED
+        book = session.get(Book, target_book_id)
+        if book:
+            if job.job_type == ProcessingJobType.UPLOAD:
+                job.book_id = None
+                session.add(job)
+                session.flush()
+                session.delete(book)
+            else:
+                book.status = BookStatus.CANCELLED
+                book.error_message = "Tiến trình đã bị Admin hủy."
+                session.add(book)
+
+    job.status = ProcessingJobStatus.CANCELLED
+    job.error_message = "Tiến trình đã bị Admin hủy và dọn dẹp sạch dữ liệu (Clean Rollback)."
+    session.add(job)
+    session.commit()
+
+    create_admin_audit_log(
+        session,
+        admin_user_id=admin_user_id,
+        action="job.cancel_and_rollback",
+        target_type="job",
+        target_id=job.id,
+        metadata={"book_id": str(target_book_id) if target_book_id else None},
+    )
+    session.commit()
+
+    return AdminCancelJobResponse(
+        job_id=job.id,
+        status="cancelled",
+        message="Đã hủy tiến trình thành công và dọn dẹp toàn bộ dữ liệu rác!",
+        rolled_back=True,
     )
 

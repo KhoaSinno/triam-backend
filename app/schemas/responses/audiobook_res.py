@@ -4,7 +4,7 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.core.constant import DocumentType
+from app.core.constant import DocumentType, PlanMode
 from app.schemas.learning_progress import BookLearningSummaryResponse
 
 
@@ -69,6 +69,40 @@ class BookDetailResponse(BaseModel):
     ai_summary_error: Optional[str] = None
     learning_summary: Optional[BookLearningSummaryResponse] = None
     units: list[LearningUnitDetailResponse] = Field(default_factory=list)
+
+
+class BookOutlineNodeResponse(BaseModel):
+    id: uuid.UUID
+    title: str
+    level: int
+    path: str
+    page_start: int | None = None
+    page_end: int | None = None
+    children: list["BookOutlineNodeResponse"] = Field(default_factory=list)
+
+
+class SharedBookPreviewUnitResponse(BaseModel):
+    id: uuid.UUID
+    title: str
+    status: str | None = None
+    unit_index: int
+    unit_type: str
+    estimated_audio_seconds: int = 0
+    planner_reason: str | None = None
+    has_audio_sample: bool = False
+
+
+class SharedBookPreviewResponse(BaseModel):
+    """Small pre-clone catalog payload: book structure plus one playable sample."""
+
+    book: BookResponse
+    mode: PlanMode
+    available_modes: list[PlanMode] = Field(default_factory=list)
+    total_sections: int = 0
+    outline_tree: list[BookOutlineNodeResponse] = Field(default_factory=list)
+    total_units: int = 0
+    learning_outline: list[SharedBookPreviewUnitResponse] = Field(default_factory=list)
+    audio_sample: LearningUnitDetailResponse | None = None
 
 
 class SwitchModeResponse(BaseModel):

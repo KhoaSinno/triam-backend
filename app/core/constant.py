@@ -14,6 +14,7 @@ class BookStatus(str, Enum):
     PARTIAL_READY = "partial_ready"
     READY = "ready"
     ERROR = "error"
+    CANCELLED = "cancelled"
 
 
 class SummaryStatus(str, Enum):
@@ -41,6 +42,7 @@ class ProcessingJobStatus(str, Enum):
     READY = "ready"
     ERROR = "error"
     CANCELLED = "cancelled"
+    COMPLETED = "completed"
 
 
 class ProcessingJobType(str, Enum):

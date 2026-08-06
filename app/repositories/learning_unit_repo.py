@@ -61,13 +61,7 @@ def create_learning_units(
 def list_learning_units(session: Session, book_id: uuid.UUID, mode: PlanMode | str) -> list[LearningUnit]:
     mode_value = PlanMode(mode)
     try:
-        return list(
-            session.exec(
-                select(LearningUnit)
-                .where(LearningUnit.book_id == book_id, LearningUnit.mode == mode_value)
-                .order_by(col(LearningUnit.unit_index))
-            ).all()
-        )
+        return list(session.exec(select(LearningUnit).where(LearningUnit.book_id == book_id, LearningUnit.mode == mode_value).order_by(col(LearningUnit.unit_index))).all())
     except ProgrammingError as exc:
         if "learning_units" in str(exc) and "does not exist" in str(exc):
             session.rollback()
@@ -77,6 +71,27 @@ def list_learning_units(session: Session, book_id: uuid.UUID, mode: PlanMode | s
 
 def get_learning_unit_by_book(session: Session, *, book_id: uuid.UUID, learning_unit_id: uuid.UUID) -> LearningUnit | None:
     return session.exec(select(LearningUnit).where(LearningUnit.id == learning_unit_id, LearningUnit.book_id == book_id)).first()
+
+
+def get_first_playable_learning_unit(
+    session: Session,
+    *,
+    book_id: uuid.UUID,
+    mode: PlanMode | str,
+) -> LearningUnit | None:
+    """Find one unit with a real audio URL without loading every segment."""
+    mode_value = PlanMode(mode)
+    return session.exec(
+        select(LearningUnit)
+        .join(LearningUnitSegment, LearningUnitSegment.learning_unit_id == LearningUnit.id)
+        .where(
+            LearningUnit.book_id == book_id,
+            LearningUnit.mode == mode_value,
+            LearningUnitSegment.audio_url.is_not(None),
+        )
+        .order_by(col(LearningUnit.unit_index), col(LearningUnitSegment.segment_index))
+        .limit(1)
+    ).first()
 
 
 def get_learning_unit_source_text_map(session: Session, book_id: uuid.UUID, mode: PlanMode | str) -> dict[uuid.UUID, str]:
@@ -175,8 +190,6 @@ def list_unit_segments(session: Session, learning_unit_ids: list[uuid.UUID]) -> 
         return []
     return list(
         session.exec(
-            select(LearningUnitSegment)
-            .where(LearningUnitSegment.learning_unit_id.in_(learning_unit_ids))
-            .order_by(LearningUnitSegment.learning_unit_id, LearningUnitSegment.segment_index)
+            select(LearningUnitSegment).where(LearningUnitSegment.learning_unit_id.in_(learning_unit_ids)).order_by(LearningUnitSegment.learning_unit_id, LearningUnitSegment.segment_index)
         ).all()
     )

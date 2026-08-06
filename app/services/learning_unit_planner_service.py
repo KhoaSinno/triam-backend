@@ -45,7 +45,7 @@ def _make_unit(title: str, unit_type: str, source_sections: list[BookSection], r
     source_text = _sections_text(ordered)
     if not source_text:
         return None
-    budget = estimate_text_budget(source_text)
+    budget = estimate_text_budget(source_text, mode=PlanMode.FULL)
     return PlannedLearningUnit(
         title=title.strip() or "Bài học",
         unit_type=unit_type,
@@ -119,7 +119,7 @@ def _merge_tiny_units(units: list[PlannedLearningUnit]) -> list[PlannedLearningU
             title = " - ".join(unit.title for unit in buffer[:2])
             source_ids = [section_id for unit in buffer for section_id in unit.source_section_ids]
             source_text = "\n\n".join(unit.source_text for unit in buffer)
-            budget = estimate_text_budget(source_text)
+            budget = estimate_text_budget(source_text, mode=PlanMode.FULL)
             merged.append(
                 PlannedLearningUnit(
                     title=title,
