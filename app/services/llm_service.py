@@ -15,7 +15,7 @@ from app.services.tts_script_quality_service import inspect_tts_script_quality, 
 
 # Sử dụng Gemini qua OpenAI-compatible API
 client = AsyncOpenAI(
-    api_key=settings.GEMINI_API_KEY, 
+    api_key=settings.GEMINI_API_KEY,
     base_url=settings.GEMINI_BASE_URL,
     timeout=60.0
 )
@@ -63,7 +63,8 @@ Global rules:
 - If the exact expansion is uncertain, explain the term's role neutrally instead of guessing.
 - After a term has been explained once in the same learning unit, you may use the short form to keep audio concise.
 - The review script may be heard separately later, so explain essential abbreviations again there.
-- Split main_scripts into coherent spoken paragraphs of about 6-10 sentences (roughly 600 to 1000 characters, targeting 30 to 60 seconds of spoken audio) or one complete idea each. Do not prefix them with labels such as "Segment", "Part", or "Next".
+- Split main_scripts into coherent spoken paragraphs of about 6-10 sentences (roughly 600 to 1000 characters, targeting 30 to 60 seconds of spoken audio) or one complete idea each.
+- Do not prefix them with labels such as "Segment", "Part", or "Next".
 - Ensure the scripts sound continuous when played in order.
 
 Return only a valid JSON object:
@@ -78,9 +79,12 @@ SYSTEM_PROMPT_REWRITE_FULL = (
     + """
 
 Mode: FULL.
-- Keep the learning unit's content complete and faithful.
-- Do not over-summarize. Preserve definitions, arguments, conditions, examples that explain the concept, and important transitions.
-- You may make dense textbook prose easier to hear, but keep the author's logic and scope.
+- Treat this as a content-preserving spoken adaptation, not a summary. Keep virtually all meaningful content from the cleaned input, in its original order.
+- Do not omit narrative events, dialogue, questions and answers, definitions, arguments, conditions, supporting examples, qualifications, or important transitions merely to make the audio shorter.
+- Remove only extraction noise and genuinely repeated headers, footers, page numbers, or duplicated text. You may rephrase dense prose for listening.
+- That rephrasing must preserve the author's logic, scope, and level of detail.
+- Represent every information-bearing paragraph or passage in `main_scripts`. Do not collapse several passages into one broad takeaway.
+- Return as many `main_scripts` as the source requires. The suggested length for an individual spoken paragraph never limits the total number of paragraphs or licenses shortening the learning unit.
 - review_script: 100-150 Vietnamese words, summarizing 3-5 core ideas in spoken form.
 
 Input: raw textbook text.
