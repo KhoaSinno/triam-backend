@@ -7,24 +7,25 @@ from sqlmodel import Session, select
 
 from app.core.constant import BookStatus, PlanMode, PlanStatus, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import BookNotFoundError, BookStatusConflictError, ExternalServiceError, NoReadingPlanError, ReadingPlanNotFoundError, ReadingPlanScheduleConflictError
-from app.models.db_models import Book, LearningUnit, LearningUnitSegment, ProcessingJob, ReadingPlan, ReadingPlanScheduleSlot, BookLearningState, ReadingPlanSession, SpacedReviewItem
+from app.models.db_models import Book, LearningUnit, LearningUnitSegment, ProcessingJob, ReadingPlan, ReadingPlanScheduleSlot, ReadingPlanSession, SpacedReviewItem
 from app.repositories import audiobook_repo
+from app.repositories.book_learning_state_repo import reset_book_learning_state
 from app.repositories.book_read_repo import BookListProjection, get_book_library_projection, list_book_library_projections
 from app.repositories.book_section_repo import BookSectionOutlineRow, list_book_section_outline_rows, list_book_sections
+from app.repositories.learning_progress_repo import delete_book_progress
 from app.repositories.learning_unit_repo import (
     count_unit_segments_by_book_and_mode,
     create_learning_units,
+    get_first_playable_learning_unit,
     list_learning_units,
     list_unit_segments,
 )
+from app.repositories.notification_outbox_repo import delete_pending_outbox_by_keys
 from app.repositories.processing_job_repo import create_processing_job, update_processing_job
 from app.repositories.reading_plan_repo import get_current_plan_for_owned_book
 from app.repositories.reading_plan_schedule_repo import list_active_slots, list_slots_for_plan, replace_slots_for_plan, set_slots_active
-from app.repositories.learning_progress_repo import delete_book_progress
-from app.repositories.book_learning_state_repo import reset_book_learning_state
 from app.repositories.reading_plan_session_repo import delete_sessions_for_plan
 from app.repositories.spaced_review_repo import delete_spaced_review_items
-from app.repositories.notification_outbox_repo import delete_pending_outbox_by_keys
 from app.schemas.audiobook import BookCreateRequest, BookUpdateRequest
 from app.services.learning_progress_service import build_book_learning_summary_from_state
 from app.services.learning_unit_planner_service import plan_learning_units_async
@@ -85,7 +86,7 @@ def list_shared_library(session: Session) -> list[dict]:
     """
     Lấy danh sách sách mẫu được chia sẻ công khai kèm thông tin các chế độ học đã bóc tách xong.
     """
-    books = session.exec(select(Book).where(Book.is_shared == True, Book.status == "ready")).all()
+    books = session.exec(select(Book).where(Book.is_shared, Book.status == "ready")).all()
 
     book_ids = [b.id for b in books]
     modes_map = {}
@@ -122,6 +123,97 @@ def list_shared_library(session: Session) -> list[dict]:
             }
         )
     return items
+
+
+def _book_outline_tree(session: Session, book_id: uuid.UUID) -> tuple[list[dict], int]:
+    sections = list_book_section_outline_rows(session, book_id)
+    by_parent: dict[uuid.UUID | None, list[BookSectionOutlineRow]] = {}
+    for section in sections:
+        by_parent.setdefault(section.parent_id, []).append(section)
+
+    def walk(parent_id: uuid.UUID | None = None) -> list[dict]:
+        return [
+            {
+                "id": section.id,
+                "title": section.title,
+                "level": section.level,
+                "path": section.path,
+                "page_start": section.page_start,
+                "page_end": section.page_end,
+                "text_char_count": section.text_char_count,
+                "children": walk(section.id),
+            }
+            for section in by_parent.get(parent_id, [])
+        ]
+
+    return walk(), len(sections)
+
+
+def _shared_book_response(book: Book, modes: set[str]) -> dict:
+    return {
+        "id": book.id,
+        "title": book.title,
+        "author": book.author,
+        "total_sections": book.total_sections,
+        "total_units": book.total_units,
+        "status": book.status,
+        "ai_summary": book.ai_summary,
+        "ai_summary_status": book.ai_summary_status,
+        "ai_summary_error": book.ai_summary_error,
+        "learning_status": None,
+        "book_progress_percent": 0,
+        "completed_at": None,
+        "document_type": book.document_type,
+        "file_url": book.file_url,
+        "is_shared": True,
+        "parent_shared_id": None,
+        "has_full_mode": PlanMode.FULL.value in modes,
+        "has_pareto_mode": PlanMode.PARETO.value in modes,
+        "created_at": book.created_at,
+        "updated_at": book.updated_at,
+    }
+
+
+def get_shared_book_preview(
+    session: Session,
+    shared_book_id: uuid.UUID,
+    *,
+    mode: PlanMode,
+) -> dict:
+    """Expose a small, read-only catalog preview without granting ownership."""
+    book = audiobook_repo.get_ready_shared_book_by_id(session, shared_book_id)
+    if not book:
+        raise BookNotFoundError()
+
+    mode_rows = session.exec(select(LearningUnit.mode).where(LearningUnit.book_id == book.id).group_by(LearningUnit.mode)).all()
+    available_modes = {item.value for item in mode_rows}
+    outline_tree, total_sections = _book_outline_tree(session, book.id)
+    units = list_learning_units(session, book.id, mode)
+    audio_sample_unit = get_first_playable_learning_unit(session, book_id=book.id, mode=mode)
+    sample_segments = _segments_by_unit(list_unit_segments(session, [audio_sample_unit.id])).get(audio_sample_unit.id, []) if audio_sample_unit else []
+
+    return {
+        "book": _shared_book_response(book, available_modes),
+        "mode": mode.value,
+        "available_modes": sorted(available_modes),
+        "total_sections": total_sections,
+        "outline_tree": outline_tree,
+        "total_units": len(units),
+        "learning_outline": [
+            {
+                "id": unit.id,
+                "title": unit.title,
+                "status": unit.status,
+                "unit_index": unit.unit_index,
+                "unit_type": unit.unit_type,
+                "estimated_audio_seconds": unit.estimated_audio_seconds,
+                "planner_reason": unit.planner_reason,
+                "has_audio_sample": bool(audio_sample_unit and unit.id == audio_sample_unit.id),
+            }
+            for unit in units
+        ],
+        "audio_sample": _unit_to_dict(audio_sample_unit, sample_segments) if audio_sample_unit else None,
+    }
 
 
 def create_new_book(session: Session, user_id: uuid.UUID, payload: BookCreateRequest) -> Book:
@@ -278,30 +370,12 @@ def get_book_outline(session: Session, book_id: uuid.UUID, user_id: uuid.UUID) -
     if not book:
         raise BookNotFoundError()
 
-    sections = list_book_section_outline_rows(session, book_id)
-    by_parent: dict[uuid.UUID | None, list[BookSectionOutlineRow]] = {}
-    for section in sections:
-        by_parent.setdefault(section.parent_id, []).append(section)
-
-    def walk(parent_id: uuid.UUID | None = None) -> list[dict]:
-        return [
-            {
-                "id": str(section.id),
-                "title": section.title,
-                "level": section.level,
-                "path": section.path,
-                "page_start": section.page_start,
-                "page_end": section.page_end,
-                "text_char_count": section.text_char_count,
-                "children": walk(section.id),
-            }
-            for section in by_parent.get(parent_id, [])
-        ]
+    outline_tree, total_sections = _book_outline_tree(session, book_id)
 
     return {
         "book_id": str(book_id),
-        "total_sections": len(sections),
-        "outline_tree": walk(),
+        "total_sections": total_sections,
+        "outline_tree": outline_tree,
     }
 
 
@@ -593,9 +667,7 @@ def reset_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID)
     mode = PlanMode(plan.mode)
 
     # 2. Thu thập danh sách ID của các buổi học (sessions) cũ
-    sessions = session.exec(
-        select(ReadingPlanSession.id).where(ReadingPlanSession.plan_id == plan.id)
-    ).all()
+    sessions = session.exec(select(ReadingPlanSession.id).where(ReadingPlanSession.plan_id == plan.id)).all()
     session_ids = [str(sid) for sid in sessions]
 
     # 3. Thu thập danh sách ID của các thẻ ôn tập (spaced review items) cũ
@@ -641,7 +713,4 @@ def reset_reading_plan(session: Session, book_id: uuid.UUID, user_id: uuid.UUID)
     ensure_future_sessions_for_plan(session, plan=plan, user_id=user_id, replace_unfinished=True)
 
     session.commit()
-    return {
-        "message": "Đã đặt lại kế hoạch học tập từ đầu thành công.",
-        **_reading_plan_to_dict(session, plan)
-    }
+    return {"message": "Đã đặt lại kế hoạch học tập từ đầu thành công.", **_reading_plan_to_dict(session, plan)}
