@@ -7,7 +7,7 @@ from app.core.config import settings
 from app.core.constant import BookStatus, PlanMode, ProcessingJobStatus, ProcessingJobType
 from app.core.exceptions import BadRequestError, BookNotFoundError, BookStatusConflictError, ExternalServiceError, ProcessingJobNotFoundError, ProcessingJobStatusConflictError
 from app.core.logger import log
-from app.models.db_models import AdminAuditLog, AdminUser, Book, LearningUnit, LearningUnitSegment, ProcessingJob, BookSection, BookSectionKnowledge
+from app.models.db_models import AdminAuditLog, AdminUser, Book, LearningUnit, LearningUnitSegment, LearningUnitSource, ProcessingJob, BookSection, BookSectionKnowledge
 from app.repositories.admin_repo import (
     count_learning_unit_segments_for_book,
     count_learning_units_by_status,
@@ -43,6 +43,7 @@ from app.schemas.admin import (
     AdminExportSectionItem,
     AdminExportChunkItem,
     AdminSegmentItem,
+    AdminLearningUnitSourceItem,
     AdminLearningUnitItem,
     AdminBookAudioUnitsResponse,
     AdminBookUpdateMetadataRequest,
@@ -647,6 +648,7 @@ def get_admin_book_audio_units(session: Session, book_id: uuid.UUID, mode: PlanM
 
     unit_ids = [u.id for u in units]
     segments_map = {}
+    sources_map = {}
     if unit_ids:
         segments = session.exec(
             select(LearningUnitSegment)
@@ -664,6 +666,25 @@ def get_admin_book_audio_units(session: Session, book_id: uuid.UUID, mode: PlanM
                 )
             )
 
+        source_rows = session.exec(
+            select(LearningUnitSource, BookSection)
+            .join(BookSection, BookSection.id == LearningUnitSource.section_id)
+            .where(LearningUnitSource.learning_unit_id.in_(unit_ids))
+            .order_by(LearningUnitSource.learning_unit_id, LearningUnitSource.source_order.asc())
+        ).all()
+        for source, section in source_rows:
+            sources_map.setdefault(source.learning_unit_id, []).append(
+                AdminLearningUnitSourceItem(
+                    section_id=section.id,
+                    section_index=section.section_index,
+                    section_title=section.title,
+                    section_path=section.path,
+                    page_start=section.page_start,
+                    page_end=section.page_end,
+                    source_order=source.source_order,
+                )
+            )
+
     unit_items = [
         AdminLearningUnitItem(
             id=u.id,
@@ -678,6 +699,7 @@ def get_admin_book_audio_units(session: Session, book_id: uuid.UUID, mode: PlanM
             review_audio_url=u.review_audio_url,
             planner_reason=u.planner_reason,
             segments=segments_map.get(u.id, []),
+            sources=sources_map.get(u.id, []),
         )
         for u in units
     ]

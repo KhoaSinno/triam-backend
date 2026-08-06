@@ -223,6 +223,16 @@ class AdminSegmentItem(BaseModel):
     duration_ms: int | None = None
 
 
+class AdminLearningUnitSourceItem(BaseModel):
+    section_id: uuid.UUID
+    section_index: int
+    section_title: str
+    section_path: str
+    page_start: int | None = None
+    page_end: int | None = None
+    source_order: int
+
+
 class AdminLearningUnitItem(BaseModel):
     id: uuid.UUID
     unit_index: int
@@ -236,6 +246,7 @@ class AdminLearningUnitItem(BaseModel):
     review_audio_url: str | None = None
     planner_reason: str | None = None
     segments: list[AdminSegmentItem] = []
+    sources: list[AdminLearningUnitSourceItem] = []
 
 
 class AdminBookAudioUnitsResponse(BaseModel):

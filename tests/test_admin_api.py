@@ -6,7 +6,16 @@ from sqlmodel import Session, select
 from app.core.constant import BookStatus, DocumentType, PlanMode, ProcessingJobStatus, ProcessingJobType
 from app.db.database import engine
 from app.main import app
-from app.models.db_models import AdminAuditLog, AdminUser, Book, ProcessingJob
+from app.models.db_models import (
+    AdminAuditLog,
+    AdminUser,
+    Book,
+    BookSection,
+    LearningUnit,
+    LearningUnitSegment,
+    LearningUnitSource,
+    ProcessingJob,
+)
 
 
 def _get_all_admin_user_ids(client: TestClient) -> set[str]:
@@ -138,6 +147,79 @@ def test_admin_can_view_cross_user_books_and_dashboard(auth_as):
         assert {str(user_a), str(user_b)}.issubset(returned_user_ids)
     finally:
         _cleanup(admin_user_id, book_ids, job_ids, auth_user_ids=[user_a, user_b])
+
+
+def test_admin_audio_units_include_source_section_mapping(auth_as):
+    admin_user_id = uuid.uuid4()
+    book_ids: list[uuid.UUID] = []
+
+    with Session(engine) as session:
+        session.add(AdminUser(user_id=admin_user_id, role="admin"))
+        book = Book(
+            user_id=admin_user_id,
+            title="Audio source mapping",
+            status=BookStatus.READY,
+            document_type=DocumentType.PDF,
+        )
+        session.add(book)
+        session.commit()
+        session.refresh(book)
+        book_ids.append(book.id)
+
+        first_section = BookSection(
+            book_id=book.id,
+            section_index=0,
+            title="Chương 1",
+            level=1,
+            path="0",
+            page_start=1,
+            page_end=4,
+        )
+        second_section = BookSection(
+            book_id=book.id,
+            section_index=1,
+            title="Chương 2",
+            level=1,
+            path="1",
+            page_start=5,
+            page_end=9,
+        )
+        session.add(first_section)
+        session.add(second_section)
+        session.commit()
+        session.refresh(first_section)
+        session.refresh(second_section)
+
+        unit = LearningUnit(
+            user_id=admin_user_id,
+            book_id=book.id,
+            mode=PlanMode.FULL,
+            unit_index=0,
+            title="Bài học kết hợp",
+            unit_type="full_chapter",
+            status=ProcessingJobStatus.READY,
+        )
+        session.add(unit)
+        session.commit()
+        session.refresh(unit)
+
+        session.add(LearningUnitSource(learning_unit_id=unit.id, section_id=second_section.id, source_order=1))
+        session.add(LearningUnitSource(learning_unit_id=unit.id, section_id=first_section.id, source_order=0))
+        session.add(LearningUnitSegment(learning_unit_id=unit.id, segment_index=0, text_content="Nội dung audio"))
+        session.commit()
+
+    try:
+        auth_as(admin_user_id)
+        response = TestClient(app).get(f"/api/v1/admin/books/{book_ids[0]}/audio-units?mode=full")
+
+        assert response.status_code == 200
+        unit_body = response.json()["units"][0]
+        assert unit_body["segments"][0]["text_content"] == "Nội dung audio"
+        assert [source["section_title"] for source in unit_body["sources"]] == ["Chương 1", "Chương 2"]
+        assert [source["source_order"] for source in unit_body["sources"]] == [0, 1]
+        assert unit_body["sources"][0]["page_start"] == 1
+    finally:
+        _cleanup(admin_user_id, book_ids, [])
 
 
 def test_admin_can_retry_failed_generation_job(monkeypatch, auth_as):
