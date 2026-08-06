@@ -70,6 +70,7 @@ def read_admin_books(
     status: BookStatus | None = None,
     document_type: DocumentType | None = None,
     user_id: uuid.UUID | None = None,
+    is_shared: bool | None = None,
     q: str | None = Query(default=None, min_length=1, max_length=120),
 ):
     return admin_service.get_books(
@@ -79,6 +80,7 @@ def read_admin_books(
         status=status.value if status else None,
         document_type=document_type.value if document_type else None,
         user_id=user_id,
+        is_shared=is_shared,
         q=q,
     )
 
@@ -289,7 +291,7 @@ async def process_admin_book(
     mode: PlanMode,
     admin_user: AdminUserDependency,
     session: Annotated[Session, Depends(get_session)],
-    is_shared: bool = Query(default=True, description="Tự động công khai sách lên thư viện ngay khi xử lý hoàn tất"),
+    is_shared: bool = Query(default=False, description="Tự động công khai sách lên thư viện ngay khi xử lý hoàn tất"),
 ):
     """
     Kích hoạt tiến trình sinh audio + vector RAG cho sách mẫu của Admin.

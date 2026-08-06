@@ -86,6 +86,7 @@ def get_books(
     status: str | None = None,
     document_type: str | None = None,
     user_id: uuid.UUID | None = None,
+    is_shared: bool | None = None,
     q: str | None = None,
 ) -> AdminBooksResponse:
     books, total = list_admin_books(
@@ -95,6 +96,7 @@ def get_books(
         status=status,
         document_type=document_type,
         user_id=user_id,
+        is_shared=is_shared,
         q=q,
     )
 
@@ -844,7 +846,7 @@ async def admin_upload_book_async(
         author="Tác giả chưa xác định",
         document_type=doc_type,
         status=BookStatus.PROCESSING.value,
-        is_shared=True,
+        is_shared=False,
     )
     session.add(book)
 

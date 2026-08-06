@@ -96,8 +96,8 @@ def test_admin_can_view_cross_user_books_and_dashboard(auth_as):
                 raw_user_meta_data={"name": "User B"},
             )
         )
-        book_a = Book(user_id=user_a, title="Admin User A Book", status=BookStatus.DRAFT, document_type=DocumentType.PDF, total_units=1)
-        book_b = Book(user_id=user_b, title="Admin User B Book", status=BookStatus.READY, document_type=DocumentType.DOCX, total_units=2)
+        book_a = Book(user_id=user_a, title="Admin User A Book", status=BookStatus.DRAFT, document_type=DocumentType.PDF, total_units=1, is_shared=False)
+        book_b = Book(user_id=user_b, title="Admin User B Book", status=BookStatus.READY, document_type=DocumentType.DOCX, total_units=2, is_shared=True)
         session.add(book_a)
         session.add(book_b)
         session.commit()
@@ -133,6 +133,12 @@ def test_admin_can_view_cross_user_books_and_dashboard(auth_as):
         returned_ids = {item["id"] for item in books_response.json()["items"]}
         assert {str(book_ids[0]), str(book_ids[1])}.issubset(returned_ids)
         assert "file_url" not in books_response.json()["items"][0]
+
+        shared_books_response = client.get("/api/v1/admin/books?limit=20&is_shared=true")
+        assert shared_books_response.status_code == 200
+        shared_ids = {item["id"] for item in shared_books_response.json()["items"]}
+        assert str(book_ids[1]) in shared_ids
+        assert str(book_ids[0]) not in shared_ids
 
         detail_response = client.get(f"/api/v1/admin/books/{book_ids[1]}")
         assert detail_response.status_code == 200
