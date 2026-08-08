@@ -2,8 +2,8 @@
 tests/eval_latency_budget.py
 =====================================================================
 Script tự động đọc nhật ký vận hành thực tế (AGENT_TRACE), tính toán
-và hiển thị bảng phân bổ độ trễ thực nghiệm (Latency Budget) theo mốc
-P50 (Median), P90 và P95 cho Luận văn TRIAM (Bảng 9.7 / Bảng 9.3).
+và hiển thị bảng phân bổ độ trễ server-side theo mốc P50 (Median), P90
+và P95. Mỗi ``trace_id`` chỉ đóng góp tối đa một quan sát cho mỗi stage.
 
 Cách chạy:
     python -m tests.eval_latency_budget
@@ -14,6 +14,7 @@ hoặc:
 
 import json
 from pathlib import Path
+
 import numpy as np
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -27,9 +28,8 @@ RAW_LOG_FILES = [
 ]
 
 
-def load_trace_events() -> list[dict]:
+def load_trace_events() -> list[dict]:  # noqa: C901
     events = []
-    
     # 1. Ưu tiên đọc từ file JSON đã parse sẵn
     if PARSED_JSON.exists():
         try:
@@ -63,34 +63,58 @@ def load_trace_events() -> list[dict]:
     return events
 
 
+def completed_voice_traces(events: list[dict]) -> list[dict]:
+    """Return one terminal voice trace per trace ID.
+
+    A trace is emitted repeatedly as routing, retrieval and watchdog events
+    occur.  Aggregating all those events would silently give a busy trace more
+    statistical weight.  The final ``turn_completed`` event is the canonical
+    source for latency values; when duplicate completions exist, retain the one
+    with the most recorded stages.
+    """
+    by_trace_id: dict[str, dict] = {}
+    for event in events:
+        if event.get("event_type") != "turn_completed" or event.get("input_mode") != "voice":
+            continue
+        trace_id = str(event.get("trace_id") or "")
+        if not trace_id:
+            continue
+        previous = by_trace_id.get(trace_id)
+        if previous is None or len(event.get("stage_latency_ms") or {}) > len(previous.get("stage_latency_ms") or {}):
+            by_trace_id[trace_id] = event
+    return list(by_trace_id.values())
+
+
+def stage_values(traces: list[dict], stage_name: str) -> list[int]:
+    values: list[int] = []
+    for trace in traces:
+        value = (trace.get("stage_latency_ms") or {}).get(stage_name)
+        if value is None:
+            continue
+        try:
+            values.append(int(value))
+        except (TypeError, ValueError):
+            print(f"⚠️ Bỏ qua giá trị latency không hợp lệ | trace_id={trace.get('trace_id')} | stage={stage_name}")
+    return values
+
+
 def calculate_latency_budget():
     events = load_trace_events()
     if not events:
         print("❌ Không tìm thấy dữ liệu log AGENT_TRACE để tính toán.")
         return
 
-    router_latencies = []
-    query_guard_latencies = []
-    retrieval_latencies = []
-    web_search_latencies = []
-    tool_total_latencies = []
-    turn_total_latencies = []
+    traces = completed_voice_traces(events)
+    if not traces:
+        print("❌ Không tìm thấy trace voice đã hoàn tất để tính latency.")
+        return
 
-    for ev in events:
-        stages = ev.get("stage_latency_ms") or {}
-        
-        if "grounding_total" in stages:
-            router_latencies.append(stages["grounding_total"])
-        if "query_guard" in stages:
-            query_guard_latencies.append(stages["query_guard"])
-        if "retrieval" in stages:
-            retrieval_latencies.append(stages["retrieval"])
-        if "web_search" in stages:
-            web_search_latencies.append(stages["web_search"])
-        if "tool_total" in stages:
-            tool_total_latencies.append(stages["tool_total"])
-        if "turn_total" in stages:
-            turn_total_latencies.append(stages["turn_total"])
+    router_latencies = stage_values(traces, "grounding_total")
+    query_guard_latencies = stage_values(traces, "query_guard")
+    retrieval_latencies = stage_values(traces, "retrieval")
+    web_search_latencies = stage_values(traces, "web_search")
+    tool_total_latencies = stage_values(traces, "tool_total")
+    turn_total_latencies = stage_values(traces, "turn_total")
 
     rows = [
         ("Semantic Grounding Router", "Semantic Grounding Router", router_latencies),
@@ -102,9 +126,9 @@ def calculate_latency_budget():
     ]
 
     print("\n" + "=" * 92)
-    print("📊 BẢNG TỔNG HỢP KẾT QUẢ ĐO ĐỘ TRỄ THỰC NGHIỆM TRỢ LÝ THOẠI RAG (LUẬN VĂN TRIAM)")
+    print("📊 BẢNG ĐỘ TRỄ SERVER-SIDE TRỢ LÝ THOẠI RAG (MỖI TRACE MỘT QUAN SÁT)")
     print("=" * 92)
-    print(f"{'Giai đoạn xử lý':<25} | {'Chỉ số đo lường':<38} | {'P50 (ms)':<8} | {'P90 (ms)':<8} | {'P95 (ms)':<8}")
+    print(f"{'Giai đoạn xử lý':<25} | {'Chỉ số đo lường':<38} | {'n':<5} | {'P50 (ms)':<8} | {'P90 (ms)':<8} | {'P95 (ms)':<8}")
     print("-" * 92)
 
     for stage_name, metric_name, data in rows:
@@ -112,10 +136,11 @@ def calculate_latency_budget():
             p50 = int(round(np.percentile(data, 50)))
             p90 = int(round(np.percentile(data, 90)))
             p95 = int(round(np.percentile(data, 95)))
-            print(f"{stage_name:<25} | {metric_name:<38} | {p50:8d} | {p90:8d} | {p95:8d}")
+            print(f"{stage_name:<25} | {metric_name:<38} | {len(data):<5d} | {p50:8d} | {p90:8d} | {p95:8d}")
         else:
-            print(f"{stage_name:<25} | {metric_name:<38} | {'N/A':<8} | {'N/A':<8} | {'N/A':<8}")
+            print(f"{stage_name:<25} | {metric_name:<38} | {0:<5d} | {'N/A':<8} | {'N/A':<8} | {'N/A':<8}")
 
+    print(f"Ghi chú: Voice Turn Total là server-side turn latency của {len(traces)} trace, không phải TTFA phía ứng dụng.")
     print("=" * 92 + "\n")
 
 
