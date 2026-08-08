@@ -1,0 +1,44 @@
+{
+  "judge_model": "gemini-3.5-flash-lite",
+  "input_dataset": "W:\\WorkSpace_IT\\_CAPSTON_PROJECT\\triam-backend\\logs\\ragas_eval\\production_flow_trace_provenance_checked.json",
+  "input_dataset_sha256": "43c64afa81d2fcd3da1be01d944943aae355d7cda52cfaa561e8b8d74afff13b",
+  "total_cases": 60,
+  "evaluation_groups": {
+    "memory_or_unverifiable": 39,
+    "rag_retrieval_verified": 11,
+    "web_policy": 6,
+    "metadata_or_section": 4
+  },
+  "metrics": {
+    "context_precision": {
+      "mean": 0.3586,
+      "evaluated": 11,
+      "not_applicable": 49,
+      "judge_errors": 0
+    },
+    "context_recall": {
+      "mean": 0.5455,
+      "evaluated": 11,
+      "not_applicable": 49,
+      "judge_errors": 0
+    },
+    "faithfulness": {
+      "mean": 0.7045,
+      "evaluated": 11,
+      "not_applicable": 49,
+      "judge_errors": 0
+    },
+    "answer_relevancy": {
+      "mean": 0.8183,
+      "evaluated": 60,
+      "not_applicable": 0,
+      "judge_errors": 0
+    },
+    "answer_correctness": {
+      "mean": 0.7695,
+      "evaluated": 59,
+      "not_applicable": 0,
+      "judge_errors": 1
+    }
+  }
+}

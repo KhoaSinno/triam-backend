@@ -1,6 +1,6 @@
 import json
 
-from scripts.ragas_dataset_validation import annotate_cases
+from scripts.ragas_dataset_validation import annotate_cases, load_provenance_checked_cases
 
 
 def _write_turn_completed(log_path, *, trace_id="trace-1", chunk_ids=None, route="book_rag"):
@@ -62,3 +62,15 @@ def test_annotate_cases_routes_metadata_away_from_retrieval_metrics(tmp_path):
 
     assert cases[0]["evaluation_group"] == "metadata_or_section"
     assert cases[0]["answer_metrics_eligible"] is True
+
+
+def test_load_provenance_checked_cases_requires_annotation_fields(tmp_path):
+    dataset_path = tmp_path / "checked.json"
+    dataset_path.write_text(json.dumps([{"query_id": "Q1"}]), encoding="utf-8")
+
+    try:
+        load_provenance_checked_cases(dataset_path)
+    except ValueError as exc:
+        assert "not provenance-checked" in str(exc)
+    else:
+        raise AssertionError("Expected an unannotated dataset to be rejected")

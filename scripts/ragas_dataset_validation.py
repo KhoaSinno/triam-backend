@@ -12,6 +12,7 @@ run before a paid judge run to write an auditable, derived dataset.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import re
 from collections import Counter
@@ -21,7 +22,7 @@ from typing import Any
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DATASET_PATH = PROJECT_ROOT / "logs" / "ragas_eval" / "production_flow_trace.json"
-DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "logs" / "ragas_eval" / "production_flow_trace_verified.json"
+DEFAULT_OUTPUT_PATH = PROJECT_ROOT / "logs" / "ragas_eval" / "production_flow_trace_provenance_checked.json"
 
 _TRACE_REF_PATTERN = re.compile(r"^(?P<filename>[^:]+):L(?P<line_number>\d+)$")
 _TRACE_LINE_PATTERN = re.compile(r"AGENT_TRACE\s+turn_completed\s+\|\s+(?P<payload>\{.*\})\s*$")
@@ -125,6 +126,41 @@ def load_and_annotate(dataset_path: Path = DEFAULT_DATASET_PATH, *, log_dir: Pat
     return annotate_cases(payload, log_dir=log_dir)
 
 
+def load_provenance_checked_cases(dataset_path: Path = DEFAULT_OUTPUT_PATH) -> list[dict[str, Any]]:
+    """Load the frozen, provenance-checked dataset used by paid judge runs."""
+    payload = json.loads(dataset_path.read_text(encoding="utf-8"))
+    if not isinstance(payload, list):
+        raise ValueError("Provenance-checked dataset must be a JSON list.")
+
+    required_fields = {"evaluation_group", "retrieval_metrics_eligible", "answer_metrics_eligible"}
+    for index, case in enumerate(payload, start=1):
+        if not isinstance(case, dict) or not required_fields.issubset(case):
+            raise ValueError(
+                f"Case {index} is not provenance-checked. "
+                "Run ragas_dataset_validation.py before the judge."
+            )
+    return payload
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def write_manifest(*, source_path: Path, output_path: Path, log_dir: Path, cases: list[dict[str, Any]], manifest_path: Path) -> None:
+    """Write a small audit manifest without changing the source dataset."""
+    log_paths = sorted(log_dir.glob("log_live_context*.md"))
+    manifest = {
+        "source_dataset": str(source_path),
+        "source_dataset_sha256": _sha256(source_path),
+        "provenance_checked_dataset": str(output_path),
+        "provenance_checked_dataset_sha256": _sha256(output_path),
+        "raw_log_sha256": {path.name: _sha256(path) for path in log_paths},
+        "total_cases": len(cases),
+        "evaluation_groups": dict(Counter(str(case["evaluation_group"]) for case in cases)),
+    }
+    manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+
+
 def print_summary(cases: list[dict[str, Any]]) -> None:
     groups = Counter(str(case["evaluation_group"]) for case in cases)
     reasons = Counter(str(case["verification_reason"]) for case in cases)
@@ -142,6 +178,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--input", type=Path, default=DEFAULT_DATASET_PATH)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT_PATH)
     parser.add_argument("--log-dir", type=Path, default=PROJECT_ROOT)
+    parser.add_argument(
+        "--manifest",
+        type=Path,
+        default=None,
+        help="Path for the reproducibility manifest (defaults beside --output).",
+    )
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
 
@@ -154,7 +196,16 @@ def main() -> None:
         return
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(cases, ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"Verified dataset: {args.output}")
+    manifest_path = args.manifest or args.output.with_suffix(".manifest.json")
+    write_manifest(
+        source_path=args.input,
+        output_path=args.output,
+        log_dir=args.log_dir,
+        cases=cases,
+        manifest_path=manifest_path,
+    )
+    print(f"Provenance-checked dataset: {args.output}")
+    print(f"Reproducibility manifest: {manifest_path}")
 
 
 if __name__ == "__main__":

@@ -114,7 +114,6 @@ def calculate_latency_budget():
     retrieval_latencies = stage_values(traces, "retrieval")
     web_search_latencies = stage_values(traces, "web_search")
     tool_total_latencies = stage_values(traces, "tool_total")
-    turn_total_latencies = stage_values(traces, "turn_total")
 
     rows = [
         ("Semantic Grounding Router", "Semantic Grounding Router", router_latencies),
@@ -122,7 +121,6 @@ def calculate_latency_budget():
         ("Truy xuất tri thức RAG", "Retrieval (Hybrid Search + Cohere Reranker)", retrieval_latencies),
         ("Tìm kiếm Web mở rộng", "Tavily Web Search API", web_search_latencies),
         ("Tổng hợp công cụ RAG", "Total Tool Execution", tool_total_latencies),
-        ("Tổng lượt thoại", "Voice Turn Total", turn_total_latencies),
     ]
 
     print("\n" + "=" * 92)
@@ -140,7 +138,7 @@ def calculate_latency_budget():
         else:
             print(f"{stage_name:<25} | {metric_name:<38} | {0:<5d} | {'N/A':<8} | {'N/A':<8} | {'N/A':<8}")
 
-    print(f"Ghi chú: Voice Turn Total là server-side turn latency của {len(traces)} trace, không phải TTFA phía ứng dụng.")
+    print("Ghi chú: Báo cáo chỉ gồm các giai đoạn có ranh giới đo rõ trong trace phía máy chủ.")
     print("=" * 92 + "\n")
 
 

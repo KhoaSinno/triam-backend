@@ -6,6 +6,7 @@ saved contexts can be tied to the exact ``turn_completed`` retrieval trace.
 """
 
 import asyncio
+import hashlib
 import json
 import math
 import sys
@@ -21,7 +22,11 @@ import pandas as pd  # noqa: E402
 from openai import AsyncOpenAI  # noqa: E402
 
 from app.core.config import settings  # noqa: E402
-from scripts.ragas_dataset_validation import load_and_annotate, print_summary  # noqa: E402
+from scripts.ragas_dataset_validation import (  # noqa: E402
+    DEFAULT_OUTPUT_PATH,
+    load_provenance_checked_cases,
+    print_summary,
+)
 
 judge_client = AsyncOpenAI(
     api_key=settings.GEMINI_API_KEY,
@@ -280,12 +285,13 @@ def summarize_metrics(df: pd.DataFrame) -> dict[str, dict[str, float | int | Non
 
 
 async def run_evaluation():
-    trace_path = Path(__file__).resolve().parent.parent / "logs" / "ragas_eval" / "production_flow_trace.json"
+    trace_path = DEFAULT_OUTPUT_PATH
     if not trace_path.exists():
-        print(f"❌ Không tìm thấy tệp trace tại: {trace_path}")
+        print(f"❌ Không tìm thấy tập dữ liệu đã kiểm tra provenance tại: {trace_path}")
+        print("Hãy chạy scripts/ragas_dataset_validation.py trước khi chấm bằng LLM.")
         return
 
-    trace_data = load_and_annotate(trace_path)
+    trace_data = load_provenance_checked_cases(trace_path)
 
     print(f"🚀 BẮT ĐẦU ĐÁNH GIÁ LLM-AS-A-JUDGE ({JUDGE_MODEL}) CHO {len(trace_data)} TEST CASES...")
     print_summary(trace_data)
@@ -325,6 +331,7 @@ async def run_evaluation():
             {
                 "judge_model": JUDGE_MODEL,
                 "input_dataset": str(trace_path),
+                "input_dataset_sha256": hashlib.sha256(trace_path.read_bytes()).hexdigest(),
                 "total_cases": len(trace_data),
                 "evaluation_groups": {key: int(value) for key, value in df["evaluation_group"].value_counts().items()},
                 "metrics": summary,
