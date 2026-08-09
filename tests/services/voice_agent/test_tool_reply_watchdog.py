@@ -150,6 +150,20 @@ async def test_watchdog_uses_explicit_room_when_session_has_no_room(base_config,
 
 
 @pytest.mark.asyncio
+async def test_watchdog_forced_reply_does_not_rearm_from_its_own_speech(base_config, mock_tracer) -> None:
+    session = FakeSession()
+    watchdog = VoiceToolReplyWatchdog(session=session, tracer=mock_tracer, config=base_config)
+    session.generate_reply.side_effect = lambda **_: watchdog.record_speech_created(source="generate_reply")
+    event = FakeEvent([FakeCall("search_book_knowledge", "call_1")], [FakeOutput("search_book_knowledge", "call_1")])
+
+    watchdog.schedule_after_tools_executed(event)
+    await asyncio.sleep(0.2)
+
+    session.generate_reply.assert_called_once()
+    watchdog.close()
+
+
+@pytest.mark.asyncio
 async def test_watchdog_user_starts_speaking(base_config, mock_tracer) -> None:
     session = FakeSession()
     watchdog = VoiceToolReplyWatchdog(session=session, tracer=mock_tracer, config=base_config)

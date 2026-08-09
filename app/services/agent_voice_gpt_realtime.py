@@ -1275,11 +1275,13 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             source = getattr(ev, "source", None)
             recoverable = bool(getattr(error, "recoverable", False))
             error_code = str(getattr(error, "code", "") or "unknown")
+            error_message = " ".join(str(error or "").split())
             log.warning(
                 "VOICE_DIAG session_error | "
                 f"source_type={type(source).__name__} | "
                 f"error_type={type(error).__name__} | "
-                f"error_code={error_code} | recoverable={recoverable}"
+                f"error_code={error_code} | recoverable={recoverable} | "
+                f"message_chars={len(error_message)} | message={error_message[:240]!r}"
             )
             if tracer.has_active_turn(AgentInputMode.VOICE):
                 tracer.record_error(AgentInputMode.VOICE, f"livekit_{error_code}")
