@@ -17,6 +17,7 @@ class VoiceToolReplyWatchdogConfig:
     monitored_tools: set[str]
     allow_error_outputs: bool = False
     force_tool_choice_none: bool = True
+    rate_limit_cooldown_seconds: float = 60.0
 
 
 class VoiceToolReplyWatchdog:
@@ -37,6 +38,7 @@ class VoiceToolReplyWatchdog:
         self._watch_tasks: dict[str, asyncio.Task[None]] = {}
         self._watch_tool_names: dict[str, str] = {}
         self._last_tool_completed_monotonic: float | None = None
+        self._rate_limited_until_monotonic: float | None = None
 
     def close(self) -> None:
         self.cancel_all("session_close")
@@ -115,10 +117,32 @@ class VoiceToolReplyWatchdog:
     def record_user_transcribed(self) -> None:
         self.cancel_all("user_input_transcribed")
 
+    def record_realtime_error(self, *, error_code: str | None, error_message: str) -> None:
+        """Cancel pending fallbacks when Realtime has rejected the current token budget."""
+        normalized = f"{error_code or ''} {error_message}".casefold()
+        if "rate_limit" not in normalized and "rate limit" not in normalized:
+            return
+
+        self._rate_limited_until_monotonic = time.monotonic() + max(
+            0.0,
+            self.config.rate_limit_cooldown_seconds,
+        )
+        self.cancel_all("realtime_rate_limited")
+        log.warning(
+            "Voice watchdog paused after Realtime rate limit | "
+            f"cooldown_seconds={self.config.rate_limit_cooldown_seconds:g}"
+        )
+
     def schedule_after_tools_executed(self, ev: Any) -> None:
         if not self.config.enabled:
             return
         if getattr(ev, "has_tool_reply", True) is False:
+            return
+        if not self.tracer.has_final_transcript(AgentInputMode.VOICE):
+            log.info("Voice watchdog skipped | reason=no_final_user_transcript")
+            return
+        if self._is_rate_limited():
+            log.info("Voice watchdog skipped | reason=realtime_rate_limited")
             return
         for call, output in _zipped_tool_outputs(ev):
             tool_name = str(getattr(call, "name", ""))
@@ -174,7 +198,7 @@ class VoiceToolReplyWatchdog:
             # same fallback into an unbounded retry loop.
             self._watch_tasks.pop(event_id, None)
             self._watch_tool_names.pop(event_id, None)
-            self._generate_reply_after_tool(tool_name=tool_name)
+            await self._generate_reply_after_tool(tool_name=tool_name)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -189,11 +213,24 @@ class VoiceToolReplyWatchdog:
                 self._watch_tasks.pop(event_id, None)
                 self._watch_tool_names.pop(event_id, None)
 
-    def _generate_reply_after_tool(self, *, tool_name: str) -> None:
+    async def _generate_reply_after_tool(self, *, tool_name: str) -> None:
         if self.room is None or not self.room.isconnected():
             log.info(
                 "Voice watchdog fallback skipped | "
                 f"tool={tool_name} | reason=room_disconnected"
+            )
+            return
+
+        # The original Realtime response can still arrive after the watchdog
+        # fires. Interrupt it before creating the fallback so one user turn
+        # cannot produce two semantically identical assistant replies.
+        try:
+            await self.session.interrupt(force=True)
+        except Exception as exc:
+            self.tracer.record_error(AgentInputMode.VOICE, "tool_reply_watchdog_interrupt_error")
+            log.warning(
+                "Voice watchdog fallback skipped | "
+                f"tool={tool_name} | reason=interrupt_failed | error_type={type(exc).__name__}"
             )
             return
 
@@ -208,6 +245,14 @@ class VoiceToolReplyWatchdog:
             f"tool={tool_name} | tool_choice={kwargs.get('tool_choice', 'auto')}"
         )
         self.session.generate_reply(**kwargs)
+
+    def _is_rate_limited(self) -> bool:
+        if self._rate_limited_until_monotonic is None:
+            return False
+        if time.monotonic() < self._rate_limited_until_monotonic:
+            return True
+        self._rate_limited_until_monotonic = None
+        return False
 
     def _elapsed_since_tool_completed_ms(self) -> int | None:
         if self._last_tool_completed_monotonic is None:

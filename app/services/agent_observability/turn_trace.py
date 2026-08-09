@@ -76,6 +76,11 @@ class AgentTurnTracer:
     def has_active_turn(self, input_mode: AgentInputMode) -> bool:
         return input_mode in self._active
 
+    def has_final_transcript(self, input_mode: AgentInputMode) -> bool:
+        """Return whether the active turn has a non-empty final user transcript."""
+        trace = self._active.get(input_mode)
+        return bool(trace and trace.transcript_final_seen and trace.transcript_char_count > 0)
+
     def record_transcript(
         self,
         input_mode: AgentInputMode,

@@ -1,4 +1,4 @@
-from typing import Set
+from typing import Literal, Set
 
 from dotenv import load_dotenv
 from pydantic.v1.env_settings import BaseSettings
@@ -64,9 +64,10 @@ class Settings(BaseSettings):
     # Realtime voice agent behavior
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-2.1-mini"
     OPENAI_REALTIME_VOICE: str = "shimmer"
+    OPENAI_REALTIME_REASONING_EFFORT: Literal["minimal", "low", "medium", "high", "xhigh"] = "minimal"
     # Text and local console test behavior
-    VOICE_AGENT_HISTORY_LIMIT: int = 12
-    VOICE_AGENT_RAG_MAX_CHARS: int = 18000
+    VOICE_AGENT_HISTORY_LIMIT: int = 6
+    VOICE_AGENT_RAG_MAX_CHARS: int = 8000
 
     # Local console fallback only. Production LiveKit rooms must provide
     # thread_id and document_ids through job metadata from the backend token flow.
@@ -121,6 +122,7 @@ class Settings(BaseSettings):
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_TOOLS: str = "search_book_knowledge,ask_web_search_permission,execute_web_search"
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_ALLOW_ERROR_OUTPUTS: bool = False
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_FORCE_TOOL_CHOICE_NONE: bool = True
+    VOICE_AGENT_TOOL_REPLY_WATCHDOG_RATE_LIMIT_COOLDOWN_SECONDS: float = 60.0
     VOICE_AGENT_CLOSE_ON_DISCONNECT: bool = False
     
     # Phase 10.0 safe agent trace. It never logs raw transcript, answer, or source content.
