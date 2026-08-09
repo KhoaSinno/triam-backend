@@ -1,0 +1,20 @@
+{
+  "source_dataset": "W:\\WorkSpace_IT\\_CAPSTON_PROJECT\\triam-backend\\logs\\ragas_eval\\production_flow_trace.json",
+  "source_dataset_sha256": "43112f38a80b118f668f344cd841f607a39951be76b1c5a2267068bb3e777ea2",
+  "provenance_checked_dataset": "W:\\WorkSpace_IT\\_CAPSTON_PROJECT\\triam-backend\\logs\\ragas_eval\\production_flow_trace_provenance_checked.json",
+  "provenance_checked_dataset_sha256": "43c64afa81d2fcd3da1be01d944943aae355d7cda52cfaa561e8b8d74afff13b",
+  "raw_log_sha256": {
+    "log_live_context_1.md": "04b7bd8af5e4ceeca7b96c85cf827692f2e89d4de67467d1f4c11eb21a195a54",
+    "log_live_context_2.md": "5a39c9c98ee4c7dcfc2fb86eec322411749881673b211c74525c3aa0ad052607",
+    "log_live_context_2_1.md": "7c9a0d7f49c90fafc1b23fcb86b1d3d85e06b34bf6cc718d229c311518ac8782",
+    "log_live_context_3.md": "c2b219d50696fc31c70d8d0f06d5e87dc181bdbfed0f6a6b18f82ee3701ed9c4",
+    "log_live_context_3_1.md": "bc08bdc5762ca645ce810b8ad394f5b3b273bbe4781b75a4a2de0eef5d94729c"
+  },
+  "total_cases": 60,
+  "evaluation_groups": {
+    "web_policy": 6,
+    "rag_retrieval_verified": 11,
+    "memory_or_unverifiable": 39,
+    "metadata_or_section": 4
+  }
+}

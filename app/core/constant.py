@@ -57,6 +57,7 @@ class NotificationType(str, Enum):
     PLAN_REMINDER = "plan_reminder"
     CONTENT_READY = "content_ready"
     SPACED_REVIEW_DUE = "spaced_review_due"
+    ADMIN_ANNOUNCEMENT = "admin_announcement"
 
 
 class NotificationChannel(str, Enum):

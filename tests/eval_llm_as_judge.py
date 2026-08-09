@@ -1,16 +1,16 @@
-"""
-tests/eval_llm_as_judge.py
-===========================
-Bộ đánh giá LLM-as-a-Judge chuẩn xác 100% theo công thức RAGAS v0.2+:
-- Tự động khắc phục bẫy String/Boolean từ LLM.
-- Tự động tính toán chỉ số Faithfulness & Context Precision bằng Python.
-- Đính kèm timestamp (YYYYMMDD_HHMMSS) vào file kết quả để lưu vết lịch sử.
+"""Evaluate historical responses with an LLM judge after offline provenance checks.
+
+This is a custom LLM-as-a-Judge implementation informed by RAGAS concepts; it
+is not the RAGAS package.  Retrieval metrics are only requested for cases whose
+saved contexts can be tied to the exact ``turn_completed`` retrieval trace.
 """
 
 import asyncio
+import hashlib
 import json
-import re
+import math
 import sys
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -18,9 +18,15 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-import pandas as pd
-from openai import AsyncOpenAI
-from app.core.config import settings
+import pandas as pd  # noqa: E402
+from openai import AsyncOpenAI  # noqa: E402
+
+from app.core.config import settings  # noqa: E402
+from scripts.ragas_dataset_validation import (  # noqa: E402
+    DEFAULT_OUTPUT_PATH,
+    load_provenance_checked_cases,
+    print_summary,
+)
 
 judge_client = AsyncOpenAI(
     api_key=settings.GEMINI_API_KEY,
@@ -29,9 +35,16 @@ judge_client = AsyncOpenAI(
 JUDGE_MODEL = "gemini-3.5-flash-lite"
 
 
+@dataclass(frozen=True)
+class MetricResult:
+    score: float | None
+    error: str | None = None
+
+
 async def call_judge_llm(prompt: str) -> str:
-    """Gọi Gemini làm Giám khảo với retry loop an toàn."""
+    """Call the judge and surface failures instead of inventing a score."""
     max_retries = 5
+    last_error: Exception | None = None
     for attempt in range(max_retries):
         try:
             res = await judge_client.chat.completions.create(
@@ -41,44 +54,54 @@ async def call_judge_llm(prompt: str) -> str:
                 response_format={"type": "json_object"}
             )
             return res.choices[0].message.content
-        except Exception:
+        except Exception as exc:
+            last_error = exc
             if attempt == max_retries - 1:
-                return "{}"
+                break
             await asyncio.sleep(2.0 * (attempt + 1))
-    return "{}"
+    raise RuntimeError(f"judge_request_failed:{type(last_error).__name__ if last_error else 'unknown'}") from last_error
 
 
 def clamp(val: float) -> float:
     """Đảm bảo điểm số luôn nằm trong khoảng [0.0, 1.0]."""
-    return max(0.0, min(1.0, float(val)))
+    score = float(val)
+    if not math.isfinite(score):
+        raise ValueError("score_must_be_finite")
+    return max(0.0, min(1.0, score))
 
 
-async def evaluate_context_precision(question: str, contexts: list[str]) -> float:
-    """Tính Context Precision chuẩn MAP@K (Mean Average Precision)."""
+def _metric_error(exc: Exception) -> MetricResult:
+    return MetricResult(score=None, error=f"{type(exc).__name__}:{str(exc)[:160]}")
+
+
+def _load_json_object(content: str) -> dict:
+    payload = json.loads(content)
+    if not isinstance(payload, dict):
+        raise ValueError("judge_response_is_not_a_json_object")
+    return payload
+
+
+async def evaluate_context_precision(question: str, reference: str, contexts: list[str]) -> MetricResult:
+    """Calculate MAP@K from LLM relevance verdicts against the reference answer."""
     if not contexts:
-        return 0.0
-    
-    # Nếu context là bộ nhớ nội tại của Agent, trả về điểm trung bình 0.7 theo yêu cầu
-    if any("AGENT_CONTEXT" in str(ctx) for ctx in contexts):
-        return 0.70
-        
+        return MetricResult(score=None, error="missing_contexts")
+
     formatted_contexts = "\n".join([f"Chunk [{i+1}]: {ctx}" for i, ctx in enumerate(contexts)])
     prompt = (
         f"Câu hỏi: {question}\n\n"
+        f"Đáp án chuẩn: {reference}\n\n"
         f"Danh sách các đoạn ngữ cảnh trích xuất theo thứ tự xếp hạng (từ Top 1 đến Top K):\n"
         f"{formatted_contexts}\n\n"
-        f"Nhiệm vụ: Kiểm tra từng Chunk xem nó CÓ CHỨA thông tin hữu ích giúp trả lời câu hỏi hay không.\n"
+        f"Nhiệm vụ: Kiểm tra từng Chunk xem nó có thông tin liên quan để hỗ trợ đáp án chuẩn hay không.\n"
         f"Trả về kết quả dưới định dạng JSON duy nhất:\n"
         f"{{\"verdicts\": [true/false cho Chunk 1, true/false cho Chunk 2, ...]}}"
     )
 
     try:
-        content = await call_judge_llm(prompt)
-        data = json.loads(content)
+        data = _load_json_object(await call_judge_llm(prompt))
         raw_verdicts = data.get("verdicts", [])
-        
-        if not raw_verdicts:
-            return 0.70 # Fallback an toàn nếu LLM lỗi
+        if not isinstance(raw_verdicts, list) or len(raw_verdicts) != len(contexts):
+            raise ValueError("invalid_verdict_count")
 
         verdicts = [
             v in (True, 1) or str(v).lower() in ("true", "1")
@@ -95,18 +118,18 @@ async def evaluate_context_precision(question: str, contexts: list[str]) -> floa
                 sum_precision += precision_at_k
 
         if relevant_count == 0:
-            return 0.70
+            return MetricResult(score=0.0)
 
-        return clamp(sum_precision / relevant_count)
-    except Exception:
-        return 0.70
+        return MetricResult(score=clamp(sum_precision / relevant_count))
+    except Exception as exc:
+        return _metric_error(exc)
 
 
-async def evaluate_faithfulness(question: str, contexts: list[str], response: str) -> float:
+async def evaluate_faithfulness(question: str, contexts: list[str], response: str) -> MetricResult:
     """Tính Faithfulness: Phân rã mệnh đề và dùng Python tự tính tỷ lệ bám ngữ cảnh."""
     if not response or not contexts:
-        return 0.0
-    
+        return MetricResult(score=None, error="missing_response_or_contexts")
+
     context_text = "\n---\n".join(contexts)
     prompt = (
         f"Ngữ cảnh nguồn:\n{context_text}\n\n"
@@ -119,27 +142,26 @@ async def evaluate_faithfulness(question: str, contexts: list[str], response: st
     )
 
     try:
-        content = await call_judge_llm(prompt)
-        data = json.loads(content)
+        data = _load_json_object(await call_judge_llm(prompt))
         claims = data.get("claims", [])
-        
-        if not claims:
-            return 0.0
+        if not isinstance(claims, list) or not claims:
+            raise ValueError("missing_claims")
 
         supported_count = sum(
-            1 for c in claims 
+            1
+            for c in claims
             if c.get("is_supported") in (True, 1) or str(c.get("is_supported")).lower() in ("true", "1")
         )
-        return clamp(supported_count / len(claims))
-    except Exception:
-        return 0.0
+        return MetricResult(score=clamp(supported_count / len(claims)))
+    except Exception as exc:
+        return _metric_error(exc)
 
 
-async def evaluate_answer_relevancy(question: str, response: str) -> float:
+async def evaluate_answer_relevancy(question: str, response: str) -> MetricResult:
     """Tính Answer Relevancy: Đánh giá câu trả lời có đi thẳng vào trọng tâm câu hỏi không."""
     if not response:
-        return 0.0
-    
+        return MetricResult(score=None, error="missing_response")
+
     prompt = (
         f"Câu hỏi: {question}\n"
         f"Câu trả lời: {response}\n\n"
@@ -148,21 +170,18 @@ async def evaluate_answer_relevancy(question: str, response: str) -> float:
         f"Trả về JSON duy nhất: {{\"relevancy_score\": 0.0-1.0, \"reason\": \"...\"}}"
     )
     try:
-        content = await call_judge_llm(prompt)
-        data = json.loads(content)
-        return clamp(data.get("relevancy_score", 0.0))
-    except Exception:
-        return 0.0
+        data = _load_json_object(await call_judge_llm(prompt))
+        if "relevancy_score" not in data:
+            raise ValueError("missing_relevancy_score")
+        return MetricResult(score=clamp(data["relevancy_score"]))
+    except Exception as exc:
+        return _metric_error(exc)
 
 
-async def evaluate_context_recall(question: str, reference: str, contexts: list[str]) -> float:
-    """Tính Context Recall, tự động xử lý nếu là AGENT_CONTEXT."""
+async def evaluate_context_recall(question: str, reference: str, contexts: list[str]) -> MetricResult:
+    """Estimate reference-claim coverage by verified retrieved contexts."""
     if not contexts or not reference:
-        return 0.0
-    
-    # Nếu context là bộ nhớ nội tại của Agent, trả về điểm trung bình 0.7 theo yêu cầu
-    if any("AGENT_CONTEXT" in str(ctx) for ctx in contexts):
-        return 0.70
+        return MetricResult(score=None, error="missing_reference_or_contexts")
 
     context_text = "\n---\n".join(contexts)
     prompt = (
@@ -172,18 +191,19 @@ async def evaluate_context_recall(question: str, reference: str, contexts: list[
         f"Trả về JSON duy nhất: {{\"recall_score\": 0.0-1.0, \"reason\": \"...\"}}"
     )
     try:
-        content = await call_judge_llm(prompt)
-        data = json.loads(content)
-        return clamp(data.get("recall_score", 0.70))
-    except Exception:
-        return 0.70
+        data = _load_json_object(await call_judge_llm(prompt))
+        if "recall_score" not in data:
+            raise ValueError("missing_recall_score")
+        return MetricResult(score=clamp(data["recall_score"]))
+    except Exception as exc:
+        return _metric_error(exc)
 
 
-async def evaluate_answer_correctness(question: str, reference: str, response: str) -> float:
+async def evaluate_answer_correctness(question: str, reference: str, response: str) -> MetricResult:
     """Tính Answer Correctness: Đánh giá độ chính xác thực tế so với Đáp án chuẩn."""
     if not response or not reference:
-        return 0.0
-    
+        return MetricResult(score=None, error="missing_response_or_reference")
+
     prompt = (
         f"Câu hỏi: {question}\n"
         f"Đáp án chuẩn (Reference): {reference}\n"
@@ -192,11 +212,12 @@ async def evaluate_answer_correctness(question: str, reference: str, response: s
         f"Trả về JSON duy nhất: {{\"correctness_score\": 0.0-1.0, \"reason\": \"...\"}}"
     )
     try:
-        content = await call_judge_llm(prompt)
-        data = json.loads(content)
-        return clamp(data.get("correctness_score", 0.0))
-    except Exception:
-        return 0.0
+        data = _load_json_object(await call_judge_llm(prompt))
+        if "correctness_score" not in data:
+            raise ValueError("missing_correctness_score")
+        return MetricResult(score=clamp(data["correctness_score"]))
+    except Exception as exc:
+        return _metric_error(exc)
 
 
 async def evaluate_item(item: dict, sem: asyncio.Semaphore) -> dict:
@@ -206,36 +227,75 @@ async def evaluate_item(item: dict, sem: asyncio.Semaphore) -> dict:
         ctx = item.get("contexts") or item.get("retrieved_contexts") or []
         resp = item.get("response", "")
 
-        f_score, r_score, rec_score, c_score, prec_score = await asyncio.gather(
-            evaluate_faithfulness(q, ctx, resp),
+        retrieval_eligible = bool(item.get("retrieval_metrics_eligible"))
+        relevancy_result, correctness_result = await asyncio.gather(
             evaluate_answer_relevancy(q, resp),
-            evaluate_context_recall(q, ref, ctx),
             evaluate_answer_correctness(q, ref, resp),
-            evaluate_context_precision(q, ctx),
         )
+        if retrieval_eligible:
+            faithfulness_result, recall_result, precision_result = await asyncio.gather(
+                evaluate_faithfulness(q, ctx, resp),
+                evaluate_context_recall(q, ref, ctx),
+                evaluate_context_precision(q, ref, ctx),
+            )
+        else:
+            faithfulness_result = MetricResult(score=None, error="not_applicable_unverified_retrieval")
+            recall_result = MetricResult(score=None, error="not_applicable_unverified_retrieval")
+            precision_result = MetricResult(score=None, error="not_applicable_unverified_retrieval")
 
-        return {
+        metric_results = {
+            "context_precision": precision_result,
+            "context_recall": recall_result,
+            "faithfulness": faithfulness_result,
+            "answer_relevancy": relevancy_result,
+            "answer_correctness": correctness_result,
+        }
+        result = {
             "query_id": item.get("query_id"),
             "user_input": q,
-            "context_precision": prec_score,
-            "context_recall": rec_score,
-            "faithfulness": f_score,
-            "answer_relevancy": r_score,
-            "answer_correctness": c_score,
+            "evaluation_group": item.get("evaluation_group"),
+            "verification_reason": item.get("verification_reason"),
+            "verified_trace_id": item.get("verified_trace_id"),
+            "retrieval_metrics_eligible": retrieval_eligible,
         }
+        result.update({metric: outcome.score for metric, outcome in metric_results.items()})
+        result.update({f"{metric}_status": "scored" if outcome.error is None else outcome.error for metric, outcome in metric_results.items()})
+        return result
+
+
+def summarize_metrics(df: pd.DataFrame) -> dict[str, dict[str, float | int | None]]:
+    metrics = (
+        "context_precision",
+        "context_recall",
+        "faithfulness",
+        "answer_relevancy",
+        "answer_correctness",
+    )
+    summary: dict[str, dict[str, float | int | None]] = {}
+    for metric in metrics:
+        scores = pd.to_numeric(df[metric], errors="coerce")
+        statuses = df[f"{metric}_status"].fillna("")
+        summary[metric] = {
+            "mean": round(float(scores.mean()), 4) if scores.notna().any() else None,
+            "evaluated": int(scores.notna().sum()),
+            "not_applicable": int(statuses.eq("not_applicable_unverified_retrieval").sum()),
+            "judge_errors": int(statuses.str.contains(":", regex=False).sum()),
+        }
+    return summary
 
 
 async def run_evaluation():
-    trace_path = Path(__file__).resolve().parent.parent / "logs" / "ragas_eval" / "production_flow_trace.json"
+    trace_path = DEFAULT_OUTPUT_PATH
     if not trace_path.exists():
-        print(f"❌ Không tìm thấy tệp trace tại: {trace_path}")
+        print(f"❌ Không tìm thấy tập dữ liệu đã kiểm tra provenance tại: {trace_path}")
+        print("Hãy chạy scripts/ragas_dataset_validation.py trước khi chấm bằng LLM.")
         return
 
-    with open(trace_path, "r", encoding="utf-8") as f:
-        trace_data = json.load(f)
+    trace_data = load_provenance_checked_cases(trace_path)
 
-    print(f"🚀 BẮT ĐẦU ĐÁNH GIÁ LLM-AS-A-JUDGE chuẩn RAGAS ({JUDGE_MODEL}) CHO {len(trace_data)} TEST CASES...")
-    
+    print(f"🚀 BẮT ĐẦU ĐÁNH GIÁ LLM-AS-A-JUDGE ({JUDGE_MODEL}) CHO {len(trace_data)} TEST CASES...")
+    print_summary(trace_data)
+
     sem = asyncio.Semaphore(5)
     results = await asyncio.gather(*[evaluate_item(item, sem) for item in trace_data])
     df = pd.DataFrame(results)
@@ -243,32 +303,48 @@ async def run_evaluation():
     print("\n📊 BÁO CÁO KẾT QUẢ ĐÁNH GIÁ CHI TIẾT PRODUCTION FLOW:")
     print(df.to_string(index=False))
 
-    summary = {
-        "context_precision": df["context_precision"].mean(),
-        "context_recall": df["context_recall"].mean(),
-        "faithfulness": df["faithfulness"].mean(),
-        "answer_relevancy": df["answer_relevancy"].mean(),
-        "answer_correctness": df["answer_correctness"].mean(),
-    }
+    summary = summarize_metrics(df)
 
     print("\n=====================================================================")
-    print("🏆 BẢNG TỔNG HỢP ĐIỂM SỐ TRUNG BÌNH RAGAS PRODUCTION FLOW:")
+    print("🏆 BẢNG TỔNG HỢP ĐIỂM SỐ LLM-AS-A-JUDGE:")
     print("=====================================================================")
-    for metric, score in summary.items():
-        print(f"   • {metric:<25}: {score:.4f} / 1.0000")
+    for metric, values in summary.items():
+        mean = values["mean"]
+        display_mean = f"{mean:.4f}" if mean is not None else "N/A"
+        print(
+            f"   • {metric:<25}: {display_mean} / 1.0000 "
+            f"(n={values['evaluated']}, N/A={values['not_applicable']}, judge_errors={values['judge_errors']})"
+        )
     print("=====================================================================")
 
-    # Tạo timestamp cho lịch sử chạy (Ví dụ: production_flow_ragas_report_20260728_105136.csv)
+    # Tạo timestamp cho lịch sử chạy để không ghi đè kết quả judge cũ.
     now_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-    history_csv = trace_path.parent / f"production_flow_ragas_report_{now_str}.csv"
-    latest_csv = trace_path.parent / "production_flow_ragas_report.csv"
+    history_csv = trace_path.parent / f"production_flow_llm_judge_report_{now_str}.csv"
+    latest_csv = trace_path.parent / "production_flow_llm_judge_report_latest.csv"
 
     # Lưu file lịch sử và đồng thời cập nhật file latest chính
     df.to_csv(history_csv, index=False, encoding="utf-8-sig")
     df.to_csv(latest_csv, index=False, encoding="utf-8-sig")
+    summary_path = trace_path.parent / f"production_flow_llm_judge_summary_{now_str}.json"
+    summary_path.write_text(
+        json.dumps(
+            {
+                "judge_model": JUDGE_MODEL,
+                "input_dataset": str(trace_path),
+                "input_dataset_sha256": hashlib.sha256(trace_path.read_bytes()).hexdigest(),
+                "total_cases": len(trace_data),
+                "evaluation_groups": {key: int(value) for key, value in df["evaluation_group"].value_counts().items()},
+                "metrics": summary,
+            },
+            ensure_ascii=False,
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
 
     print(f"\n💾 Đã lưu lịch sử chạy tại : {history_csv}")
     print(f"🔄 Đã cập nhật file latest tại : {latest_csv}")
+    print(f"📋 Đã lưu thống kê metric tại : {summary_path}")
 
 
 def main():

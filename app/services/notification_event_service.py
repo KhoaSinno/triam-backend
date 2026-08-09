@@ -516,6 +516,10 @@ def deliver_outbox_notification(session: Session, outbox: NotificationOutbox, *,
         if outbox.payload.get("action_payload"):
             fcm_data["action_payload"] = json.dumps(outbox.payload["action_payload"])
 
+        custom_data = outbox.payload.get("data")
+        if isinstance(custom_data, dict):
+            fcm_data.update({str(key): str(value) for key, value in custom_data.items()})
+
         fcm_data["outbox_id"] = str(outbox.id)
         fcm_data["notification_type"] = outbox.type.value
 

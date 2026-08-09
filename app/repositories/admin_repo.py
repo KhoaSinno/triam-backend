@@ -19,6 +19,7 @@ auth_users = Table(
     Column("email", Text),
     Column("created_at", DateTime(timezone=True)),
     Column("last_sign_in_at", DateTime(timezone=True)),
+    Column("banned_until", DateTime(timezone=True)),
     Column("raw_user_meta_data", JSONB),
     schema="auth"
 )
@@ -106,7 +107,14 @@ def count_admin_users(session: Session, user_id: uuid.UUID | None = None) -> int
 
 
 def list_admin_users(session: Session, *, limit: int, offset: int, user_id: uuid.UUID | None = None) -> tuple[list[dict[str, Any]], int]:
-    query = select(auth_users.c.id, auth_users.c.email, auth_users.c.created_at, auth_users.c.last_sign_in_at, auth_users.c.raw_user_meta_data)
+    query = select(
+        auth_users.c.id,
+        auth_users.c.email,
+        auth_users.c.created_at,
+        auth_users.c.last_sign_in_at,
+        auth_users.c.banned_until,
+        auth_users.c.raw_user_meta_data,
+    )
     if user_id:
         query = query.where(auth_users.c.id != user_id)
 
@@ -123,6 +131,9 @@ def list_admin_users(session: Session, *, limit: int, offset: int, user_id: uuid
         return [], total
 
     user_ids = [u.id for u in users_data]
+    admin_user_ids = set(
+        session.exec(select(AdminUser.user_id).where(AdminUser.user_id.in_(user_ids))).all()
+    )
 
     book_stats = {
         user_id: {"book_count": int(book_count), "last_book_at": last_book_at}
@@ -148,7 +159,8 @@ def list_admin_users(session: Session, *, limit: int, offset: int, user_id: uuid
     }
 
     items: list[dict[str, Any]] = []
-    for user_id, email, created_at, last_sign_in_at, meta in users_data:
+    now = datetime.now(timezone.utc)
+    for user_id, email, created_at, last_sign_in_at, banned_until, meta in users_data:
         meta_dict = meta if isinstance(meta, dict) else {}
         display_name = meta_dict.get("name") or meta_dict.get("full_name")
         avatar_url = meta_dict.get("avatar_url") or meta_dict.get("picture")
@@ -167,6 +179,9 @@ def list_admin_users(session: Session, *, limit: int, offset: int, user_id: uuid
                 "email": email,
                 "display_name": display_name,
                 "avatar_url": avatar_url,
+                "is_active": not banned_until or banned_until <= now,
+                "is_admin": user_id in admin_user_ids,
+                "banned_until": banned_until,
                 "account_created_at": created_at,
                 "last_sign_in_at": last_sign_in_at,
                 "book_count": book_data.get("book_count", 0),

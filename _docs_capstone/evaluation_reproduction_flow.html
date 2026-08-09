@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TRIAM — Quy trình tái lập đánh giá thực nghiệm</title>
+  <style>
+    :root { --ink:#172033; --muted:#5e6b82; --line:#d9e0ea; --paper:#f7f9fc; --blue:#2563eb; --green:#15803d; --amber:#b45309; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:var(--paper); font-family:Inter,Segoe UI,Arial,sans-serif; line-height:1.55; }
+    main { max-width:1050px; margin:0 auto; padding:46px 26px 64px; }
+    header { padding:28px 32px; border-radius:18px; color:#fff; background:linear-gradient(120deg,#102a61,#2563eb); box-shadow:0 12px 35px #193c7a2c; }
+    h1 { margin:0 0 8px; font-size:clamp(1.65rem,4vw,2.35rem); }
+    h2 { margin:40px 0 14px; font-size:1.35rem; }
+    h3 { margin:0 0 8px; font-size:1rem; }
+    p { margin:8px 0; }
+    .lead { margin:0; opacity:.92; }
+    .notice { margin-top:22px; padding:14px 18px; border-left:4px solid var(--amber); border-radius:8px; background:#fff7ed; }
+    .flow { display:grid; gap:14px; margin-top:18px; }
+    .node { position:relative; padding:18px 20px; border:1px solid var(--line); border-radius:12px; background:#fff; box-shadow:0 3px 12px #1720330b; }
+    .node:not(:last-child)::after { position:absolute; bottom:-18px; left:50%; color:var(--blue); content:"↓"; font-size:1.5rem; font-weight:700; }
+    .source { border-left:5px solid #64748b; }
+    .free { border-left:5px solid var(--green); }
+    .paid { border-left:5px solid var(--amber); }
+    .tag { display:inline-block; margin-left:7px; padding:2px 8px; border-radius:999px; font-size:.78rem; font-weight:700; }
+    .tag.free { color:#166534; background:#dcfce7; border:0; }
+    .tag.paid { color:#92400e; background:#fef3c7; border:0; }
+    code { padding:2px 5px; border-radius:4px; background:#eef2f7; font-family:Consolas,"Courier New",monospace; font-size:.9em; overflow-wrap:anywhere; }
+    pre { margin:12px 0; padding:16px; overflow:auto; border-radius:10px; color:#e5edf8; background:#111827; }
+    pre code { padding:0; background:transparent; color:inherit; }
+    table { width:100%; border-collapse:collapse; background:#fff; }
+    th,td { padding:11px 12px; border:1px solid var(--line); text-align:left; vertical-align:top; }
+    th { background:#eef4ff; }
+    .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(260px,1fr)); gap:14px; }
+    .card { padding:18px; border:1px solid var(--line); border-radius:12px; background:#fff; }
+    .small { color:var(--muted); font-size:.91rem; }
+    footer { margin-top:36px; color:var(--muted); font-size:.9rem; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Quy trình tái lập đánh giá thực nghiệm TRIAM</h1>
+    <p class="lead">Tài liệu mô tả dữ liệu đầu vào, thứ tự chạy script, đầu ra và chi phí của quy trình đánh giá hiện tại.</p>
+  </header>
+
+  <div class="notice"><strong>Nguyên tắc:</strong> Không sửa các log gốc hoặc file dữ liệu 60 ca. Dataset provenance-checked là file dẫn xuất để chấm điểm; nó không thay thế dữ liệu gốc.</div>
+
+  <h2>1. Dữ liệu đầu vào</h2>
+  <table>
+    <thead><tr><th>Vai trò</th><th>File</th><th>Nội dung</th></tr></thead>
+    <tbody>
+      <tr><td>Dataset gốc</td><td><code>logs/ragas_eval/production_flow_trace.json</code></td><td>60 câu hỏi, response, reference, context và liên kết đến log.</td></tr>
+      <tr><td>Log gốc</td><td><code>log_live_context_*.md</code></td><td>Sự kiện <code>AGENT_TRACE</code> để xác minh retrieval và tính latency.</td></tr>
+      <tr><td>Log đã parse</td><td><code>logs/ragas_eval/parsed_live_logs.json</code></td><td>Nguồn ưu tiên của báo cáo latency; script có thể quét lại log gốc khi cần.</td></tr>
+    </tbody>
+  </table>
+
+  <h2>2. Flow thực thi</h2>
+  <div class="flow">
+    <div class="node source"><h3>Dữ liệu gốc</h3><code>production_flow_trace.json</code> + <code>log_live_context_*.md</code></div>
+    <div class="node free"><h3>Bước 1 — Kiểm tra provenance <span class="tag free">Không tốn phí</span></h3><code>scripts/ragas_dataset_validation.py</code><br><span class="small">Đối chiếu context với đúng trace và chunk retrieval của lượt hỏi.</span></div>
+    <div class="node free"><h3>Dataset khóa để đánh giá</h3><code>production_flow_trace_provenance_checked.json</code><br><code>production_flow_trace_provenance_checked.manifest.json</code></div>
+    <div class="node paid"><h3>Bước 2 — LLM-as-a-Judge, chạy 3 lần <span class="tag paid">Có phí Gemini</span></h3><code>tests/eval_llm_as_judge.py</code><br><span class="small">Chấm Answer metrics trên các ca hợp lệ; metric retrieval chỉ áp dụng cho ca có provenance được xác minh.</span></div>
+    <div class="node free"><h3>Bước 3 — Latency thành phần <span class="tag free">Không tốn phí</span></h3><code>tests/eval_latency_budget.py</code><br><span class="small">Báo cáo Semantic Grounding, Query Guard, Retrieval, Web Search và Tool Execution. Không báo cáo Voice Turn Total.</span></div>
+  </div>
+
+  <h2>3. Lệnh chạy tái lập</h2>
+  <p>Chạy từ thư mục gốc <code>triam-backend</code>.</p>
+  <pre><code># 1. Tạo lại dataset provenance-checked và manifest
+uv run python scripts/ragas_dataset_validation.py
+
+# 2. Tái lập bảng latency thành phần
+uv run python tests/eval_latency_budget.py
+
+# 3. Chấm LLM-as-a-Judge ba lần độc lập
+uv run python tests/eval_llm_as_judge.py
+uv run python tests/eval_llm_as_judge.py
+uv run python tests/eval_llm_as_judge.py</code></pre>
+  <p class="small">Nếu dataset provenance-checked và manifest còn nguyên, bước 1 có thể bỏ qua. Bước judge vẫn cần ba lần chạy nếu muốn tái lập bảng trung vị trong luận văn.</p>
+
+  <h2>4. Phạm vi metric</h2>
+  <div class="grid">
+    <div class="card"><h3>Metric chất lượng câu trả lời</h3><p>Answer Relevancy và Answer Correctness dùng câu hỏi, response và reference hợp lệ.</p></div>
+    <div class="card"><h3>Metric retrieval/RAG</h3><p>Context Precision, Context Recall và Faithfulness chỉ dùng các ca có context được xác minh thuộc đúng retrieval trace. Với dataset hiện tại: <strong>11/60 ca</strong>.</p></div>
+    <div class="card"><h3>Latency</h3><p>Chỉ dùng trace phía máy chủ và báo cáo latency theo thành phần. Không dùng để kết luận độ trễ đầu-cuối trên thiết bị.</p></div>
+  </div>
+
+  <h2>5. Đầu ra cần lưu</h2>
+  <table>
+    <thead><tr><th>Bước</th><th>Đầu ra</th></tr></thead>
+    <tbody>
+      <tr><td>Validator</td><td><code>production_flow_trace_provenance_checked.json</code> và file <code>.manifest.json</code> chứa SHA-256 của dataset/log.</td></tr>
+      <tr><td>Judge</td><td><code>production_flow_llm_judge_report_&lt;timestamp&gt;.csv</code> và <code>production_flow_llm_judge_summary_&lt;timestamp&gt;.json</code> cho từng lần chạy.</td></tr>
+      <tr><td>Latency</td><td>Bảng P50/P90/P95 trên terminal; dùng để cập nhật bảng latency thành phần trong luận văn.</td></tr>
+    </tbody>
+  </table>
+
+  <footer>Phiên bản quy trình: sau chuẩn hóa provenance và loại Voice Turn Total khỏi báo cáo thực nghiệm chính.</footer>
+</main>
+</body>
+</html>

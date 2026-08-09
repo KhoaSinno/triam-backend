@@ -1,13 +1,38 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from sqlmodel import Session, select, func
+from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
-from app.core.constant import BookStatus, PlanMode, ProcessingJobStatus, ProcessingJobType
-from app.core.exceptions import BadRequestError, BookNotFoundError, BookStatusConflictError, ExternalServiceError, ProcessingJobNotFoundError, ProcessingJobStatusConflictError
+from app.core.constant import (
+    BookStatus,
+    LearningProgressStatus,
+    NotificationChannel,
+    NotificationStatus,
+    NotificationType,
+    PlanMode,
+    ProcessingJobStatus,
+    ProcessingJobType,
+    ReviewItemStatus,
+)
+from app.core.exceptions import BadRequestError, BookNotFoundError, BookStatusConflictError, ExternalServiceError, ProcessingJobNotFoundError, ProcessingJobStatusConflictError, UserNotFoundError
 from app.core.logger import log
-from app.models.db_models import AdminAuditLog, AdminUser, Book, LearningUnit, LearningUnitSegment, LearningUnitSource, ProcessingJob, BookSection, BookSectionKnowledge
+from app.models.db_models import (
+    AdminAuditLog,
+    AdminUser,
+    Book,
+    BookSection,
+    BookSectionKnowledge,
+    LearningUnit,
+    LearningUnitProgress,
+    LearningUnitSegment,
+    LearningUnitSource,
+    NotificationOutbox,
+    ProcessingJob,
+    ReadingPlanSession,
+    SpacedReviewItem,
+)
 from app.repositories.admin_repo import (
     count_learning_unit_segments_for_book,
     count_learning_units_by_status,
@@ -34,6 +59,10 @@ from app.schemas.admin import (
     AdminJobsResponse,
     AdminMeResponse,
     AdminRetryJobResponse,
+    AdminUserDirectNotifyPayload,
+    AdminUserDirectNotifyResponse,
+    AdminUserStatsResponse,
+    AdminUserStatusUpdateResponse,
     AdminUsersResponse,
     AdminBookOwnerInfo,
     AdminBookSectionListItem,
@@ -76,6 +105,198 @@ def get_dashboard(session: Session) -> AdminDashboardResponse:
 def get_users(session: Session, *, limit: int, offset: int, user_id: uuid.UUID | None = None) -> AdminUsersResponse:
     items, total = list_admin_users(session, limit=limit, offset=offset, user_id=user_id)
     return AdminUsersResponse(total=total, limit=limit, offset=offset, items=items)
+
+
+def _get_admin_target_user(session: Session, target_user_id: uuid.UUID):
+    user_row = session.exec(
+        select(
+            auth_users.c.id,
+            auth_users.c.email,
+            auth_users.c.created_at,
+            auth_users.c.raw_user_meta_data,
+        ).where(auth_users.c.id == target_user_id)
+    ).first()
+    if not user_row:
+        raise UserNotFoundError()
+    return user_row
+
+
+def update_admin_user_status(
+    session: Session,
+    *,
+    target_user_id: uuid.UUID,
+    is_active: bool,
+    ban_reason: str | None,
+    admin_user_id: uuid.UUID,
+) -> AdminUserStatusUpdateResponse:
+    if target_user_id == admin_user_id:
+        raise BadRequestError("Bạn không thể tự khóa tài khoản của chính mình.")
+    _get_admin_target_user(session, target_user_id)
+    if session.get(AdminUser, target_user_id):
+        raise BadRequestError("Không thể thay đổi trạng thái tài khoản quản trị viên.")
+
+    try:
+        from app.core.supabase import supabase
+
+        supabase.auth.admin.update_user_by_id(
+            str(target_user_id),
+            {"ban_duration": "none" if is_active else "876000h"},
+        )
+    except Exception as exc:
+        log.error(f"Không thể cập nhật trạng thái Auth của user {target_user_id}: {exc}")
+        raise ExternalServiceError("Không thể cập nhật trạng thái tài khoản.") from exc
+
+    banned_until = None if is_active else datetime.now(timezone.utc) + timedelta(hours=876000)
+    create_admin_audit_log(
+        session,
+        admin_user_id=admin_user_id,
+        action="user.unban" if is_active else "user.ban",
+        target_type="user",
+        target_id=target_user_id,
+        metadata={"is_active": is_active, "ban_reason": ban_reason},
+    )
+    session.commit()
+
+    return AdminUserStatusUpdateResponse(
+        user_id=target_user_id,
+        is_active=is_active,
+        banned_until=banned_until,
+        message="Đã mở khóa tài khoản người dùng." if is_active else "Đã khóa tài khoản người dùng.",
+    )
+
+
+def send_admin_user_direct_notification(
+    session: Session,
+    *,
+    target_user_id: uuid.UUID,
+    payload: AdminUserDirectNotifyPayload,
+    admin_user_id: uuid.UUID,
+) -> AdminUserDirectNotifyResponse:
+    _get_admin_target_user(session, target_user_id)
+    idempotency_key = f"admin-announcement:{target_user_id}:{payload.idempotency_key}"
+    existing = session.exec(
+        select(NotificationOutbox).where(NotificationOutbox.idempotency_key == idempotency_key)
+    ).first()
+    if existing:
+        return AdminUserDirectNotifyResponse(
+            user_id=target_user_id,
+            outbox_id=existing.id,
+            status=existing.status.value,
+            message="Thông báo này đã được tiếp nhận trước đó.",
+        )
+
+    outbox = NotificationOutbox(
+        user_id=target_user_id,
+        type=NotificationType.ADMIN_ANNOUNCEMENT,
+        channel=NotificationChannel.ALL,
+        status=NotificationStatus.PENDING,
+        payload={
+            "title": payload.title,
+            "body": payload.body,
+            "data": payload.data or {},
+        },
+        due_at=datetime.now(timezone.utc),
+        idempotency_key=idempotency_key,
+    )
+    session.add(outbox)
+    create_admin_audit_log(
+        session,
+        admin_user_id=admin_user_id,
+        action="user.send_notification",
+        target_type="user",
+        target_id=target_user_id,
+        metadata={
+            "outbox_id": str(outbox.id),
+            "status": NotificationStatus.PENDING.value,
+            "title_length": len(payload.title),
+            "body_length": len(payload.body),
+        },
+    )
+    try:
+        session.commit()
+    except IntegrityError:
+        session.rollback()
+        existing = session.exec(
+            select(NotificationOutbox).where(NotificationOutbox.idempotency_key == idempotency_key)
+        ).first()
+        if existing:
+            return AdminUserDirectNotifyResponse(
+                user_id=target_user_id,
+                outbox_id=existing.id,
+                status=existing.status.value,
+                message="Thông báo này đã được tiếp nhận trước đó.",
+            )
+        raise
+
+    return AdminUserDirectNotifyResponse(
+        user_id=target_user_id,
+        outbox_id=outbox.id,
+        status=NotificationStatus.PENDING.value,
+        message="Đã đưa thông báo vào hàng đợi gửi.",
+    )
+
+
+def get_admin_user_learning_stats(session: Session, *, target_user_id: uuid.UUID) -> AdminUserStatsResponse:
+    user_id, email, created_at, meta = _get_admin_target_user(session, target_user_id)
+    meta_dict = meta if isinstance(meta, dict) else {}
+
+    total_listened_ms = int(
+        session.exec(
+            select(func.coalesce(func.sum(LearningUnitProgress.listened_ms), 0)).where(
+                LearningUnitProgress.user_id == target_user_id
+            )
+        ).one()
+        or 0
+    )
+    total_units_completed = int(
+        session.exec(
+            select(func.count(LearningUnitProgress.id)).where(
+                LearningUnitProgress.user_id == target_user_id,
+                LearningUnitProgress.status == LearningProgressStatus.COMPLETED,
+            )
+        ).one()
+        or 0
+    )
+    total_sessions_completed = int(
+        session.exec(
+            select(func.count(ReadingPlanSession.id)).where(
+                ReadingPlanSession.user_id == target_user_id,
+                ReadingPlanSession.status == "completed",
+            )
+        ).one()
+        or 0
+    )
+    total_reviews_completed = int(
+        session.exec(
+            select(func.count(SpacedReviewItem.id)).where(
+                SpacedReviewItem.user_id == target_user_id,
+                SpacedReviewItem.status == ReviewItemStatus.COMPLETED,
+            )
+        ).one()
+        or 0
+    )
+    books_owned_count = int(
+        session.exec(select(func.count(Book.id)).where(Book.user_id == target_user_id)).one() or 0
+    )
+    last_active_at = session.exec(
+        select(func.max(LearningUnitProgress.last_activity_at)).where(
+            LearningUnitProgress.user_id == target_user_id
+        )
+    ).one()
+
+    return AdminUserStatsResponse(
+        user_id=user_id,
+        display_name=meta_dict.get("name") or meta_dict.get("full_name"),
+        email=email,
+        total_listened_ms=total_listened_ms,
+        total_hours_listened=round(total_listened_ms / 3_600_000, 1),
+        total_sessions_completed=total_sessions_completed,
+        total_units_completed=total_units_completed,
+        total_reviews_completed=total_reviews_completed,
+        books_owned_count=books_owned_count,
+        created_at=created_at,
+        last_active_at=last_active_at,
+    )
 
 
 def get_books(

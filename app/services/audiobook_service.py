@@ -331,23 +331,12 @@ def get_book_details(session: Session, book_id: uuid.UUID, user_id: uuid.UUID, *
         raise BookNotFoundError()
 
     plan = get_current_plan_for_owned_book(session, user_id=user_id, book_id=book_id)
-    if not plan:
-        requested_mode = mode if mode else PlanMode.PARETO.value
-        return {
-            "book_id": book.id,
-            "book_status": book.status,
-            "mode": requested_mode,
-            "total_sections": book.total_sections,
-            "total_units": 0,
-            "ai_summary": book.ai_summary,
-            "ai_summary_status": book.ai_summary_status,
-            "ai_summary_error": book.ai_summary_error,
-            "learning_summary": None,
-            "units": [],
-        }
-
-    active_mode = PlanMode(mode) if mode else PlanMode(plan.mode)
-    learning_summary = build_book_learning_summary_from_state(session, user_id=user_id, book_id=book_id, mode=active_mode)
+    active_mode = PlanMode(mode) if mode else PlanMode(plan.mode) if plan else PlanMode.PARETO
+    learning_summary = (
+        build_book_learning_summary_from_state(session, user_id=user_id, book_id=book_id, mode=active_mode)
+        if plan
+        else None
+    )
     units = list_learning_units(session, book_id, active_mode)
     segments_map = _segments_by_unit(list_unit_segments(session, [unit.id for unit in units]))
 

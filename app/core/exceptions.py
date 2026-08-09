@@ -59,6 +59,11 @@ class NotificationNotFoundError(AppException):
     detail = "Không tìm thấy thông báo."
 
 
+class UserNotFoundError(AppException):
+    status_code = 404
+    detail = "Không tìm thấy người dùng."
+
+
 class ReviewItemNotFoundError(AppException):
     status_code = 404
     detail = "Không tìm thấy mục ôn tập."

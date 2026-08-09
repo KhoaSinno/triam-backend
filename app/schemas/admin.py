@@ -30,6 +30,9 @@ class AdminUserListItem(BaseModel):
     email: str | None = None
     display_name: str | None = None
     avatar_url: str | None = None
+    is_active: bool = True
+    is_admin: bool = False
+    banned_until: datetime | None = None
     account_created_at: datetime | None = None
     last_sign_in_at: datetime | None = None
     book_count: int = 0
@@ -44,6 +47,46 @@ class AdminUsersResponse(BaseModel):
     limit: int
     offset: int
     items: list[AdminUserListItem]
+
+
+class AdminUserStatusUpdatePayload(BaseModel):
+    is_active: bool
+    ban_reason: str | None = Field(default=None, max_length=255)
+
+
+class AdminUserStatusUpdateResponse(BaseModel):
+    user_id: uuid.UUID
+    is_active: bool
+    banned_until: datetime | None = None
+    message: str
+
+
+class AdminUserDirectNotifyPayload(BaseModel):
+    title: str = Field(min_length=1, max_length=120)
+    body: str = Field(min_length=1, max_length=500)
+    data: dict[str, str] | None = None
+    idempotency_key: str = Field(min_length=8, max_length=120)
+
+
+class AdminUserDirectNotifyResponse(BaseModel):
+    user_id: uuid.UUID
+    outbox_id: uuid.UUID
+    status: str
+    message: str
+
+
+class AdminUserStatsResponse(BaseModel):
+    user_id: uuid.UUID
+    display_name: str | None = None
+    email: str | None = None
+    total_listened_ms: int = 0
+    total_hours_listened: float = 0.0
+    total_sessions_completed: int = 0
+    total_units_completed: int = 0
+    total_reviews_completed: int = 0
+    books_owned_count: int = 0
+    created_at: datetime | None = None
+    last_active_at: datetime | None = None
 
 
 class AdminBookListItem(BaseModel):
