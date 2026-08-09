@@ -316,6 +316,26 @@ async def test_watchdog_thinking_extends_grace(base_config, mock_tracer) -> None
 
 
 @pytest.mark.asyncio
+async def test_watchdog_does_not_interrupt_agent_that_is_already_speaking(base_config, mock_tracer) -> None:
+    session = FakeSession()
+    watchdog = VoiceToolReplyWatchdog(session=session, tracer=mock_tracer, config=base_config)
+    event = FakeEvent([FakeCall("search_book_knowledge", "call_1")], [FakeOutput("search_book_knowledge", "call_1")])
+
+    watchdog.schedule_after_tools_executed(event)
+    await asyncio.sleep(0.01)
+    watchdog.record_agent_state_changed(new_state="speaking")
+    await asyncio.sleep(0.08)
+
+    session.interrupt.assert_not_awaited()
+    session.generate_reply.assert_not_called()
+    mock_tracer.record_tool_reply_watchdog_cancelled.assert_called_with(
+        AgentInputMode.VOICE,
+        reason="agent_started_speaking",
+    )
+    watchdog.close()
+
+
+@pytest.mark.asyncio
 async def test_watchdog_rate_limit_cancels_pending_fallback(base_config, mock_tracer) -> None:
     session = FakeSession()
     watchdog = VoiceToolReplyWatchdog(session=session, tracer=mock_tracer, config=base_config)

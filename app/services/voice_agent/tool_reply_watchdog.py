@@ -83,6 +83,11 @@ class VoiceToolReplyWatchdog:
                 grace_seconds=self.config.thinking_grace_seconds,
                 reason="agent_thinking",
             )
+        elif state_lower == "speaking":
+            # Speaking is the authoritative signal that the user is already
+            # receiving the reply. Leaving a timer armed here would make the
+            # watchdog interrupt normal audio at its deadline.
+            self.cancel_all("agent_started_speaking")
 
     def _reschedule_active_grace(self, *, grace_seconds: float, reason: str) -> None:
         active_event_ids = [eid for eid, task in self._watch_tasks.items() if not task.done()]
