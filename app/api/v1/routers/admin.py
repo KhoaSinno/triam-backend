@@ -27,6 +27,11 @@ from app.schemas.admin import (
     AdminBookSummaryResponse,
     AdminBookUploadResponse,
     AdminCancelJobResponse,
+    AdminUserDirectNotifyPayload,
+    AdminUserDirectNotifyResponse,
+    AdminUserStatsResponse,
+    AdminUserStatusUpdatePayload,
+    AdminUserStatusUpdateResponse,
 )
 from app.schemas.responses import BookResponse
 from app.services import admin_service
@@ -59,6 +64,46 @@ def read_admin_users(
     offset: OffsetQuery = 0,
 ):
     return admin_service.get_users(session, limit=limit, offset=offset, user_id=admin_user.user_id)
+
+
+@router.patch("/users/{user_id}/status", response_model=AdminUserStatusUpdateResponse)
+def update_admin_user_status(
+    user_id: uuid.UUID,
+    payload: AdminUserStatusUpdatePayload,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.update_admin_user_status(
+        session,
+        target_user_id=user_id,
+        is_active=payload.is_active,
+        ban_reason=payload.ban_reason,
+        admin_user_id=admin_user.user_id,
+    )
+
+
+@router.post("/users/{user_id}/notify", response_model=AdminUserDirectNotifyResponse)
+def send_admin_user_notification(
+    user_id: uuid.UUID,
+    payload: AdminUserDirectNotifyPayload,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.send_admin_user_direct_notification(
+        session,
+        target_user_id=user_id,
+        payload=payload,
+        admin_user_id=admin_user.user_id,
+    )
+
+
+@router.get("/users/{user_id}/stats", response_model=AdminUserStatsResponse)
+def read_admin_user_stats(
+    user_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.get_admin_user_learning_stats(session, target_user_id=user_id)
 
 
 @router.get("/books", response_model=AdminBooksResponse)

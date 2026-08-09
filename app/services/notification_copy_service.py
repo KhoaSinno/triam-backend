@@ -36,4 +36,9 @@ def build_notification_copy(notification_type: NotificationType, payload: dict) 
                 "Đến lúc ôn lại rồi",
                 f"Ôn nhanh: {unit_title}.",
             )
+        case NotificationType.ADMIN_ANNOUNCEMENT:
+            return (
+                str(payload.get("title") or "Thông báo từ TRIAM"),
+                str(payload.get("body") or "Bạn có một thông báo mới."),
+            )
     return ("TRIAM", "Bạn có một thông báo mới.")

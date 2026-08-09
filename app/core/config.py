@@ -144,7 +144,7 @@ class Settings(BaseSettings):
     COHERE_API_KEY: str | None = None
     AGENT_RERANKER_ENABLED: bool = True
     AGENT_RERANKER_MODEL: str = "rerank-multilingual-v3.0"
-    AGENT_RERANKER_TOP_N: int = 12  # Maximum cadidates Reranker reuturn
+    AGENT_RERANKER_TOP_N: int = 8  # Maximum cadidates Reranker reuturn
     AGENT_RERANKER_CANDIDATES_LIMIT: int = 20  # Maximum cadidates sent to Cohere
     # Upload file
     MAX_FILE_SIZE_BYTES: int = 50 * 1024 * 1024  # 50 MB

@@ -289,7 +289,10 @@ class LearningUnitProgress(SQLModel, table=True):
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 
-    __table_args__ = (UniqueConstraint("user_id", "learning_unit_id", name="uq_unit_progress_user_unit"),)
+    __table_args__ = (
+        UniqueConstraint("user_id", "learning_unit_id", name="uq_unit_progress_user_unit"),
+        Index("ix_learning_unit_progress_user_status", "user_id", "status"),
+    )
 
 
 class BookLearningState(SQLModel, table=True):
@@ -355,6 +358,8 @@ class SpacedReviewItem(SQLModel, table=True):
     completed_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True)))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
+
+    __table_args__ = (Index("ix_spaced_review_items_user_status", "user_id", "status"),)
 
 
 class NotificationOutbox(SQLModel, table=True):
