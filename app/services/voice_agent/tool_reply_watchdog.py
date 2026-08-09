@@ -24,15 +24,18 @@ class VoiceToolReplyWatchdog:
         self,
         *,
         session: Any,
+        room: Any | None = None,
         tracer: AgentTurnTracer,
         config: VoiceToolReplyWatchdogConfig,
     ) -> None:
         self.session = session
+        # AgentSession does not reliably expose the LiveKit room. The entrypoint
+        # supplies ctx.room; retaining the fallback keeps console tests compatible.
+        self.room = room if room is not None else getattr(session, "room", None)
         self.tracer = tracer
         self.config = config
         self._watch_tasks: dict[str, asyncio.Task[None]] = {}
         self._watch_tool_names: dict[str, str] = {}
-        self._speech_generation_counter = 0
         self._last_tool_completed_monotonic: float | None = None
 
     def close(self) -> None:
@@ -53,30 +56,34 @@ class VoiceToolReplyWatchdog:
         )
 
     def record_speech_created(self, *, source: str | None = None) -> None:
-        self._speech_generation_counter += 1
         elapsed_ms = self._elapsed_since_tool_completed_ms()
-        self.cancel_all("speech_created")
         self.tracer.record_tool_reply_speech_created(
             AgentInputMode.VOICE,
             source=source,
             elapsed_ms=elapsed_ms,
         )
+        # A SpeechHandle can be interrupted before an assistant item is committed.
+        # Keep watching for a completed answer, with a fresh grace window.
+        self._reschedule_active_grace(
+            grace_seconds=self.config.thinking_grace_seconds,
+            reason="speech_created_waiting_for_commit",
+        )
+
+    def record_assistant_committed(self) -> None:
+        self.cancel_all("assistant_committed")
 
     def record_agent_state_changed(self, *, new_state: str) -> None:
         state_lower = new_state.lower()
-        if state_lower == "speaking":
-            self._speech_generation_counter += 1
-            self.cancel_all("agent_speaking")
-        elif state_lower == "thinking":
-            self._extend_grace_for_thinking()
+        if state_lower == "thinking":
+            self._reschedule_active_grace(
+                grace_seconds=self.config.thinking_grace_seconds,
+                reason="agent_thinking",
+            )
 
-    def _extend_grace_for_thinking(self) -> None:
+    def _reschedule_active_grace(self, *, grace_seconds: float, reason: str) -> None:
         active_event_ids = [eid for eid, task in self._watch_tasks.items() if not task.done()]
         if not active_event_ids:
             return
-
-        self._speech_generation_counter += 1
-        generation_marker = self._speech_generation_counter
 
         for event_id in active_event_ids:
             task = self._watch_tasks.get(event_id)
@@ -84,18 +91,20 @@ class VoiceToolReplyWatchdog:
                 task.cancel()
 
             tool_name = self._watch_tool_names.get(event_id, "unknown")
-            log.info(f"Voice tool reply watchdog: agent entered thinking. Extending grace for {tool_name}.")
+            log.info(
+                "Voice tool reply watchdog: extending grace | "
+                f"tool={tool_name} | reason={reason}"
+            )
             self.tracer.record_tool_reply_watchdog_scheduled(
                 AgentInputMode.VOICE,
                 tool_name=tool_name,
-                grace_ms=int(self.config.thinking_grace_seconds * 1000),
+                grace_ms=int(grace_seconds * 1000),
             )
             self._watch_tasks[event_id] = asyncio.create_task(
                 self._watch_and_force_reply(
                     event_id=event_id,
                     tool_name=tool_name,
-                    generation_marker=generation_marker,
-                    grace_seconds=self.config.thinking_grace_seconds,
+                    grace_seconds=grace_seconds,
                 )
             )
 
@@ -108,6 +117,8 @@ class VoiceToolReplyWatchdog:
 
     def schedule_after_tools_executed(self, ev: Any) -> None:
         if not self.config.enabled:
+            return
+        if getattr(ev, "has_tool_reply", True) is False:
             return
         for call, output in _zipped_tool_outputs(ev):
             tool_name = str(getattr(call, "name", ""))
@@ -129,7 +140,6 @@ class VoiceToolReplyWatchdog:
             existing.cancel()
         self._watch_tool_names[event_id] = tool_name
         self._last_tool_completed_monotonic = time.monotonic()
-        generation_marker = self._speech_generation_counter
         self.tracer.record_tool_reply_watchdog_scheduled(
             AgentInputMode.VOICE,
             tool_name=tool_name,
@@ -139,7 +149,6 @@ class VoiceToolReplyWatchdog:
             self._watch_and_force_reply(
                 event_id=event_id,
                 tool_name=tool_name,
-                generation_marker=generation_marker,
                 grace_seconds=self.config.grace_seconds,
             )
         )
@@ -149,19 +158,10 @@ class VoiceToolReplyWatchdog:
         *,
         event_id: str,
         tool_name: str,
-        generation_marker: int,
         grace_seconds: float,
     ) -> None:
         try:
             await asyncio.sleep(grace_seconds)
-            if generation_marker != self._speech_generation_counter:
-                self.tracer.record_tool_reply_watchdog_bypassed(
-                    AgentInputMode.VOICE,
-                    reason="speech_created_before_grace",
-                    tool_name=tool_name,
-                )
-                return
-
             elapsed_ms = self._elapsed_since_tool_completed_ms()
             self.tracer.record_tool_reply_watchdog_fired(
                 AgentInputMode.VOICE,
@@ -169,8 +169,7 @@ class VoiceToolReplyWatchdog:
                 elapsed_ms=elapsed_ms,
                 reason="no_speech_after_tool",
             )
-            self._speech_generation_counter += 1
-            self._generate_reply_after_tool()
+            self._generate_reply_after_tool(tool_name=tool_name)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -185,17 +184,24 @@ class VoiceToolReplyWatchdog:
                 self._watch_tasks.pop(event_id, None)
                 self._watch_tool_names.pop(event_id, None)
 
-    def _generate_reply_after_tool(self) -> None:
-        if not hasattr(self.session, "room") or not self.session.room.isconnected():
-            log.info("[Watchdog] Session room is disconnected. Aborting force reply.")
+    def _generate_reply_after_tool(self, *, tool_name: str) -> None:
+        if self.room is None or not self.room.isconnected():
+            log.info(
+                "Voice watchdog fallback skipped | "
+                f"tool={tool_name} | reason=room_disconnected"
+            )
             return
 
         kwargs: dict[str, Any] = {
             "allow_interruptions": True,
-            # "instructions": POST_TOOL_REPLY_INSTRUCTIONS,
+            "instructions": POST_TOOL_REPLY_INSTRUCTIONS,
         }
         if self.config.force_tool_choice_none:
             kwargs["tool_choice"] = "none"
+        log.info(
+            "Voice watchdog forcing post-tool reply | "
+            f"tool={tool_name} | tool_choice={kwargs.get('tool_choice', 'auto')}"
+        )
         self.session.generate_reply(**kwargs)
 
     def _elapsed_since_tool_completed_ms(self) -> int | None:

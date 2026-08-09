@@ -87,6 +87,7 @@ ASR spelling and homophone correction rules:
 
 Tool rules:
 - For any question about book content, concepts, chapters, learning topics, or study context, ALWAYS call `search_book_knowledge` first.
+- Never narrate internal thinking, say you need time, or promise a later answer. Call the required tool silently, then give one final answer after its result is available.
 - Treat `BOOK_METADATA_FOUND` as authoritative database metadata.
 - Treat `BOOK_SECTION_FOUND` as the only source for the requested section.
 - If the tool returns `CLARIFICATION_REQUIRED`, read the clarification and stop.
@@ -1172,7 +1173,10 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             )
             _record_web_permission_reply(transcript)
 
-    def _handle_conversation_item_added(ev: ConversationItemAddedEvent) -> None:
+    def _handle_conversation_item_added(
+        ev: ConversationItemAddedEvent,
+        watchdog: VoiceToolReplyWatchdog,
+    ) -> None:
         item = ev.item
         if not isinstance(item, LLMMessage):
             return
@@ -1188,6 +1192,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             _record_web_permission_reply(text)
             asyncio.create_task(transcript_store.save_and_publish_user(text))
         elif item.role == "assistant":
+            watchdog.record_assistant_committed()
             tracer.record_assistant(AgentInputMode.VOICE, char_count=len(text))
             tracer.complete_turn(AgentInputMode.VOICE)
             log.info(f"Assistant voice speech saved | text='{text}' | thread_id={thread_uuid}")
@@ -1219,7 +1224,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
 
         @sess.on("conversation_item_added")  # type: ignore[arg-type]
         def on_conversation_item_added(ev: ConversationItemAddedEvent):
-            _handle_conversation_item_added(ev)
+            _handle_conversation_item_added(ev, watchdog)
 
         @sess.on("function_tools_executed")  # type: ignore[arg-type]
         def on_function_tools_executed(ev: FunctionToolsExecutedEvent):
@@ -1227,15 +1232,57 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
 
         @sess.on("speech_created")  # type: ignore[arg-type]
         def on_speech_created(ev: SpeechCreatedEvent):
-            watchdog.record_speech_created(source=str(getattr(ev, "source", "")))
+            source = str(getattr(ev, "source", ""))
+            log.info(
+                "VOICE_DIAG speech_created | "
+                f"source={source or 'unknown'} | "
+                f"user_initiated={bool(getattr(ev, 'user_initiated', False))}"
+            )
+            watchdog.record_speech_created(source=source)
 
         @sess.on("agent_state_changed")  # type: ignore[arg-type]
         def on_agent_state_changed(ev: AgentStateChangedEvent):
-            watchdog.record_agent_state_changed(new_state=str(getattr(ev, "new_state", "")))
+            old_state = str(getattr(ev, "old_state", ""))
+            new_state = str(getattr(ev, "new_state", ""))
+            log.info(f"VOICE_DIAG agent_state | old={old_state or 'unknown'} | new={new_state or 'unknown'}")
+            watchdog.record_agent_state_changed(new_state=new_state)
 
         @sess.on("user_state_changed")  # type: ignore[arg-type]
         def on_user_state_changed(ev: UserStateChangedEvent):
-            watchdog.record_user_state_changed(new_state=str(getattr(ev, "new_state", "")))
+            old_state = str(getattr(ev, "old_state", ""))
+            new_state = str(getattr(ev, "new_state", ""))
+            log.info(f"VOICE_DIAG user_state | old={old_state or 'unknown'} | new={new_state or 'unknown'}")
+            watchdog.record_user_state_changed(new_state=new_state)
+
+        @sess.on("overlapping_speech")  # type: ignore[arg-type]
+        def on_overlapping_speech(ev: Any):
+            log.info(
+                "VOICE_DIAG overlapping_speech | "
+                f"is_interruption={bool(getattr(ev, 'is_interruption', False))} | "
+                f"detection_delay_ms={int(float(getattr(ev, 'detection_delay', 0) or 0) * 1000)}"
+            )
+
+        @sess.on("agent_false_interruption")  # type: ignore[arg-type]
+        def on_agent_false_interruption(ev: Any):
+            log.info(
+                "VOICE_DIAG false_interruption | "
+                f"resumed={bool(getattr(ev, 'resumed', False))}"
+            )
+
+        @sess.on("error")  # type: ignore[arg-type]
+        def on_error(ev: Any):
+            error = getattr(ev, "error", None)
+            source = getattr(ev, "source", None)
+            recoverable = bool(getattr(error, "recoverable", False))
+            error_code = str(getattr(error, "code", "") or "unknown")
+            log.warning(
+                "VOICE_DIAG session_error | "
+                f"source_type={type(source).__name__} | "
+                f"error_type={type(error).__name__} | "
+                f"error_code={error_code} | recoverable={recoverable}"
+            )
+            if tracer.has_active_turn(AgentInputMode.VOICE):
+                tracer.record_error(AgentInputMode.VOICE, f"livekit_{error_code}")
 
         @sess.on("close")  # type: ignore[arg-type]
         def on_close(_ev):
@@ -1291,6 +1338,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             )
             tool_reply_watchdog = VoiceToolReplyWatchdog(
                 session=session,
+                room=ctx.room,
                 tracer=tracer,
                 config=_tool_reply_watchdog_config(),
             )

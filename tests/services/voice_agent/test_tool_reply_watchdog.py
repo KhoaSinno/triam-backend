@@ -5,6 +5,7 @@ import pytest
 
 from app.services.agent_observability import AgentInputMode, AgentTurnTracer
 from app.services.voice_agent.tool_reply_watchdog import (
+    POST_TOOL_REPLY_INSTRUCTIONS,
     VoiceToolReplyWatchdog,
     VoiceToolReplyWatchdogConfig,
 )
@@ -81,6 +82,7 @@ async def test_watchdog_monitored_tool_no_speech(base_config, mock_tracer) -> No
     session.generate_reply.assert_called_once()
     kwargs = session.generate_reply.call_args[1]
     assert kwargs.get("tool_choice") == "none"
+    assert kwargs.get("instructions") == POST_TOOL_REPLY_INSTRUCTIONS
     mock_tracer.record_tool_reply_watchdog_fired.assert_called_once_with(
         AgentInputMode.VOICE,
         tool_name="execute_web_search",
@@ -91,7 +93,7 @@ async def test_watchdog_monitored_tool_no_speech(base_config, mock_tracer) -> No
 
 
 @pytest.mark.asyncio
-async def test_watchdog_speech_before_grace(base_config, mock_tracer) -> None:
+async def test_watchdog_speech_before_grace_waits_for_assistant_commit(base_config, mock_tracer) -> None:
     session = FakeSession()
     watchdog = VoiceToolReplyWatchdog(session=session, tracer=mock_tracer, config=base_config)
 
@@ -105,19 +107,45 @@ async def test_watchdog_speech_before_grace(base_config, mock_tracer) -> None:
     await asyncio.sleep(0.01)
     watchdog.record_speech_created(source="agent_speech")
 
-    # Let grace window expire
+    # Speech creation is not a completed answer, so the watchdog stays active.
     await asyncio.sleep(0.06)
+    session.generate_reply.assert_not_called()
 
+    watchdog.record_assistant_committed()
+    await asyncio.sleep(0.12)
     session.generate_reply.assert_not_called()
     mock_tracer.record_tool_reply_watchdog_cancelled.assert_called_once_with(
         AgentInputMode.VOICE,
-        reason="speech_created",
+        reason="assistant_committed",
     )
     mock_tracer.record_tool_reply_speech_created.assert_called_once_with(
         AgentInputMode.VOICE,
         source="agent_speech",
         elapsed_ms=pytest.approx(10, abs=40),
     )
+    watchdog.close()
+
+
+@pytest.mark.asyncio
+async def test_watchdog_uses_explicit_room_when_session_has_no_room(base_config, mock_tracer) -> None:
+    class SessionWithoutRoom:
+        def __init__(self) -> None:
+            self.generate_reply = MagicMock()
+
+    session = SessionWithoutRoom()
+    watchdog = VoiceToolReplyWatchdog(
+        session=session,
+        room=FakeRoom(connected=True),
+        tracer=mock_tracer,
+        config=base_config,
+    )
+    event = FakeEvent([FakeCall("search_book_knowledge", "call_1")], [FakeOutput("search_book_knowledge", "call_1")])
+
+    watchdog.schedule_after_tools_executed(event)
+    await asyncio.sleep(0.08)
+
+    session.generate_reply.assert_called_once()
+    assert session.generate_reply.call_args[1]["instructions"] == POST_TOOL_REPLY_INSTRUCTIONS
     watchdog.close()
 
 
