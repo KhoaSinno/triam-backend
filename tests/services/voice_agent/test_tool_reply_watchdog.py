@@ -1,5 +1,5 @@
 import asyncio
-from unittest.mock import MagicMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
@@ -22,6 +22,7 @@ class FakeRoom:
 class FakeSession:
     def __init__(self, connected: bool = True) -> None:
         self.room = FakeRoom(connected)
+        self.interrupt = AsyncMock()
         self.generate_reply = MagicMock()
 
 
@@ -130,6 +131,7 @@ async def test_watchdog_speech_before_grace_waits_for_assistant_commit(base_conf
 async def test_watchdog_uses_explicit_room_when_session_has_no_room(base_config, mock_tracer) -> None:
     class SessionWithoutRoom:
         def __init__(self) -> None:
+            self.interrupt = AsyncMock()
             self.generate_reply = MagicMock()
 
     session = SessionWithoutRoom()
@@ -145,6 +147,7 @@ async def test_watchdog_uses_explicit_room_when_session_has_no_room(base_config,
     await asyncio.sleep(0.08)
 
     session.generate_reply.assert_called_once()
+    session.interrupt.assert_awaited_once_with(force=True)
     assert session.generate_reply.call_args[1]["instructions"] == POST_TOOL_REPLY_INSTRUCTIONS
     watchdog.close()
 
@@ -160,6 +163,7 @@ async def test_watchdog_forced_reply_does_not_rearm_from_its_own_speech(base_con
     await asyncio.sleep(0.2)
 
     session.generate_reply.assert_called_once()
+    session.interrupt.assert_awaited_once_with(force=True)
     watchdog.close()
 
 
@@ -287,5 +291,60 @@ async def test_watchdog_thinking_extends_grace(base_config, mock_tracer) -> None
     # Let the extended thinking grace expire
     await asyncio.sleep(0.1)
     session.generate_reply.assert_called_once()
+    session.interrupt.assert_awaited_once_with(force=True)
+    watchdog.close()
+
+
+@pytest.mark.asyncio
+async def test_watchdog_rate_limit_cancels_pending_fallback(base_config, mock_tracer) -> None:
+    session = FakeSession()
+    watchdog = VoiceToolReplyWatchdog(session=session, tracer=mock_tracer, config=base_config)
+    event = FakeEvent([FakeCall("search_book_knowledge", "call_1")], [FakeOutput("search_book_knowledge", "call_1")])
+
+    watchdog.schedule_after_tools_executed(event)
+    watchdog.record_realtime_error(
+        error_code="unknown",
+        error_message="OpenAI Realtime API response failed: rate_limit_exceeded",
+    )
+    await asyncio.sleep(0.08)
+
+    session.generate_reply.assert_not_called()
+    session.interrupt.assert_not_awaited()
+    mock_tracer.record_tool_reply_watchdog_cancelled.assert_called_with(
+        AgentInputMode.VOICE,
+        reason="realtime_rate_limited",
+    )
+    watchdog.close()
+
+
+@pytest.mark.asyncio
+async def test_watchdog_skips_tool_event_without_final_user_transcript(base_config, mock_tracer) -> None:
+    mock_tracer.has_final_transcript.return_value = False
+    session = FakeSession()
+    watchdog = VoiceToolReplyWatchdog(session=session, tracer=mock_tracer, config=base_config)
+    event = FakeEvent([FakeCall("search_book_knowledge", "call_1")], [FakeOutput("search_book_knowledge", "call_1")])
+
+    watchdog.schedule_after_tools_executed(event)
+    await asyncio.sleep(0.08)
+
+    session.generate_reply.assert_not_called()
+    session.interrupt.assert_not_awaited()
+    mock_tracer.record_tool_reply_watchdog_scheduled.assert_not_called()
+    watchdog.close()
+
+
+@pytest.mark.asyncio
+async def test_watchdog_does_not_force_during_rate_limit_cooldown(base_config, mock_tracer) -> None:
+    session = FakeSession()
+    watchdog = VoiceToolReplyWatchdog(session=session, tracer=mock_tracer, config=base_config)
+    event = FakeEvent([FakeCall("search_book_knowledge", "call_1")], [FakeOutput("search_book_knowledge", "call_1")])
+
+    watchdog.record_realtime_error(error_code="rate_limit_exceeded", error_message="tokens")
+    watchdog.schedule_after_tools_executed(event)
+    await asyncio.sleep(0.08)
+
+    session.generate_reply.assert_not_called()
+    session.interrupt.assert_not_awaited()
+    mock_tracer.record_tool_reply_watchdog_scheduled.assert_not_called()
     watchdog.close()
 

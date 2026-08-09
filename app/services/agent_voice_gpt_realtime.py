@@ -29,7 +29,7 @@ from livekit.agents.voice import io as voice_io
 from livekit.plugins import noise_cancellation
 from livekit.plugins.openai import LLM as OpenAILLM
 from livekit.plugins.openai.realtime import RealtimeModel
-from openai.types.realtime import AudioTranscription
+from openai.types.realtime import AudioTranscription, RealtimeReasoning
 
 from app.core.config import settings
 from app.core.logger import log
@@ -665,6 +665,7 @@ def _tool_reply_watchdog_config() -> VoiceToolReplyWatchdogConfig:
         monitored_tools={item.strip() for item in settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_TOOLS.split(",") if item.strip()},
         allow_error_outputs=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_ALLOW_ERROR_OUTPUTS,
         force_tool_choice_none=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_FORCE_TOOL_CHOICE_NONE,
+        rate_limit_cooldown_seconds=settings.VOICE_AGENT_TOOL_REPLY_WATCHDOG_RATE_LIMIT_COOLDOWN_SECONDS,
     )
 
 
@@ -1283,6 +1284,10 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 f"error_code={error_code} | recoverable={recoverable} | "
                 f"message_chars={len(error_message)} | message={error_message[:240]!r}"
             )
+            watchdog.record_realtime_error(
+                error_code=error_code,
+                error_message=error_message,
+            )
             if tracer.has_active_turn(AgentInputMode.VOICE):
                 tracer.record_error(AgentInputMode.VOICE, f"livekit_{error_code}")
 
@@ -1310,7 +1315,11 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
     last_start_exc: Exception | None = None
     for model_name in model_candidates:
         try:
-            log.info(f"Starting realtime session with model: {model_name}, voice: {settings.OPENAI_REALTIME_VOICE}")
+            log.info(
+                "Starting realtime session | "
+                f"model={model_name} | voice={settings.OPENAI_REALTIME_VOICE} | "
+                f"reasoning_effort={settings.OPENAI_REALTIME_REASONING_EFFORT}"
+            )
             model = RealtimeModel(
                 model=model_name,
                 voice=settings.OPENAI_REALTIME_VOICE,
@@ -1321,6 +1330,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                     prompt=transcription_prompt_result.prompt,
                 ),
                 input_audio_noise_reduction=settings.OPENAI_REALTIME_INPUT_AUDIO_NOISE_REDUCTION,
+                reasoning=RealtimeReasoning(effort=settings.OPENAI_REALTIME_REASONING_EFFORT),
             )
             session = AgentSession(
                 llm=model,
