@@ -169,6 +169,11 @@ class VoiceToolReplyWatchdog:
                 elapsed_ms=elapsed_ms,
                 reason="no_speech_after_tool",
             )
+            # Remove this timer before generate_reply(). The SDK can emit
+            # speech_created synchronously, and that event must not re-arm the
+            # same fallback into an unbounded retry loop.
+            self._watch_tasks.pop(event_id, None)
+            self._watch_tool_names.pop(event_id, None)
             self._generate_reply_after_tool(tool_name=tool_name)
         except asyncio.CancelledError:
             raise
