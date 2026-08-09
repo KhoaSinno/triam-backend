@@ -39,6 +39,7 @@ class VoiceToolReplyWatchdog:
         self._watch_tool_names: dict[str, str] = {}
         self._last_tool_completed_monotonic: float | None = None
         self._rate_limited_until_monotonic: float | None = None
+        self._assistant_commit_count = 0
 
     def close(self) -> None:
         self.cancel_all("session_close")
@@ -72,6 +73,7 @@ class VoiceToolReplyWatchdog:
         )
 
     def record_assistant_committed(self) -> None:
+        self._assistant_commit_count += 1
         self.cancel_all("assistant_committed")
 
     def record_agent_state_changed(self, *, new_state: str) -> None:
@@ -224,6 +226,7 @@ class VoiceToolReplyWatchdog:
         # The original Realtime response can still arrive after the watchdog
         # fires. Interrupt it before creating the fallback so one user turn
         # cannot produce two semantically identical assistant replies.
+        commits_before_interrupt = self._assistant_commit_count
         try:
             await self.session.interrupt(force=True)
         except Exception as exc:
@@ -231,6 +234,16 @@ class VoiceToolReplyWatchdog:
             log.warning(
                 "Voice watchdog fallback skipped | "
                 f"tool={tool_name} | reason=interrupt_failed | error_type={type(exc).__name__}"
+            )
+            return
+
+        # AgentSession.interrupt() can flush and commit the original response
+        # while it drains the generation. That is already a valid answer; do
+        # not create a second fallback response for the same user turn.
+        if self._assistant_commit_count != commits_before_interrupt:
+            log.info(
+                "Voice watchdog fallback skipped | "
+                f"tool={tool_name} | reason=assistant_committed_during_interrupt"
             )
             return
 

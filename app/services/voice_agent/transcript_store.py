@@ -37,6 +37,7 @@ class VoiceTranscriptStore:
         self._room = room
         self._thread_id = thread_id
         self._seen_user_texts: dict[str, datetime] = {}
+        self._seen_assistant_texts: dict[str, datetime] = {}
         self._dedupe_window_seconds = max(dedupe_window_seconds, 1)
         self._save_message_sync = save_message_sync or self._save_message_to_db
         self._load_history_sync = load_history_sync or self._load_history_from_db
@@ -107,8 +108,8 @@ class VoiceTranscriptStore:
         await self.publish_transcript("user", normalized, transcript_id=transcript_id, message_id=message_id)
         return True
 
-    async def save_and_publish_assistant(self, text: str) -> bool:
-        normalized = normalize_transcript_text(text)
+    async def save_and_publish_assistant(self, text: str, *, already_claimed: bool = False) -> bool:
+        normalized = normalize_transcript_text(text) if already_claimed else self.claim_assistant_text(text)
         if not normalized:
             return False
 
@@ -117,6 +118,19 @@ class VoiceTranscriptStore:
         message_id = await self._save_message_for_transcript(normalized, False)
         await self.publish_transcript("assistant", normalized, transcript_id=transcript_id, message_id=message_id)
         return True
+
+    def claim_assistant_text(self, text: str) -> str | None:
+        """Claim a committed assistant item once within the short duplicate window."""
+        normalized = normalize_transcript_text(text)
+        if not normalized:
+            return None
+
+        now = datetime.now(timezone.utc)
+        last_seen = self._seen_assistant_texts.get(normalized)
+        if last_seen and (now - last_seen).total_seconds() < self._dedupe_window_seconds:
+            return None
+        self._seen_assistant_texts[normalized] = now
+        return normalized
 
     async def load_recent_history(self, limit: int) -> list[ChatMessage]:
         return await asyncio.to_thread(self._load_history_sync, limit)

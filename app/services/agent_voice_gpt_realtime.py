@@ -1193,11 +1193,17 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             _record_web_permission_reply(text)
             asyncio.create_task(transcript_store.save_and_publish_user(text))
         elif item.role == "assistant":
+            if transcript_store.claim_assistant_text(text) is None:
+                log.info(
+                    "VOICE_DIAG duplicate_assistant_commit_suppressed | "
+                    f"chars={len(text)} | thread_id={thread_uuid}"
+                )
+                return
             watchdog.record_assistant_committed()
             tracer.record_assistant(AgentInputMode.VOICE, char_count=len(text))
             tracer.complete_turn(AgentInputMode.VOICE)
             log.info(f"Assistant voice speech saved | text='{text}' | thread_id={thread_uuid}")
-            asyncio.create_task(transcript_store.save_and_publish_assistant(text))
+            asyncio.create_task(transcript_store.save_and_publish_assistant(text, already_claimed=True))
             if settings.VOICE_AGENT_ASSISTANT_CLARIFICATION_HEURISTIC_ENABLED and agent_instance._looks_like_assistant_clarification(text):
                 voice_turn_state.set_pending_clarification(
                     prompt_text=text,

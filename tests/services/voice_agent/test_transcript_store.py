@@ -89,6 +89,26 @@ async def test_assistant_transcript_is_saved_and_published():
 
 
 @pytest.mark.asyncio
+async def test_assistant_transcript_is_deduped_inside_window():
+    room = FakeRoom()
+    saved: list[tuple[str, bool]] = []
+    store = VoiceTranscriptStore(
+        room=room,
+        thread_id=uuid.uuid4(),
+        dedupe_window_seconds=3,
+        save_message_sync=lambda text, is_user: saved.append((text, is_user)),
+    )
+
+    first = await store.save_and_publish_assistant("  Chào   bạn  ")
+    second = await store.save_and_publish_assistant("Chào bạn")
+
+    assert first is True
+    assert second is False
+    assert saved == [("Chào bạn", False)]
+    assert len(room.local_participant.published) == 2
+
+
+@pytest.mark.asyncio
 async def test_user_transcript_uses_db_message_id_when_saver_returns_id():
     room = FakeRoom()
     thread_id = uuid.uuid4()

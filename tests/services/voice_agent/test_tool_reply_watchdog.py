@@ -168,6 +168,26 @@ async def test_watchdog_forced_reply_does_not_rearm_from_its_own_speech(base_con
 
 
 @pytest.mark.asyncio
+async def test_watchdog_does_not_create_fallback_after_interrupt_commits_original_reply(base_config, mock_tracer) -> None:
+    session = FakeSession()
+    watchdog = VoiceToolReplyWatchdog(session=session, tracer=mock_tracer, config=base_config)
+
+    async def interrupt_and_commit(*, force: bool) -> None:
+        assert force is True
+        watchdog.record_assistant_committed()
+
+    session.interrupt.side_effect = interrupt_and_commit
+    event = FakeEvent([FakeCall("search_book_knowledge", "call_1")], [FakeOutput("search_book_knowledge", "call_1")])
+
+    watchdog.schedule_after_tools_executed(event)
+    await asyncio.sleep(0.08)
+
+    session.interrupt.assert_awaited_once_with(force=True)
+    session.generate_reply.assert_not_called()
+    watchdog.close()
+
+
+@pytest.mark.asyncio
 async def test_watchdog_user_starts_speaking(base_config, mock_tracer) -> None:
     session = FakeSession()
     watchdog = VoiceToolReplyWatchdog(session=session, tracer=mock_tracer, config=base_config)
