@@ -158,7 +158,12 @@ async def search_book_hybrid_knowledge(
         log.info(f"Reranker start: {len(final_chunks)} candidates with Cohere Reranker for query='{query}'")
         for idx, chunk in enumerate(final_chunks):
             content_full = str(chunk.get("content") or "").replace("\n", " ")
-            log.info(f"  [Pre-Rerank Rank {idx + 1}] ID: {chunk.get('id')} | Score: {_round_score(chunk.get('final_score') or chunk.get('similarity'))} | Content: {content_full}")
+            # log.info(f"  [Pre-Rerank Rank {idx + 1}] ID: {chunk.get('id')} | Score: {_round_score(chunk.get('final_score') or chunk.get('similarity'))} | Content: {content_full}")
+            log.info(
+                f"  [Pre-Rerank Rank {idx + 1}] ID: {chunk.get('id')} "
+                f"| Score: {_round_score(chunk.get('final_score') or chunk.get('similarity'))} "
+                f"| content_chars={len(content_full)}"
+            )
         
         final_chunks = await rerank_candidates(query, final_chunks)
         final_chunks = final_chunks[:settings.AGENT_RERANKER_TOP_N]
@@ -175,7 +180,13 @@ async def search_book_hybrid_knowledge(
     for idx, chunk in enumerate(final_chunks):
         content_full = str(chunk.get("content") or "").replace("\n", " ")
         section_path = chunk.get("section_path") or chunk.get("section_title") or "unknown"
-        log.info(f"  [Post-Rerank Rank {idx + 1}] ID: {chunk.get('id')} | Section: {section_path} | Score: {_round_score(chunk.get('final_score') or chunk.get('similarity'))} | Content: {content_full}")
+        # log.info(f"  [Post-Rerank Rank {idx + 1}] ID: {chunk.get('id')} | Section: {section_path} | Score: {_round_score(chunk.get('final_score') or chunk.get('similarity'))} | Content: {content_full}")
+        log.info(
+            f"  [Post-Rerank Rank {idx + 1}] ID: {chunk.get('id')} "
+            f"| Section: {section_path} "
+            f"| Score: {_round_score(chunk.get('final_score') or chunk.get('similarity'))} "
+            f"| content_chars={len(content_full)}"
+        )
 
     if not final_chunks:
         return BOOK_CONTEXT_NOT_FOUND_MESSAGE
