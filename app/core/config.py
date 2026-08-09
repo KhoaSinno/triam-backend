@@ -72,7 +72,7 @@ class Settings(BaseSettings):
     # Local console fallback only. Production LiveKit rooms must provide
     # thread_id and document_ids through job metadata from the backend token flow.
     VOICE_AGENT_CONSOLE_BOOK_ID: str = "c3f13d07-4494-4995-ba75-30a12589b8fc"
-    VOICE_AGENT_CONSOLE_THREAD_ID: str = "07be00b9-c6da-4801-8ba2-7558205b92b2"
+    VOICE_AGENT_CONSOLE_THREAD_ID: str = "883a77ab-e773-4404-aaa2-0b032db13a89"
 
     # Dynamic Prompt cho OpenAI Realtime Transcription
     # OPENAI_REALTIME_TRANSCRIPTION_MODEL: str = "gpt-4o-transcribe"
