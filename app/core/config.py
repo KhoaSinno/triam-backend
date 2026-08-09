@@ -65,8 +65,8 @@ class Settings(BaseSettings):
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-2.1-mini"
     OPENAI_REALTIME_VOICE: str = "shimmer"
     # Text and local console test behavior
-    VOICE_AGENT_HISTORY_LIMIT: int = 24
-    VOICE_AGENT_RAG_MAX_CHARS: int = 32000
+    VOICE_AGENT_HISTORY_LIMIT: int = 12
+    VOICE_AGENT_RAG_MAX_CHARS: int = 18000
 
     # Local console fallback only. Production LiveKit rooms must provide
     # thread_id and document_ids through job metadata from the backend token flow.
