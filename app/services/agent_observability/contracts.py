@@ -67,4 +67,27 @@ class AgentTurnTrace:
     tool_reply_watchdog_reason: str | None = None
     tool_result_to_speech_ms: int | None = None
     forced_reply_reason: str | None = None
+    realtime_rate_limit_update_count: int = 0
+    realtime_token_limit: int | None = None
+    realtime_token_remaining: int | None = None
+    realtime_token_reset_seconds: float | None = None
+    realtime_request_limit: int | None = None
+    realtime_request_remaining: int | None = None
+    realtime_request_reset_seconds: float | None = None
+    realtime_response_ids: list[str] = field(default_factory=list)
+    realtime_response_count: int = 0
+    realtime_input_tokens: int = 0
+    realtime_input_text_tokens: int = 0
+    realtime_input_audio_tokens: int = 0
+    realtime_input_cached_tokens: int = 0
+    realtime_output_tokens: int = 0
+    realtime_output_text_tokens: int = 0
+    realtime_output_audio_tokens: int = 0
+    realtime_total_tokens: int = 0
+    realtime_last_response_duration_ms: int | None = None
+    realtime_last_response_ttft_ms: int | None = None
+    realtime_last_response_cancelled: bool | None = None
+    realtime_error_code: str | None = None
+    realtime_error_type: str | None = None
+    realtime_error_message_chars: int = 0
     correlation_quality: str = "session_active_turn"

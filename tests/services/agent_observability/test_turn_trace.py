@@ -262,3 +262,88 @@ def test_trace_records_rag_context_usage_without_context_text():
     assert payload["rag_context_char_count"] == 7000
     assert payload["rag_context_budget_mode"] == "default"
     assert "secret" not in str(payload)
+
+
+def test_trace_records_realtime_quota_usage_and_provider_error_without_raw_content():
+    emitted: list[tuple[str, dict]] = []
+    tracer = AgentTurnTracer(
+        enabled=True,
+        thread_id="thread-1",
+        room_name="room-1",
+        emitter=lambda event, payload: emitted.append((event, payload)),
+    )
+
+    tracer.begin_turn(AgentInputMode.VOICE)
+    trace_id = tracer.record_realtime_rate_limits(
+        AgentInputMode.VOICE,
+        token_limit=40000,
+        token_remaining=1200,
+        token_reset_seconds=8.5,
+        request_limit=200,
+        request_remaining=196,
+        request_reset_seconds=8.5,
+    )
+    assert trace_id is not None
+    assert tracer.record_realtime_response_created(AgentInputMode.VOICE, response_id="resp-1") == trace_id
+    assert tracer.record_realtime_response_usage(
+        AgentInputMode.VOICE,
+        response_id="resp-1",
+        input_tokens=12000,
+        input_text_tokens=9000,
+        input_audio_tokens=100,
+        input_cached_tokens=7000,
+        output_tokens=300,
+        output_text_tokens=20,
+        output_audio_tokens=280,
+        total_tokens=12300,
+        duration_ms=1300,
+        ttft_ms=240,
+        cancelled=False,
+    ) == trace_id
+    assert tracer.record_realtime_error(
+        AgentInputMode.VOICE,
+        error_code="rate_limit_exceeded",
+        error_type="tokens",
+        message_chars=88,
+    ) == trace_id
+
+    summary = tracer.complete_turn(AgentInputMode.VOICE)
+
+    assert summary is not None
+    assert summary["realtime_token_remaining"] == 1200
+    assert summary["realtime_request_remaining"] == 196
+    assert summary["realtime_response_ids"] == ["resp-1"]
+    assert summary["realtime_input_tokens"] == 12000
+    assert summary["realtime_input_cached_tokens"] == 7000
+    assert summary["realtime_output_audio_tokens"] == 280
+    assert summary["realtime_error_code"] == "rate_limit_exceeded"
+    assert summary["realtime_error_type"] == "tokens"
+    assert summary["error_code"] == "openai_rate_limit_exceeded"
+    assert "PRIVATE CONTEXT" not in str(summary)
+    assert [event for event, _ in emitted].count("realtime_response_usage") == 1
+
+
+def test_trace_attaches_late_realtime_usage_to_matching_completed_turn():
+    tracer = AgentTurnTracer(enabled=True, thread_id=None, room_name=None)
+    tracer.begin_turn(AgentInputMode.VOICE)
+    tracer.record_realtime_response_created(AgentInputMode.VOICE, response_id="resp-1")
+    completed = tracer.complete_turn(AgentInputMode.VOICE)
+
+    trace_id = tracer.record_realtime_response_usage(
+        AgentInputMode.VOICE,
+        response_id="resp-1",
+        input_tokens=100,
+        input_text_tokens=90,
+        input_audio_tokens=10,
+        input_cached_tokens=80,
+        output_tokens=20,
+        output_text_tokens=5,
+        output_audio_tokens=15,
+        total_tokens=120,
+        duration_ms=500,
+        ttft_ms=None,
+        cancelled=False,
+    )
+
+    assert completed is not None
+    assert trace_id == completed["trace_id"]
