@@ -87,6 +87,27 @@ def test_trace_records_final_transcript_present_before_book_tool():
     assert summary["asr_final_before_book_tool_ms"] is not None
 
 
+def test_trace_keeps_first_final_transcript_timing_when_a_stuck_turn_receives_later_input():
+    emitted: list[tuple[str, dict]] = []
+    tracer = AgentTurnTracer(
+        enabled=True,
+        thread_id=None,
+        room_name=None,
+        emitter=lambda event, payload: emitted.append((event, payload)),
+    )
+
+    tracer.begin_turn(AgentInputMode.VOICE)
+    tracer.record_book_grounding_tool_started(AgentInputMode.VOICE)
+    tracer.record_transcript(AgentInputMode.VOICE, char_count=10, language="vi")
+    first_gap = tracer._active[AgentInputMode.VOICE].book_tool_before_asr_final_ms
+    tracer.record_transcript(AgentInputMode.VOICE, char_count=20, language="vi")
+    summary = tracer.complete_turn(AgentInputMode.VOICE)
+
+    assert first_gap is not None
+    assert summary is not None
+    assert summary["book_tool_before_asr_final_ms"] == first_gap
+
+
 def test_late_final_transcript_updates_last_completed_voice_turn():
     emitted: list[tuple[str, dict]] = []
     tracer = AgentTurnTracer(

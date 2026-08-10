@@ -108,11 +108,18 @@ class AgentTurnTracer:
             return
 
         now_monotonic = time.monotonic()
+        first_final_for_trace = trace.transcript_final_monotonic is None
         trace.transcript_final_seen = True
         trace.transcript_char_count = max(0, char_count)
         trace.detected_language = language
-        trace.transcript_final_monotonic = now_monotonic
-        if trace.book_tool_started_monotonic is not None and trace.asr_final_status_at_book_tool == "final_missing":
+        if first_final_for_trace:
+            trace.transcript_final_monotonic = now_monotonic
+        if (
+            first_final_for_trace
+            and trace.book_tool_started_monotonic is not None
+            and trace.asr_final_status_at_book_tool == "final_missing"
+            and trace.book_tool_before_asr_final_ms is None
+        ):
             trace.book_tool_before_asr_final_ms = max(
                 0,
                 int((now_monotonic - trace.book_tool_started_monotonic) * 1000),
@@ -173,6 +180,8 @@ class AgentTurnTracer:
         """Record ASR-final timing at the first user-facing book-search boundary."""
         trace = self._get_or_begin(input_mode)
         if trace is None:
+            return
+        if trace.book_tool_started_monotonic is not None:
             return
         now_monotonic = time.monotonic()
         trace.book_tool_started_monotonic = now_monotonic
