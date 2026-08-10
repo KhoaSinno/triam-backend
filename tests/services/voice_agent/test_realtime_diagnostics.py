@@ -44,7 +44,12 @@ def test_parses_response_id_metrics_and_wrapped_openai_error():
 
     usage = response_usage_from_metrics(metrics)
     details = extract_realtime_error_details(
-        SimpleNamespace(body=SimpleNamespace(code="rate_limit_exceeded", type="tokens"))
+        SimpleNamespace(
+            type="realtime_model_error",
+            error=SimpleNamespace(
+                body=SimpleNamespace(code="rate_limit_exceeded", type="tokens"),
+            ),
+        )
     )
 
     assert usage is not None
