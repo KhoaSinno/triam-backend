@@ -4,7 +4,7 @@ import os
 import time
 import uuid
 from datetime import datetime, timedelta, timezone
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 
 from livekit import agents, rtc
 from livekit.agents import (
@@ -164,6 +164,23 @@ GREETING_INSTRUCTIONS = (
     "or attempt to answer any historical queries from previous turns. Just output the "
     "greeting text and finish this turn immediately."
 )
+
+
+TextChatOrchestrationMode = Literal["agentic", "shared_policy", "legacy"]
+
+
+def _select_text_chat_orchestration_mode(
+    *,
+    agentic_enabled: bool,
+    shared_policy_enabled: bool,
+) -> TextChatOrchestrationMode:
+    """Choose the lk.chat orchestration only; Voice does not call this helper."""
+    if agentic_enabled:
+        return "agentic"
+    if shared_policy_enabled:
+        return "shared_policy"
+    return "legacy"
+
 
 def _chat_log_preview(text: str) -> str:
     """Return a bounded, single-line diagnostic preview without source context."""
@@ -959,8 +976,8 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             content=TEXT_AGENTIC_SYSTEM_INSTRUCTIONS.format(now_str=now_str),
         )
 
-        MAX_STEPS = 4  # Giới hạn vòng lặp tool call, tránh loop vô tận
-        for step in range(MAX_STEPS):
+        max_steps = max(1, settings.VOICE_AGENT_TEXT_CHAT_AGENTIC_MAX_STEPS)
+        for step in range(max_steps):
             response = await chat_llm.chat(
                 chat_ctx=ctx_copy,
                 tools=standalone_tools,
@@ -980,9 +997,16 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 if result.fnc_call_out:
                     ctx_copy.insert(result.fnc_call_out)
 
-        # Hết MAX_STEPS, trả về text của lần gọi cuối cùng
-        log.warning("[Agentic] Đạt giới hạn MAX_STEPS, trả về text hiện tại")
-        return response.text
+        # A tool-call response commonly has no user-facing text.  Force one
+        # final synthesis pass so exhausting the budget cannot make text chat
+        # silently publish an empty reply.
+        log.warning(f"[Agentic] Đạt giới hạn max_steps={max_steps}; ép phản hồi cuối không gọi tool")
+        final_response = await chat_llm.chat(
+            chat_ctx=ctx_copy,
+            tools=standalone_tools,
+            tool_choice="none",
+        ).collect()
+        return final_response.text
 
     async def _chat_with_granted_web_search(query: str) -> str:
         log.info(f"[Text Chat] Web search granted by user | query_chars={len(query)}")
@@ -1056,7 +1080,14 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                     full_reply = "Tôi chưa rõ ý ông. Bạn muốn tôi tìm thêm trên internet cho câu vừa rồi không?"
                 else:
                     started = time.perf_counter()
-                    if settings.AGENT_SHARED_POLICY_ENABLED:
+                    text_chat_mode = _select_text_chat_orchestration_mode(
+                        agentic_enabled=settings.VOICE_AGENT_TEXT_CHAT_AGENTIC_ENABLED,
+                        shared_policy_enabled=settings.AGENT_SHARED_POLICY_ENABLED,
+                    )
+                    log.info(f"Text chat orchestration selected | mode={text_chat_mode}")
+                    if text_chat_mode == "agentic":
+                        full_reply = await _chat_with_agentic_loop(normalized_text)
+                    elif text_chat_mode == "shared_policy":
                         full_reply = await _chat_with_shared_policy(normalized_text)
                     else:
                         handled_by_grounding, full_reply = await _try_chat_grounding_route(normalized_text)

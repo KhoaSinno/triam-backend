@@ -42,6 +42,25 @@ def test_dead_runtime_configs_are_removed_from_settings():
     assert not hasattr(clean_settings, "PLAN_REMINDER_STUDIED_TODAY_WINDOW_HOURS")
 
 
+def test_text_chat_agentic_mode_is_independent_from_shared_policy():
+    clean_settings = build_settings()
+    assert clean_settings.VOICE_AGENT_TEXT_CHAT_AGENTIC_ENABLED is False
+    assert clean_settings.VOICE_AGENT_TEXT_CHAT_AGENTIC_MAX_STEPS == 4
+
+    assert voice_agent._select_text_chat_orchestration_mode(
+        agentic_enabled=True,
+        shared_policy_enabled=True,
+    ) == "agentic"
+    assert voice_agent._select_text_chat_orchestration_mode(
+        agentic_enabled=False,
+        shared_policy_enabled=True,
+    ) == "shared_policy"
+    assert voice_agent._select_text_chat_orchestration_mode(
+        agentic_enabled=False,
+        shared_policy_enabled=False,
+    ) == "legacy"
+
+
 def test_env_example_documents_console_ids_as_placeholders():
     env_example = Path(".env.example").read_text(encoding="utf-8")
 

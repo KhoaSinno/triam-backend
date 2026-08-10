@@ -86,6 +86,10 @@ class Settings(BaseSettings):
     OPENAI_REALTIME_INPUT_AUDIO_NOISE_REDUCTION: str = "near_field"
 
     VOICE_AGENT_TEXT_LLM_MODEL: str = "gpt-4o-mini"
+    # Enables tool-calling orchestration for messages received on lk.chat only.
+    # Voice continues to use the Realtime AgentSession tool loop.
+    VOICE_AGENT_TEXT_CHAT_AGENTIC_ENABLED: bool = False
+    VOICE_AGENT_TEXT_CHAT_AGENTIC_MAX_STEPS: int = 4
     VOICE_AGENT_ENABLE_WEB_SEARCH_BY_DEFAULT: bool = True
     VOICE_AGENT_LOG_TRANSCRIPT_TEXT: bool = True
     # Chat text diagnostics are opt-in because they include user/assistant text.
