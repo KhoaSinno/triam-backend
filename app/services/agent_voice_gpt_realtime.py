@@ -45,6 +45,7 @@ from app.services.voice_agent.realtime_diagnostics import (
     extract_realtime_error_details,
     parse_rate_limit_snapshot,
     parse_response_id,
+    parse_session_truncation_snapshot,
     response_usage_from_metrics,
 )
 from app.services.voice_agent.realtime_session_budget import build_realtime_session_budget_options
@@ -1371,8 +1372,33 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
     def _attach_realtime_diagnostic_handlers(realtime_session: Any) -> None:
         """Observe provider metadata only; never log raw Realtime events."""
 
+        last_session_truncation_settings: tuple[bool, str | None, int | None, float | None] | None = None
+
         @realtime_session.on("openai_server_event_received")  # type: ignore[arg-type]
         def on_openai_server_event_received(event: Any) -> None:
+            nonlocal last_session_truncation_settings
+
+            session_snapshot = parse_session_truncation_snapshot(event)
+            if session_snapshot is not None:
+                session_settings = (
+                    session_snapshot.configured,
+                    session_snapshot.truncation_type,
+                    session_snapshot.max_post_instructions_tokens,
+                    session_snapshot.retention_ratio,
+                )
+                if session_settings != last_session_truncation_settings:
+                    last_session_truncation_settings = session_settings
+                    log.info(
+                        "VOICE_DIAG realtime_session_updated | "
+                        f"event_id={session_snapshot.event_id or 'unknown'} | "
+                        f"truncation_configured={session_snapshot.configured} | "
+                        f"truncation_type={session_snapshot.truncation_type or 'none'} | "
+                        "max_post_instructions_tokens="
+                        f"{session_snapshot.max_post_instructions_tokens} | "
+                        f"retention_ratio={session_snapshot.retention_ratio}"
+                    )
+                return
+
             response_id = parse_response_id(event)
             if response_id:
                 trace_id = tracer.record_realtime_response_created(

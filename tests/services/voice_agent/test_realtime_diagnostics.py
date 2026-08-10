@@ -4,6 +4,7 @@ from app.services.voice_agent.realtime_diagnostics import (
     extract_realtime_error_details,
     parse_rate_limit_snapshot,
     parse_response_id,
+    parse_session_truncation_snapshot,
     response_usage_from_metrics,
 )
 
@@ -58,3 +59,44 @@ def test_parses_response_id_metrics_and_wrapped_openai_error():
     assert usage.ttft_ms == 200
     assert details.code == "rate_limit_exceeded"
     assert details.error_type == "tokens"
+
+
+def test_parses_acknowledged_session_truncation_without_retaining_session_content():
+    snapshot = parse_session_truncation_snapshot(
+        {
+            "type": "session.updated",
+            "event_id": "event-session-1",
+            "session": {
+                "instructions": "must never be retained",
+                "truncation": {
+                    "type": "retention_ratio",
+                    "retention_ratio": 0.75,
+                    "token_limits": {"post_instructions": 8000},
+                },
+            },
+        }
+    )
+
+    assert snapshot is not None
+    assert snapshot.event_id == "event-session-1"
+    assert snapshot.configured is True
+    assert snapshot.truncation_type == "retention_ratio"
+    assert snapshot.max_post_instructions_tokens == 8000
+    assert snapshot.retention_ratio == 0.75
+    assert "must never be retained" not in repr(snapshot)
+
+
+def test_parses_session_update_without_a_truncation_policy():
+    snapshot = parse_session_truncation_snapshot(
+        {
+            "type": "session.updated",
+            "event_id": "event-session-2",
+            "session": {"instructions": "must never be retained"},
+        }
+    )
+
+    assert snapshot is not None
+    assert snapshot.configured is False
+    assert snapshot.truncation_type is None
+    assert snapshot.max_post_instructions_tokens is None
+    assert snapshot.retention_ratio is None
