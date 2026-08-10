@@ -47,6 +47,7 @@ from app.services.voice_agent.realtime_diagnostics import (
     parse_response_id,
     response_usage_from_metrics,
 )
+from app.services.voice_agent.realtime_session_budget import build_realtime_session_budget_options
 from app.services.voice_agent.tool_reply_watchdog import VoiceToolReplyWatchdog, VoiceToolReplyWatchdogConfig
 from app.services.voice_agent.transcript_store import VoiceTranscriptStore, normalize_transcript_text
 from app.services.voice_agent.transcription_prompt import build_realtime_transcription_prompt
@@ -1458,20 +1459,35 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             log.info(
                 "Starting realtime session | "
                 f"model={model_name} | voice={settings.OPENAI_REALTIME_VOICE} | "
-                f"reasoning_effort={settings.OPENAI_REALTIME_REASONING_EFFORT}"
+                f"reasoning_effort={settings.OPENAI_REALTIME_REASONING_EFFORT} | "
+                f"context_budget_enabled={settings.VOICE_AGENT_REALTIME_CONTEXT_BUDGET_ENABLED} | "
+                "context_budget_max_post_instructions_tokens="
+                f"{settings.VOICE_AGENT_REALTIME_CONTEXT_MAX_POST_INSTRUCTIONS_TOKENS} | "
+                "context_budget_retention_ratio="
+                f"{settings.VOICE_AGENT_REALTIME_CONTEXT_RETENTION_RATIO}"
             )
-            model = RealtimeModel(
-                model=model_name,
-                voice=settings.OPENAI_REALTIME_VOICE,
-                modalities=["audio"],
-                input_audio_transcription=AudioTranscription(
+            realtime_options: dict[str, Any] = {
+                "model": model_name,
+                "voice": settings.OPENAI_REALTIME_VOICE,
+                "modalities": ["audio"],
+                "input_audio_transcription": AudioTranscription(
                     model=settings.OPENAI_REALTIME_TRANSCRIPTION_MODEL,
                     language=settings.OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE,
                     prompt=transcription_prompt_result.prompt,
                 ),
-                input_audio_noise_reduction=settings.OPENAI_REALTIME_INPUT_AUDIO_NOISE_REDUCTION,
-                reasoning=RealtimeReasoning(effort=settings.OPENAI_REALTIME_REASONING_EFFORT),
+                "input_audio_noise_reduction": settings.OPENAI_REALTIME_INPUT_AUDIO_NOISE_REDUCTION,
+                "reasoning": RealtimeReasoning(effort=settings.OPENAI_REALTIME_REASONING_EFFORT),
+            }
+            realtime_options.update(
+                build_realtime_session_budget_options(
+                    enabled=settings.VOICE_AGENT_REALTIME_CONTEXT_BUDGET_ENABLED,
+                    max_post_instructions_tokens=(
+                        settings.VOICE_AGENT_REALTIME_CONTEXT_MAX_POST_INSTRUCTIONS_TOKENS
+                    ),
+                    retention_ratio=settings.VOICE_AGENT_REALTIME_CONTEXT_RETENTION_RATIO,
+                )
             )
+            model = RealtimeModel(**realtime_options)
             session = AgentSession(
                 llm=model,
                 turn_handling={

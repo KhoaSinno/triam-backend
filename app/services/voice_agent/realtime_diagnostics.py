@@ -119,17 +119,40 @@ def response_usage_from_metrics(metrics: Any) -> RealtimeResponseUsage | None:
 
 def extract_realtime_error_details(error: Any) -> RealtimeErrorDetails:
     """Recover OpenAI's code/type from LiveKit's wrapped APIError when available."""
-    body = getattr(error, "body", None)
+    containers = list(_error_detail_containers(error))
     return RealtimeErrorDetails(
-        code=_field_as_string(error, "code") or _field_as_string(body, "code"),
-        error_type=_field_as_string(error, "type") or _field_as_string(body, "type"),
+        code=_first_present_field(containers, "code"),
+        # The outer LiveKit RealtimeModelError has type="realtime_model_error".
+        # Prefer the deepest provider payload, whose type is actionable (e.g. "tokens").
+        error_type=_first_present_field(reversed(containers), "type"),
     )
+
+
+def _error_detail_containers(error: Any):
+    """Yield LiveKit -> APIError -> OpenAI Error objects once each."""
+    pending = [error]
+    seen: set[int] = set()
+    while pending:
+        current = pending.pop(0)
+        if current is None or id(current) in seen:
+            continue
+        seen.add(id(current))
+        yield current
+        pending.extend((getattr(current, "error", None), getattr(current, "body", None)))
 
 
 def _field_as_string(value: Any, field: str) -> str | None:
     if isinstance(value, Mapping):
         return _optional_string(value.get(field))
     return _optional_string(getattr(value, field, None))
+
+
+def _first_present_field(containers: Any, field: str) -> str | None:
+    for container in containers:
+        value = _field_as_string(container, field)
+        if value:
+            return value
+    return None
 
 
 def _optional_string(value: Any) -> str | None:

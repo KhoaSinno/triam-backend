@@ -1,8 +1,8 @@
 # Phase 30 Implementation Guide — Voice Context Grounding Reliability
 
 Date: 2026-08-10  
-Status: Phase 30.0 implemented and runtime-reviewed; Phase 30.0.1 is the next P0; Phases 30.1–30.5 remain proposed
-Scope: voice-only RAG budget, final-transcript safety gate, concise spoken responses, structured follow-up state, and section routing verification
+Status: Phase 30.0 observability implemented and runtime-reviewed; Phase 30.0.2 is the next P0; Phases 30.0.1 and 30.1–30.5 remain proposed
+Scope: remote Realtime-session budget, voice-only RAG budget, final-transcript safety gate, concise spoken responses, structured follow-up state, and section routing verification
 
 ---
 
@@ -59,7 +59,8 @@ Important correction: do not add a generic final-transcript wait inside confirme
 | Subphase | Change | Risk | Exit criteria |
 |---|---|---:|---|
 | 30.0 | Add safe trace fields only | None | Baseline collected with all flags off |
-| 30.0.1 | Bound Realtime output-token reservation | Low | Limit errors fall without reducing RAG context |
+| 30.0.1 | Bound Realtime output-token reservation (optional guard) | Low | Reservation is bounded without cutting a useful reply |
+| 30.0.2 | Bound remote Realtime conversation context | Medium | Long voice sessions stop growing into TPM failures; text unchanged |
 | 30.1 | Voice-only RAG budget | Low | Text output unchanged; voice budget enforced |
 | 30.2 | Concise voice response profile | Low | Normal answers become shorter; detailed requests remain coherent |
 | 30.3 | Bounded ASR-final gate | Medium | No silent/duplicate turn; timeout proceeds |
@@ -75,14 +76,23 @@ The first Phase 30.0 production trace established the following:
 - OpenAI Realtime emitted `rate_limit_exceeded` with error type `tokens` four times during the voice test.
 - Before two failures, voice RAG rendered 6,907–8,015 content characters from 7–8 candidates. A rendered tool result remains in the live Realtime conversation, so several such turns compound session token load.
 - A later web-permission turn also hit the same limit. Therefore RAG context is a major contributor, but not the sole direct trigger after the session budget is already depleted.
-- The installed LiveKit OpenAI Realtime plugin defaults `max_response_output_tokens` to `inf`. OpenAI Realtime reserves output tokens when a response is created, so an explicit finite cap is a lower-risk first mitigation than dropping RAG chunks.
+- The installed LiveKit OpenAI Realtime plugin defaults `max_response_output_tokens` to `inf`. OpenAI reserves output tokens when a response is created, so an explicit finite cap remains a useful optional guard, but it is not the primary remediation.
 - Final ASR arrived after book-tool start in several normal turns (roughly 69–1,384 ms in the sampled traces). This supports Phase 30.3 later, but it is not the cause of the rate-limit incident.
+
+The second runtime trace, captured after Realtime quota/usage telemetry was added, changes the priority order:
+
+- One response was rejected with OpenAI `rate_limit_exceeded`, provider type `tokens`, before it generated any input or output usage.
+- The last provider snapshot before that rejection reported 11,185 tokens remaining in the current window. Nearby completed responses consumed 11,703, 11,790, and 11,894 input tokens, of which about 11.5k were cached session context.
+- The rejected turn did not render new RAG context. This proves the immediate failure was persistent remote Realtime conversation context, including prior tool results, rather than only the current query's RAG output.
+- The current `VOICE_AGENT_HISTORY_LIMIT` only bounds application-side history. It does not by itself guarantee removal of already-created remote Realtime conversation items.
+
+Consequently, Phase 30.0.2 is the next P0. It is feature-flagged and starts disabled; no remote context is changed until a canary is explicitly enabled.
 
 One Phase 30.0 metric correction is required in the next deployment: only the first final transcript may update timing for a book tool. This prevents a later user utterance during a rate-limited/stuck turn from corrupting the original timing metric.
 
 ---
 
-## 3.1 Phase 30.0.1 — Realtime Token-Reservation Cap (next P0)
+## 3.1 Phase 30.0.1 — Realtime Token-Reservation Cap (optional guard)
 
 This subphase does not reduce retrieved chunks or RAG characters. It limits the maximum output reservation for one Realtime response.
 
@@ -104,7 +114,7 @@ if settings.VOICE_AGENT_REALTIME_OUTPUT_TOKEN_CAP_ENABLED:
 session = AgentSession(llm=model, ...)
 ```
 
-Initial canary is 512 tokens. It is deliberately large enough for an explicitly requested detailed Vietnamese explanation, while avoiding the plugin's unlimited (`inf`) response reservation. Do not start at 128 or 256 because a hard output cutoff could stop a useful detailed answer prematurely.
+Do not make this the first canary solely because the session hit a token limit. The current telemetry shows input cached context is the primary source of pressure. If this guard is later tested independently, use a finite value selected from observed response lengths; it must not be treated as a substitute for Phase 30.0.2.
 
 Required tests:
 
@@ -125,6 +135,92 @@ If rate limits continue after this cap, the OpenAI project/model token tier must
 
 ---
 
+## 3.2 Phase 30.0.2 — Remote Realtime Session Budget (next P0)
+
+### Objective
+
+Bound the context kept by the **OpenAI Realtime conversation** before it grows large enough that a normal next response exceeds the remaining TPM window. This is not a character cap for the current RAG result and does not alter text chat.
+
+The OpenAI Realtime API supports a retention-ratio truncation policy with a custom `post_instructions` token limit. Once the remote conversation exceeds that limit, OpenAI removes oldest conversation items until the configured retained fraction remains. The current model default is too high to protect a Tier-1 40k TPM workload.
+
+### Boundaries
+
+1. Only configure the existing `RealtimeModel` used by voice.
+2. Do not delete database history, modify `lk.chat`, change RAG retrieval candidates, or change watchdog behavior.
+3. Do not manually delete arbitrary remote items in this subphase.
+4. The flag is `false` by default; flag-off behavior must be byte-for-byte equivalent in the Realtime model options.
+5. Phase 30.4 structured state is not required to ship the disabled flag or a short canary, but it is required before declaring aggressive truncation safe for long multi-topic sessions.
+
+### Configuration
+
+Add to `app/core/config.py` and `.env.example`:
+
+```python
+VOICE_AGENT_REALTIME_CONTEXT_BUDGET_ENABLED: bool = False
+VOICE_AGENT_REALTIME_CONTEXT_MAX_POST_INSTRUCTIONS_TOKENS: int = 8000
+VOICE_AGENT_REALTIME_CONTEXT_RETENTION_RATIO: float = 0.75
+```
+
+Validation:
+
+```text
+4000 <= VOICE_AGENT_REALTIME_CONTEXT_MAX_POST_INSTRUCTIONS_TOKENS <= 24000
+0.50 <= VOICE_AGENT_REALTIME_CONTEXT_RETENTION_RATIO < 1.00
+```
+
+The initial canary limit is 8k post-instruction tokens. At 75% retention, one truncation retains roughly the most recent 6k post-instruction tokens. This keeps the most recent tool result/follow-up available while removing older turns in batches rather than trimming every turn. These are canary values, not an asserted permanent optimum.
+
+### Implementation shape
+
+The installed LiveKit OpenAI plugin accepts the OpenAI `truncation` model option. Do not pass a `truncation` argument at all when the flag is off.
+
+```python
+from openai.types.realtime import RealtimeTruncationRetentionRatio
+from openai.types.realtime.realtime_truncation_retention_ratio import TokenLimits
+
+realtime_options: dict[str, Any] = {
+    # existing model, voice, modalities, STT, noise-reduction, reasoning options
+}
+if settings.VOICE_AGENT_REALTIME_CONTEXT_BUDGET_ENABLED:
+    realtime_options["truncation"] = RealtimeTruncationRetentionRatio(
+        type="retention_ratio",
+        retention_ratio=settings.VOICE_AGENT_REALTIME_CONTEXT_RETENTION_RATIO,
+        token_limits=TokenLimits(
+            post_instructions=settings.VOICE_AGENT_REALTIME_CONTEXT_MAX_POST_INSTRUCTIONS_TOKENS,
+        ),
+    )
+model = RealtimeModel(**realtime_options)
+```
+
+Use the existing `VOICE_DIAG realtime_rate_limits` and `VOICE_DIAG realtime_response_usage` logs as the source of truth. Do not infer remote-session size from Python character counts alone.
+
+### Required tests
+
+1. Flag off constructs `RealtimeModel` without a `truncation` option.
+2. Flag on constructs exactly the retention-ratio policy with configured values.
+3. Invalid token limits or retention ratios fail settings validation.
+4. Realtime model fallback/startup remains unchanged.
+5. Text-chat construction never receives these settings.
+6. A mocked sequence of RAG/tool turns still preserves the newest response/tool result after truncation is configured.
+
+### Canary and exit criteria
+
+1. Deploy with the flag off and confirm the diagnostics still report raw quota/usage correctly.
+2. Enable only for one controlled voice test session; do not combine with the output-token cap or a new RAG budget in the same test.
+3. Run 8–10 turns containing metadata, RAG, web permission, explicit detail follow-up, and an interruption.
+4. Compare against the current baseline: `realtime_input_tokens`, `realtime_input_cached_tokens`, `realtime_token_remaining`, `rate_limit_exceeded`, answer completeness, and first-speech latency.
+5. Pass only if no rate-limit rejection occurs in the test and the explicit detail follow-up is still grounded correctly.
+
+Rollback:
+
+```ini
+VOICE_AGENT_REALTIME_CONTEXT_BUDGET_ENABLED=false
+```
+
+If a long-session test loses necessary scope after truncation, disable the flag and continue Phase 30.4 before retesting. Do not compensate by increasing `VOICE_AGENT_HISTORY_LIMIT` or by reinjecting raw old RAG text.
+
+---
+
 ## 4. Configuration
 
 Add to `app/core/config.py` and `.env.example`. Defaults preserve deployed behavior:
@@ -134,6 +230,10 @@ Add to `app/core/config.py` and `.env.example`. Defaults preserve deployed behav
 VOICE_AGENT_VOICE_RAG_BUDGET_ENABLED: bool = False
 VOICE_AGENT_VOICE_RAG_MAX_CHARS: int = 8000
 VOICE_AGENT_VOICE_RAG_MAX_CHUNKS: int = 3
+
+VOICE_AGENT_REALTIME_CONTEXT_BUDGET_ENABLED: bool = False
+VOICE_AGENT_REALTIME_CONTEXT_MAX_POST_INSTRUCTIONS_TOKENS: int = 8000
+VOICE_AGENT_REALTIME_CONTEXT_RETENTION_RATIO: float = 0.75
 
 VOICE_AGENT_VOICE_CONCISE_REPLY_ENABLED: bool = False
 VOICE_AGENT_VOICE_REPLY_TARGET_SENTENCES: int = 2
@@ -152,6 +252,8 @@ Validation:
 ```text
 VOICE_AGENT_VOICE_RAG_MAX_CHARS >= 1000
 1 <= VOICE_AGENT_VOICE_RAG_MAX_CHUNKS <= 8
+4000 <= VOICE_AGENT_REALTIME_CONTEXT_MAX_POST_INSTRUCTIONS_TOKENS <= 24000
+0.50 <= VOICE_AGENT_REALTIME_CONTEXT_RETENTION_RATIO < 1.00
 1 <= VOICE_AGENT_VOICE_REPLY_TARGET_SENTENCES <= 3
 0 <= VOICE_AGENT_ASR_FINAL_GATE_WAIT_MS <= 750
 30 <= VOICE_AGENT_GROUNDING_CONTEXT_STATE_TTL_SECONDS <= 900
@@ -167,6 +269,8 @@ VOICE_AGENT_VOICE_RAG_MAX_CHARS=8000
 VOICE_AGENT_VOICE_RAG_MAX_CHUNKS=3
 VOICE_AGENT_VOICE_CONCISE_REPLY_ENABLED=true
 VOICE_AGENT_VOICE_REPLY_TARGET_SENTENCES=2
+
+VOICE_AGENT_REALTIME_CONTEXT_BUDGET_ENABLED=false
 
 VOICE_AGENT_ASR_FINAL_GATE_ENABLED=false
 VOICE_AGENT_GROUNDING_CONTEXT_STATE_ENABLED=false
@@ -185,7 +289,7 @@ app/services/agent_observability/turn_trace.py
 tests/services/agent_observability/test_turn_trace.py
 ```
 
-Phase 30.0 adds numeric/count/enum fields only:
+Phase 30.0 adds numeric/count/enum fields only. The initial baseline fields are:
 
 ```python
 rag_candidate_count: int = 0
@@ -197,6 +301,23 @@ asr_final_status_at_book_tool: str | None = None
 asr_final_before_book_tool_ms: int | None = None
 book_tool_before_asr_final_ms: int | None = None
 ```
+
+The runtime-reviewed extension also records provider metadata only:
+
+```python
+realtime_token_limit: int | None = None
+realtime_token_remaining: int | None = None
+realtime_token_reset_seconds: float | None = None
+realtime_response_ids: list[str] = []
+realtime_input_tokens: int = 0
+realtime_input_cached_tokens: int = 0
+realtime_output_tokens: int = 0
+realtime_total_tokens: int = 0
+realtime_error_code: str | None = None
+realtime_error_type: str | None = None
+```
+
+The trace never stores raw provider events, prompts, transcripts, tool arguments, RAG chunks, or generated answers. `realtime_response_ids` are operational correlation IDs only.
 
 The Phase 30.0 ASR status is observation, not a gate:
 

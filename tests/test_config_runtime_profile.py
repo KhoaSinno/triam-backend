@@ -1,5 +1,8 @@
 from pathlib import Path
 
+import pytest
+from pydantic.v1 import ValidationError
+
 from app.core.config import Settings
 from app.services import agent_voice_gpt_realtime as voice_agent
 
@@ -30,6 +33,28 @@ def test_console_ids_are_configurable_for_local_full_voice_test():
 
     assert clean_settings.VOICE_AGENT_CONSOLE_BOOK_ID
     assert clean_settings.VOICE_AGENT_CONSOLE_THREAD_ID
+
+
+def test_realtime_session_budget_is_disabled_by_default():
+    clean_settings = build_settings()
+
+    assert clean_settings.VOICE_AGENT_REALTIME_CONTEXT_BUDGET_ENABLED is False
+    assert clean_settings.VOICE_AGENT_REALTIME_CONTEXT_MAX_POST_INSTRUCTIONS_TOKENS == 8000
+    assert clean_settings.VOICE_AGENT_REALTIME_CONTEXT_RETENTION_RATIO == 0.75
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("VOICE_AGENT_REALTIME_CONTEXT_MAX_POST_INSTRUCTIONS_TOKENS", 3999),
+        ("VOICE_AGENT_REALTIME_CONTEXT_MAX_POST_INSTRUCTIONS_TOKENS", 24001),
+        ("VOICE_AGENT_REALTIME_CONTEXT_RETENTION_RATIO", 0.49),
+        ("VOICE_AGENT_REALTIME_CONTEXT_RETENTION_RATIO", 1.0),
+    ],
+)
+def test_realtime_session_budget_rejects_invalid_configuration(field, value):
+    with pytest.raises(ValidationError):
+        build_settings(**{field: value})
 
 
 def test_dead_runtime_configs_are_removed_from_settings():
