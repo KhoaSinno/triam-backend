@@ -1,11 +1,11 @@
+import os
 from typing import Literal, Set
 
 from dotenv import load_dotenv
+from pydantic.v1 import Field
 from pydantic.v1.env_settings import BaseSettings
 
 load_dotenv(override=True)
-
-import os
 
 if "SPACE_ID" not in os.environ and os.environ.get("RUNNING_ON_HF_SPACES") != "true":
     os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
@@ -65,6 +65,20 @@ class Settings(BaseSettings):
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-2.1-mini"
     OPENAI_REALTIME_VOICE: str = "shimmer"
     OPENAI_REALTIME_REASONING_EFFORT: Literal["minimal", "low", "medium", "high", "xhigh"] = "minimal"
+    # Phase 30.0.2: disabled by default so current Realtime session behavior is preserved.
+    # When enabled, OpenAI retains recent conversation items once this remote-session
+    # token budget is reached; this does not affect text chat or local history.
+    VOICE_AGENT_REALTIME_CONTEXT_BUDGET_ENABLED: bool = False
+    VOICE_AGENT_REALTIME_CONTEXT_MAX_POST_INSTRUCTIONS_TOKENS: int = Field(
+        default=8000,
+        ge=4000,
+        le=24000,
+    )
+    VOICE_AGENT_REALTIME_CONTEXT_RETENTION_RATIO: float = Field(
+        default=0.75,
+        ge=0.50,
+        lt=1.00,
+    )
     # Text and local console test behavior
     VOICE_AGENT_HISTORY_LIMIT: int = 6
     VOICE_AGENT_RAG_MAX_CHARS: int = 8000
