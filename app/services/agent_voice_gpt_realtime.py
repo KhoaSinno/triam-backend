@@ -41,6 +41,12 @@ from app.services.agent_policy import AgentPolicyAction, AgentPolicyRequest, Sha
 from app.services.voice_agent.contracts import LK_CHAT_TOPIC, LK_CONTROL_TOPIC, VoiceJobMetadata
 from app.services.voice_agent.query_guard import VoiceQueryGuardConfig, VoiceQueryGuardResult, guard_voice_book_query
 from app.services.voice_agent.rag_context import format_rag_context, render_rag_context, search_voice_book_context, trim_text
+from app.services.voice_agent.realtime_diagnostics import (
+    extract_realtime_error_details,
+    parse_rate_limit_snapshot,
+    parse_response_id,
+    response_usage_from_metrics,
+)
 from app.services.voice_agent.tool_reply_watchdog import VoiceToolReplyWatchdog, VoiceToolReplyWatchdogConfig
 from app.services.voice_agent.transcript_store import VoiceTranscriptStore, normalize_transcript_text
 from app.services.voice_agent.transcription_prompt import build_realtime_transcription_prompt
@@ -1335,25 +1341,99 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             error = getattr(ev, "error", None)
             source = getattr(ev, "source", None)
             recoverable = bool(getattr(error, "recoverable", False))
-            error_code = str(getattr(error, "code", "") or "unknown")
+            error_details = extract_realtime_error_details(error)
+            error_code = error_details.code or "unknown"
             error_message = " ".join(str(error or "").split())
             log.warning(
                 "VOICE_DIAG session_error | "
                 f"source_type={type(source).__name__} | "
                 f"error_type={type(error).__name__} | "
-                f"error_code={error_code} | recoverable={recoverable} | "
+                f"error_code={error_code} | provider_error_type={error_details.error_type or 'unknown'} | "
+                f"recoverable={recoverable} | "
                 f"message_chars={len(error_message)} | message={error_message[:240]!r}"
             )
             watchdog.record_realtime_error(
                 error_code=error_code,
                 error_message=error_message,
             )
-            if tracer.has_active_turn(AgentInputMode.VOICE):
-                tracer.record_error(AgentInputMode.VOICE, f"livekit_{error_code}")
+            tracer.record_realtime_error(
+                AgentInputMode.VOICE,
+                error_code=error_details.code,
+                error_type=error_details.error_type,
+                message_chars=len(error_message),
+            )
 
         @sess.on("close")  # type: ignore[arg-type]
         def on_close(_ev):
             watchdog.close()
+
+    def _attach_realtime_diagnostic_handlers(realtime_session: Any) -> None:
+        """Observe provider metadata only; never log raw Realtime events."""
+
+        @realtime_session.on("openai_server_event_received")  # type: ignore[arg-type]
+        def on_openai_server_event_received(event: Any) -> None:
+            response_id = parse_response_id(event)
+            if response_id:
+                trace_id = tracer.record_realtime_response_created(
+                    AgentInputMode.VOICE,
+                    response_id=response_id,
+                )
+                log.info(
+                    "VOICE_DIAG realtime_response_created | "
+                    f"response_id={response_id} | trace_id={trace_id or 'unmatched'}"
+                )
+                return
+
+            snapshot = parse_rate_limit_snapshot(event)
+            if snapshot is None:
+                return
+            trace_id = tracer.record_realtime_rate_limits(
+                AgentInputMode.VOICE,
+                token_limit=snapshot.token_limit,
+                token_remaining=snapshot.token_remaining,
+                token_reset_seconds=snapshot.token_reset_seconds,
+                request_limit=snapshot.request_limit,
+                request_remaining=snapshot.request_remaining,
+                request_reset_seconds=snapshot.request_reset_seconds,
+            )
+            log.info(
+                "VOICE_DIAG realtime_rate_limits | "
+                f"event_id={snapshot.event_id or 'unknown'} | trace_id={trace_id or 'unmatched'} | "
+                f"token_limit={snapshot.token_limit} | token_remaining={snapshot.token_remaining} | "
+                f"token_reset_seconds={snapshot.token_reset_seconds} | "
+                f"request_limit={snapshot.request_limit} | request_remaining={snapshot.request_remaining} | "
+                f"request_reset_seconds={snapshot.request_reset_seconds}"
+            )
+
+        @realtime_session.on("metrics_collected")  # type: ignore[arg-type]
+        def on_realtime_metrics_collected(metrics: Any) -> None:
+            usage = response_usage_from_metrics(metrics)
+            if usage is None:
+                return
+            trace_id = tracer.record_realtime_response_usage(
+                AgentInputMode.VOICE,
+                response_id=usage.response_id,
+                input_tokens=usage.input_tokens,
+                input_text_tokens=usage.input_text_tokens,
+                input_audio_tokens=usage.input_audio_tokens,
+                input_cached_tokens=usage.input_cached_tokens,
+                output_tokens=usage.output_tokens,
+                output_text_tokens=usage.output_text_tokens,
+                output_audio_tokens=usage.output_audio_tokens,
+                total_tokens=usage.total_tokens,
+                duration_ms=usage.duration_ms,
+                ttft_ms=usage.ttft_ms,
+                cancelled=usage.cancelled,
+            )
+            log.info(
+                "VOICE_DIAG realtime_response_usage | "
+                f"response_id={usage.response_id} | trace_id={trace_id or 'unmatched'} | "
+                f"input_tokens={usage.input_tokens} | input_text_tokens={usage.input_text_tokens} | "
+                f"input_audio_tokens={usage.input_audio_tokens} | input_cached_tokens={usage.input_cached_tokens} | "
+                f"output_tokens={usage.output_tokens} | output_text_tokens={usage.output_text_tokens} | "
+                f"output_audio_tokens={usage.output_audio_tokens} | total_tokens={usage.total_tokens} | "
+                f"duration_ms={usage.duration_ms} | ttft_ms={usage.ttft_ms} | cancelled={usage.cancelled}"
+            )
 
     transcription_prompt_result = build_realtime_transcription_prompt(
         base_prompt=settings.OPENAI_REALTIME_TRANSCRIPTION_PROMPT,
@@ -1437,6 +1517,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                     delete_room_on_close=settings.VOICE_AGENT_CLOSE_ON_DISCONNECT,
                 ),
             )
+            _attach_realtime_diagnostic_handlers(agent_instance.realtime_llm_session)
 
             break
         except Exception as exc:

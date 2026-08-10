@@ -1,7 +1,7 @@
 # Phase 30 Implementation Guide — Voice Context Grounding Reliability
 
 Date: 2026-08-10  
-Status: Phase 30.0 implemented — awaiting runtime trace review; Phases 30.1–30.5 proposed  
+Status: Phase 30.0 implemented and runtime-reviewed; Phase 30.0.1 is the next P0; Phases 30.1–30.5 remain proposed
 Scope: voice-only RAG budget, final-transcript safety gate, concise spoken responses, structured follow-up state, and section routing verification
 
 ---
@@ -59,6 +59,7 @@ Important correction: do not add a generic final-transcript wait inside confirme
 | Subphase | Change | Risk | Exit criteria |
 |---|---|---:|---|
 | 30.0 | Add safe trace fields only | None | Baseline collected with all flags off |
+| 30.0.1 | Bound Realtime output-token reservation | Low | Limit errors fall without reducing RAG context |
 | 30.1 | Voice-only RAG budget | Low | Text output unchanged; voice budget enforced |
 | 30.2 | Concise voice response profile | Low | Normal answers become shorter; detailed requests remain coherent |
 | 30.3 | Bounded ASR-final gate | Medium | No silent/duplicate turn; timeout proceeds |
@@ -66,6 +67,61 @@ Important correction: do not add a generic final-transcript wait inside confirme
 | 30.5 | Typed section tool | Conditional | Implement only if routing traces justify it |
 
 Implement one subphase per PR/commit. Do not combine all phase flags in one change.
+
+### Runtime review — 2026-08-10
+
+The first Phase 30.0 production trace established the following:
+
+- OpenAI Realtime emitted `rate_limit_exceeded` with error type `tokens` four times during the voice test.
+- Before two failures, voice RAG rendered 6,907–8,015 content characters from 7–8 candidates. A rendered tool result remains in the live Realtime conversation, so several such turns compound session token load.
+- A later web-permission turn also hit the same limit. Therefore RAG context is a major contributor, but not the sole direct trigger after the session budget is already depleted.
+- The installed LiveKit OpenAI Realtime plugin defaults `max_response_output_tokens` to `inf`. OpenAI Realtime reserves output tokens when a response is created, so an explicit finite cap is a lower-risk first mitigation than dropping RAG chunks.
+- Final ASR arrived after book-tool start in several normal turns (roughly 69–1,384 ms in the sampled traces). This supports Phase 30.3 later, but it is not the cause of the rate-limit incident.
+
+One Phase 30.0 metric correction is required in the next deployment: only the first final transcript may update timing for a book tool. This prevents a later user utterance during a rate-limited/stuck turn from corrupting the original timing metric.
+
+---
+
+## 3.1 Phase 30.0.1 — Realtime Token-Reservation Cap (next P0)
+
+This subphase does not reduce retrieved chunks or RAG characters. It limits the maximum output reservation for one Realtime response.
+
+Add a feature-controlled setting:
+
+```python
+VOICE_AGENT_REALTIME_OUTPUT_TOKEN_CAP_ENABLED: bool = False
+VOICE_AGENT_REALTIME_MAX_OUTPUT_TOKENS: int = 512
+```
+
+The installed `livekit.plugins.openai.realtime.RealtimeModel` supports this through `update_options`, not its constructor:
+
+```python
+model = RealtimeModel(...existing settings...)
+if settings.VOICE_AGENT_REALTIME_OUTPUT_TOKEN_CAP_ENABLED:
+    model.update_options(
+        max_response_output_tokens=settings.VOICE_AGENT_REALTIME_MAX_OUTPUT_TOKENS,
+    )
+session = AgentSession(llm=model, ...)
+```
+
+Initial canary is 512 tokens. It is deliberately large enough for an explicitly requested detailed Vietnamese explanation, while avoiding the plugin's unlimited (`inf`) response reservation. Do not start at 128 or 256 because a hard output cutoff could stop a useful detailed answer prematurely.
+
+Required tests:
+
+1. Flag off does not call `update_options` and preserves current behavior.
+2. Flag on calls `update_options(max_response_output_tokens=512)` before session start.
+3. Invalid values outside OpenAI's accepted finite range fail config validation.
+4. Realtime startup fallback behavior is unchanged.
+
+Runtime test: after the provider token window resets, run the same 8–10 RAG-turn test. Compare `rate_limit_exceeded` count, response completion, and answer length against the 30.0 baseline.
+
+Rollback:
+
+```ini
+VOICE_AGENT_REALTIME_OUTPUT_TOKEN_CAP_ENABLED=false
+```
+
+If rate limits continue after this cap, the OpenAI project/model token tier must be raised for the expected demo concurrency. Backend changes can reduce demand and provide a graceful error, but cannot create quota.
 
 ---
 

@@ -108,11 +108,18 @@ class AgentTurnTracer:
             return
 
         now_monotonic = time.monotonic()
+        first_final_for_trace = trace.transcript_final_monotonic is None
         trace.transcript_final_seen = True
         trace.transcript_char_count = max(0, char_count)
         trace.detected_language = language
-        trace.transcript_final_monotonic = now_monotonic
-        if trace.book_tool_started_monotonic is not None and trace.asr_final_status_at_book_tool == "final_missing":
+        if first_final_for_trace:
+            trace.transcript_final_monotonic = now_monotonic
+        if (
+            first_final_for_trace
+            and trace.book_tool_started_monotonic is not None
+            and trace.asr_final_status_at_book_tool == "final_missing"
+            and trace.book_tool_before_asr_final_ms is None
+        ):
             trace.book_tool_before_asr_final_ms = max(
                 0,
                 int((now_monotonic - trace.book_tool_started_monotonic) * 1000),
@@ -173,6 +180,8 @@ class AgentTurnTracer:
         """Record ASR-final timing at the first user-facing book-search boundary."""
         trace = self._get_or_begin(input_mode)
         if trace is None:
+            return
+        if trace.book_tool_started_monotonic is not None:
             return
         now_monotonic = time.monotonic()
         trace.book_tool_started_monotonic = now_monotonic
@@ -249,6 +258,100 @@ class AgentTurnTracer:
         if trace is not None:
             trace.error_code = error_code
             trace.answer_source = AgentAnswerSource.ERROR
+
+    def record_realtime_rate_limits(
+        self,
+        input_mode: AgentInputMode,
+        *,
+        token_limit: int | None,
+        token_remaining: int | None,
+        token_reset_seconds: float | None,
+        request_limit: int | None,
+        request_remaining: int | None,
+        request_reset_seconds: float | None,
+    ) -> str | None:
+        """Record the latest OpenAI quota snapshot for an already-active turn."""
+        trace = self._active.get(input_mode)
+        if trace is None:
+            return None
+        trace.realtime_rate_limit_update_count += 1
+        trace.realtime_token_limit = token_limit
+        trace.realtime_token_remaining = token_remaining
+        trace.realtime_token_reset_seconds = token_reset_seconds
+        trace.realtime_request_limit = request_limit
+        trace.realtime_request_remaining = request_remaining
+        trace.realtime_request_reset_seconds = request_reset_seconds
+        self._emit_safe("realtime_rate_limits_updated", self._summary(trace))
+        return trace.trace_id
+
+    def record_realtime_response_created(
+        self,
+        input_mode: AgentInputMode,
+        *,
+        response_id: str,
+    ) -> str | None:
+        """Associate a provider response ID with the active user turn."""
+        trace = self._active.get(input_mode)
+        if trace is None:
+            return None
+        if response_id not in trace.realtime_response_ids:
+            trace.realtime_response_ids.append(response_id)
+        return trace.trace_id
+
+    def record_realtime_response_usage(
+        self,
+        input_mode: AgentInputMode,
+        *,
+        response_id: str,
+        input_tokens: int,
+        input_text_tokens: int,
+        input_audio_tokens: int,
+        input_cached_tokens: int,
+        output_tokens: int,
+        output_text_tokens: int,
+        output_audio_tokens: int,
+        total_tokens: int,
+        duration_ms: int,
+        ttft_ms: int | None,
+        cancelled: bool,
+    ) -> str | None:
+        """Attach actual response usage to its matching active or just-completed turn."""
+        trace = self._find_realtime_response_trace(input_mode, response_id)
+        if trace is None:
+            return None
+        trace.realtime_response_count += 1
+        trace.realtime_input_tokens += max(0, input_tokens)
+        trace.realtime_input_text_tokens += max(0, input_text_tokens)
+        trace.realtime_input_audio_tokens += max(0, input_audio_tokens)
+        trace.realtime_input_cached_tokens += max(0, input_cached_tokens)
+        trace.realtime_output_tokens += max(0, output_tokens)
+        trace.realtime_output_text_tokens += max(0, output_text_tokens)
+        trace.realtime_output_audio_tokens += max(0, output_audio_tokens)
+        trace.realtime_total_tokens += max(0, total_tokens)
+        trace.realtime_last_response_duration_ms = max(0, duration_ms)
+        trace.realtime_last_response_ttft_ms = max(0, ttft_ms) if ttft_ms is not None else None
+        trace.realtime_last_response_cancelled = cancelled
+        self._emit_safe("realtime_response_usage", self._summary(trace))
+        return trace.trace_id
+
+    def record_realtime_error(
+        self,
+        input_mode: AgentInputMode,
+        *,
+        error_code: str | None,
+        error_type: str | None,
+        message_chars: int,
+    ) -> str | None:
+        trace = self._active.get(input_mode)
+        if trace is None:
+            return None
+        trace.realtime_error_code = error_code
+        trace.realtime_error_type = error_type
+        trace.realtime_error_message_chars = max(0, message_chars)
+        trace.error_code = f"openai_{error_code}" if error_code else "livekit_unknown"
+        trace.answer_source = AgentAnswerSource.ERROR
+        self._emit_safe("realtime_error", self._summary(trace))
+        return trace.trace_id
 
     def record_tool_reply_watchdog_scheduled(
         self,
@@ -349,6 +452,25 @@ class AgentTurnTracer:
             self.begin_turn(input_mode)
         return self._active.get(input_mode)
 
+    def _find_realtime_response_trace(
+        self,
+        input_mode: AgentInputMode,
+        response_id: str,
+    ) -> AgentTurnTrace | None:
+        active = self._active.get(input_mode)
+        if active and response_id in active.realtime_response_ids:
+            return active
+
+        completed = self._last_completed.get(input_mode)
+        if (
+            completed
+            and response_id in completed.realtime_response_ids
+            and completed.completed_monotonic is not None
+            and time.monotonic() - completed.completed_monotonic <= self.late_transcript_window_seconds
+        ):
+            return completed
+        return None
+
     def _emit_safe(self, event: str, payload: dict[str, Any]) -> None:
         try:
             self._emitter(event, payload)
@@ -400,5 +522,28 @@ class AgentTurnTracer:
             "tool_reply_watchdog_reason": trace.tool_reply_watchdog_reason,
             "tool_result_to_speech_ms": trace.tool_result_to_speech_ms,
             "forced_reply_reason": trace.forced_reply_reason,
+            "realtime_rate_limit_update_count": trace.realtime_rate_limit_update_count,
+            "realtime_token_limit": trace.realtime_token_limit,
+            "realtime_token_remaining": trace.realtime_token_remaining,
+            "realtime_token_reset_seconds": trace.realtime_token_reset_seconds,
+            "realtime_request_limit": trace.realtime_request_limit,
+            "realtime_request_remaining": trace.realtime_request_remaining,
+            "realtime_request_reset_seconds": trace.realtime_request_reset_seconds,
+            "realtime_response_ids": trace.realtime_response_ids,
+            "realtime_response_count": trace.realtime_response_count,
+            "realtime_input_tokens": trace.realtime_input_tokens,
+            "realtime_input_text_tokens": trace.realtime_input_text_tokens,
+            "realtime_input_audio_tokens": trace.realtime_input_audio_tokens,
+            "realtime_input_cached_tokens": trace.realtime_input_cached_tokens,
+            "realtime_output_tokens": trace.realtime_output_tokens,
+            "realtime_output_text_tokens": trace.realtime_output_text_tokens,
+            "realtime_output_audio_tokens": trace.realtime_output_audio_tokens,
+            "realtime_total_tokens": trace.realtime_total_tokens,
+            "realtime_last_response_duration_ms": trace.realtime_last_response_duration_ms,
+            "realtime_last_response_ttft_ms": trace.realtime_last_response_ttft_ms,
+            "realtime_last_response_cancelled": trace.realtime_last_response_cancelled,
+            "realtime_error_code": trace.realtime_error_code,
+            "realtime_error_type": trace.realtime_error_type,
+            "realtime_error_message_chars": trace.realtime_error_message_chars,
             "correlation_quality": trace.correlation_quality,
         }
