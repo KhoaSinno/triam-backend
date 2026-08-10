@@ -103,6 +103,9 @@ class AdminBookListItem(BaseModel):
     error_message: str | None = None
     is_shared: bool = False
     parent_shared_id: uuid.UUID | None = None
+    archived_at: datetime | None = None
+    clone_count: int = 0
+    can_permanently_delete: bool = False
     has_full_mode: bool = False
     has_pareto_mode: bool = False
     user_email: str | None = None
@@ -117,6 +120,12 @@ class AdminBooksResponse(BaseModel):
     limit: int
     offset: int
     items: list[AdminBookListItem]
+
+
+class AdminBookLifecycleResponse(BaseModel):
+    book_id: uuid.UUID
+    clone_count: int = 0
+    message: str
 
 
 class AdminJobListItem(BaseModel):

@@ -74,6 +74,9 @@ class Book(SQLModel, table=True):
     ai_summary: Optional[dict] = Field(default=None, sa_column=Column(JSON, nullable=True))
     ai_summary_status: str = Field(default="pending", sa_column=Column(Text, nullable=False, server_default="pending"))
     ai_summary_error: Optional[str] = Field(default=None, sa_column=Column(Text, nullable=True))
+    # A removed system book stays in the database while user clones still reuse
+    # its storage prefix.  It is no longer visible in the shared catalogue.
+    archived_at: Optional[datetime] = Field(default=None, sa_column=Column(DateTime(timezone=True), nullable=True, index=True))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), nullable=False))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False))
 

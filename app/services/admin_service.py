@@ -52,6 +52,7 @@ from app.schemas.admin import (
     AdminAuditLogItem,
     AdminAuditLogsResponse,
     AdminBookDetailResponse,
+    AdminBookLifecycleResponse,
     AdminBookListItem,
     AdminBooksResponse,
     AdminDashboardResponse,
@@ -308,6 +309,7 @@ def get_books(
     document_type: str | None = None,
     user_id: uuid.UUID | None = None,
     is_shared: bool | None = None,
+    archived: bool | None = None,
     q: str | None = None,
 ) -> AdminBooksResponse:
     books, total = list_admin_books(
@@ -318,6 +320,7 @@ def get_books(
         document_type=document_type,
         user_id=user_id,
         is_shared=is_shared,
+        archived=archived,
         q=q,
     )
 
@@ -351,6 +354,17 @@ def get_books(
             }
 
     items = []
+    clone_counts: dict[uuid.UUID, int] = {}
+    if book_ids:
+        clone_counts = {
+            source_id: int(count)
+            for source_id, count in session.exec(
+                select(Book.parent_shared_id, func.count(Book.id))
+                .where(Book.parent_shared_id.in_(book_ids))
+                .group_by(Book.parent_shared_id)
+            ).all()
+            if source_id is not None
+        }
     for b in books:
         book_modes = modes_map.get(b.id, set())
         u_info = users_map.get(b.user_id, {})
@@ -367,6 +381,9 @@ def get_books(
                 error_message=b.error_message,
                 is_shared=b.is_shared,
                 parent_shared_id=b.parent_shared_id,
+                archived_at=b.archived_at,
+                clone_count=clone_counts.get(b.id, 0),
+                can_permanently_delete=bool(b.archived_at and clone_counts.get(b.id, 0) == 0),
                 has_full_mode="full" in book_modes,
                 has_pareto_mode="pareto" in book_modes,
                 user_email=u_info.get("email"),
@@ -385,6 +402,9 @@ def get_book_detail(session: Session, book_id: uuid.UUID) -> AdminBookDetailResp
         raise BookNotFoundError()
 
     latest_job = get_latest_admin_job_for_book(session, book_id)
+    clone_count = int(
+        session.exec(select(func.count(Book.id)).where(Book.parent_shared_id == book_id)).one() or 0
+    )
     
     # Query modes
     rows = session.exec(
@@ -431,6 +451,9 @@ def get_book_detail(session: Session, book_id: uuid.UUID) -> AdminBookDetailResp
         error_message=book.error_message,
         is_shared=book.is_shared,
         parent_shared_id=book.parent_shared_id,
+        archived_at=book.archived_at,
+        clone_count=clone_count,
+        can_permanently_delete=bool(book.archived_at and clone_count == 0),
         has_full_mode="full" in book_modes,
         has_pareto_mode="pareto" in book_modes,
         created_at=book.created_at,
@@ -957,6 +980,8 @@ def update_admin_book_metadata(
         changes["new_author"] = book.author
 
     if payload.is_shared is not None and payload.is_shared != book.is_shared:
+        if book.archived_at is not None:
+            raise BookStatusConflictError("Hãy dùng thao tác khôi phục thay vì xuất bản trực tiếp sách đã gỡ.")
         changes["old_is_shared"] = book.is_shared
         book.is_shared = payload.is_shared
         changes["new_is_shared"] = book.is_shared
@@ -977,6 +1002,74 @@ def update_admin_book_metadata(
         session.commit()
 
     return get_book_detail(session, book_id)
+
+
+def _get_clone_count(session: Session, book_id: uuid.UUID) -> int:
+    return int(session.exec(select(func.count(Book.id)).where(Book.parent_shared_id == book_id)).one() or 0)
+
+
+def archive_system_book(
+    session: Session, book_id: uuid.UUID, admin_user_id: uuid.UUID
+) -> AdminBookLifecycleResponse:
+    book = get_admin_book_by_id(session, book_id)
+    if not book:
+        raise BookNotFoundError()
+    if book.parent_shared_id is not None:
+        raise BadRequestError("Chỉ có thể gỡ sách hệ thống gốc.")
+    if book.archived_at:
+        return AdminBookLifecycleResponse(book_id=book.id, clone_count=_get_clone_count(session, book.id), message="Sách đã ở trạng thái đã gỡ.")
+    if not book.is_shared:
+        raise BookStatusConflictError("Chỉ có thể gỡ sách đang được công khai trong thư viện hệ thống.")
+
+    clone_count = _get_clone_count(session, book.id)
+    book.is_shared = False
+    book.archived_at = datetime.now(timezone.utc)
+    session.add(book)
+    create_admin_audit_log(session, admin_user_id=admin_user_id, action="system_book.archive", target_type="book", target_id=book.id, metadata={"clone_count": clone_count})
+    session.commit()
+    return AdminBookLifecycleResponse(book_id=book.id, clone_count=clone_count, message="Đã gỡ sách khỏi thư viện hệ thống; các bản sao hiện có vẫn dùng được.")
+
+
+def restore_system_book(
+    session: Session, book_id: uuid.UUID, admin_user_id: uuid.UUID
+) -> AdminBookLifecycleResponse:
+    book = get_admin_book_by_id(session, book_id)
+    if not book:
+        raise BookNotFoundError()
+    if not book.archived_at:
+        raise BookStatusConflictError("Sách này chưa ở trạng thái đã gỡ.")
+    if book.parent_shared_id is not None:
+        raise BadRequestError("Không thể khôi phục bản sao người dùng vào thư viện hệ thống.")
+
+    book.archived_at = None
+    book.is_shared = True
+    session.add(book)
+    create_admin_audit_log(session, admin_user_id=admin_user_id, action="system_book.restore", target_type="book", target_id=book.id, metadata={})
+    session.commit()
+    return AdminBookLifecycleResponse(book_id=book.id, clone_count=_get_clone_count(session, book.id), message="Đã khôi phục sách vào thư viện hệ thống.")
+
+
+def purge_archived_system_book(
+    session: Session, book_id: uuid.UUID, admin_user_id: uuid.UUID
+) -> AdminBookLifecycleResponse:
+    book = get_admin_book_by_id(session, book_id)
+    if not book:
+        raise BookNotFoundError()
+    if not book.archived_at:
+        raise BookStatusConflictError("Chỉ có thể xóa vĩnh viễn sách đã gỡ.")
+    clone_count = _get_clone_count(session, book.id)
+    if clone_count:
+        raise BookStatusConflictError(f"Không thể xóa vĩnh viễn vì còn {clone_count} bản sao người dùng.")
+
+    from app.repositories.audiobook_repo import cleanup_book_side_effects
+    from app.tasks.book_tasks import purge_book_storage_assets_task
+
+    cleanup_book_side_effects(session, book_id=book.id, user_id=book.user_id)
+    session.delete(book)
+    create_admin_audit_log(session, admin_user_id=admin_user_id, action="system_book.purge", target_type="book", target_id=book_id, metadata={})
+    session.commit()
+    purge_book_storage_assets_task.delay(str(book_id))
+    return AdminBookLifecycleResponse(book_id=book_id, clone_count=0, message="Đã xóa vĩnh viễn sách và lên lịch dọn tệp nền.")
 
 
 def get_admin_book_summary(session: Session, book_id: uuid.UUID) -> AdminBookSummaryResponse:

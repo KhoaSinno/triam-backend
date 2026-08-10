@@ -622,7 +622,7 @@ def select_shared_book_to_user(session: Session, *, shared_book_id: uuid.UUID, u
 
     # 1. Kiểm tra sách gốc có tồn tại và được chia sẻ không
     shared_book = session.get(Book, shared_book_id)
-    if not shared_book or not shared_book.is_shared:
+    if not shared_book or not shared_book.is_shared or shared_book.archived_at is not None:
         raise ValueError("Sách hệ thống không tồn tại hoặc chưa được chia sẻ công khai.")
 
     # 2. Kiểm tra xem user đã chọn sách này trước đây chưa

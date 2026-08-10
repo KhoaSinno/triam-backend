@@ -12,6 +12,7 @@ from app.models.db_models import Book
 from app.schemas.admin import (
     AdminAuditLogsResponse,
     AdminBookDetailResponse,
+    AdminBookLifecycleResponse,
     AdminBooksResponse,
     AdminDashboardResponse,
     AdminJobsResponse,
@@ -116,6 +117,7 @@ def read_admin_books(
     document_type: DocumentType | None = None,
     user_id: uuid.UUID | None = None,
     is_shared: bool | None = None,
+    archived: bool | None = None,
     q: str | None = Query(default=None, min_length=1, max_length=120),
 ):
     return admin_service.get_books(
@@ -126,6 +128,7 @@ def read_admin_books(
         document_type=document_type.value if document_type else None,
         user_id=user_id,
         is_shared=is_shared,
+        archived=archived,
         q=q,
     )
 
@@ -184,6 +187,33 @@ def update_admin_book(
     session: Annotated[Session, Depends(get_session)],
 ):
     return admin_service.update_admin_book_metadata(session, book_id, payload, admin_user.user_id)
+
+
+@router.post("/books/{book_id}/archive", response_model=AdminBookLifecycleResponse)
+def archive_admin_system_book(
+    book_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.archive_system_book(session, book_id, admin_user.user_id)
+
+
+@router.post("/books/{book_id}/restore", response_model=AdminBookLifecycleResponse)
+def restore_admin_system_book(
+    book_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.restore_system_book(session, book_id, admin_user.user_id)
+
+
+@router.delete("/books/{book_id}/purge", response_model=AdminBookLifecycleResponse)
+def purge_admin_system_book(
+    book_id: uuid.UUID,
+    admin_user: AdminUserDependency,
+    session: Annotated[Session, Depends(get_session)],
+):
+    return admin_service.purge_archived_system_book(session, book_id, admin_user.user_id)
 
 
 @router.get("/books/{book_id}/audio-units", response_model=AdminBookAudioUnitsResponse)
@@ -318,6 +348,8 @@ def make_book_shared(
     book = session.get(Book, book_id)
     if not book:
         raise HTTPException(status_code=404, detail="Không tìm thấy sách mẫu.")
+    if book.archived_at is not None:
+        raise HTTPException(status_code=409, detail="Sách đã gỡ chỉ có thể được đưa lại thư viện bằng thao tác khôi phục.")
     
     if share and book.status not in ("ready", "partial_ready"):
         raise HTTPException(status_code=400, detail="Chỉ có thể chia sẻ sách đã hoàn thành xử lý dữ liệu (READY hoặc PARTIAL_READY).")
