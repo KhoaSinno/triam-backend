@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy import or_
 from sqlmodel import Session, col, delete, select
 
-from app.core.exceptions import BookNotFoundError
+from app.core.exceptions import BadRequestError, BookNotFoundError
 from app.core.logger import log
 from app.models.db_models import Book, NotificationOutbox, UserNotification
 from app.schemas.audiobook import BookUpdateRequest
@@ -28,7 +28,7 @@ def get_book_by_id_and_user(session: Session, book_id: uuid.UUID, user_id: uuid.
 
 def get_ready_shared_book_by_id(session: Session, book_id: uuid.UUID) -> Optional[Book]:
     """Return only catalog books that are safe to preview before cloning."""
-    return session.exec(select(Book).where(Book.id == book_id, Book.is_shared, Book.status == "ready")).first()
+    return session.exec(select(Book).where(Book.id == book_id, Book.is_shared, Book.archived_at.is_(None), Book.status == "ready")).first()
 
 
 def create_book(session: Session, book: Book) -> Book:
@@ -111,6 +111,9 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uui
 
     str_book_id = str(book_id)
     is_clone = book.parent_shared_id is not None
+    source_book_id = book.parent_shared_id
+    if book.is_shared or book.archived_at is not None:
+        raise BadRequestError("Sách hệ thống phải được gỡ hoặc xóa vĩnh viễn từ trang quản trị.")
 
     # 1. Dọn dẹp các bảng phụ thuộc & Xóa bản ghi trong Postgres DB
     cleanup_book_side_effects(session, book_id=book_id, user_id=user_id)
@@ -126,3 +129,10 @@ async def delete_book_storage(session: Session, book_id: uuid.UUID, user_id: uui
             log.info(f"Dispatched background storage purge task for book: {str_book_id}")
         except Exception as exc:
             log.warning(f"Failed to dispatch purge task (will rely on periodic cleanup): {exc}")
+    else:
+        try:
+            from app.tasks.book_tasks import purge_archived_system_book_if_unused_task
+
+            purge_archived_system_book_if_unused_task.delay(str(source_book_id))
+        except Exception as exc:
+            log.warning(f"Failed to dispatch archived source cleanup task: {exc}")

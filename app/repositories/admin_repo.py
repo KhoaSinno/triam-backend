@@ -202,6 +202,7 @@ def list_admin_books(
     document_type: str | None = None,
     user_id: uuid.UUID | None = None,
     is_shared: bool | None = None,
+    archived: bool | None = None,
     q: str | None = None,
 ) -> tuple[list[Book], int]:
     filters = []
@@ -213,6 +214,8 @@ def list_admin_books(
         filters.append(Book.user_id == user_id)
     if is_shared is not None:
         filters.append(Book.is_shared == is_shared)
+    if archived is not None:
+        filters.append(Book.archived_at.is_not(None) if archived else Book.archived_at.is_(None))
     if q:
         filters.append(Book.title.ilike(f"%{q.strip()}%"))
 

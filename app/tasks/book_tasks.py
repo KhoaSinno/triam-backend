@@ -2,7 +2,8 @@ import asyncio
 import uuid
 import os
 
-from sqlmodel import Session
+from sqlmodel import Session, select
+from sqlalchemy import func
 
 from app.core.celery_app import celery_app
 from app.core.config import settings
@@ -101,6 +102,28 @@ def purge_book_storage_assets_task(book_id: str) -> None:
         log.info(f"Celery purge_book_storage_assets_task completed | book_id={book_id}")
     except Exception as exc:
         log.exception(f"Celery purge_book_storage_assets_task failed | book_id={book_id} | error={exc}")
+
+
+@celery_app.task(name="triam.books.purge_archived_system_book_if_unused")
+def purge_archived_system_book_if_unused_task(book_id: str) -> None:
+    """Delete an archived system source only after its final user clone is gone."""
+    parsed_book_id = uuid.UUID(book_id)
+    with Session(engine) as session:
+        book = session.get(Book, parsed_book_id)
+        if not book or book.archived_at is None:
+            return
+        clone_count = int(
+            session.exec(select(func.count(Book.id)).where(Book.parent_shared_id == parsed_book_id)).one() or 0
+        )
+        if clone_count:
+            log.info(f"Skip archived system-book purge | book_id={book_id} | clone_count={clone_count}")
+            return
+        from app.repositories.audiobook_repo import cleanup_book_side_effects
+
+        cleanup_book_side_effects(session, book_id=book.id, user_id=book.user_id)
+        session.delete(book)
+        session.commit()
+    purge_book_storage_assets_task(book_id)
 
 
 @celery_app.task(
