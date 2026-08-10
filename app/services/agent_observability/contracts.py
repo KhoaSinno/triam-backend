@@ -43,6 +43,15 @@ class AgentTurnTrace:
     retrieval_learning_unit_ids: list[str] = field(default_factory=list)
     retrieval_section_ids: list[str] = field(default_factory=list)
     retrieval_scores: list[float] = field(default_factory=list)
+    rag_candidate_count: int = 0
+    rag_context_selected_count: int = 0
+    rag_context_char_count: int = 0
+    rag_context_budget_mode: str | None = None
+    asr_final_status_at_book_tool: str | None = None
+    asr_final_before_book_tool_ms: int | None = None
+    book_tool_before_asr_final_ms: int | None = None
+    transcript_final_monotonic: float | None = field(default=None, repr=False)
+    book_tool_started_monotonic: float | None = field(default=None, repr=False)
     tool_names: list[str] = field(default_factory=list)
     query_guard_reason_code: str | None = None
     query_guard_mode: str | None = None

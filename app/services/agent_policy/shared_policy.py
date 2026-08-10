@@ -10,7 +10,7 @@ from app.services.agent_observability import AgentAnswerSource, AgentTurnTracer
 from app.services.agent_policy.contracts import AgentPolicyAction, AgentPolicyRequest, AgentPolicyResult
 from app.services.agent_policy.renderers import build_rag_text_context, build_section_text_context
 from app.services.voice_agent.contracts import VoiceRagResult
-from app.services.voice_agent.rag_context import format_rag_context, search_voice_book_context
+from app.services.voice_agent.rag_context import format_rag_context, render_rag_context, search_voice_book_context
 
 SearchBookContext = Callable[..., Awaitable[VoiceRagResult]]
 
@@ -155,7 +155,14 @@ class SharedAgentPolicy:
 
         if rag_result.found:
             self.tracer.record_answer_source(request.input_mode, AgentAnswerSource.BOOK_RAG)
-            tool_marker = format_rag_context(rag_result)
+            rendered_context = render_rag_context(rag_result)
+            self.tracer.record_rag_context(
+                request.input_mode,
+                selected_count=rendered_context.selected_count,
+                content_char_count=rendered_context.content_char_count,
+                budget_mode="default",
+            )
+            tool_marker = rendered_context.text
             return AgentPolicyResult(
                 action=AgentPolicyAction.ANSWER_WITH_RAG_CONTEXT,
                 answer_source=AgentAnswerSource.BOOK_RAG,

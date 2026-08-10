@@ -107,9 +107,16 @@ class AgentTurnTracer:
         if trace is None:
             return
 
+        now_monotonic = time.monotonic()
         trace.transcript_final_seen = True
         trace.transcript_char_count = max(0, char_count)
         trace.detected_language = language
+        trace.transcript_final_monotonic = now_monotonic
+        if trace.book_tool_started_monotonic is not None and trace.asr_final_status_at_book_tool == "final_missing":
+            trace.book_tool_before_asr_final_ms = max(
+                0,
+                int((now_monotonic - trace.book_tool_started_monotonic) * 1000),
+            )
         if late_update:
             trace.correlation_quality = "late_transcript_last_completed_turn"
             self._emit_safe("late_transcript", self._summary(trace))
@@ -134,6 +141,7 @@ class AgentTurnTracer:
         items = [item for item in payload if isinstance(item, dict)] if isinstance(payload, list) else []
         trace.retrieval_method = method
         trace.retrieval_result_count = len(items)
+        trace.rag_candidate_count = len(items)
         trace.retrieval_chunk_ids = _string_values(items, "id")
         trace.retrieval_learning_unit_ids = _string_values(items, "learning_unit_id")
         trace.retrieval_section_ids = _string_values(items, "section_id")
@@ -144,6 +152,39 @@ class AgentTurnTracer:
         ]
         trace.stage_latency_ms["retrieval"] = max(0, elapsed_ms)
         self._emit_safe("retrieval_completed", self._summary(trace))
+
+    def record_rag_context(
+        self,
+        input_mode: AgentInputMode,
+        *,
+        selected_count: int,
+        content_char_count: int,
+        budget_mode: str,
+    ) -> None:
+        trace = self._get_or_begin(input_mode)
+        if trace is None:
+            return
+        trace.rag_context_selected_count = max(0, selected_count)
+        trace.rag_context_char_count = max(0, content_char_count)
+        trace.rag_context_budget_mode = budget_mode
+        self._emit_safe("rag_context_formatted", self._summary(trace))
+
+    def record_book_grounding_tool_started(self, input_mode: AgentInputMode) -> None:
+        """Record ASR-final timing at the first user-facing book-search boundary."""
+        trace = self._get_or_begin(input_mode)
+        if trace is None:
+            return
+        now_monotonic = time.monotonic()
+        trace.book_tool_started_monotonic = now_monotonic
+        if trace.transcript_final_seen and trace.transcript_final_monotonic is not None:
+            trace.asr_final_status_at_book_tool = "final_seen"
+            trace.asr_final_before_book_tool_ms = max(
+                0,
+                int((now_monotonic - trace.transcript_final_monotonic) * 1000),
+            )
+        else:
+            trace.asr_final_status_at_book_tool = "final_missing"
+        self._emit_safe("book_grounding_tool_started", self._summary(trace))
 
     def record_grounding_decision(
         self,
@@ -337,6 +378,13 @@ class AgentTurnTracer:
             "retrieval_learning_unit_ids": trace.retrieval_learning_unit_ids,
             "retrieval_section_ids": trace.retrieval_section_ids,
             "retrieval_scores": trace.retrieval_scores,
+            "rag_candidate_count": trace.rag_candidate_count,
+            "rag_context_selected_count": trace.rag_context_selected_count,
+            "rag_context_char_count": trace.rag_context_char_count,
+            "rag_context_budget_mode": trace.rag_context_budget_mode,
+            "asr_final_status_at_book_tool": trace.asr_final_status_at_book_tool,
+            "asr_final_before_book_tool_ms": trace.asr_final_before_book_tool_ms,
+            "book_tool_before_asr_final_ms": trace.book_tool_before_asr_final_ms,
             "tool_names": trace.tool_names,
             "query_guard_reason_code": trace.query_guard_reason_code,
             "query_guard_mode": trace.query_guard_mode,
