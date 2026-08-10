@@ -40,7 +40,7 @@ from app.services.agent_observability import AgentAnswerSource, AgentInputMode, 
 from app.services.agent_policy import AgentPolicyAction, AgentPolicyRequest, SharedAgentPolicy, render_text_direct_message, render_voice_tool_result
 from app.services.voice_agent.contracts import LK_CHAT_TOPIC, LK_CONTROL_TOPIC, VoiceJobMetadata
 from app.services.voice_agent.query_guard import VoiceQueryGuardConfig, VoiceQueryGuardResult, guard_voice_book_query
-from app.services.voice_agent.rag_context import format_rag_context, search_voice_book_context, trim_text
+from app.services.voice_agent.rag_context import format_rag_context, render_rag_context, search_voice_book_context, trim_text
 from app.services.voice_agent.tool_reply_watchdog import VoiceToolReplyWatchdog, VoiceToolReplyWatchdogConfig
 from app.services.voice_agent.transcript_store import VoiceTranscriptStore, normalize_transcript_text
 from app.services.voice_agent.transcription_prompt import build_realtime_transcription_prompt
@@ -421,6 +421,7 @@ class TriamAssistant(Agent):
         Hệ thống tự động giới hạn tìm kiếm trong tài liệu User đã chọn.
         """
         self.tracer.record_tool(AgentInputMode.VOICE, "search_book_knowledge")
+        self.tracer.record_book_grounding_tool_started(AgentInputMode.VOICE)
         return await self.resolve_book_query(query, AgentInputMode.VOICE)
 
     def _remember_or_clear_voice_clarification(
@@ -587,7 +588,14 @@ class TriamAssistant(Agent):
                 self.tracer.record_answer_source(input_mode, AgentAnswerSource.BOOK_RAG)
             if input_mode == AgentInputMode.VOICE:
                 self.voice_turn_state.clear_pending_clarification()
-            return format_rag_context(result)
+            rendered_context = render_rag_context(result)
+            self.tracer.record_rag_context(
+                input_mode,
+                selected_count=rendered_context.selected_count,
+                content_char_count=rendered_context.content_char_count,
+                budget_mode="default",
+            )
+            return rendered_context.text
         except Exception as exc:
             self.tracer.record_error(input_mode, "book_rag_search_error")
             log.warning(f"Book RAG search failed | input_mode={input_mode.value} | document_count={len(self.document_ids)} | error_type={type(exc).__name__}")

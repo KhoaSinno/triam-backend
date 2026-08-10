@@ -1,4 +1,5 @@
 import time
+from dataclasses import dataclass
 from typing import Any, Awaitable, Callable
 
 from app.core.config import settings
@@ -7,6 +8,13 @@ from app.services.rag_service import search_book_knowledge
 from app.services.voice_agent.contracts import VoiceRagResult
 
 RawRagSearch = Callable[[str, list[str]], Awaitable[Any]]
+
+
+@dataclass(frozen=True)
+class RenderedRagContext:
+    text: str
+    selected_count: int
+    content_char_count: int
 
 
 def trim_text(text: str, max_chars: int) -> str:
@@ -69,12 +77,17 @@ async def search_voice_book_context(
     return normalize_rag_payload(payload)
 
 
-def format_rag_context(result: VoiceRagResult, *, max_chars: int | None = None) -> str:
+def render_rag_context(result: VoiceRagResult, *, max_chars: int | None = None) -> RenderedRagContext:
     if not result.found:
-        return f"BOOK_CONTEXT_NOT_FOUND: {result.message}"
+        return RenderedRagContext(
+            text=f"BOOK_CONTEXT_NOT_FOUND: {result.message}",
+            selected_count=0,
+            content_char_count=0,
+        )
 
     remaining_chars = settings.VOICE_AGENT_RAG_MAX_CHARS if max_chars is None else max_chars
     formatted_chunks: list[str] = []
+    content_char_count = 0
     for index, item in enumerate(result.chunks):
         if remaining_chars <= 0:
             break
@@ -95,9 +108,23 @@ def format_rag_context(result: VoiceRagResult, *, max_chars: int | None = None) 
             source_id = ""
         formatted_chunks.append(f"--- Source {index + 1} ({source_label}{source_id}, Chunk: {chunk_index}) ---\n{content}")
         remaining_chars -= len(content)
+        content_char_count += len(content)
 
     if not formatted_chunks:
-        return f"BOOK_CONTEXT_NOT_FOUND: {result.message or 'Không tìm thấy thông tin phù hợp trong sách.'}"
+        return RenderedRagContext(
+            text=f"BOOK_CONTEXT_NOT_FOUND: {result.message or 'Không tìm thấy thông tin phù hợp trong sách.'}",
+            selected_count=0,
+            content_char_count=0,
+        )
 
-    return "BOOK_CONTEXT_FOUND:\n" + "\n\n".join(formatted_chunks)
+    return RenderedRagContext(
+        text="BOOK_CONTEXT_FOUND:\n" + "\n\n".join(formatted_chunks),
+        selected_count=len(formatted_chunks),
+        content_char_count=content_char_count,
+    )
+
+
+def format_rag_context(result: VoiceRagResult, *, max_chars: int | None = None) -> str:
+    """Backward-compatible text-only RAG context formatter."""
+    return render_rag_context(result, max_chars=max_chars).text
 

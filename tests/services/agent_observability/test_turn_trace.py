@@ -42,6 +42,7 @@ def test_trace_summary_is_safe_and_records_retrieval_metadata():
     assert summary["retrieval_learning_unit_ids"] == ["unit-1"]
     assert summary["retrieval_section_ids"] == ["section-4"]
     assert summary["retrieval_scores"] == [0.8123]
+    assert summary["rag_candidate_count"] == 1
     assert summary["answer_source"] == "book_rag"
     assert summary["query_guard_reason_code"] == "valid_clarification_confirmation"
     assert summary["query_guard_mode"] == "clarification_confirmed"
@@ -50,6 +51,40 @@ def test_trace_summary_is_safe_and_records_retrieval_metadata():
     assert summary["stage_latency_ms"]["retrieval"] == 123
     assert "SECRET BOOK CONTENT" not in str(summary)
     assert emitted[-1][0] == "turn_completed"
+
+
+def test_trace_records_book_tool_and_final_transcript_relative_timing_without_raw_text():
+    emitted: list[tuple[str, dict]] = []
+    tracer = AgentTurnTracer(
+        enabled=True,
+        thread_id="thread-1",
+        room_name="room-1",
+        emitter=lambda event, payload: emitted.append((event, payload)),
+    )
+
+    tracer.begin_turn(AgentInputMode.VOICE)
+    tracer.record_book_grounding_tool_started(AgentInputMode.VOICE)
+    tracer.record_transcript(AgentInputMode.VOICE, char_count=18, language="vi")
+    summary = tracer.complete_turn(AgentInputMode.VOICE)
+
+    assert summary is not None
+    assert summary["asr_final_status_at_book_tool"] == "final_missing"
+    assert summary["book_tool_before_asr_final_ms"] is not None
+    assert "private transcript" not in str(summary)
+    assert [event for event, _ in emitted].count("book_grounding_tool_started") == 1
+
+
+def test_trace_records_final_transcript_present_before_book_tool():
+    tracer = AgentTurnTracer(enabled=True, thread_id=None, room_name=None)
+
+    tracer.begin_turn(AgentInputMode.VOICE)
+    tracer.record_transcript(AgentInputMode.VOICE, char_count=18, language="vi")
+    tracer.record_book_grounding_tool_started(AgentInputMode.VOICE)
+    summary = tracer.complete_turn(AgentInputMode.VOICE)
+
+    assert summary is not None
+    assert summary["asr_final_status_at_book_tool"] == "final_seen"
+    assert summary["asr_final_before_book_tool_ms"] is not None
 
 
 def test_late_final_transcript_updates_last_completed_voice_turn():
@@ -181,3 +216,28 @@ def test_watchdog_observability_fields():
     assert summary["tool_reply_watchdog_tool_names"] == ["execute_web_search"]
     assert summary["tool_reply_watchdog_reason"] == "cancelled_speech_created"
     assert summary["tool_result_to_speech_ms"] == 450
+
+
+def test_trace_records_rag_context_usage_without_context_text():
+    emitted: list[tuple[str, dict]] = []
+    tracer = AgentTurnTracer(
+        enabled=True,
+        thread_id="thread-1",
+        room_name="room-1",
+        emitter=lambda event, payload: emitted.append((event, payload)),
+    )
+
+    tracer.begin_turn(AgentInputMode.VOICE)
+    tracer.record_rag_context(
+        AgentInputMode.VOICE,
+        selected_count=2,
+        content_char_count=7000,
+        budget_mode="default",
+    )
+
+    payload = emitted[-1][1]
+    assert emitted[-1][0] == "rag_context_formatted"
+    assert payload["rag_context_selected_count"] == 2
+    assert payload["rag_context_char_count"] == 7000
+    assert payload["rag_context_budget_mode"] == "default"
+    assert "secret" not in str(payload)

@@ -2,7 +2,7 @@ import pytest
 
 from app.services.agent_observability import AgentInputMode, AgentTurnTracer
 from app.services.voice_agent.contracts import VoiceRagResult
-from app.services.voice_agent.rag_context import format_rag_context, search_voice_book_context
+from app.services.voice_agent.rag_context import format_rag_context, render_rag_context, search_voice_book_context
 
 
 @pytest.mark.asyncio
@@ -94,6 +94,25 @@ def test_format_rag_context_prefers_section_source_when_available():
     assert "Section: Chương 4 > Crooks" in context
     assert "abcdef654321"[-6:] in context
     assert "Crooks sống một mình" in context
+
+
+def test_render_rag_context_reports_only_selected_content_metrics():
+    result = VoiceRagResult(
+        found=True,
+        chunks=[
+            {"learning_unit_id": "unit-1", "chunk_index": 0, "content": "abc"},
+            {"learning_unit_id": "unit-2", "chunk_index": 1, "content": "defgh"},
+        ],
+        message="",
+    )
+
+    rendered = render_rag_context(result, max_chars=6)
+
+    assert rendered.selected_count == 2
+    # The existing formatter appends its visible truncation marker to the last chunk.
+    # Phase 30.0 measures the actual context sent to the model, including that marker.
+    assert rendered.content_char_count == len("abc") + len("def\n...[truncated]")
+    assert rendered.text.startswith("BOOK_CONTEXT_FOUND")
 
 
 @pytest.mark.asyncio
