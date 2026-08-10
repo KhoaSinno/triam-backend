@@ -40,6 +40,17 @@ class RealtimeResponseUsage:
 
 
 @dataclass(frozen=True)
+class RealtimeSessionTruncationSnapshot:
+    """Safe subset of OpenAI's acknowledged Realtime session configuration."""
+
+    event_id: str | None
+    configured: bool
+    truncation_type: str | None
+    max_post_instructions_tokens: int | None
+    retention_ratio: float | None
+
+
+@dataclass(frozen=True)
 class RealtimeErrorDetails:
     code: str | None
     error_type: str | None
@@ -90,6 +101,39 @@ def parse_response_id(event: Any) -> str | None:
         return None
     response = event.get("response")
     return _optional_string(response.get("id")) if isinstance(response, Mapping) else None
+
+
+def parse_session_truncation_snapshot(event: Any) -> RealtimeSessionTruncationSnapshot | None:
+    """Extract only truncation metadata from OpenAI's ``session.updated`` event."""
+    if not isinstance(event, Mapping) or event.get("type") != "session.updated":
+        return None
+
+    session = event.get("session")
+    if not isinstance(session, Mapping):
+        return None
+
+    truncation = session.get("truncation")
+    if not isinstance(truncation, Mapping):
+        return RealtimeSessionTruncationSnapshot(
+            event_id=_optional_string(event.get("event_id")),
+            configured=False,
+            truncation_type=None,
+            max_post_instructions_tokens=None,
+            retention_ratio=None,
+        )
+
+    token_limits = truncation.get("token_limits")
+    return RealtimeSessionTruncationSnapshot(
+        event_id=_optional_string(event.get("event_id")),
+        configured=True,
+        truncation_type=_optional_string(truncation.get("type")),
+        max_post_instructions_tokens=(
+            _non_negative_int(token_limits.get("post_instructions"))
+            if isinstance(token_limits, Mapping)
+            else None
+        ),
+        retention_ratio=_non_negative_float(truncation.get("retention_ratio")),
+    )
 
 
 def response_usage_from_metrics(metrics: Any) -> RealtimeResponseUsage | None:
