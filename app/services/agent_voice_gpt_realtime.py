@@ -165,6 +165,11 @@ GREETING_INSTRUCTIONS = (
     "greeting text and finish this turn immediately."
 )
 
+def _chat_log_preview(text: str) -> str:
+    """Return a bounded, single-line diagnostic preview without source context."""
+    single_line = " ".join((text or "").split())
+    return trim_text(single_line, settings.VOICE_AGENT_LOG_CHAT_TEXT_MAX_CHARS).replace("\n", " ")
+
 
 def _get_job_executor_type() -> JobExecutorType:
     executor_type = settings.LIVEKIT_AGENT_JOB_EXECUTOR_TYPE.strip().lower()
@@ -1021,6 +1026,11 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 language="text",
             )
             log.info(f"Data input received | participant={participant_id or 'unknown'} | chars={len(normalized_text)} | thread_id={thread_uuid}")
+            if settings.VOICE_AGENT_LOG_CHAT_TEXT:
+                log.info(
+                    "Text chat message | role=user | "
+                    f"thread_id={thread_uuid} | chars={len(normalized_text)} | preview={_chat_log_preview(normalized_text)!r}"
+                )
             if settings.VOICE_AGENT_LOG_TRANSCRIPT_TEXT:
                 log.debug(f"Data input preview: {trim_text(normalized_text, 160)}")
 
@@ -1056,6 +1066,11 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
 
                 full_reply = full_reply.strip()
                 log.info(f"LLM Reply completed. Length: {len(full_reply)}")
+                if settings.VOICE_AGENT_LOG_CHAT_TEXT:
+                    log.info(
+                        "Text chat message | role=assistant | "
+                        f"thread_id={thread_uuid} | chars={len(full_reply)} | preview={_chat_log_preview(full_reply)!r}"
+                    )
 
                 if full_reply:
                     await _publish_assistant_reply(full_reply)

@@ -88,6 +88,10 @@ class Settings(BaseSettings):
     VOICE_AGENT_TEXT_LLM_MODEL: str = "gpt-4o-mini"
     VOICE_AGENT_ENABLE_WEB_SEARCH_BY_DEFAULT: bool = True
     VOICE_AGENT_LOG_TRANSCRIPT_TEXT: bool = True
+    # Chat text diagnostics are opt-in because they include user/assistant text.
+    # They intentionally never include RAG context, history, or tool payloads.
+    VOICE_AGENT_LOG_CHAT_TEXT: bool = False
+    VOICE_AGENT_LOG_CHAT_TEXT_MAX_CHARS: int = 400
     VOICE_AGENT_DEDUPE_WINDOW_SECONDS: int = 3
     VOICE_AGENT_WEB_PERMISSION_TTL_SECONDS: int = 180
 
