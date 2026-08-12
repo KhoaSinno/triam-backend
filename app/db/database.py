@@ -83,7 +83,12 @@ def create_db_engine(database_url: str | None = None, *, pool_mode: str | None =
 engine = create_db_engine()
 
 
-def create_db_and_tables():
+def create_db_and_tables() -> None:
+    # Model classes register their tables with SQLModel metadata at import time.
+    # This helper is used to bootstrap isolated, empty test databases, so it
+    # must not depend on another application import having occurred first.
+    from app.models import db_models  # noqa: F401
+
     SQLModel.metadata.create_all(engine)
 
 
