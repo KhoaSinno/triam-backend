@@ -1,20 +1,21 @@
 from __future__ import annotations
 
-import os
-import torch
 import asyncio
-from typing import Any
+import threading
+
+import torch
 
 from app.core.logger import log
+
+# Re-use the singleton model loader from intent_router to avoid double RAM allocation
+from app.services.agent_grounding.intent_router import _classifier, mean_pooling
 from app.services.voice_agent.contracts import WebPermissionIntent, WebPermissionIntentResult
 from app.services.voice_agent.voice_intent_classifier import (
     POSITIVE_ACTION_PHRASES,
     classify_voice_reply_intent_fast_path,
-    normalize_voice_intent_text,
     looks_like_new_question,
+    normalize_voice_intent_text,
 )
-# Re-use the singleton model loader from intent_router to avoid double RAM allocation
-from app.services.agent_grounding.intent_router import _classifier, mean_pooling
 
 # Expose normalize_intent_text for policy layer
 normalize_intent_text = normalize_voice_intent_text
@@ -38,39 +39,40 @@ L12_WEB_PERMISSION_PROTOTYPES = {
 }
 
 _proto_embeddings: dict[str, torch.Tensor] = {}
-_lock = asyncio.Lock()
+_init_lock = threading.Lock()
 _initialized = False
 
 def _initialize_permission_prototypes() -> None:
     global _proto_embeddings, _initialized
     if _initialized:
         return
-        
-    # Ensure the intent router model is initialized
-    _classifier.initialize()
-    tokenizer = _classifier.tokenizer
-    model = _classifier.model
 
-    with torch.no_grad():
-        for intent, phrases in L12_WEB_PERMISSION_PROTOTYPES.items():
-            inputs = tokenizer(phrases, padding=True, truncation=True, return_tensors="pt")
-            outputs = model(**inputs)
-            embeddings = mean_pooling(outputs, inputs['attention_mask'])
-            embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
-            _proto_embeddings[intent] = embeddings
-            
-    _initialized = True
+    with _init_lock:
+        if _initialized:
+            return
+
+        # Ensure the intent router model is initialized before using it.
+        _classifier.initialize()
+        tokenizer = _classifier.tokenizer
+        model = _classifier.model
+        if tokenizer is None or model is None:
+            return
+
+        with torch.no_grad():
+            for intent, phrases in L12_WEB_PERMISSION_PROTOTYPES.items():
+                inputs = tokenizer(phrases, padding=True, truncation=True, return_tensors="pt")
+                outputs = model(**inputs)
+                embeddings = mean_pooling(outputs, inputs["attention_mask"])
+                _proto_embeddings[intent] = torch.nn.functional.normalize(embeddings, p=2, dim=1)
+
+        _initialized = True
 
 async def _initialize_permission_prototypes_async() -> None:
     global _initialized
     if _initialized:
         return
-    async with _lock:
-        if not _initialized:
-            # First ensure the intent router model is initialized async/sync
-            await _classifier.initialize_async()
-            loop = asyncio.get_running_loop()
-            await loop.run_in_executor(None, _initialize_permission_prototypes)
+    if not _initialized:
+        await asyncio.to_thread(_initialize_permission_prototypes)
 
 async def pre_warm_permission_classifier() -> None:
     """

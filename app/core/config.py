@@ -1,4 +1,3 @@
-import os
 from typing import Literal, Set
 
 from dotenv import load_dotenv
@@ -6,11 +5,6 @@ from pydantic.v1 import Field
 from pydantic.v1.env_settings import BaseSettings
 
 load_dotenv(override=True)
-
-if "SPACE_ID" not in os.environ and os.environ.get("RUNNING_ON_HF_SPACES") != "true":
-    os.environ.setdefault("HF_ENDPOINT", "https://hf-mirror.com")
-
-
 
 class Settings(BaseSettings):
     OPENAI_API_KEY: str

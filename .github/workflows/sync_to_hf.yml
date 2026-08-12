@@ -160,6 +160,23 @@ jobs:
 
           sudo docker build -t triam-backend:candidate "$RELEASE_DIR"
 
+          # Keep the sentence-transformer outside the image so weights are
+          # shared by releases and do not exhaust the 19 GB EC2 disk. Populate
+          # this cache before replacing production: a failed download leaves
+          # the current healthy container untouched.
+          MODEL_CACHE_VOLUME="triam-model-cache"
+          sudo docker volume create "$MODEL_CACHE_VOLUME" >/dev/null
+          sudo docker run --rm --user root \
+            -v "$MODEL_CACHE_VOLUME:/home/user/.cache/huggingface" \
+            --entrypoint sh triam-backend:candidate \
+            -c 'mkdir -p /home/user/.cache/huggingface && chown -R user:user /home/user/.cache/huggingface'
+          sudo docker run --rm \
+            -e HF_HUB_OFFLINE=0 \
+            -e TRANSFORMERS_OFFLINE=0 \
+            -v "$MODEL_CACHE_VOLUME:/home/user/.cache/huggingface" \
+            --entrypoint /home/user/app/.venv/bin/python triam-backend:candidate \
+            -c "from huggingface_hub import snapshot_download; repo='sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2'; files=['config.json', 'model.safetensors', 'tokenizer.json', 'tokenizer_config.json', 'special_tokens_map.json', 'sentencepiece.bpe.model']; exec(\"try:\\n snapshot_download(repo_id=repo, allow_patterns=files, local_files_only=True)\\nexcept Exception:\\n snapshot_download(repo_id=repo, allow_patterns=files)\")"
+
           run_container() {
             sudo docker run -d --name triam-backend --restart unless-stopped -p 8000:8000 \
               --env-file "$ENV_FILE" \
@@ -174,7 +191,10 @@ jobs:
               -e LIVEKIT_AGENT_JOB_EXECUTOR_TYPE=thread \
               -e LIVEKIT_AGENT_NUM_IDLE_PROCESSES=1 \
               -e LIVEKIT_AGENT_MAX_CONCURRENT_JOBS=1 \
+              -e HF_HUB_OFFLINE=1 \
+              -e TRANSFORMERS_OFFLINE=1 \
               -v "$FIREBASE_FILE:/home/user/app/triam-notification-firebase-adminsdk-fbsvc-77f3e9eac6.json:ro" \
+              -v "$MODEL_CACHE_VOLUME:/home/user/.cache/huggingface" \
               "$1"
           }
 

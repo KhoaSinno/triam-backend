@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import asyncio
+import threading
+
 import torch
-from transformers import AutoTokenizer, AutoModel
+from transformers import AutoModel, AutoTokenizer
+
 from app.core.config import settings
 from app.core.logger import log
 from app.services.agent_grounding.contracts import GroundingIntent, NormalizedQuery
@@ -108,7 +111,7 @@ class SemanticIntentClassifier:
         self.tokenizer = None
         self.model = None
         self.proto_embeddings = {}
-        self._lock = asyncio.Lock()
+        self._init_lock = threading.Lock()
         self._initialized = False
 
     def initialize(self, max_retries: int = 3, retry_delay: float = 1.0) -> None:
@@ -119,35 +122,38 @@ class SemanticIntentClassifier:
         """
         if self._initialized:
             return
-        
-        import time
 
-        last_error = None
-        for attempt in range(1, max_retries + 1):
-            try:
-                self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
-                self.model = AutoModel.from_pretrained(self.model_name)
-                self.model.eval()
-                
-                with torch.no_grad():
-                    for intent, phrases in PROTOTYPES.items():
-                        inputs = self.tokenizer(phrases, padding=True, truncation=True, return_tensors="pt")
-                        outputs = self.model(**inputs)
-                        embeddings = mean_pooling(outputs, inputs['attention_mask'])
-                        embeddings = torch.nn.functional.normalize(embeddings, p=2, dim=1)
-                        self.proto_embeddings[intent] = embeddings
-                        
-                self._initialized = True
-                log.info(f"SemanticIntentClassifier: Nạp thành công mô hình local embedding '{self.model_name}'.")
+        with self._init_lock:
+            if self._initialized:
                 return
-            except Exception as err:
-                last_error = err
-                log.warning(f"SemanticIntentClassifier: Lỗi nạp mô hình '{self.model_name}' (lần thử {attempt}/{max_retries}): {err}")
-                if attempt < max_retries:
-                    time.sleep(retry_delay)
 
-        self._initialized = False
-        log.warning(f"SemanticIntentClassifier: Không thể nạp mô hình '{self.model_name}' sau {max_retries} lần thử ({last_error}). Tạm thời chuyển sang phân loại từ khóa rule-based cấp cứu.")
+            import time
+
+            last_error = None
+            for attempt in range(1, max_retries + 1):
+                try:
+                    self.tokenizer = AutoTokenizer.from_pretrained(self.model_name)
+                    self.model = AutoModel.from_pretrained(self.model_name)
+                    self.model.eval()
+
+                    with torch.no_grad():
+                        for intent, phrases in PROTOTYPES.items():
+                            inputs = self.tokenizer(phrases, padding=True, truncation=True, return_tensors="pt")
+                            outputs = self.model(**inputs)
+                            embeddings = mean_pooling(outputs, inputs["attention_mask"])
+                            self.proto_embeddings[intent] = torch.nn.functional.normalize(embeddings, p=2, dim=1)
+
+                    self._initialized = True
+                    log.info(f"SemanticIntentClassifier: Nạp thành công mô hình local embedding '{self.model_name}'.")
+                    return
+                except Exception as err:
+                    last_error = err
+                    log.warning(f"SemanticIntentClassifier: Lỗi nạp mô hình '{self.model_name}' (lần thử {attempt}/{max_retries}): {err}")
+                    if attempt < max_retries:
+                        time.sleep(retry_delay)
+
+            self._initialized = False
+            log.warning(f"SemanticIntentClassifier: Không thể nạp mô hình '{self.model_name}' sau {max_retries} lần thử ({last_error}). Tạm thời chuyển sang phân loại từ khóa rule-based cấp cứu.")
 
     async def initialize_async(self) -> None:
         """
@@ -157,10 +163,8 @@ class SemanticIntentClassifier:
         """
         if self._initialized and self.model is not None:
             return
-        async with self._lock:
-            if not self._initialized or self.model is None:
-                loop = asyncio.get_running_loop()
-                await loop.run_in_executor(None, self.initialize)
+        if not self._initialized or self.model is None:
+            await asyncio.to_thread(self.initialize)
 
     async def classify(self, query_text: str, threshold: float | None = None) -> GroundingIntent:
         """
@@ -176,8 +180,8 @@ class SemanticIntentClassifier:
 
         if self.model is None or self.tokenizer is None:
             # Fallback sang Keyword Rule Matching nếu offline / không nạp được model
-            from app.services.agent_grounding.section_reference_parser import parse_section_reference
             from app.services.agent_grounding.query_normalizer import normalize_query
+            from app.services.agent_grounding.section_reference_parser import parse_section_reference
             ref = parse_section_reference(normalize_query(text))
 
             for intent, phrases in PROTOTYPES.items():
