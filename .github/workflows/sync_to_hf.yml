@@ -1,35 +1,173 @@
-name: Sync to Hugging Face Hub
+name: Deploy production
+
 on:
   push:
-    branches: [main] # Hoặc tên nhánh chính của bạn (ví dụ: master)
-  workflow_dispatch: # Cho phép bạn bấm nút chạy tay trên GitHub nếu cần
+    branches: [main]
+  workflow_dispatch:
+
+# A newer production revision must not interrupt an in-progress deployment.
+concurrency:
+  group: triam-production-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
 
 jobs:
-  sync-to-hub:
+  verify:
+    name: Verify
+    runs-on: ubuntu-latest
+    env:
+      # Tests import Settings but never call external services.  These are
+      # deliberately non-secret placeholders, not production credentials.
+      OPENAI_API_KEY: test-openai-key
+      TAVILY_API_KEY: test-tavily-key
+      GEMINI_BASE_URL: https://example.invalid
+      GEMINI_API_KEY: test-gemini-key
+      DATABASE_URL: postgresql://user:password@localhost:5432/triam
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_KEY: test-supabase-key
+      SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
+      LIVEKIT_API_KEY: test-livekit-key
+      LIVEKIT_API_SECRET: test-livekit-secret
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --frozen --group dev
+
+      - name: Check startup script and API health tests
+        run: |
+          bash -n start.sh
+          # The repository has pre-existing full-tree lint debt. Keep the
+          # production gate focused on the startup and health-check paths.
+          uv run --no-sync ruff check app/main.py app/api/v1/routers/health.py app/services/health_service.py
+          uv run --no-sync pytest tests/test_health_api.py tests/test_celery_enqueue.py tests/test_processing_jobs_api.py -q
+
+  deploy-huggingface:
+    name: Deploy Hugging Face fallback
+    needs: verify
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
+      - name: Checkout production revision
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
-          lfs: true # Hỗ trợ nếu bạn có file lớn (PDF/Audio) dùng Git LFS
+          lfs: true
 
-      - name: Prepare clean HF deploy tree
+      - name: Prepare clean Hugging Face deploy tree
         run: |
           mkdir -p "$RUNNER_TEMP/hf-space"
           rsync -a --delete --exclude-from=.hfignore ./ "$RUNNER_TEMP/hf-space/"
 
-      - name: Push clean tree to HF
+      - name: Push clean tree to Hugging Face
         env:
           HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          # Cấu hình thông tin git tạm thời để push
           cd "$RUNNER_TEMP/hf-space"
           git init
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           git add .
-          git commit -m "Deploy clean Hugging Face Space"
-          HF_URL="https://khoasinoo:${HF_TOKEN}@huggingface.co/spaces/khoasinoo/tri-am-backend"
-          # Push cây deploy đã lọc thay vì toàn bộ repo phát triển
-          git push --force "$HF_URL" HEAD:main
+          git commit -m "Deploy $GITHUB_SHA"
+          git push --force "https://khoasinoo:${HF_TOKEN}@huggingface.co/spaces/khoasinoo/tri-am-backend" HEAD:main
+
+  deploy-ec2:
+    name: Deploy EC2 primary
+    needs: verify
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout production revision
+        uses: actions/checkout@v4
+
+      - name: Configure SSH deployment key
+        env:
+          EC2_SSH_PRIVATE_KEY: ${{ secrets.EC2_SSH_PRIVATE_KEY }}
+          EC2_SSH_KNOWN_HOSTS: ${{ secrets.EC2_SSH_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$EC2_SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$EC2_SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+
+      - name: Upload immutable release archive
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+        run: |
+          tar \
+            --exclude-vcs \
+            --exclude=.env \
+            --exclude='triam-notification-firebase-adminsdk-*.json' \
+            --exclude='*.log' \
+            -czf "$RUNNER_TEMP/triam-release.tar.gz" .
+          ssh "$EC2_USER@$EC2_HOST" "mkdir -p ~/triam/releases"
+          scp "$RUNNER_TEMP/triam-release.tar.gz" "$EC2_USER@$EC2_HOST:~/triam/releases/$GITHUB_SHA.tar.gz"
+
+      - name: Build, replace and health-check EC2 container
+        env:
+          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_USER: ${{ secrets.EC2_USER }}
+          RELEASE_ID: ${{ github.sha }}
+        run: |
+          ssh "$EC2_USER@$EC2_HOST" "RELEASE_ID='$RELEASE_ID' bash -s" <<'REMOTE'
+          set -euo pipefail
+
+          APP_DIR="$HOME/triam"
+          RELEASE_DIR="$APP_DIR/releases/$RELEASE_ID"
+          ARCHIVE="$APP_DIR/releases/$RELEASE_ID.tar.gz"
+          ENV_FILE="$APP_DIR/.env"
+          FIREBASE_FILE="$APP_DIR/triam-notification-firebase-adminsdk-fbsvc-77f3e9eac6.json"
+
+          test -s "$ENV_FILE"
+          test -s "$FIREBASE_FILE"
+          rm -rf "$RELEASE_DIR"
+          mkdir -p "$RELEASE_DIR"
+          tar -xzf "$ARCHIVE" -C "$RELEASE_DIR"
+
+          previous_image=""
+          if sudo docker image inspect triam-backend:current >/dev/null 2>&1; then
+            sudo docker tag triam-backend:current triam-backend:previous
+            previous_image="triam-backend:previous"
+          fi
+
+          sudo docker build -t triam-backend:candidate "$RELEASE_DIR"
+
+          run_container() {
+            sudo docker run -d --name triam-backend --restart unless-stopped -p 8000:8000 \
+              --env-file "$ENV_FILE" \
+              -e BACKEND_PORT=8000 \
+              -e ENABLE_CELERY_WORKER=true \
+              -e ENABLE_NOTIFICATION_WORKER=true \
+              -e ENABLE_CELERY_BEAT=true \
+              -e ENABLE_VOICE_AGENT=true \
+              -e RUN_MIGRATIONS_ON_START=false \
+              -e UVICORN_RELOAD=false \
+              -e CELERY_DOCUMENT_CONCURRENCY=1 \
+              -e LIVEKIT_AGENT_JOB_EXECUTOR_TYPE=thread \
+              -e LIVEKIT_AGENT_NUM_IDLE_PROCESSES=1 \
+              -e LIVEKIT_AGENT_MAX_CONCURRENT_JOBS=1 \
+              -v "$FIREBASE_FILE:/home/user/app/triam-notification-firebase-adminsdk-fbsvc-77f3e9eac6.json:ro" \
+              "$1"
+          }
+
+          sudo docker rm -f triam-backend >/dev/null 2>&1 || true
+          run_container triam-backend:candidate
+
+          if ! timeout 90 bash -c 'until curl -fsS http://127.0.0.1:8000/api/v1/health >/dev/null; do sleep 3; done'; then
+            sudo docker logs --tail 200 triam-backend || true
+            sudo docker rm -f triam-backend >/dev/null 2>&1 || true
+            if [ -n "$previous_image" ]; then
+              run_container "$previous_image"
+            fi
+            exit 1
+          fi
+
+          sudo docker tag triam-backend:candidate triam-backend:current
+          curl -fsS http://127.0.0.1:8000/api/v1/health/background
+          REMOTE
