@@ -7,6 +7,7 @@ from app.core.constant import BookStatus, DocumentType, ProcessingJobStatus, Pro
 from app.db.database import engine
 from app.main import app
 from app.models.db_models import Book, BookSection, ProcessingJob
+from app.services.learning_unit_planner_service import PlannedLearningUnit
 
 MOCK_USER_ID = uuid.UUID("862d7c26-3160-4f76-9e77-07d91f7317cc")
 
@@ -130,6 +131,25 @@ def test_switch_mode_enqueues_document_task(monkeypatch):
         calls.append({"args": args, "queue": queue})
 
     monkeypatch.setattr("app.services.audiobook_service.switch_mode_task.apply_async", fake_apply_async)
+
+    async def fake_plan_learning_units(sections, mode):
+        assert mode.value == "pareto"
+        section = sections[0]
+        return [
+            PlannedLearningUnit(
+                title="Pareto test unit",
+                unit_type="pareto_core",
+                source_section_ids=[section.id],
+                source_text=section.text_content or "",
+                source_text_char_count=section.text_char_count,
+                estimated_tokens=10,
+                estimated_audio_seconds=10,
+                planner_reason="CI enqueue test fixture",
+            )
+        ]
+
+    # This test owns enqueue behavior, not the external Pareto/OpenAI planner.
+    monkeypatch.setattr("app.services.audiobook_service.plan_learning_units_async", fake_plan_learning_units)
 
     with Session(engine) as session:
         book = Book(
