@@ -140,7 +140,7 @@ class Settings(BaseSettings):
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_FORCE_TOOL_CHOICE_NONE: bool = True
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_RATE_LIMIT_COOLDOWN_SECONDS: float = 60.0
     VOICE_AGENT_CLOSE_ON_DISCONNECT: bool = False
-    
+
     # Phase 10.0 safe agent trace. It never logs raw transcript, answer, or source content.
     AGENT_MODEL_PROFILE: str = "baseline"
     AGENT_TRACE_ENABLED: bool = True
@@ -151,7 +151,7 @@ class Settings(BaseSettings):
     AGENT_INTENT_CLASSIFIER_MODEL: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     AGENT_INTENT_CLASSIFIER_THRESHOLD: float = 0.60
     AGENT_SECTION_CONTEXT_MAX_CHARS: int = 24000
-    
+
     # Phase 10.3 hybrid retrieval. Keep disabled until search_text is backfilled.
     AGENT_HYBRID_MIN_FINAL_SCORE: float = 0.25
     AGENT_HYBRID_LEXICAL_CANDIDATES: int = 20
@@ -186,7 +186,7 @@ class Settings(BaseSettings):
     CELERY_LOG_LEVEL: str = "info"
     CELERY_VISIBILITY_TIMEOUT_SECONDS: int = 3600
     CELERY_WORKER_CANCEL_LONG_RUNNING_ON_CONNECTION_LOSS: bool = False
-    
+
     # WOKER WORKING
     ENABLE_CELERY_WORKER: bool = True
     ENABLE_NOTIFICATION_WORKER: bool = True
@@ -215,6 +215,11 @@ class Settings(BaseSettings):
     # Full mode config
     FULL_UNIT_TARGET_TOKENS: int = 5000
     FULL_UNIT_MAX_TOKENS: int = 12000
+    FULL_MODE_LLM_MODEL: str = "gpt-5.6-luna"
+    FULL_MODE_CHUNK_TARGET_TOKENS: int = Field(default=5000, ge=1000)
+    FULL_MODE_CHUNK_OVERLAP_TOKENS: int = Field(default=0, ge=0, le=0)
+    FULL_MODE_REVIEW_MAX_OUTPUT_TOKENS: int = Field(default=1600, ge=256)
+    STORAGE_UPLOAD_CONCURRENCY: int = Field(default=2, ge=1, le=8)
     MIN_UNIT_TOKENS: int = 300
     MAX_ESTIMATED_AUDIO_SECONDS_PER_BOOK: int = 10 * 60 * 60
     FIRST_PLAYABLE_UNITS: int = 1

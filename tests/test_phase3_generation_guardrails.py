@@ -71,6 +71,34 @@ async def test_tts_pipeline_fails_when_llm_returns_no_playable_scripts(monkeypat
 
 
 @pytest.mark.asyncio
+async def test_tts_pipeline_fails_when_any_main_segment_is_missing(monkeypatch):
+    from app.services.workers import learning_unit_tts_worker
+
+    async def fake_normalize(*args, **kwargs):
+        return {"main_scripts": ["script one", "script two"], "review_script": "review"}
+
+    async def fake_main_segments(*args, **kwargs):
+        return [object()]
+
+    async def fail_review(*args, **kwargs):
+        raise AssertionError("Review audio must not be generated for an incomplete unit")
+
+    monkeypatch.setattr(learning_unit_tts_worker, "normalize_text_for_speech", fake_normalize)
+    monkeypatch.setattr(learning_unit_tts_worker, "_generate_unit_main_segments", fake_main_segments)
+    monkeypatch.setattr(learning_unit_tts_worker, "_generate_unit_review_audio", fail_review)
+
+    with pytest.raises(NoPlayableAudioError, match="1/2"):
+        await learning_unit_tts_worker.run_learning_unit_tts_pipeline(
+            uuid.uuid4(),
+            uuid.uuid4(),
+            0,
+            "raw text",
+            "full",
+            "Unit 1",
+        )
+
+
+@pytest.mark.asyncio
 async def test_learning_unit_failure_keeps_unit_and_marks_error(monkeypatch):
     async def fake_tts(*args, **kwargs):
         raise NoPlayableAudioError("no audio")

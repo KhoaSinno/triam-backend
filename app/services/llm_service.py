@@ -9,7 +9,7 @@ from app.core.constant import PlanMode
 from app.core.exceptions import LearningUnitTooLargeError, LLMResponseFormatError
 from app.core.logger import log as logger
 from app.services.async_limiter import get_loop_semaphore
-from app.services.chapter_chunking_service import split_text_for_llm
+from app.services.chapter_chunking_service import split_full_mode_text_for_llm, split_text_for_llm
 from app.services.token_budget_service import estimate_text_budget, exceeds_hard_limit, should_chunk
 from app.services.tts_script_quality_service import inspect_tts_script_quality, sanitize_tts_script_list, sanitize_tts_script_text
 
@@ -19,7 +19,6 @@ client = AsyncOpenAI(
     base_url=settings.GEMINI_BASE_URL,
     timeout=60.0
 )
-
 
 @dataclass(frozen=True)
 class NormalizedUnit:
@@ -38,6 +37,18 @@ class NormalizedUnitPayload(BaseModel):
         if not scripts:
             raise ValueError("main_scripts must contain at least one non-empty string")
         return scripts
+
+    @field_validator("review_script")
+    @classmethod
+    def validate_review_script(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("review_script must be non-empty")
+        return stripped
+
+
+class FullReviewPayload(BaseModel):
+    review_script: str = Field(min_length=1, description="Một bài ôn tập duy nhất cho toàn bộ learning unit.")
 
     @field_validator("review_script")
     @classmethod
@@ -91,6 +102,25 @@ Input: raw textbook text.
 Output: valid JSON only.
 """
 )
+
+SYSTEM_PROMPT_SYNTHESIZE_FULL_REVIEW = """
+You are TRIAM's audiobook review editor. Produce one Vietnamese spoken review for one complete learning unit.
+
+The input contains ordered draft reviews for consecutive source passages in that same unit. Combine them into one coherent review.
+
+Rules:
+- Preserve only facts, events, concepts, and conclusions supported by the supplied drafts. Do not invent or add information.
+- Cover the important progression of the complete learning unit in its original order.
+- Merge duplicate points instead of repeating them. Do not mention chunks, processing steps, AI, or draft reviews.
+- Write natural Vietnamese for an independently playable review audio. Keep important proper names exact.
+- Output plain spoken text only: no Markdown, headings, bullets, citations, or labels.
+- Aim for a useful concise recap, not a transcript of every draft.
+
+Return only a valid JSON object:
+{
+  "review_script": "spoken review for the complete learning unit"
+}
+"""
 
 SYSTEM_PROMPT_REWRITE_PARETO = (
     COMMON_TTS_REWRITE_RULES
@@ -227,9 +257,178 @@ async def _call_normalize_llm(text: str, mode: str, *, context_hint: str | None 
     raise LLMResponseFormatError("LLM response không phải JSON hợp lệ sau khi thử lại.") from last_format_error
 
 
+def _create_luna_client() -> AsyncOpenAI:
+    """Create an OpenAI client bound to the current Celery task event loop."""
+    return AsyncOpenAI(api_key=settings.OPENAI_API_KEY, timeout=120.0)
+
+
+async def _call_luna_normalize_llm(
+    luna_client: AsyncOpenAI,
+    text: str,
+    *,
+    context_hint: str | None = None,
+) -> NormalizedUnit:
+    user_content = text if not context_hint else f"{context_hint}\n\n--- INPUT ---\n{text}"
+    request_context = "chunk" if context_hint else "single"
+    request_chars = len(user_content)
+    last_format_error: Exception | None = None
+
+    for attempt in range(1, 3):
+        async with get_loop_semaphore("llm_normalize", settings.LLM_NORMALIZE_CONCURRENCY):
+            logger.info(
+                "Full Luna normalize start | model={} | context={} | chars={} | attempt={}/2",
+                settings.FULL_MODE_LLM_MODEL,
+                request_context,
+                request_chars,
+                attempt,
+            )
+            try:
+                response = await luna_client.responses.parse(
+                    model=settings.FULL_MODE_LLM_MODEL,
+                    instructions=SYSTEM_PROMPT_REWRITE_FULL,
+                    input=user_content,
+                    text_format=NormalizedUnitPayload,
+                    max_output_tokens=16000,
+                    reasoning={"effort": "low"},
+                    text={"verbosity": "high"},
+                    store=False,
+                )
+                parsed = response.output_parsed
+                if parsed is None:
+                    raise LLMResponseFormatError("GPT-5.6 Luna không trả structured output.")
+                payload = NormalizedUnitPayload.model_validate(parsed)
+                normalized = NormalizedUnit(main_scripts=payload.main_scripts, review_script=payload.review_script)
+                _log_tts_quality_report(normalized, mode=PlanMode.FULL.value, request_context=request_context, request_chars=request_chars)
+                normalized = _sanitize_normalized_unit(normalized)
+                logger.info(
+                    "Full Luna normalize done | context={} | scripts={} | review_chars={}",
+                    request_context,
+                    len(normalized.main_scripts),
+                    len(normalized.review_script),
+                )
+                return normalized
+            except LLMResponseFormatError as exc:
+                last_format_error = exc
+                logger.warning("Full Luna invalid structured output | context={} | attempt={}/2", request_context, attempt)
+            except (ValidationError, ValueError, json.JSONDecodeError) as exc:
+                last_format_error = exc
+                logger.warning("Full Luna schema validation failed | context={} | attempt={}/2", request_context, attempt)
+
+    raise LLMResponseFormatError("GPT-5.6 Luna không trả JSON hợp lệ sau khi thử lại.") from last_format_error
+
+
+async def _synthesize_full_unit_review(
+    luna_client: AsyncOpenAI,
+    title: str | None,
+    review_drafts: list[str],
+) -> str:
+    if not review_drafts:
+        raise LLMResponseFormatError("Full Mode không có review nháp để tổng hợp.")
+
+    user_content = "\n\n".join(
+        [
+            f"Bài học: {title or 'Không rõ'}.",
+            "Các review nháp sau được sắp theo thứ tự nội dung nguồn:",
+            *[f"Review nháp {index}: {draft}" for index, draft in enumerate(review_drafts, start=1)],
+        ]
+    )
+    last_format_error: Exception | None = None
+
+    for attempt in range(1, 3):
+        async with get_loop_semaphore("llm_normalize", settings.LLM_NORMALIZE_CONCURRENCY):
+            logger.info(
+                "Full Luna review synthesis start | model={} | drafts={} | chars={} | attempt={}/2",
+                settings.FULL_MODE_LLM_MODEL,
+                len(review_drafts),
+                len(user_content),
+                attempt,
+            )
+            try:
+                response = await luna_client.responses.parse(
+                    model=settings.FULL_MODE_LLM_MODEL,
+                    instructions=SYSTEM_PROMPT_SYNTHESIZE_FULL_REVIEW,
+                    input=user_content,
+                    text_format=FullReviewPayload,
+                    max_output_tokens=settings.FULL_MODE_REVIEW_MAX_OUTPUT_TOKENS,
+                    reasoning={"effort": "low"},
+                    text={"verbosity": "high"},
+                    store=False,
+                )
+                parsed = response.output_parsed
+                if parsed is None:
+                    raise LLMResponseFormatError("GPT-5.6 Luna không trả structured review output.")
+                review = sanitize_tts_script_text(FullReviewPayload.model_validate(parsed).review_script)
+                if not review:
+                    raise LLMResponseFormatError("GPT-5.6 Luna trả review rỗng sau khi làm sạch.")
+                logger.info("Full Luna review synthesis done | drafts={} | review_chars={}", len(review_drafts), len(review))
+                return review
+            except LLMResponseFormatError as exc:
+                last_format_error = exc
+                logger.warning("Full Luna review synthesis invalid output | attempt={}/2", attempt)
+            except (ValidationError, ValueError, json.JSONDecodeError) as exc:
+                last_format_error = exc
+                logger.warning("Full Luna review synthesis schema validation failed | attempt={}/2", attempt)
+
+    raise LLMResponseFormatError("GPT-5.6 Luna không trả review JSON hợp lệ sau khi thử lại.") from last_format_error
+
+
+def _full_chunk_context(title: str | None, chunk_index: int, total_chunks: int, previous_tail: str) -> str:
+    return (
+        f"Bài học: {title or 'Không rõ'}.\n"
+        f"Đây là phần {chunk_index + 1}/{total_chunks} của cùng một bài học.\n"
+        "Giữ mạch văn nối tiếp với phần trước. Không tự nhắc 'phần' hoặc 'chunk', "
+        "và không đọc lại đoạn ngữ cảnh bên dưới.\n"
+        f"Đoạn cuối phần trước để nối ngữ cảnh: {previous_tail[-600:]}"
+    )
+
+
+async def _normalize_full_mode(raw_text: str, *, title: str | None, estimated_tokens: int) -> dict:
+    luna_client = _create_luna_client()
+    try:
+        if estimated_tokens <= settings.FULL_MODE_CHUNK_TARGET_TOKENS:
+            logger.info("Full normalize strategy | provider=openai | model={} | strategy=single_call", settings.FULL_MODE_LLM_MODEL)
+            normalized = await _call_luna_normalize_llm(luna_client, raw_text)
+            return {"main_scripts": normalized.main_scripts, "review_script": normalized.review_script}
+
+        chunks = split_full_mode_text_for_llm(raw_text)
+        if not chunks:
+            raise LLMResponseFormatError("Không thể tách nội dung Full Mode thành chunk.")
+
+        logger.info(
+            "Full normalize strategy | provider=openai | model={} | strategy=chunked | chunks={} | estimated_tokens={}",
+            settings.FULL_MODE_LLM_MODEL,
+            len(chunks),
+            estimated_tokens,
+        )
+        all_scripts: list[str] = []
+        review_drafts: list[str] = []
+        previous_tail = ""
+
+        for chunk in chunks:
+            normalized = await _call_luna_normalize_llm(
+                luna_client,
+                chunk.text,
+                context_hint=_full_chunk_context(title, chunk.index, len(chunks), previous_tail),
+            )
+            all_scripts.extend(normalized.main_scripts)
+            review_drafts.append(normalized.review_script)
+            previous_tail = chunk.text[-1000:]
+            logger.info(
+                "Full normalize chunk done | chunk={}/{} | cumulative_scripts={}",
+                chunk.index + 1,
+                len(chunks),
+                len(all_scripts),
+            )
+
+        review_script = await _synthesize_full_unit_review(luna_client, title, review_drafts)
+        return {"main_scripts": all_scripts, "review_script": review_script}
+    finally:
+        await luna_client.close()
+
+
 async def normalize_text_for_speech(raw_text: str, mode: str, *, unit_title: str | None = None, chapter_title: str | None = None) -> dict:
     """
-    Gửi text thô cho Gemini để biên tập và cấu trúc lại thành TTS script.
+    Gửi text thô cho provider phù hợp để biên tập và cấu trúc lại thành TTS script.
 
     Returns:
         {"main_scripts": [...], "review_script": "..."}
@@ -247,6 +446,9 @@ async def normalize_text_for_speech(raw_text: str, mode: str, *, unit_title: str
     )
     if exceeds_hard_limit(budget):
         raise LearningUnitTooLargeError(f"Bài học quá lớn: khoảng {budget.estimated_tokens} tokens, vượt giới hạn {settings.LLM_INPUT_HARD_TOKEN_LIMIT} tokens.")
+
+    if PlanMode(mode) == PlanMode.FULL:
+        return await _normalize_full_mode(raw_text, title=title, estimated_tokens=budget.estimated_tokens)
 
     if not should_chunk(budget):
         logger.info(f"Normalize strategy | mode={mode} | strategy=single_call | title={title or '(unknown)'}")

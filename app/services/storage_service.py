@@ -11,8 +11,10 @@ import asyncio
 
 import aiofiles
 
+from app.core.config import settings
 from app.core.logger import log as logger
 from app.core.supabase import supabase
+from app.services.async_limiter import get_loop_semaphore
 
 
 async def upload_file_to_supabase(
@@ -41,15 +43,16 @@ async def upload_file_to_supabase(
         try:
             async with aiofiles.open(local_path, "rb") as f:
                 file_bytes = await f.read()
-            await asyncio.to_thread(
-                supabase.storage.from_(bucket).upload,
-                path=storage_path,
-                file=file_bytes,
-                file_options={
-                    "content-type": content_type,
-                    "upsert": "true" if upsert else "false",
-                },
-            )
+            async with get_loop_semaphore("supabase_storage_upload", settings.STORAGE_UPLOAD_CONCURRENCY):
+                await asyncio.to_thread(
+                    supabase.storage.from_(bucket).upload,
+                    path=storage_path,
+                    file=file_bytes,
+                    file_options={
+                        "content-type": content_type,
+                        "upsert": "true" if upsert else "false",
+                    },
+                )
             return supabase.storage.from_(bucket).get_public_url(storage_path)
         except Exception as e:
             if attempt < max_retries - 1:

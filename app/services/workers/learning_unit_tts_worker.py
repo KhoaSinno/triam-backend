@@ -159,7 +159,7 @@ async def run_learning_unit_tts_pipeline(
         f"TTS pipeline start | unit={unit_index + 1} | mode={mode} | "
         f"title={unit_title} | raw_chars={len(raw_text)}"
     )
-    
+
     obj_unit = await normalize_text_for_speech(raw_text, mode, unit_title=unit_title)
     main_scripts: list[str] = obj_unit.get("main_scripts", [])
     review_text: str = obj_unit.get("review_script", "")
@@ -171,10 +171,13 @@ async def run_learning_unit_tts_pipeline(
         raise NoPlayableAudioError("LLM không tạo main_scripts để phát audio.")
 
     segments = await _generate_unit_main_segments(book_id, learning_unit_id, unit_index, mode, main_scripts)
-    review_url = await _generate_unit_review_audio(book_id, unit_index, mode, review_text)
 
-    if not segments:
-        raise NoPlayableAudioError("Không tạo được segment audio nào.")
+    if len(segments) != len(main_scripts):
+        raise NoPlayableAudioError(
+            f"Tạo audio không đầy đủ: {len(segments)}/{len(main_scripts)} segment thành công."
+        )
+
+    review_url = await _generate_unit_review_audio(book_id, unit_index, mode, review_text)
 
     total_ms = sum(seg.duration_ms or 0 for seg in segments)
     generated_seconds = int(total_ms / 1000)
