@@ -212,6 +212,22 @@ def test_admin_audio_units_include_source_section_mapping(auth_as):
         session.add(LearningUnitSource(learning_unit_id=unit.id, section_id=second_section.id, source_order=1))
         session.add(LearningUnitSource(learning_unit_id=unit.id, section_id=first_section.id, source_order=0))
         session.add(LearningUnitSegment(learning_unit_id=unit.id, segment_index=0, text_content="Nội dung audio"))
+
+        pareto_unit = LearningUnit(
+            user_id=admin_user_id,
+            book_id=book.id,
+            mode=PlanMode.PARETO,
+            unit_index=0,
+            title="Ý chính chương 2",
+            unit_type="pareto_key_idea",
+            status=ProcessingJobStatus.READY,
+            review_text="Ôn lại ý chính chương 2",
+        )
+        session.add(pareto_unit)
+        session.commit()
+        session.refresh(pareto_unit)
+        session.add(LearningUnitSource(learning_unit_id=pareto_unit.id, section_id=second_section.id, source_order=0))
+        session.add(LearningUnitSegment(learning_unit_id=pareto_unit.id, segment_index=0, text_content="Audio pareto chương 2"))
         session.commit()
 
     try:
@@ -224,6 +240,24 @@ def test_admin_audio_units_include_source_section_mapping(auth_as):
         assert [source["section_title"] for source in unit_body["sources"]] == ["Chương 1", "Chương 2"]
         assert [source["source_order"] for source in unit_body["sources"]] == [0, 1]
         assert unit_body["sources"][0]["page_start"] == 1
+
+        export_response = TestClient(app).get(f"/api/v1/admin/books/{book_ids[0]}/export-json")
+        assert export_response.status_code == 200
+        export_body = export_response.json()
+        assert export_body["export_format_version"] == 2
+        assert set(export_body["learning_modes"]) == {"full", "pareto"}
+        assert export_body["learning_modes"]["full"]["units"][0]["title"] == "Bài học kết hợp"
+        assert export_body["learning_modes"]["full"]["units"][0]["segments"][0]["text_content"] == "Nội dung audio"
+        assert export_body["learning_modes"]["pareto"]["units"][0]["title"] == "Ý chính chương 2"
+        assert export_body["learning_modes"]["pareto"]["units"][0]["review_text"] == "Ôn lại ý chính chương 2"
+        assert export_body["learning_modes"]["pareto"]["units"][0]["segments"][0]["text_content"] == "Audio pareto chương 2"
+
+        pareto_export_response = TestClient(app).get(f"/api/v1/admin/books/{book_ids[0]}/export-json?mode=pareto")
+        assert pareto_export_response.status_code == 200
+        pareto_export_body = pareto_export_response.json()
+        assert pareto_export_body["selected_mode"] == "pareto"
+        assert set(pareto_export_body["learning_modes"]) == {"pareto"}
+        assert [section["section_index"] for section in pareto_export_body["sections"]] == [1]
     finally:
         _cleanup(admin_user_id, book_ids, [])
 

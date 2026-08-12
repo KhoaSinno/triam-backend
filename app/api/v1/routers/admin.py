@@ -175,8 +175,9 @@ def export_admin_book_json(
     book_id: uuid.UUID,
     admin_user: AdminUserDependency,
     session: Annotated[Session, Depends(get_session)],
+    mode: PlanMode | None = Query(default=None, description="Chỉ xuất dữ liệu bài học của mode được chọn"),
 ):
-    return admin_service.export_book_json(session, book_id)
+    return admin_service.export_book_json(session, book_id, mode=mode)
 
 
 @router.put("/books/{book_id}", response_model=AdminBookDetailResponse)

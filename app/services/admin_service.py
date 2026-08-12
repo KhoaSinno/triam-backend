@@ -70,6 +70,10 @@ from app.schemas.admin import (
     AdminSectionChunkItem,
     AdminBookSectionDetailResponse,
     AdminBookExportResponse,
+    AdminExportLearningModeItem,
+    AdminExportLearningUnitItem,
+    AdminExportLearningUnitSegmentItem,
+    AdminExportLearningUnitSourceItem,
     AdminExportSectionItem,
     AdminExportChunkItem,
     AdminSegmentItem,
@@ -731,8 +735,8 @@ def get_book_sections(session: Session, book_id: uuid.UUID) -> list[AdminBookSec
             .join(LearningUnit, LearningUnit.id == LearningUnitSource.learning_unit_id)
             .where(LearningUnit.book_id == book_id)
         ).all()
-        for s_id, mode in rows:
-            section_modes_map.setdefault(s_id, set()).add(mode.value)
+        for s_id, mapped_mode in rows:
+            section_modes_map.setdefault(s_id, set()).add(mapped_mode.value)
 
     return [
         AdminBookSectionListItem(
@@ -807,7 +811,11 @@ def get_book_jobs(session: Session, book_id: uuid.UUID) -> list[AdminJobListItem
     return [AdminJobListItem.model_validate(j) for j in jobs]
 
 
-def export_book_json(session: Session, book_id: uuid.UUID) -> AdminBookExportResponse:
+def export_book_json(
+    session: Session,
+    book_id: uuid.UUID,
+    mode: PlanMode | None = None,
+) -> AdminBookExportResponse:
     from app.models.db_models import LearningUnitSource
     book = get_admin_book_by_id(session, book_id)
     if not book:
@@ -836,11 +844,14 @@ def export_book_json(session: Session, book_id: uuid.UUID) -> AdminBookExportRes
             .join(LearningUnit, LearningUnit.id == LearningUnitSource.learning_unit_id)
             .where(LearningUnit.book_id == book_id)
         ).all()
-        for s_id, mode in rows:
-            section_modes_map.setdefault(s_id, set()).add(mode.value)
+        for s_id, mapped_mode in rows:
+            section_modes_map.setdefault(s_id, set()).add(mapped_mode.value)
 
     section_items = []
     for s in sections:
+        mapped_modes = section_modes_map.get(s.id, set())
+        if mode is not None and mode.value not in mapped_modes:
+            continue
         s_chunks = chunks_by_section.get(s.id, [])
         chunk_items = [
             AdminExportChunkItem(
@@ -862,17 +873,94 @@ def export_book_json(session: Session, book_id: uuid.UUID) -> AdminBookExportRes
                 path=s.path,
                 page_start=s.page_start,
                 page_end=s.page_end,
-                modes=list(section_modes_map.get(s.id, set())),
+                modes=[mode.value] if mode is not None else sorted(mapped_modes),
                 chunks=chunk_items
             )
         )
 
+    units = list(
+        session.exec(
+            select(LearningUnit)
+            .where(
+                LearningUnit.book_id == book_id,
+                *([LearningUnit.mode == mode] if mode is not None else []),
+            )
+            .order_by(LearningUnit.mode.asc(), LearningUnit.unit_index.asc())
+        ).all()
+    )
+    unit_ids = [unit.id for unit in units]
+    segments_by_unit: dict[uuid.UUID, list[AdminExportLearningUnitSegmentItem]] = {}
+    sources_by_unit: dict[uuid.UUID, list[AdminExportLearningUnitSourceItem]] = {}
+    if unit_ids:
+        segment_rows = session.exec(
+            select(LearningUnitSegment)
+            .where(LearningUnitSegment.learning_unit_id.in_(unit_ids))
+            .order_by(LearningUnitSegment.learning_unit_id, LearningUnitSegment.segment_index.asc())
+        ).all()
+        for segment in segment_rows:
+            segments_by_unit.setdefault(segment.learning_unit_id, []).append(
+                AdminExportLearningUnitSegmentItem(
+                    segment_index=segment.segment_index,
+                    text_content=segment.text_content,
+                    audio_url=segment.audio_url,
+                    duration_ms=segment.duration_ms,
+                )
+            )
+
+        source_rows = session.exec(
+            select(LearningUnitSource, BookSection)
+            .join(BookSection, BookSection.id == LearningUnitSource.section_id)
+            .where(LearningUnitSource.learning_unit_id.in_(unit_ids))
+            .order_by(LearningUnitSource.learning_unit_id, LearningUnitSource.source_order.asc())
+        ).all()
+        for source, section in source_rows:
+            sources_by_unit.setdefault(source.learning_unit_id, []).append(
+                AdminExportLearningUnitSourceItem(
+                    section_index=section.section_index,
+                    section_title=section.title,
+                    section_path=section.path,
+                    page_start=section.page_start,
+                    page_end=section.page_end,
+                    source_order=source.source_order,
+                )
+            )
+
+    export_modes = (mode,) if mode is not None else (PlanMode.FULL, PlanMode.PARETO)
+    learning_modes: dict[str, AdminExportLearningModeItem] = {
+        export_mode.value: AdminExportLearningModeItem(mode=export_mode)
+        for export_mode in export_modes
+    }
+    for unit in units:
+        mode_key = unit.mode.value
+        learning_modes[mode_key].units.append(
+            AdminExportLearningUnitItem(
+                unit_index=unit.unit_index,
+                title=unit.title,
+                unit_type=unit.unit_type,
+                status=unit.status.value if hasattr(unit.status, "value") else str(unit.status),
+                source_text_char_count=unit.source_text_char_count,
+                estimated_tokens=unit.estimated_tokens,
+                estimated_audio_seconds=unit.estimated_audio_seconds,
+                main_segment_count=unit.main_segment_count,
+                planner_reason=unit.planner_reason,
+                error_message=unit.error_message,
+                review_text=unit.review_text,
+                review_audio_url=unit.review_audio_url,
+                sources=sources_by_unit.get(unit.id, []),
+                segments=segments_by_unit.get(unit.id, []),
+            )
+        )
+    for mode_export in learning_modes.values():
+        mode_export.total_units = len(mode_export.units)
+
     return AdminBookExportResponse(
+        selected_mode=mode,
         book_id=book.id,
         title=book.title,
         author=book.author,
         document_type=book.document_type,
-        sections=section_items
+        sections=section_items,
+        learning_modes=learning_modes,
     )
 
 
