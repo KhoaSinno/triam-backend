@@ -11,7 +11,8 @@ RUN useradd -m -u 1000 user \
 USER user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH \
-    UV_NO_SYNC=1
+    UV_NO_SYNC=1 \
+    HF_HOME=/home/user/.cache/huggingface
 
 # Set working directory
 WORKDIR $HOME/app
@@ -24,6 +25,10 @@ RUN uv sync --frozen --no-dev
 
 # Copy all project source code into container
 COPY --chown=user . .
+
+# The EC2 deploy workflow supplies a persistent Docker volume at HF_HOME and
+# runs the EC2 container offline. Hugging Face Spaces can still fetch the model
+# from the official Hub if their ephemeral cache is empty.
 
 # Run FastAPI application using uvicorn via uv, change port to 7860
 # CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
