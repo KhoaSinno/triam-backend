@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     GOOGLE_TTS_ENABLE_COST_LOG: bool = True
     LIVEKIT_API_KEY: str
     LIVEKIT_API_SECRET: str
-    LIVEKIT_AGENT_NAME: str = "triam-agent-livekit"
+    LIVEKIT_AGENT_NAME: str = "triam-voice-agent"
     LIVEKIT_ROOM_EMPTY_TIMEOUT_SECONDS: int = 60
     LIVEKIT_ROOM_DEPARTURE_TIMEOUT_SECONDS: int = 20
     LIVEKIT_AGENT_EMPTY_ROOM_GRACE_SECONDS: float = 8.0
@@ -57,7 +57,7 @@ class Settings(BaseSettings):
 
     # Realtime voice agent behavior
     OPENAI_STREAM_MODEL_NAME: str = "gpt-realtime-2.1-mini"
-    OPENAI_REALTIME_VOICE: str = "shimmer"
+    OPENAI_REALTIME_VOICE: str = "cedar"
     OPENAI_REALTIME_REASONING_EFFORT: Literal["minimal", "low", "medium", "high", "xhigh"] = "minimal"
     # Phase 30.0.2: disabled by default so current Realtime session behavior is preserved.
     # When enabled, OpenAI retains recent conversation items once this remote-session
