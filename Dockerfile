@@ -3,8 +3,11 @@ FROM python:3.12-slim
 # Copy uv from Astral's official image (best way to install uv in Docker)
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
-# Create non-root user (required on Hugging Face Spaces)
-RUN useradd -m -u 1000 user
+# Create non-root user (required on Hugging Face Spaces) and its writable workdir.
+# WORKDIR is otherwise created as root, preventing `uv sync` from creating .venv.
+RUN useradd -m -u 1000 user \
+    && mkdir -p /home/user/app \
+    && chown -R user:user /home/user
 USER user
 ENV HOME=/home/user \
     PATH=/home/user/.local/bin:$PATH \

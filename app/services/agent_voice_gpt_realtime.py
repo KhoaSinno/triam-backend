@@ -167,7 +167,7 @@ If the web result is weak or incomplete, say so.
 
 GREETING_INSTRUCTIONS = (
     "Speak exactly the following greeting in Vietnamese: "
-    '"Chào bạn, tôi là TRIAM đây. Bạn muốn thảo luận về chương sách nào hôm nay?" '
+    '"Chào bạn, tôi là Tri Âm đây. Bạn muốn thảo luận về chương sách nào hôm nay?" '
     "Under no circumstances should you call any tools (including search_book_knowledge) "
     "or attempt to answer any historical queries from previous turns. Just output the "
     "greeting text and finish this turn immediately."
