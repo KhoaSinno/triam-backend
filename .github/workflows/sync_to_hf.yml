@@ -17,6 +17,20 @@ jobs:
   verify:
     name: Verify
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: triam_ci
+          POSTGRES_PASSWORD: triam_ci
+          POSTGRES_DB: triam_ci
+        options: >-
+          --health-cmd "pg_isready -U triam_ci -d triam_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+        ports:
+          - 5432:5432
     env:
       # Tests import Settings but never call external services.  These are
       # deliberately non-secret placeholders, not production credentials.
@@ -24,7 +38,7 @@ jobs:
       TAVILY_API_KEY: test-tavily-key
       GEMINI_BASE_URL: https://example.invalid
       GEMINI_API_KEY: test-gemini-key
-      DATABASE_URL: postgresql://user:password@localhost:5432/triam
+      DATABASE_URL: postgresql://triam_ci:triam_ci@localhost:5432/triam_ci
       SUPABASE_URL: https://example.supabase.co
       SUPABASE_KEY: test-supabase-key
       SUPABASE_SERVICE_ROLE_KEY: test-service-role-key
@@ -39,6 +53,12 @@ jobs:
 
       - name: Install locked dependencies
         run: uv sync --frozen --group dev
+
+      - name: Create isolated test schema
+        # This is a disposable empty database.  Current metadata avoids a
+        # historical migration that drops a legacy table absent on fresh DBs.
+        # Production still evolves only through Alembic migrations.
+        run: uv run --no-sync python -c "from app.db.database import create_db_and_tables; create_db_and_tables()"
 
       - name: Check startup script and API health tests
         run: |
