@@ -37,7 +37,10 @@ class VoiceToolReplyWatchdog:
         self.config = config
         self._watch_tasks: dict[str, asyncio.Task[None]] = {}
         self._watch_tool_names: dict[str, str] = {}
-        self._last_tool_completed_monotonic: float | None = None
+        # Keep the measurement scoped to each active watchdog. A process-wide
+        # "last tool" timestamp survives a normal reply and can incorrectly be
+        # attributed to speech from a later user turn.
+        self._tool_completed_monotonic: dict[str, float] = {}
         self._rate_limited_until_monotonic: float | None = None
         self._assistant_commit_count = 0
 
@@ -46,6 +49,7 @@ class VoiceToolReplyWatchdog:
 
     def cancel_all(self, reason: str) -> None:
         if not self._watch_tasks:
+            self._tool_completed_monotonic.clear()
             return
 
         for task in self._watch_tasks.values():
@@ -53,13 +57,17 @@ class VoiceToolReplyWatchdog:
                 task.cancel()
         self._watch_tasks.clear()
         self._watch_tool_names.clear()
+        self._tool_completed_monotonic.clear()
         self.tracer.record_tool_reply_watchdog_cancelled(
             AgentInputMode.VOICE,
             reason=reason,
         )
 
     def record_speech_created(self, *, source: str | None = None) -> None:
-        elapsed_ms = self._elapsed_since_tool_completed_ms()
+        # Report this metric only while a tool watchdog for the same pending
+        # reply is active. Speech after a watchdog has been cancelled belongs
+        # to a different response and must not inherit an old tool timestamp.
+        elapsed_ms = self._elapsed_since_active_tool_completed_ms()
         self.tracer.record_tool_reply_speech_created(
             AgentInputMode.VOICE,
             source=source,
@@ -85,8 +93,16 @@ class VoiceToolReplyWatchdog:
             )
         elif state_lower == "speaking":
             # Speaking is the authoritative signal that the user is already
-            # receiving the reply. Leaving a timer armed here would make the
-            # watchdog interrupt normal audio at its deadline.
+            # receiving the reply. Record the latency before clearing the
+            # watchdog; a later speech_created event can otherwise arrive
+            # after the timer has been cancelled.
+            self.tracer.record_tool_reply_speech_created(
+                AgentInputMode.VOICE,
+                source="agent_state_speaking",
+                elapsed_ms=self._elapsed_since_active_tool_completed_ms(),
+            )
+            # Leaving a timer armed here would make the watchdog interrupt
+            # normal audio at its deadline.
             self.cancel_all("agent_started_speaking")
 
     def _reschedule_active_grace(self, *, grace_seconds: float, reason: str) -> None:
@@ -170,7 +186,7 @@ class VoiceToolReplyWatchdog:
         if existing and not existing.done():
             existing.cancel()
         self._watch_tool_names[event_id] = tool_name
-        self._last_tool_completed_monotonic = time.monotonic()
+        self._tool_completed_monotonic[event_id] = time.monotonic()
         self.tracer.record_tool_reply_watchdog_scheduled(
             AgentInputMode.VOICE,
             tool_name=tool_name,
@@ -193,7 +209,7 @@ class VoiceToolReplyWatchdog:
     ) -> None:
         try:
             await asyncio.sleep(grace_seconds)
-            elapsed_ms = self._elapsed_since_tool_completed_ms()
+            elapsed_ms = self._elapsed_since_tool_completed_ms(event_id)
             self.tracer.record_tool_reply_watchdog_fired(
                 AgentInputMode.VOICE,
                 tool_name=tool_name,
@@ -205,6 +221,7 @@ class VoiceToolReplyWatchdog:
             # same fallback into an unbounded retry loop.
             self._watch_tasks.pop(event_id, None)
             self._watch_tool_names.pop(event_id, None)
+            self._tool_completed_monotonic.pop(event_id, None)
             await self._generate_reply_after_tool(tool_name=tool_name)
         except asyncio.CancelledError:
             raise
@@ -219,6 +236,7 @@ class VoiceToolReplyWatchdog:
             if self._watch_tasks.get(event_id) is current_task:
                 self._watch_tasks.pop(event_id, None)
                 self._watch_tool_names.pop(event_id, None)
+                self._tool_completed_monotonic.pop(event_id, None)
 
     async def _generate_reply_after_tool(self, *, tool_name: str) -> None:
         if self.room is None or not self.room.isconnected():
@@ -272,10 +290,25 @@ class VoiceToolReplyWatchdog:
         self._rate_limited_until_monotonic = None
         return False
 
-    def _elapsed_since_tool_completed_ms(self) -> int | None:
-        if self._last_tool_completed_monotonic is None:
+    def _elapsed_since_active_tool_completed_ms(self) -> int | None:
+        active_timestamps = [
+            self._tool_completed_monotonic[event_id]
+            for event_id, task in self._watch_tasks.items()
+            if not task.done() and event_id in self._tool_completed_monotonic
+        ]
+        if not active_timestamps:
             return None
-        return max(0, int((time.monotonic() - self._last_tool_completed_monotonic) * 1000))
+        return self._elapsed_since_timestamp_ms(max(active_timestamps))
+
+    def _elapsed_since_tool_completed_ms(self, event_id: str) -> int | None:
+        timestamp = self._tool_completed_monotonic.get(event_id)
+        if timestamp is None:
+            return None
+        return self._elapsed_since_timestamp_ms(timestamp)
+
+    @staticmethod
+    def _elapsed_since_timestamp_ms(timestamp: float) -> int:
+        return max(0, int((time.monotonic() - timestamp) * 1000))
 
 
 def _zipped_tool_outputs(ev: Any) -> list[tuple[Any, Any]]:

@@ -336,6 +336,29 @@ async def test_watchdog_does_not_interrupt_agent_that_is_already_speaking(base_c
 
 
 @pytest.mark.asyncio
+async def test_watchdog_does_not_attribute_later_speech_to_cancelled_tool(base_config, mock_tracer) -> None:
+    session = FakeSession()
+    watchdog = VoiceToolReplyWatchdog(session=session, tracer=mock_tracer, config=base_config)
+    event = FakeEvent([FakeCall("search_book_knowledge", "call_1")], [FakeOutput("search_book_knowledge", "call_1")])
+
+    watchdog.schedule_after_tools_executed(event)
+    watchdog.record_agent_state_changed(new_state="speaking")
+    watchdog.record_speech_created(source="later_response")
+
+    assert mock_tracer.record_tool_reply_speech_created.call_count == 2
+    first_call = mock_tracer.record_tool_reply_speech_created.call_args_list[0]
+    assert first_call.args == (AgentInputMode.VOICE,)
+    assert first_call.kwargs["source"] == "agent_state_speaking"
+    assert first_call.kwargs["elapsed_ms"] is not None
+    mock_tracer.record_tool_reply_speech_created.assert_called_with(
+        AgentInputMode.VOICE,
+        source="later_response",
+        elapsed_ms=None,
+    )
+    watchdog.close()
+
+
+@pytest.mark.asyncio
 async def test_watchdog_rate_limit_cancels_pending_fallback(base_config, mock_tracer) -> None:
     session = FakeSession()
     watchdog = VoiceToolReplyWatchdog(session=session, tracer=mock_tracer, config=base_config)

@@ -46,6 +46,7 @@ from app.services.voice_agent.realtime_diagnostics import (
     extract_realtime_error_details,
     parse_rate_limit_snapshot,
     parse_response_id,
+    parse_session_transcription_snapshot,
     parse_session_truncation_snapshot,
     response_usage_from_metrics,
 )
@@ -858,7 +859,11 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
     text_turn_lock = asyncio.Lock()
     asr_final_response_tasks: set[asyncio.Task[None]] = set()
 
-    def _schedule_reply_after_final_transcript(transcript: str) -> None:
+    def _schedule_reply_after_final_transcript(
+        transcript: str,
+        *,
+        final_received_monotonic: float,
+    ) -> None:
         """Create exactly one user reply after the Realtime ASR-final event.
 
         The callback is deliberately scheduled for the next event-loop tick.
@@ -876,9 +881,20 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 # second text user message here: it would duplicate the turn in
                 # the remote Realtime conversation.
                 session.generate_reply(input_modality="audio")
+                final_to_reply_request_ms = max(
+                    0,
+                    int((time.perf_counter() - final_received_monotonic) * 1000),
+                )
+                tracer.record_latency(
+                    AgentInputMode.VOICE,
+                    "asr_final_to_reply_request",
+                    final_to_reply_request_ms,
+                )
                 log.info(
                     "VOICE_DIAG asr_final_response_gate_reply_requested | "
-                    f"transcript_chars={len(transcript)} | thread_id={thread_uuid}"
+                    f"transcript_chars={len(transcript)} | "
+                    f"final_to_reply_request_ms={final_to_reply_request_ms} | "
+                    f"thread_id={thread_uuid}"
                 )
             except Exception as exc:
                 tracer.record_error(AgentInputMode.VOICE, "asr_final_response_gate_reply_error")
@@ -1293,10 +1309,21 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         is_final = bool(getattr(ev, "is_final", False))
         transcript = str(getattr(ev, "transcript", "") or "").strip()
         language = getattr(ev, "language", None)
+        item_id = str(getattr(ev, "item_id", "") or "").strip()
         log.info(f"user_input_transcribed received | final={is_final} | chars={len(transcript)} | thread_id={thread_uuid}")
         if settings.VOICE_AGENT_LOG_TRANSCRIPT_TEXT and transcript:
             log.debug(f"user_input_transcribed preview: {trim_text(transcript, 160)}")
         if is_final and transcript:
+            final_received_monotonic = time.perf_counter()
+            confidence = getattr(ev, "confidence", None)
+            log.info(
+                "VOICE_DIAG transcription_final | "
+                f"item_id={item_id or 'unknown'} | chars={len(transcript)} | "
+                f"language_present={bool(language)} | "
+                f"provider_confidence_present={confidence is not None} | "
+                "asr_final_response_gate_enabled="
+                f"{settings.VOICE_AGENT_ASR_FINAL_RESPONSE_GATE_ENABLED} | thread_id={thread_uuid}"
+            )
             voice_turn_state.record_final_transcript(
                 transcript,
                 str(language) if language else None,
@@ -1307,7 +1334,10 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 language=str(language) if language else None,
             )
             _record_web_permission_reply(transcript)
-            _schedule_reply_after_final_transcript(transcript)
+            _schedule_reply_after_final_transcript(
+                transcript,
+                final_received_monotonic=final_received_monotonic,
+            )
 
     def _handle_conversation_item_added(
         ev: ConversationItemAddedEvent,
@@ -1445,33 +1475,18 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
     def _attach_realtime_diagnostic_handlers(realtime_session: Any) -> None:
         """Observe provider metadata only; never log raw Realtime events."""
 
-        last_session_truncation_settings: tuple[
-            bool,
-            str | None,
-            int | None,
-            float | None,
-            str | None,
-            bool | None,
-            bool | None,
-        ] | None = None
+        last_session_settings: tuple[object, object] | None = None
 
         @realtime_session.on("openai_server_event_received")  # type: ignore[arg-type]
         def on_openai_server_event_received(event: Any) -> None:
-            nonlocal last_session_truncation_settings
+            nonlocal last_session_settings
 
             session_snapshot = parse_session_truncation_snapshot(event)
             if session_snapshot is not None:
-                session_settings = (
-                    session_snapshot.configured,
-                    session_snapshot.truncation_type,
-                    session_snapshot.max_post_instructions_tokens,
-                    session_snapshot.retention_ratio,
-                    session_snapshot.turn_detection_type,
-                    session_snapshot.turn_detection_create_response,
-                    session_snapshot.turn_detection_interrupt_response,
-                )
-                if session_settings != last_session_truncation_settings:
-                    last_session_truncation_settings = session_settings
+                transcription_snapshot = parse_session_transcription_snapshot(event)
+                session_settings = (session_snapshot, transcription_snapshot)
+                if session_settings != last_session_settings:
+                    last_session_settings = session_settings
                     log.info(
                         "VOICE_DIAG realtime_session_updated | "
                         f"event_id={session_snapshot.event_id or 'unknown'} | "
@@ -1484,7 +1499,21 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                         "turn_detection_create_response="
                         f"{session_snapshot.turn_detection_create_response} | "
                         "turn_detection_interrupt_response="
-                        f"{session_snapshot.turn_detection_interrupt_response}"
+                        f"{session_snapshot.turn_detection_interrupt_response} | "
+                        "transcription_configured="
+                        f"{transcription_snapshot.configured if transcription_snapshot else False} | "
+                        "transcription_model="
+                        f"{transcription_snapshot.model if transcription_snapshot else 'none'} | "
+                        "transcription_language_mode="
+                        f"{transcription_snapshot.language_mode if transcription_snapshot else 'unknown'} | "
+                        "transcription_language_count="
+                        f"{transcription_snapshot.language_count if transcription_snapshot else None} | "
+                        "transcription_keyword_count="
+                        f"{transcription_snapshot.keyword_count if transcription_snapshot else None} | "
+                        "transcription_delay="
+                        f"{transcription_snapshot.delay if transcription_snapshot else 'none'} | "
+                        "transcription_prompt_chars="
+                        f"{transcription_snapshot.prompt_chars if transcription_snapshot else None}"
                     )
                 return
 
@@ -1565,6 +1594,18 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         f"dynamic={transcription_prompt_result.dynamic_enabled} | "
         f"terms={transcription_prompt_result.term_count} | "
         f"chars={transcription_prompt_result.prompt_chars}"
+    )
+    log.info(
+        "VOICE_DIAG transcription_session_requested | "
+        f"model={settings.OPENAI_REALTIME_TRANSCRIPTION_MODEL} | "
+        "language_mode="
+        f"{'language' if settings.OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE.strip() else 'none'} | "
+        "language_count="
+        f"{1 if settings.OPENAI_REALTIME_TRANSCRIPTION_LANGUAGE.strip() else 0} | "
+        "keyword_count=0 | delay=none | "
+        f"prompt_chars={transcription_prompt_result.prompt_chars} | "
+        f"dynamic_prompt={transcription_prompt_result.dynamic_enabled} | "
+        f"dynamic_term_count={transcription_prompt_result.term_count}"
     )
 
     # Start session with fallback when a configured model is unavailable.

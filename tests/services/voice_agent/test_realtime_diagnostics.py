@@ -4,6 +4,7 @@ from app.services.voice_agent.realtime_diagnostics import (
     extract_realtime_error_details,
     parse_rate_limit_snapshot,
     parse_response_id,
+    parse_session_transcription_snapshot,
     parse_session_truncation_snapshot,
     response_usage_from_metrics,
 )
@@ -113,3 +114,58 @@ def test_parses_session_update_without_a_truncation_policy():
     assert snapshot.max_post_instructions_tokens is None
     assert snapshot.retention_ratio is None
     assert snapshot.turn_detection_type is None
+
+
+def test_parses_acknowledged_transcription_scalars_without_retaining_text_fields():
+    snapshot = parse_session_transcription_snapshot(
+        {
+            "type": "session.updated",
+            "event_id": "event-session-stt-1",
+            "session": {
+                "audio": {
+                    "input": {
+                        "transcription": {
+                            "model": "gpt-live-transcribe",
+                            "languages": ["vi", "en"],
+                            "keywords": ["private title", "AC-42"],
+                            "delay": "medium",
+                            "prompt": "private transcription prompt",
+                        }
+                    }
+                }
+            },
+        }
+    )
+
+    assert snapshot is not None
+    assert snapshot.event_id == "event-session-stt-1"
+    assert snapshot.configured is True
+    assert snapshot.model == "gpt-live-transcribe"
+    assert snapshot.language_mode == "languages"
+    assert snapshot.language_count == 2
+    assert snapshot.keyword_count == 2
+    assert snapshot.delay == "medium"
+    assert snapshot.prompt_chars == len("private transcription prompt")
+    assert "private title" not in repr(snapshot)
+    assert "private transcription prompt" not in repr(snapshot)
+
+
+def test_parses_legacy_singular_transcription_language_and_missing_transcription():
+    singular = parse_session_transcription_snapshot(
+        {
+            "type": "session.updated",
+            "session": {"input_audio_transcription": {"model": "legacy", "language": "vi"}},
+        }
+    )
+    missing = parse_session_transcription_snapshot(
+        {"type": "session.updated", "session": {"instructions": "must never be retained"}}
+    )
+
+    assert singular is not None
+    assert singular.language_mode == "language"
+    assert singular.language_count == 1
+    assert singular.keyword_count is None
+    assert missing is not None
+    assert missing.configured is False
+    assert missing.language_mode == "none"
+    assert "must never be retained" not in repr(missing)
