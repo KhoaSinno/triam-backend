@@ -1,8 +1,16 @@
 # Phase 32 Implementation Guide — Multi-Document Study Context Overview (P0)
 
-Date: 2026-08-12  
-Status: Proposed; P0 only, not implemented  
+Date: 2026-08-13
+Status: Implemented; P0 only, rollout flag remains disabled by default
 Scope: deterministic questions about the current Study Context's document collection, shared by voice and text chat
+
+---
+
+## Implementation status
+
+P0 is implemented in `context_overview.py`, `GroundingRouter`, `SharedAgentPolicy`, and the existing voice/text tool prompts. A count question returns the exact count plus the same bounded title list, so the Realtime model does not need to infer document names from its session prompt. The route returns only metadata already loaded in `GroundingScope.books`; it does not invoke section loading, RAG, Cohere, web search, or any Realtime provider request. Runtime diagnostics record only aggregate counts, route, and IDs.
+
+The rollout remains opt-in through `AGENT_CONTEXT_OVERVIEW_ENABLED=false`. Focused Phase 32 router, policy, rendering, and configuration regressions pass.
 
 ---
 
@@ -89,7 +97,7 @@ The hybrid search/RRF/Cohere pipeline is global across all selected documents. I
 
 | User intent | Required result | Example shape |
 |---|---|---|
-| Count documents | Exact count from `len(scope.books)` | “Ngữ cảnh học tập hiện có 3 tài liệu.” |
+| Count documents | Exact count plus bounded titles in scope order | “Ngữ cảnh học tập hiện có 3 tài liệu: Redis Cookbook; Clean Code; …” |
 | List documents | All titles in scope order; author only when stored | “Gồm: Redis Cookbook; Clean Code; …” |
 | Context overview | Count plus bounded per-document metadata | “Có 3 tài liệu. Redis Cookbook (PDF, …); …” |
 | No document in scope | Direct truthful answer | “Tôi chưa tìm thấy tài liệu nào trong ngữ cảnh học tập hiện tại.” |

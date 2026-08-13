@@ -43,6 +43,16 @@ def test_realtime_session_budget_is_disabled_by_default():
     assert clean_settings.VOICE_AGENT_REALTIME_CONTEXT_RETENTION_RATIO == 0.75
 
 
+def test_context_overview_is_disabled_by_default_and_bounded():
+    clean_settings = build_settings()
+
+    assert clean_settings.AGENT_CONTEXT_OVERVIEW_ENABLED is False
+    assert clean_settings.AGENT_CONTEXT_OVERVIEW_MAX_VISIBLE_DOCUMENTS == 6
+
+    with pytest.raises(ValidationError):
+        build_settings(AGENT_CONTEXT_OVERVIEW_MAX_VISIBLE_DOCUMENTS=0)
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [

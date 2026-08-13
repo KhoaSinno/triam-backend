@@ -2,6 +2,11 @@ from __future__ import annotations
 
 import time
 
+from app.services.agent_grounding.context_overview import (
+    CONTEXT_OVERVIEW_INTENTS,
+    build_context_overview,
+    render_context_overview_answer,
+)
 from app.services.agent_grounding.contracts import (
     GroundingDecision,
     GroundingIntent,
@@ -27,10 +32,14 @@ class GroundingRouter:
         section_text_loader: SectionTextLoader,
         *,
         section_context_max_chars: int,
+        context_overview_enabled: bool = False,
+        context_overview_max_visible_documents: int = 6,
     ) -> None:
         self.scope = scope
         self.section_text_loader = section_text_loader
         self.section_context_max_chars = section_context_max_chars
+        self.context_overview_enabled = context_overview_enabled
+        self.context_overview_max_visible_documents = max(1, context_overview_max_visible_documents)
 
     async def resolve(
         self,
@@ -64,21 +73,10 @@ class GroundingRouter:
             )
         elif intent == GroundingIntent.CLARIFICATION_REQUIRED:
             result = self._clarification("missing_section_reference", "Bạn muốn hỏi chương hoặc đề mục nào?")
-        elif intent == GroundingIntent.EXTERNAL_CURRENT_INFO:
-            result = GroundingResult(
-                GroundingDecision(
-                    GroundingIntent.EXTERNAL_CURRENT_INFO,
-                    GroundingRoute.WEB_POLICY,
-                    ResolutionQuality.EXACT,
-                    "clear_external_current_info",
-                )
-            )
+        elif intent == GroundingIntent.EXTERNAL_CURRENT_INFO or intent in CONTEXT_OVERVIEW_INTENTS:
+            result = self._resolve_context_or_external_intent(intent)
         elif intent in (GroundingIntent.BOOK_SECTION_SUMMARY, GroundingIntent.BOOK_SECTION_CONTENT):
-            result = await self._resolve_section(normalized, reference, intent)
-            if result.decision.route == GroundingRoute.CLARIFICATION:
-                is_explicit = reference.explicit_path is not None or reference.explicit_ordinal is not None
-                if not is_explicit:
-                    result = None
+            result = await self._resolve_section_intent(normalized, reference, intent)
         else:
             # Các nhóm Metadata
             result = self._resolve_metadata(normalized, intent)
@@ -110,6 +108,45 @@ class GroundingRouter:
             resolved_book_ids=(resolution.book.id,),
         )
         return GroundingResult(decision, deterministic_answer=render_metadata_answer(resolution.book, intent))
+
+    def _resolve_context_overview(self, intent: GroundingIntent) -> GroundingResult:
+        overview = build_context_overview(
+            self.scope,
+            max_visible_documents=self.context_overview_max_visible_documents,
+        )
+        decision = GroundingDecision(
+            intent,
+            GroundingRoute.CONTEXT_OVERVIEW,
+            ResolutionQuality.EXACT,
+            "context_scope_metadata",
+            resolved_book_ids=tuple(book.id for book in overview.books),
+        )
+        return GroundingResult(
+            decision,
+            deterministic_answer=render_context_overview_answer(overview, intent),
+        )
+
+    def _resolve_context_or_external_intent(self, intent: GroundingIntent) -> GroundingResult | None:
+        if intent == GroundingIntent.EXTERNAL_CURRENT_INFO:
+            return GroundingResult(
+                GroundingDecision(
+                    GroundingIntent.EXTERNAL_CURRENT_INFO,
+                    GroundingRoute.WEB_POLICY,
+                    ResolutionQuality.EXACT,
+                    "clear_external_current_info",
+                )
+            )
+        if self.context_overview_enabled:
+            return self._resolve_context_overview(intent)
+        return None
+
+    async def _resolve_section_intent(self, query, reference, intent: GroundingIntent) -> GroundingResult | None:
+        result = await self._resolve_section(query, reference, intent)
+        if result.decision.route != GroundingRoute.CLARIFICATION:
+            return result
+
+        is_explicit = reference.explicit_path is not None or reference.explicit_ordinal is not None
+        return result if is_explicit else None
 
     async def _resolve_section(self, query, reference, intent: GroundingIntent) -> GroundingResult:
         resolution = resolve_section(self.scope, query, reference)
@@ -162,6 +199,7 @@ class GroundingRouter:
         )
         tracer.record_latency(input_mode, "grounding_total", elapsed_ms)
         source_by_route = {
+            GroundingRoute.CONTEXT_OVERVIEW: AgentAnswerSource.CONTEXT_METADATA,
             GroundingRoute.BOOK_METADATA: AgentAnswerSource.BOOK_METADATA,
             GroundingRoute.BOOK_SECTION: AgentAnswerSource.BOOK_SECTION,
             GroundingRoute.CLARIFICATION: AgentAnswerSource.CLARIFICATION,

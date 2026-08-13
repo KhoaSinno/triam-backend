@@ -96,7 +96,7 @@ ASR spelling and homophone correction rules:
 Tool rules:
 - For any question about book content, concepts, chapters, learning topics, or study context, ALWAYS call `search_book_knowledge` first.
 - Never narrate internal thinking, say you need time, or promise a later answer. Call the required tool silently, then give one final answer after its result is available.
-- Treat `BOOK_METADATA_FOUND` as authoritative database metadata.
+- Treat `BOOK_METADATA_FOUND` and `STUDY_CONTEXT_FOUND` as authoritative database metadata.
 - Treat `BOOK_SECTION_FOUND` as the only source for the requested section.
 - If the tool returns `CLARIFICATION_REQUIRED`, read the clarification and stop.
 - If the tool returns `WEB_PERMISSION_REPLY_DETECTED`, continue the pending web-search permission flow; do not answer from book memory.
@@ -123,7 +123,7 @@ System facts:
 
 Tool rules:
 - For book-content questions, call `search_book_knowledge_text` first.
-- Treat `BOOK_METADATA_FOUND` and `BOOK_SECTION_FOUND` as authoritative.
+- Treat `BOOK_METADATA_FOUND`, `STUDY_CONTEXT_FOUND`, and `BOOK_SECTION_FOUND` as authoritative.
 - If a tool returns `CLARIFICATION_REQUIRED`, ask that clarification and stop.
 - If a tool returns `BOOK_SECTION_UNAVAILABLE` or `BOOK_CONTEXT_ERROR`, read the message and stop.
 - If a tool returns `WEB_PERMISSION_REPLY_DETECTED`, continue the pending web-search permission flow; do not treat it as a new book question.
@@ -788,8 +788,16 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 grounding_scope,
                 _load_section_texts,
                 section_context_max_chars=settings.AGENT_SECTION_CONTEXT_MAX_CHARS,
+                context_overview_enabled=settings.AGENT_CONTEXT_OVERVIEW_ENABLED,
+                context_overview_max_visible_documents=settings.AGENT_CONTEXT_OVERVIEW_MAX_VISIBLE_DOCUMENTS,
             )
-            log.info(f"Grounding router ready | books={len(grounding_scope.books)} | sections={len(grounding_scope.sections)} | load_ms={int((time.perf_counter() - grounding_started) * 1000)}")
+            log.info(
+                "Grounding router ready | "
+                f"books={len(grounding_scope.books)} | sections={len(grounding_scope.sections)} | "
+                f"context_overview_enabled={settings.AGENT_CONTEXT_OVERVIEW_ENABLED} | "
+                f"context_overview_visible_documents={settings.AGENT_CONTEXT_OVERVIEW_MAX_VISIBLE_DOCUMENTS} | "
+                f"load_ms={int((time.perf_counter() - grounding_started) * 1000)}"
+            )
 
             # Pre-warm local embedding classifiers in the background
             from app.services.voice_agent.web_permission_intent_classifier import _initialize_permission_prototypes_async

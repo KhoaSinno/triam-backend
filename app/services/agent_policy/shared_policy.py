@@ -79,10 +79,14 @@ class SharedAgentPolicy:
         resolved_section_ids = tuple(str(value) for value in decision.resolved_section_ids)
         tool_marker = format_grounding_tool_result(grounding_result)
 
-        if decision.route == GroundingRoute.BOOK_METADATA:
+        if decision.route in (GroundingRoute.CONTEXT_OVERVIEW, GroundingRoute.BOOK_METADATA):
             return AgentPolicyResult(
                 action=AgentPolicyAction.DIRECT_ANSWER,
-                answer_source=AgentAnswerSource.BOOK_METADATA,
+                answer_source=(
+                    AgentAnswerSource.CONTEXT_METADATA
+                    if decision.route == GroundingRoute.CONTEXT_OVERVIEW
+                    else AgentAnswerSource.BOOK_METADATA
+                ),
                 reason_code=decision.reason_code,
                 user_message=grounding_result.deterministic_answer,
                 tool_marker=tool_marker,

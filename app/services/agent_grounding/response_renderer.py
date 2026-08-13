@@ -29,6 +29,8 @@ def render_metadata_answer(book: GroundingBook, intent: GroundingIntent) -> str:
 
 
 def format_grounding_tool_result(result: GroundingResult) -> str:
+    if result.decision.route == GroundingRoute.CONTEXT_OVERVIEW:
+        return f"STUDY_CONTEXT_FOUND:\n{result.deterministic_answer or ''}".strip()
     if result.decision.route == GroundingRoute.BOOK_METADATA:
         return f"BOOK_METADATA_FOUND:\n{result.deterministic_answer or ''}".strip()
     if result.decision.route == GroundingRoute.BOOK_SECTION:

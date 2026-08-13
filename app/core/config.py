@@ -151,6 +151,10 @@ class Settings(BaseSettings):
     AGENT_INTENT_CLASSIFIER_MODEL: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
     AGENT_INTENT_CLASSIFIER_THRESHOLD: float = 0.60
     AGENT_SECTION_CONTEXT_MAX_CHARS: int = 24000
+    # Phase 32: deterministic answers about every document in the active Study Context.
+    # Disabled by default so rollout does not alter existing book/RAG routing.
+    AGENT_CONTEXT_OVERVIEW_ENABLED: bool = False
+    AGENT_CONTEXT_OVERVIEW_MAX_VISIBLE_DOCUMENTS: int = Field(default=6, ge=1, le=12)
 
     # Phase 10.3 hybrid retrieval. Keep disabled until search_text is backfilled.
     AGENT_HYBRID_MIN_FINAL_SCORE: float = 0.25

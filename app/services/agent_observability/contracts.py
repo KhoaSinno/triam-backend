@@ -10,6 +10,7 @@ class AgentInputMode(str, Enum):
 
 class AgentAnswerSource(str, Enum):
     UNKNOWN = "unknown"
+    CONTEXT_METADATA = "context_metadata"
     BOOK_METADATA = "book_metadata"
     BOOK_SECTION = "book_section"
     BOOK_RAG = "book_rag"
