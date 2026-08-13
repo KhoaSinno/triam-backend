@@ -8,10 +8,29 @@ from transformers import AutoModel, AutoTokenizer
 
 from app.core.config import settings
 from app.core.logger import log
+from app.services.agent_grounding.context_overview import CONTEXT_OVERVIEW_INTENTS
 from app.services.agent_grounding.contracts import GroundingIntent, NormalizedQuery
 
 # Định nghĩa các câu mẫu đặc trưng đại diện cho từng lớp Ý định (Intent Class)
 PROTOTYPES = {
+    GroundingIntent.CONTEXT_DOCUMENT_COUNT: [
+        "ngữ cảnh hiện tại có bao nhiêu tài liệu",
+        "có mấy tài liệu trong ngữ cảnh học tập",
+        "tổng số tài liệu đang học",
+        "how many documents are in the current study context",
+    ],
+    GroundingIntent.CONTEXT_DOCUMENT_LIST: [
+        "liệt kê các tài liệu trong ngữ cảnh hiện tại",
+        "đang có những tài liệu nào trong ngữ cảnh học tập",
+        "danh sách sách đang học",
+        "list the documents in the current study context",
+    ],
+    GroundingIntent.CONTEXT_OVERVIEW: [
+        "tổng quan các tài liệu trong ngữ cảnh hiện tại",
+        "cho tôi biết về toàn bộ tài liệu đang học",
+        "ngữ cảnh học tập hiện tại gồm những gì",
+        "overview of the current study context documents",
+    ],
     GroundingIntent.BOOK_METADATA_ROOT_SECTION_COUNT: [
         "sách có bao nhiêu chương chính",
         "quyển sách này gồm bao nhiêu chương",
@@ -185,6 +204,8 @@ class SemanticIntentClassifier:
             ref = parse_section_reference(normalize_query(text))
 
             for intent, phrases in PROTOTYPES.items():
+                if not _intent_is_enabled(intent):
+                    continue
                 if intent in (GroundingIntent.BOOK_SECTION_SUMMARY, GroundingIntent.BOOK_SECTION_CONTENT) and not ref.has_target:
                     continue
                 if any(p in text for p in phrases):
@@ -201,6 +222,8 @@ class SemanticIntentClassifier:
             best_score = -1.0
             
             for intent, proto_embs in self.proto_embeddings.items():
+                if not _intent_is_enabled(intent):
+                    continue
                 # Nhân ma trận tính khoảng cách Cosine nhanh trên Pytorch
                 sims = torch.matmul(query_emb, proto_embs.T).squeeze(0)
                 max_sim = torch.max(sims).item()
@@ -231,3 +254,7 @@ async def classify_intent(query: NormalizedQuery) -> GroundingIntent:
     Hàm giao tiếp hướng ngoại tương thích với các module gọi ngoài.
     """
     return await _classifier.classify(query.normalized)
+
+
+def _intent_is_enabled(intent: GroundingIntent) -> bool:
+    return intent not in CONTEXT_OVERVIEW_INTENTS or settings.AGENT_CONTEXT_OVERVIEW_ENABLED

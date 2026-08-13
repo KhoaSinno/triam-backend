@@ -259,12 +259,56 @@ class AdminExportSectionItem(BaseModel):
     chunks: list[AdminExportChunkItem] = []
 
 
+class AdminExportLearningUnitSegmentItem(BaseModel):
+    segment_index: int
+    text_content: str | None = None
+    audio_url: str | None = None
+    duration_ms: int | None = None
+
+
+class AdminExportLearningUnitSourceItem(BaseModel):
+    section_index: int
+    section_title: str
+    section_path: str
+    page_start: int | None = None
+    page_end: int | None = None
+    source_order: int
+
+
+class AdminExportLearningUnitItem(BaseModel):
+    unit_index: int
+    title: str
+    unit_type: str
+    status: str
+    source_text_char_count: int
+    estimated_tokens: int
+    estimated_audio_seconds: int
+    main_segment_count: int
+    planner_reason: str | None = None
+    error_message: str | None = None
+    review_text: str | None = None
+    review_audio_url: str | None = None
+    sources: list[AdminExportLearningUnitSourceItem] = []
+    segments: list[AdminExportLearningUnitSegmentItem] = []
+
+
+class AdminExportLearningModeItem(BaseModel):
+    mode: PlanMode
+    total_units: int = 0
+    units: list[AdminExportLearningUnitItem] = []
+
+
 class AdminBookExportResponse(BaseModel):
+    export_format_version: int = 2
+    selected_mode: PlanMode | None = None
     book_id: uuid.UUID
     title: str
     author: str | None = None
     document_type: str | None = None
+    # Canonical RAG structure is mode-independent.  Mode-specific audio lesson
+    # payloads live in learning_modes and must not be inferred from this list.
     sections: list[AdminExportSectionItem] = []
+    learning_modes: dict[str, AdminExportLearningModeItem] = Field(default_factory=dict)
 
 
 class AdminSegmentItem(BaseModel):

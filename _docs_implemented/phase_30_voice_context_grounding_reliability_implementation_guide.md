@@ -1,7 +1,7 @@
 # Phase 30 Implementation Guide — Voice Context Grounding Reliability
 
-Date: 2026-08-10  
-Status: Phase 30.0 observability implemented and runtime-reviewed; Phase 30.0.2 is the next P0; Phases 30.0.1 and 30.1–30.5 remain proposed
+Date: 2026-08-13
+Status: Phase 30.0 observability and 30.0.2 session budget are implemented; the ASR-final response gate is implemented behind its disabled rollout flag; Phases 30.0.1 and 30.1–30.5 remain proposed
 Scope: remote Realtime-session budget, voice-only RAG budget, final-transcript safety gate, concise spoken responses, structured follow-up state, and section routing verification
 
 ---
@@ -46,11 +46,11 @@ The phase improves the handoff into grounding. It must not fork routing logic be
 |---|---|---|
 | Voice has a global RAG cap | `format_rag_context()` reads `VOICE_AGENT_RAG_MAX_CHARS` | Text-friendly context can be too broad for spoken answers. |
 | 8 reranked chunks exist before formatting | `search_voice_book_context()` returns the ranked payload | Keep recall at 8 candidates but reduce only model-visible voice context. |
-| Final ASR can arrive late | trace has `has_final_transcript()` and late-transcript correlation | A bounded wait can reduce timing risk; it must fail open. |
+| Final ASR can arrive late | trace has `has_final_transcript()` and late-transcript correlation | Realtime can create a response before ASR-final, so response creation—not only book-tool timing—must be gated. |
 | Voice state is not grounding state | `VoiceTurnState` holds transcript/clarification only | Follow-up references are not represented as structured source IDs. |
 | Section path already exists | `GroundingRouter._resolve_section()` | A new tool is conditional, not P0. |
 
-Important correction: do not add a generic final-transcript wait inside confirmed `execute_web_search()`. That tool runs after an earlier permission turn and is protected by the existing watchdog. The ASR gate belongs only before the first book-grounding decision in `search_book_knowledge()`.
+Important correction from the 2026-08-13 runtime log: the old plan to wait only inside `search_book_knowledge()` is insufficient. OpenAI Realtime created and began a response before `gpt-live-transcribe` emitted its final event. The response gate must therefore be at response creation, not inside a later tool. Confirmed `execute_web_search()` is unchanged.
 
 ---
 
@@ -63,7 +63,7 @@ Important correction: do not add a generic final-transcript wait inside confirme
 | 30.0.2 | Bound remote Realtime conversation context | Medium | Long voice sessions stop growing into TPM failures; text unchanged |
 | 30.1 | Voice-only RAG budget | Low | Text output unchanged; voice budget enforced |
 | 30.2 | Concise voice response profile | Low | Normal answers become shorter; detailed requests remain coherent |
-| 30.3 | Bounded ASR-final gate | Medium | No silent/duplicate turn; timeout proceeds |
+| 30.3 | ASR-final response gate | Medium | No response is created before final ASR; one application-requested reply follows it |
 | 30.4 | Structured grounding state | Medium | State cannot leak across book/topic/TTL |
 | 30.5 | Typed section tool | Conditional | Implement only if routing traces justify it |
 
@@ -454,67 +454,40 @@ VOICE_AGENT_VOICE_CONCISE_REPLY_ENABLED=false
 
 ---
 
-## 8. Phase 30.3 — final-transcript gate
+## 8. Phase 30.3 — ASR-final response gate (implemented; rollout disabled)
 
-### Objective
+The server log proved a more fundamental race than the original pre-tool wait:
+Realtime created a response after VAD endpointing while the final transcript was still pending. A tool/router that runs afterward cannot make that earlier response grounded.
 
-A final transcript may be recorded shortly after the voice tool begins. The gate gives the turn a small time window to stabilize. It does **not** replace the model tool query with raw ASR text.
-
-### Files
-
-```text
-app/services/agent_voice_gpt_realtime.py
-app/services/agent_observability/contracts.py
-app/services/agent_observability/turn_trace.py
-tests/services/voice_agent/test_agent_voice_asr_final_gate.py
-tests/services/agent_observability/test_turn_trace.py
-```
-
-Add a pure/testable async helper with injected sleep:
-
-```python
-async def wait_for_voice_final_transcript(
-    tracer: AgentTurnTracer,
-    *,
-    enabled: bool,
-    wait_ms: int,
-    sleep: Callable[[float], Awaitable[None]] = asyncio.sleep,
-) -> AsrFinalGateResult:
-    if not enabled:
-        return AsrFinalGateResult("disabled", 0)
-    if not tracer.has_active_turn(AgentInputMode.VOICE):
-        return AsrFinalGateResult("no_active_voice_turn", 0)
-    if tracer.has_final_transcript(AgentInputMode.VOICE):
-        return AsrFinalGateResult("already_final", 0)
-
-    # Poll until configured deadline.
-    # If final arrives: wait_satisfied.
-    # Deadline: timeout_fail_open. Never block or reject the tool.
-```
-
-Call it once at the entry of the realtime `search_book_knowledge()` tool before `resolve_book_query()`. Do not put it in generic `resolve_book_query()`, which also serves non-voice/fallback paths. Do not call it in permission-confirmed `execute_web_search()`.
-
-Rollout:
-
-1. Ship helper/trace with flag off.
-2. Run observe-only analysis to see whether final commonly arrives inside 350 ms.
-3. Enable at 250–350 ms with fail-open timeout.
-4. Compare first-speech latency to Phase 30.0 baseline.
-
-Required tests:
-
-1. Disabled and final-already-present do not sleep.
-2. Final arriving during the window proceeds with `wait_satisfied`.
-3. No final proceeds with `timeout_fail_open`.
-4. No active voice turn does not wait.
-5. Text chat never calls gate.
-6. Confirmed web-search execution never calls gate.
-7. Timeout never creates clarification, error, second tool call, or duplicate reply.
-
-Rollback:
+The implementation uses one feature flag:
 
 ```ini
-VOICE_AGENT_ASR_FINAL_GATE_ENABLED=false
+VOICE_AGENT_ASR_FINAL_RESPONSE_GATE_ENABLED=false
+```
+
+When disabled, no Realtime/LiveKit option or reply behavior changes. When enabled:
+
+1. Realtime still uses Semantic VAD to detect end-of-speech and commit the audio item.
+2. It sends `create_response=false` and `interrupt_response=false`, so VAD cannot create the early response.
+3. `user_input_transcribed(is_final=True)` records the final transcript as before.
+4. On the next event-loop tick, the application calls `session.generate_reply(input_modality="audio")` exactly once. The tick lets LiveKit upsert the final transcript into its Realtime conversation before generation starts.
+
+This does not inject raw ASR text as a second user message, does not fork `SharedAgentPolicy`, and does not alter text chat, RAG selection, tool behavior, watchdog behavior, or remote context budgeting.
+
+The implementation logs scalar-only events:
+
+```text
+VOICE_DIAG asr_final_response_gate_final_received
+VOICE_DIAG asr_final_response_gate_reply_requested
+VOICE_DIAG asr_final_response_gate_reply_failed
+```
+
+Canary success requires every user turn to show `final_received` before the subsequent `realtime_response_created`, with one `reply_requested` and no early automatic `speech_created`.
+
+Rollback is immediate:
+
+```ini
+VOICE_AGENT_ASR_FINAL_RESPONSE_GATE_ENABLED=false
 ```
 
 ---

@@ -41,13 +41,30 @@ class RealtimeResponseUsage:
 
 @dataclass(frozen=True)
 class RealtimeSessionTruncationSnapshot:
-    """Safe subset of OpenAI's acknowledged Realtime session configuration."""
+    """Safe scalar subset of OpenAI's acknowledged Realtime session configuration."""
 
     event_id: str | None
     configured: bool
     truncation_type: str | None
     max_post_instructions_tokens: int | None
     retention_ratio: float | None
+    turn_detection_type: str | None
+    turn_detection_create_response: bool | None
+    turn_detection_interrupt_response: bool | None
+
+
+@dataclass(frozen=True)
+class RealtimeSessionTranscriptionSnapshot:
+    """Safe scalar subset of acknowledged Realtime input-transcription settings."""
+
+    event_id: str | None
+    configured: bool
+    model: str | None
+    language_mode: str
+    language_count: int | None
+    keyword_count: int | None
+    delay: str | None
+    prompt_chars: int | None
 
 
 @dataclass(frozen=True)
@@ -104,13 +121,28 @@ def parse_response_id(event: Any) -> str | None:
 
 
 def parse_session_truncation_snapshot(event: Any) -> RealtimeSessionTruncationSnapshot | None:
-    """Extract only truncation metadata from OpenAI's ``session.updated`` event."""
+    """Extract safe session-budget and VAD acknowledgement metadata."""
     if not isinstance(event, Mapping) or event.get("type") != "session.updated":
         return None
 
     session = event.get("session")
     if not isinstance(session, Mapping):
         return None
+
+    turn_detection = _session_turn_detection(session)
+    turn_detection_type = (
+        _optional_string(turn_detection.get("type")) if isinstance(turn_detection, Mapping) else None
+    )
+    turn_detection_create_response = (
+        _optional_bool(turn_detection.get("create_response"))
+        if isinstance(turn_detection, Mapping)
+        else None
+    )
+    turn_detection_interrupt_response = (
+        _optional_bool(turn_detection.get("interrupt_response"))
+        if isinstance(turn_detection, Mapping)
+        else None
+    )
 
     truncation = session.get("truncation")
     if not isinstance(truncation, Mapping):
@@ -120,6 +152,9 @@ def parse_session_truncation_snapshot(event: Any) -> RealtimeSessionTruncationSn
             truncation_type=None,
             max_post_instructions_tokens=None,
             retention_ratio=None,
+            turn_detection_type=turn_detection_type,
+            turn_detection_create_response=turn_detection_create_response,
+            turn_detection_interrupt_response=turn_detection_interrupt_response,
         )
 
     token_limits = truncation.get("token_limits")
@@ -133,6 +168,45 @@ def parse_session_truncation_snapshot(event: Any) -> RealtimeSessionTruncationSn
             else None
         ),
         retention_ratio=_non_negative_float(truncation.get("retention_ratio")),
+        turn_detection_type=turn_detection_type,
+        turn_detection_create_response=turn_detection_create_response,
+        turn_detection_interrupt_response=turn_detection_interrupt_response,
+    )
+
+
+def parse_session_transcription_snapshot(event: Any) -> RealtimeSessionTranscriptionSnapshot | None:
+    """Extract acknowledged transcription shape without retaining its text fields."""
+    if not isinstance(event, Mapping) or event.get("type") != "session.updated":
+        return None
+
+    session = event.get("session")
+    if not isinstance(session, Mapping):
+        return None
+
+    transcription = _session_transcription(session)
+    if not isinstance(transcription, Mapping):
+        return RealtimeSessionTranscriptionSnapshot(
+            event_id=_optional_string(event.get("event_id")),
+            configured=False,
+            model=None,
+            language_mode="none",
+            language_count=None,
+            keyword_count=None,
+            delay=None,
+            prompt_chars=None,
+        )
+
+    language_mode, language_count = _transcription_language_summary(transcription)
+    prompt = transcription.get("prompt")
+    return RealtimeSessionTranscriptionSnapshot(
+        event_id=_optional_string(event.get("event_id")),
+        configured=True,
+        model=_optional_string(transcription.get("model")),
+        language_mode=language_mode,
+        language_count=language_count,
+        keyword_count=_string_collection_count(transcription.get("keywords")),
+        delay=_optional_string(transcription.get("delay")),
+        prompt_chars=len(prompt) if isinstance(prompt, str) else None,
     )
 
 
@@ -204,6 +278,54 @@ def _optional_string(value: Any) -> str | None:
         return None
     normalized = str(value).strip()
     return normalized or None
+
+
+def _session_turn_detection(session: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    """Handle both current nested and legacy flat Realtime session shapes."""
+    audio_input = _session_audio_input(session)
+    nested = audio_input.get("turn_detection") if isinstance(audio_input, Mapping) else None
+    if isinstance(nested, Mapping):
+        return nested
+    flat = session.get("turn_detection")
+    return flat if isinstance(flat, Mapping) else None
+
+
+def _session_transcription(session: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    """Handle both nested and legacy flat input-transcription session shapes."""
+    audio_input = _session_audio_input(session)
+    nested = audio_input.get("transcription") if isinstance(audio_input, Mapping) else None
+    if isinstance(nested, Mapping):
+        return nested
+    flat = session.get("input_audio_transcription")
+    return flat if isinstance(flat, Mapping) else None
+
+
+def _session_audio_input(session: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    audio = session.get("audio")
+    audio_input = audio.get("input") if isinstance(audio, Mapping) else None
+    return audio_input if isinstance(audio_input, Mapping) else None
+
+
+def _transcription_language_summary(transcription: Mapping[str, Any]) -> tuple[str, int | None]:
+    has_language = "language" in transcription
+    has_languages = "languages" in transcription
+    if has_language and has_languages:
+        return "both", _string_collection_count(transcription.get("languages"))
+    if has_languages:
+        return "languages", _string_collection_count(transcription.get("languages"))
+    if has_language:
+        return "language", 1 if _optional_string(transcription.get("language")) else 0
+    return "none", None
+
+
+def _string_collection_count(value: Any) -> int | None:
+    if not isinstance(value, list):
+        return None
+    return sum(1 for item in value if _optional_string(item))
+
+
+def _optional_bool(value: Any) -> bool | None:
+    return value if isinstance(value, bool) else None
 
 
 def _non_negative_int(value: Any) -> int | None:

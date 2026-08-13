@@ -7,6 +7,9 @@ from enum import Enum
 
 
 class GroundingIntent(str, Enum):
+    CONTEXT_DOCUMENT_COUNT = "context.document_count"
+    CONTEXT_DOCUMENT_LIST = "context.document_list"
+    CONTEXT_OVERVIEW = "context.overview"
     BOOK_METADATA_TITLE = "book_metadata.title"
     BOOK_METADATA_AUTHOR = "book_metadata.author"
     BOOK_METADATA_DOCUMENT_TYPE = "book_metadata.document_type"
@@ -21,6 +24,7 @@ class GroundingIntent(str, Enum):
 
 
 class GroundingRoute(str, Enum):
+    CONTEXT_OVERVIEW = "context_overview"
     BOOK_METADATA = "book_metadata"
     BOOK_SECTION = "book_section"
     BOOK_RAG = "book_rag"

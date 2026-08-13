@@ -29,3 +29,22 @@ def split_text_for_llm(text: str) -> list[TextChunk]:
         )
         for index, part in enumerate(parts)
     ]
+
+
+def split_full_mode_text_for_llm(text: str) -> list[TextChunk]:
+    """Split one Full learning unit for Luna without repeating source content."""
+    splitter = RecursiveCharacterTextSplitter(
+        chunk_size=settings.FULL_MODE_CHUNK_TARGET_TOKENS,
+        chunk_overlap=settings.FULL_MODE_CHUNK_OVERLAP_TOKENS,
+        length_function=estimate_tokens,
+        separators=["\n\n", "\n", ". ", "! ", "? ", "; ", ", ", " ", ""],
+    )
+    parts = [part.strip() for part in splitter.split_text(text or "") if part.strip()]
+    return [
+        TextChunk(
+            index=index,
+            text=part,
+            estimated_tokens=estimate_tokens(part),
+        )
+        for index, part in enumerate(parts)
+    ]

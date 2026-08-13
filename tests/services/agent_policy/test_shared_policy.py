@@ -4,9 +4,14 @@ import pytest
 
 from app.services.agent_grounding.contracts import (
     GroundingBook,
+    GroundingDecision,
+    GroundingIntent,
+    GroundingResult,
+    GroundingRoute,
     GroundingScope,
     GroundingSection,
     GroundingSectionText,
+    ResolutionQuality,
 )
 from app.services.agent_grounding.grounding_router import GroundingRouter
 from app.services.agent_observability import AgentAnswerSource, AgentInputMode, AgentTurnTracer
@@ -59,6 +64,37 @@ async def test_metadata_question_returns_direct_answer_without_rag() -> None:
     assert result.answer_source == AgentAnswerSource.BOOK_METADATA
     assert result.user_message == 'Tác giả của "Of Mice and Men" là John Steinbeck.'
     assert render_voice_tool_result(result).startswith("BOOK_METADATA_FOUND:")
+
+
+@pytest.mark.asyncio
+async def test_context_overview_returns_shared_direct_answer_without_rag() -> None:
+    context_result = GroundingResult(
+        GroundingDecision(
+            GroundingIntent.CONTEXT_DOCUMENT_COUNT,
+            GroundingRoute.CONTEXT_OVERVIEW,
+            quality=ResolutionQuality.EXACT,
+            reason_code="context_scope_metadata",
+            resolved_book_ids=(BOOK_ID,),
+        ),
+        deterministic_answer="Ngữ cảnh học tập hiện tại có 1 tài liệu.",
+    )
+
+    class ContextRouter:
+        async def resolve(self, *_args, **_kwargs):
+            return context_result
+
+    policy = SharedAgentPolicy(
+        document_ids=[str(BOOK_ID)],
+        grounding_router=ContextRouter(),
+        tracer=AgentTurnTracer(enabled=False, thread_id=None, room_name="test"),
+        search_book_context=_unexpected_rag_call,
+    )
+    result = await policy.resolve(_request("Có bao nhiêu tài liệu trong ngữ cảnh hiện tại?"))
+
+    assert result.action == AgentPolicyAction.DIRECT_ANSWER
+    assert result.answer_source == AgentAnswerSource.CONTEXT_METADATA
+    assert result.user_message == "Ngữ cảnh học tập hiện tại có 1 tài liệu."
+    assert render_voice_tool_result(result).startswith("STUDY_CONTEXT_FOUND:")
 
 
 @pytest.mark.asyncio

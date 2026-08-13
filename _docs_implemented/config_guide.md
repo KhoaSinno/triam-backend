@@ -86,6 +86,7 @@ Cấu hình cho Voice Agent giao tiếp thời gian thực qua LiveKit.
 | `OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_TERMS` | `int` | `45` | Số lượng từ vựng đặc thù tối đa được đưa vào Prompt. |
 | `OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_SECTION_TERMS` | `int` | `20` | Số lượng từ vựng tối đa được trích xuất từ phân đoạn sách hiện tại. |
 | `OPENAI_REALTIME_INPUT_AUDIO_NOISE_REDUCTION` | `str` | `"near_field"` | Cấu hình bộ lọc khử tiếng ồn đầu vào của LiveKit (ví dụ: `"near_field"`). |
+| `VOICE_AGENT_ASR_FINAL_RESPONSE_GATE_ENABLED` | `bool` | `False` | Canary P0: giữ Realtime VAD nhưng cấm auto-response trước ASR-final; ứng dụng tạo đúng một reply sau transcript cuối. Bật khi test voice có kiểm soát, tắt để rollback ngay. |
 
 ---
 
