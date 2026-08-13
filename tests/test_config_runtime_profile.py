@@ -43,6 +43,23 @@ def test_realtime_session_budget_is_disabled_by_default():
     assert clean_settings.VOICE_AGENT_REALTIME_CONTEXT_RETENTION_RATIO == 0.75
 
 
+def test_asr_final_response_gate_is_disabled_by_default_and_explicit_when_enabled():
+    clean_settings = build_settings()
+
+    assert clean_settings.VOICE_AGENT_ASR_FINAL_RESPONSE_GATE_ENABLED is False
+    assert voice_agent._build_realtime_turn_detection_options(
+        asr_final_response_gate_enabled=False,
+    ) == {}
+
+    options = voice_agent._build_realtime_turn_detection_options(
+        asr_final_response_gate_enabled=True,
+    )
+    turn_detection = options["turn_detection"]
+    assert turn_detection.type == "semantic_vad"
+    assert turn_detection.create_response is False
+    assert turn_detection.interrupt_response is False
+
+
 def test_context_overview_is_disabled_by_default_and_bounded():
     clean_settings = build_settings()
 

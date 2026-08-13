@@ -131,6 +131,11 @@ class Settings(BaseSettings):
     VOICE_AGENT_FALSE_INTERRUPTION_TIMEOUT_SECONDS: float = 1.5
     VOICE_AGENT_PREEMPTIVE_GENERATION_ENABLED: bool = False
 
+    # P0: keep Realtime VAD endpointing, but defer response creation until the
+    # provider has emitted the final input transcript.  Disabled for a safe
+    # rollout because it changes voice turn timing.
+    VOICE_AGENT_ASR_FINAL_RESPONSE_GATE_ENABLED: bool = True
+
     # Phase 10.11 Voice Tool Reply Watchdog config
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_ENABLED: bool = False
     VOICE_AGENT_TOOL_REPLY_WATCHDOG_GRACE_SECONDS: float = 8.0
@@ -153,7 +158,7 @@ class Settings(BaseSettings):
     AGENT_SECTION_CONTEXT_MAX_CHARS: int = 24000
     # Phase 32: deterministic answers about every document in the active Study Context.
     # Disabled by default so rollout does not alter existing book/RAG routing.
-    AGENT_CONTEXT_OVERVIEW_ENABLED: bool = False
+    AGENT_CONTEXT_OVERVIEW_ENABLED: bool = True
     AGENT_CONTEXT_OVERVIEW_MAX_VISIBLE_DOCUMENTS: int = Field(default=6, ge=1, le=12)
 
     # Phase 10.3 hybrid retrieval. Keep disabled until search_text is backfilled.

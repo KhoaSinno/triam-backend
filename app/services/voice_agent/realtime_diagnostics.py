@@ -41,13 +41,16 @@ class RealtimeResponseUsage:
 
 @dataclass(frozen=True)
 class RealtimeSessionTruncationSnapshot:
-    """Safe subset of OpenAI's acknowledged Realtime session configuration."""
+    """Safe scalar subset of OpenAI's acknowledged Realtime session configuration."""
 
     event_id: str | None
     configured: bool
     truncation_type: str | None
     max_post_instructions_tokens: int | None
     retention_ratio: float | None
+    turn_detection_type: str | None
+    turn_detection_create_response: bool | None
+    turn_detection_interrupt_response: bool | None
 
 
 @dataclass(frozen=True)
@@ -104,13 +107,28 @@ def parse_response_id(event: Any) -> str | None:
 
 
 def parse_session_truncation_snapshot(event: Any) -> RealtimeSessionTruncationSnapshot | None:
-    """Extract only truncation metadata from OpenAI's ``session.updated`` event."""
+    """Extract safe session-budget and VAD acknowledgement metadata."""
     if not isinstance(event, Mapping) or event.get("type") != "session.updated":
         return None
 
     session = event.get("session")
     if not isinstance(session, Mapping):
         return None
+
+    turn_detection = _session_turn_detection(session)
+    turn_detection_type = (
+        _optional_string(turn_detection.get("type")) if isinstance(turn_detection, Mapping) else None
+    )
+    turn_detection_create_response = (
+        _optional_bool(turn_detection.get("create_response"))
+        if isinstance(turn_detection, Mapping)
+        else None
+    )
+    turn_detection_interrupt_response = (
+        _optional_bool(turn_detection.get("interrupt_response"))
+        if isinstance(turn_detection, Mapping)
+        else None
+    )
 
     truncation = session.get("truncation")
     if not isinstance(truncation, Mapping):
@@ -120,6 +138,9 @@ def parse_session_truncation_snapshot(event: Any) -> RealtimeSessionTruncationSn
             truncation_type=None,
             max_post_instructions_tokens=None,
             retention_ratio=None,
+            turn_detection_type=turn_detection_type,
+            turn_detection_create_response=turn_detection_create_response,
+            turn_detection_interrupt_response=turn_detection_interrupt_response,
         )
 
     token_limits = truncation.get("token_limits")
@@ -133,6 +154,9 @@ def parse_session_truncation_snapshot(event: Any) -> RealtimeSessionTruncationSn
             else None
         ),
         retention_ratio=_non_negative_float(truncation.get("retention_ratio")),
+        turn_detection_type=turn_detection_type,
+        turn_detection_create_response=turn_detection_create_response,
+        turn_detection_interrupt_response=turn_detection_interrupt_response,
     )
 
 
@@ -204,6 +228,21 @@ def _optional_string(value: Any) -> str | None:
         return None
     normalized = str(value).strip()
     return normalized or None
+
+
+def _session_turn_detection(session: Mapping[str, Any]) -> Mapping[str, Any] | None:
+    """Handle both current nested and legacy flat Realtime session shapes."""
+    audio = session.get("audio")
+    audio_input = audio.get("input") if isinstance(audio, Mapping) else None
+    nested = audio_input.get("turn_detection") if isinstance(audio_input, Mapping) else None
+    if isinstance(nested, Mapping):
+        return nested
+    flat = session.get("turn_detection")
+    return flat if isinstance(flat, Mapping) else None
+
+
+def _optional_bool(value: Any) -> bool | None:
+    return value if isinstance(value, bool) else None
 
 
 def _non_negative_int(value: Any) -> int | None:

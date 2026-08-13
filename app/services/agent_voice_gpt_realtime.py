@@ -29,6 +29,7 @@ from livekit.agents.voice import io as voice_io
 from livekit.plugins import noise_cancellation
 from livekit.plugins.openai import LLM as OpenAILLM
 from livekit.plugins.openai.realtime import RealtimeModel
+from openai.types import realtime as openai_realtime
 from openai.types.realtime import AudioTranscription, RealtimeReasoning
 
 from app.core.config import settings
@@ -175,6 +176,31 @@ GREETING_INSTRUCTIONS = (
 
 
 TextChatOrchestrationMode = Literal["agentic", "shared_policy", "legacy"]
+
+
+def _build_realtime_turn_detection_options(
+    *,
+    asr_final_response_gate_enabled: bool,
+) -> dict[str, Any]:
+    """Return an explicit Realtime VAD policy only for the response-gate rollout.
+
+    With the flag off, we intentionally pass no ``turn_detection`` argument so
+    the installed LiveKit/OpenAI defaults remain byte-for-byte compatible with
+    the existing production behavior.  With it on, server-side Semantic VAD
+    continues to commit the audio turn and produce a final transcription, but
+    cannot create a response before application policy has that transcript.
+    """
+    if not asr_final_response_gate_enabled:
+        return {}
+
+    return {
+        "turn_detection": openai_realtime.realtime_audio_input_turn_detection.SemanticVad(
+            type="semantic_vad",
+            create_response=False,
+            eagerness="medium",
+            interrupt_response=False,
+        )
+    }
 
 
 def _select_text_chat_orchestration_mode(
@@ -830,6 +856,44 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
 
     session: AgentSession
     text_turn_lock = asyncio.Lock()
+    asr_final_response_tasks: set[asyncio.Task[None]] = set()
+
+    def _schedule_reply_after_final_transcript(transcript: str) -> None:
+        """Create exactly one user reply after the Realtime ASR-final event.
+
+        The callback is deliberately scheduled for the next event-loop tick.
+        LiveKit first notifies application listeners, then upserts the final
+        transcript into its Realtime chat context.  Waiting one tick preserves
+        that ordering without adding a configured sleep to voice latency.
+        """
+        if not settings.VOICE_AGENT_ASR_FINAL_RESPONSE_GATE_ENABLED:
+            return
+
+        async def _create_reply() -> None:
+            await asyncio.sleep(0)
+            try:
+                # Realtime VAD already commits the audio item.  Do not inject a
+                # second text user message here: it would duplicate the turn in
+                # the remote Realtime conversation.
+                session.generate_reply(input_modality="audio")
+                log.info(
+                    "VOICE_DIAG asr_final_response_gate_reply_requested | "
+                    f"transcript_chars={len(transcript)} | thread_id={thread_uuid}"
+                )
+            except Exception as exc:
+                tracer.record_error(AgentInputMode.VOICE, "asr_final_response_gate_reply_error")
+                log.exception(
+                    "VOICE_DIAG asr_final_response_gate_reply_failed | "
+                    f"error_type={type(exc).__name__} | thread_id={thread_uuid}"
+                )
+
+        task = asyncio.create_task(_create_reply())
+        asr_final_response_tasks.add(task)
+        task.add_done_callback(asr_final_response_tasks.discard)
+        log.info(
+            "VOICE_DIAG asr_final_response_gate_final_received | "
+            f"transcript_chars={len(transcript)} | thread_id={thread_uuid}"
+        )
 
     def _truncate_session_history() -> None:
         if hasattr(session, "history") and session.history is not None:
@@ -1243,6 +1307,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 language=str(language) if language else None,
             )
             _record_web_permission_reply(transcript)
+            _schedule_reply_after_final_transcript(transcript)
 
     def _handle_conversation_item_added(
         ev: ConversationItemAddedEvent,
@@ -1380,7 +1445,15 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
     def _attach_realtime_diagnostic_handlers(realtime_session: Any) -> None:
         """Observe provider metadata only; never log raw Realtime events."""
 
-        last_session_truncation_settings: tuple[bool, str | None, int | None, float | None] | None = None
+        last_session_truncation_settings: tuple[
+            bool,
+            str | None,
+            int | None,
+            float | None,
+            str | None,
+            bool | None,
+            bool | None,
+        ] | None = None
 
         @realtime_session.on("openai_server_event_received")  # type: ignore[arg-type]
         def on_openai_server_event_received(event: Any) -> None:
@@ -1393,6 +1466,9 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                     session_snapshot.truncation_type,
                     session_snapshot.max_post_instructions_tokens,
                     session_snapshot.retention_ratio,
+                    session_snapshot.turn_detection_type,
+                    session_snapshot.turn_detection_create_response,
+                    session_snapshot.turn_detection_interrupt_response,
                 )
                 if session_settings != last_session_truncation_settings:
                     last_session_truncation_settings = session_settings
@@ -1403,7 +1479,12 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                         f"truncation_type={session_snapshot.truncation_type or 'none'} | "
                         "max_post_instructions_tokens="
                         f"{session_snapshot.max_post_instructions_tokens} | "
-                        f"retention_ratio={session_snapshot.retention_ratio}"
+                        f"retention_ratio={session_snapshot.retention_ratio} | "
+                        f"turn_detection_type={session_snapshot.turn_detection_type or 'none'} | "
+                        "turn_detection_create_response="
+                        f"{session_snapshot.turn_detection_create_response} | "
+                        "turn_detection_interrupt_response="
+                        f"{session_snapshot.turn_detection_interrupt_response}"
                     )
                 return
 
@@ -1494,6 +1575,8 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 "Starting realtime session | "
                 f"model={model_name} | voice={settings.OPENAI_REALTIME_VOICE} | "
                 f"reasoning_effort={settings.OPENAI_REALTIME_REASONING_EFFORT} | "
+                "asr_final_response_gate_enabled="
+                f"{settings.VOICE_AGENT_ASR_FINAL_RESPONSE_GATE_ENABLED} | "
                 f"context_budget_enabled={settings.VOICE_AGENT_REALTIME_CONTEXT_BUDGET_ENABLED} | "
                 "context_budget_max_post_instructions_tokens="
                 f"{settings.VOICE_AGENT_REALTIME_CONTEXT_MAX_POST_INSTRUCTIONS_TOKENS} | "
@@ -1512,6 +1595,11 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 "input_audio_noise_reduction": settings.OPENAI_REALTIME_INPUT_AUDIO_NOISE_REDUCTION,
                 "reasoning": RealtimeReasoning(effort=settings.OPENAI_REALTIME_REASONING_EFFORT),
             }
+            realtime_options.update(
+                _build_realtime_turn_detection_options(
+                    asr_final_response_gate_enabled=settings.VOICE_AGENT_ASR_FINAL_RESPONSE_GATE_ENABLED,
+                )
+            )
             realtime_options.update(
                 build_realtime_session_budget_options(
                     enabled=settings.VOICE_AGENT_REALTIME_CONTEXT_BUDGET_ENABLED,

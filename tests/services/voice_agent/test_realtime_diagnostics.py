@@ -73,6 +73,15 @@ def test_parses_acknowledged_session_truncation_without_retaining_session_conten
                     "retention_ratio": 0.75,
                     "token_limits": {"post_instructions": 8000},
                 },
+                "audio": {
+                    "input": {
+                        "turn_detection": {
+                            "type": "semantic_vad",
+                            "create_response": False,
+                            "interrupt_response": False,
+                        }
+                    }
+                },
             },
         }
     )
@@ -83,6 +92,9 @@ def test_parses_acknowledged_session_truncation_without_retaining_session_conten
     assert snapshot.truncation_type == "retention_ratio"
     assert snapshot.max_post_instructions_tokens == 8000
     assert snapshot.retention_ratio == 0.75
+    assert snapshot.turn_detection_type == "semantic_vad"
+    assert snapshot.turn_detection_create_response is False
+    assert snapshot.turn_detection_interrupt_response is False
     assert "must never be retained" not in repr(snapshot)
 
 
@@ -100,3 +112,4 @@ def test_parses_session_update_without_a_truncation_policy():
     assert snapshot.truncation_type is None
     assert snapshot.max_post_instructions_tokens is None
     assert snapshot.retention_ratio is None
+    assert snapshot.turn_detection_type is None
