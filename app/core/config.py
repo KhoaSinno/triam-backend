@@ -91,6 +91,10 @@ class Settings(BaseSettings):
     OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_CHARS: int = 900
     OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_TERMS: int = 45
     OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_SECTION_TERMS: int = 20
+    # Phase 33.1: legacy-SDK-compatible, scoped vocabulary prompt. Disabled
+    # by default so the current transcription prompt is preserved until canary.
+    VOICE_AGENT_TRANSCRIPTION_CONTEXT_HINTS_ENABLED: bool = True
+    VOICE_AGENT_TRANSCRIPTION_LEGACY_PROMPT_TERM_LIMIT: int = Field(default=8, ge=0, le=20)
     OPENAI_REALTIME_INPUT_AUDIO_NOISE_REDUCTION: str = "near_field"
 
     VOICE_AGENT_TEXT_LLM_MODEL: str = "gpt-4o-mini"

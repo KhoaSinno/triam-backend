@@ -70,6 +70,16 @@ def test_context_overview_is_disabled_by_default_and_bounded():
         build_settings(AGENT_CONTEXT_OVERVIEW_MAX_VISIBLE_DOCUMENTS=0)
 
 
+def test_transcription_context_hints_are_disabled_by_default_and_bounded():
+    clean_settings = build_settings()
+
+    assert clean_settings.VOICE_AGENT_TRANSCRIPTION_CONTEXT_HINTS_ENABLED is False
+    assert clean_settings.VOICE_AGENT_TRANSCRIPTION_LEGACY_PROMPT_TERM_LIMIT == 8
+
+    with pytest.raises(ValidationError):
+        build_settings(VOICE_AGENT_TRANSCRIPTION_LEGACY_PROMPT_TERM_LIMIT=21)
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [

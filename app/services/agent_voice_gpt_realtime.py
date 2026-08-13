@@ -1587,12 +1587,16 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         max_chars=settings.OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_CHARS,
         max_terms=settings.OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_TERMS,
         max_section_terms=settings.OPENAI_REALTIME_TRANSCRIPTION_PROMPT_MAX_SECTION_TERMS,
+        context_hints_enabled=settings.VOICE_AGENT_TRANSCRIPTION_CONTEXT_HINTS_ENABLED,
+        legacy_prompt_term_limit=settings.VOICE_AGENT_TRANSCRIPTION_LEGACY_PROMPT_TERM_LIMIT,
     )
 
     log.info(
         "Realtime transcription prompt ready | "
         f"dynamic={transcription_prompt_result.dynamic_enabled} | "
         f"terms={transcription_prompt_result.term_count} | "
+        f"context_hints={transcription_prompt_result.context_hints_enabled} | "
+        f"prompt_terms={transcription_prompt_result.prompt_term_count} | "
         f"chars={transcription_prompt_result.prompt_chars}"
     )
     log.info(
@@ -1605,7 +1609,9 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         "keyword_count=0 | delay=none | "
         f"prompt_chars={transcription_prompt_result.prompt_chars} | "
         f"dynamic_prompt={transcription_prompt_result.dynamic_enabled} | "
-        f"dynamic_term_count={transcription_prompt_result.term_count}"
+        f"dynamic_term_count={transcription_prompt_result.term_count} | "
+        f"context_hints_enabled={transcription_prompt_result.context_hints_enabled} | "
+        f"legacy_prompt_term_count={transcription_prompt_result.prompt_term_count}"
     )
 
     # Start session with fallback when a configured model is unavailable.

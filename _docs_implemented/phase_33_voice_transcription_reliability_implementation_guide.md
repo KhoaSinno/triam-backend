@@ -1,7 +1,7 @@
 # Phase 33 Implementation Guide — Vietnamese Voice Transcription Reliability
 
 Date: 2026-08-13  
-Status: Phase 33.0 scalar-only observability and evaluation runbook are implemented; Phases 33.1–33.4 remain proposed  
+Status: Phases 33.0 and 33.1 are implemented; Phases 33.2–33.4 remain proposed
 Scope: make Vietnamese final transcripts, especially book titles, author names, chapter names, numbers, and English technical terms, more reliable before they reach voice grounding and RAG.
 
 ---
@@ -341,6 +341,15 @@ Long lists are weaker cues than explicit keyword fields, consume the prompt leng
 ### Rollback
 
 Set `VOICE_AGENT_TRANSCRIPTION_CONTEXT_HINTS_ENABLED=false` and restart the agent. No session/history/database migration is involved.
+
+### Implementation record (2026-08-13)
+
+Implemented as an SDK-legacy fallback only:
+
+1. The existing collector and synthetic-dialogue prompt remain unchanged when `VOICE_AGENT_TRANSCRIPTION_CONTEXT_HINTS_ENABLED=false`.
+2. With both the existing dynamic-prompt parent switch and the new flag enabled, the builder ranks title, author/document type, section/path, domain terms, then explicit extras.
+3. The fallback sends only `VOICE_AGENT_TRANSCRIPTION_LEGACY_PROMPT_TERM_LIMIT` prioritized terms in a neutral `Expected names may include` sentence; the full candidate list is held only in memory for a later V2 keyword adapter and is never logged.
+4. No transcript rewrite, shared policy, grounding, RAG, Realtime session schema, VAD, watchdog, or model behavior changed.
 
 ---
 
