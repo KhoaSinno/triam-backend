@@ -16,6 +16,11 @@ class TranscriptionPromptBuildResult:
     term_count: int
     prompt_chars: int
     dynamic_enabled: bool
+    # Candidates are retained only in memory for a future schema-V2 keyword
+    # adapter. They must never be written to production logs.
+    keyword_candidates: tuple[str, ...] = ()
+    prompt_term_count: int = 0
+    context_hints_enabled: bool = False
 
 
 def _normalize_term(value: object) -> str:
@@ -25,20 +30,21 @@ def _normalize_term(value: object) -> str:
     return text
 
 
-def _add_unique(terms: list[str], seen: set[str], value: object, *, max_len: int = 80) -> None:
+def _add_unique(terms: list[str], seen: set[str], value: object, *, max_len: int = 80) -> bool:
     term = _normalize_term(value)
     if not term:
-        return
+        return False
 
     if len(term) > max_len:
         term = term[:max_len].rstrip()
 
     key = term.casefold()
     if key in seen:
-        return
+        return False
 
     seen.add(key)
     terms.append(term)
+    return True
 
 
 def _split_path_terms(path: str | None) -> list[str]:
@@ -136,7 +142,7 @@ def _add_section_terms(terms: list[str], seen: set[str], title: str, path: str, 
     return added
 
 
-def _collect_dynamic_terms(
+def _collect_legacy_dynamic_terms(
     grounding_scope: GroundingScope | None,
     *,
     max_terms: int,
@@ -174,6 +180,89 @@ def _build_prompt(base: str, terms: list[str], *, max_chars: int) -> str:
     return _trim_prompt(prompt, max_chars=max_chars)
 
 
+def _add_limited_terms(
+    terms: list[str],
+    seen: set[str],
+    values: Iterable[object],
+    *,
+    limit: int,
+) -> None:
+    added = 0
+    for value in values:
+        if added >= max(0, limit):
+            break
+        if _add_unique(terms, seen, value):
+            added += 1
+
+
+def _prioritized_section_values(grounding_scope: GroundingScope) -> Iterable[str]:
+    for section in grounding_scope.sections:
+        yield section.title
+        yield from _split_path_terms(section.path)
+
+
+def _collect_prioritized_terms(
+    grounding_scope: GroundingScope | None,
+    *,
+    max_terms: int,
+    max_section_terms: int,
+    extra_terms: Iterable[str] | None,
+) -> list[str]:
+    """Build bounded vocabulary hints in business-value order.
+
+    This path is intentionally separate from the legacy collector so the
+    default-off rollout can retain its exact existing prompt behavior.
+    """
+    terms: list[str] = []
+    seen: set[str] = set()
+
+    if grounding_scope is not None:
+        _add_limited_terms(
+            terms,
+            seen,
+            (book.title for book in grounding_scope.books),
+            limit=8,
+        )
+        _add_limited_terms(
+            terms,
+            seen,
+            (
+                value
+                for book in grounding_scope.books
+                for value in (book.author, book.document_type)
+                if value
+            ),
+            limit=8,
+        )
+        _add_limited_terms(
+            terms,
+            seen,
+            _prioritized_section_values(grounding_scope),
+            limit=min(12, max(0, max_section_terms)),
+        )
+
+    _add_limited_terms(terms, seen, _base_domain_terms(), limit=12)
+    if extra_terms:
+        _add_limited_terms(terms, seen, extra_terms, limit=4)
+    return terms[: max(0, max_terms)]
+
+
+def _build_prioritized_prompt(
+    base: str,
+    prompt_terms: list[str],
+    *,
+    max_chars: int,
+) -> str:
+    prompt = (
+        base
+        + " The user may mix Vietnamese with English book titles, author names, character names, AI terms, and short app commands."
+        + " Prefer the exact expected terms when acoustically plausible; do not force them when the audio clearly says something else."
+    )
+    if prompt_terms:
+        prompt += " Expected names may include: " + ", ".join(prompt_terms) + "."
+    return _trim_prompt(prompt.strip(), max_chars=max_chars)
+
+
 def _trim_prompt(prompt: str, *, max_chars: int) -> str:
     if max_chars <= 0 or len(prompt) <= max_chars:
         return prompt
@@ -191,6 +280,8 @@ def build_realtime_transcription_prompt(
     max_terms: int,
     max_section_terms: int,
     extra_terms: Iterable[str] | None = None,
+    context_hints_enabled: bool = False,
+    legacy_prompt_term_limit: int = 0,
 ) -> TranscriptionPromptBuildResult:
     base = _normalize_term(base_prompt)
 
@@ -202,17 +293,36 @@ def build_realtime_transcription_prompt(
             dynamic_enabled=False,
         )
 
-    terms = _collect_dynamic_terms(
+    if not context_hints_enabled:
+        terms = _collect_legacy_dynamic_terms(
+            grounding_scope,
+            max_terms=max_terms,
+            max_section_terms=max_section_terms,
+            extra_terms=extra_terms,
+        )
+        prompt = _build_prompt(base, terms, max_chars=max_chars)
+        return TranscriptionPromptBuildResult(
+            prompt=prompt,
+            term_count=len(terms),
+            prompt_chars=len(prompt),
+            dynamic_enabled=True,
+        )
+
+    terms = _collect_prioritized_terms(
         grounding_scope,
         max_terms=max_terms,
         max_section_terms=max_section_terms,
         extra_terms=extra_terms,
     )
-    prompt = _build_prompt(base, terms, max_chars=max_chars)
+    prompt_terms = terms[: max(0, legacy_prompt_term_limit)]
+    prompt = _build_prioritized_prompt(base, prompt_terms, max_chars=max_chars)
 
     return TranscriptionPromptBuildResult(
         prompt=prompt,
         term_count=len(terms),
         prompt_chars=len(prompt),
         dynamic_enabled=True,
+        keyword_candidates=tuple(terms),
+        prompt_term_count=len(prompt_terms),
+        context_hints_enabled=True,
     )
