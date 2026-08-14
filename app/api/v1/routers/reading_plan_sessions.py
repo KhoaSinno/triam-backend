@@ -18,6 +18,7 @@ from app.services.reading_plan_session_service import (
     reschedule_reading_plan_session,
     skip_reading_plan_session,
 )
+from app.services.sync_event_service import record_event
 
 router = APIRouter()
 
@@ -52,12 +53,15 @@ def skip_plan_session(
     session: Annotated[Session, Depends(get_session)],
 ):
     """Bỏ qua một buổi học mà không đánh dấu learning progress là completed."""
-    return skip_reading_plan_session(
+    response = skip_reading_plan_session(
         session,
         user_id=current_user.sub,
         session_id=session_id,
         reason=payload.reason,
     )
+    record_event(session, user_id=current_user.sub, domain="reading_plan_session", entity_id=session_id, operation="update")
+    session.commit()
+    return response
 
 
 @router.put("/reading-plan/sessions/{session_id}/schedule", response_model=ReadingPlanSessionActionResponse)
@@ -68,7 +72,7 @@ def reschedule_plan_session(
     session: Annotated[Session, Depends(get_session)],
 ):
     """Dời lịch một buổi học cụ thể, giữ nguyên các learning units trong buổi đó."""
-    return reschedule_reading_plan_session(
+    response = reschedule_reading_plan_session(
         session,
         user_id=current_user.sub,
         session_id=session_id,
@@ -76,3 +80,6 @@ def reschedule_plan_session(
         reminder_time=payload.reminder_time,
         timezone_name=payload.timezone,
     )
+    record_event(session, user_id=current_user.sub, domain="reading_plan_session", entity_id=session_id, operation="update")
+    session.commit()
+    return response

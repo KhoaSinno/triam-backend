@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.requests import Request
 from fastapi.responses import JSONResponse
 
-from app.api.v1.routers import admin, audiobooks, health, jobs, learning_progress, live, notifications, reading_plan_sessions, reviews, study_context, threads, upload
+from app.api.v1.routers import admin, audiobooks, health, jobs, learning_progress, live, notifications, reading_plan_sessions, reviews, study_context, sync_events, threads, upload
 from app.core.exceptions import AppException
 from app.core.logger import log
 from app.db.database import dispose_engine
@@ -97,6 +97,7 @@ app.include_router(study_context.router, prefix="/api/v1", tags=["Study Context"
 app.include_router(admin.router, prefix="/api/v1", tags=["Admin"])
 
 app.include_router(threads.router, prefix="/api/v1", tags=["Threads Chat"])
+app.include_router(sync_events.router, prefix="/api/v1", tags=["Sync Events"])
 
 
 @app.get("/")

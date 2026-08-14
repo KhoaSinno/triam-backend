@@ -16,6 +16,7 @@ from app.services.study_context_service import (
     get_thread_messages,
     update_thread_by_id,
 )
+from app.services.sync_event_service import record_event
 
 router = APIRouter()
 
@@ -32,6 +33,8 @@ async def get_thread_messages_api(thread_id: uuid.UUID, current_user: CurrentUse
 
 @router.get("/threads/for-book/{book_id}", response_model=DirectBookThreadResponse)
 async def get_thread_for_book(book_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
+    # This is a GET and is called while reconciling thread summaries.  It must
+    # not publish an event, otherwise event-driven refresh would loop forever.
     return get_or_create_thread_for_book(session, user_id=current_user.sub, book_id=book_id)
 
 
@@ -40,10 +43,15 @@ async def get_thread_for_book(book_id: uuid.UUID, current_user: CurrentUser, ses
 
 @router.put("/threads/{thread_id}", response_model=ChatThreadResponse)
 async def update_thread_api(thread_id: uuid.UUID, payload: ChatThreadUpdate, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
-    return update_thread_by_id(session, current_user.sub, thread_id, payload.title)
+    response = update_thread_by_id(session, current_user.sub, thread_id, payload.title)
+    record_event(session, user_id=current_user.sub, domain="thread", entity_id=thread_id, operation="update")
+    session.commit()
+    return response
 
 
 @router.delete("/threads/{thread_id}")
 async def delete_thread_api(thread_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
     delete_thread_by_id(session, current_user.sub, thread_id)
+    record_event(session, user_id=current_user.sub, domain="thread", entity_id=thread_id, operation="delete")
+    session.commit()
     return {"message": "Thread deleted successfully"}
