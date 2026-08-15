@@ -17,7 +17,6 @@ from app.schemas.notification import (
 )
 from app.services.fcm_service import register_user_device_token, unregister_user_device_token
 from app.services.notification_service import get_settings, list_notifications, read_all_notifications, read_notification, update_settings
-from app.services.sync_event_service import record_event
 
 router = APIRouter()
 
@@ -34,18 +33,12 @@ def get_notifications(
 
 @router.patch("/notifications/read-all", response_model=MarkAllNotificationsReadResponse)
 def mark_all_read(current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
-    response = read_all_notifications(session, current_user.sub)
-    record_event(session, user_id=current_user.sub, domain="notification", entity_id="all", operation="update")
-    session.commit()
-    return response
+    return read_all_notifications(session, current_user.sub)
 
 
 @router.patch("/notifications/{notification_id}/read", response_model=MarkNotificationReadResponse)
 def mark_notification_read(notification_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
-    response = read_notification(session, current_user.sub, notification_id)
-    record_event(session, user_id=current_user.sub, domain="notification", entity_id=notification_id, operation="update")
-    session.commit()
-    return response
+    return read_notification(session, current_user.sub, notification_id)
 
 
 @router.get("/notifications/settings", response_model=NotificationSettingsResponse)
@@ -55,10 +48,7 @@ def get_notification_settings(current_user: CurrentUser, session: Annotated[Sess
 
 @router.put("/notifications/settings", response_model=NotificationSettingsResponse)
 def update_notification_settings(payload: NotificationSettingsRequest, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
-    response = update_settings(session, current_user.sub, payload)
-    record_event(session, user_id=current_user.sub, domain="notification_settings", entity_id="settings", operation="update")
-    session.commit()
-    return response
+    return update_settings(session, current_user.sub, payload)
 
 
 @router.post("/notifications/devices", response_model=DeviceTokenResponse, status_code=201)

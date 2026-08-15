@@ -42,7 +42,6 @@ from app.services.audiobook_service import (
 )
 from app.services.reading_plan_session_service import list_book_reading_plan_sessions, list_today_reading_plan_sessions
 from app.tasks.book_tasks import generate_book_summary_task
-from app.services.sync_event_service import record_event
 
 router = APIRouter()
 
@@ -99,34 +98,23 @@ async def switch_book_mode_endpoint(
     session: Annotated[Session, Depends(get_session)],
 ):
     """Đổi mode đang active và sinh audio mới nếu mode này chưa từng được gen."""
-    response = await switch_book_mode(session, book_id, current_user.sub, payload.mode)
-    record_event(session, user_id=current_user.sub, domain="book", entity_id=book_id, operation="update")
-    session.commit()
-    return response
+    return await switch_book_mode(session, book_id, current_user.sub, payload.mode)
 
 
 @router.post("/books", response_model=BookResponse)
 def add_new_book(payload: BookCreateRequest, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
-    response = create_new_book(session, current_user.sub, payload)
-    record_event(session, user_id=current_user.sub, domain="library", entity_id=response.id, operation="create")
-    session.commit()
-    return response
+    return create_new_book(session, current_user.sub, payload)
 
 
 @router.put("/books/{book_id}", response_model=BookResponse)
 def update_book(book_id: uuid.UUID, payload: BookUpdateRequest, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
-    response = update_book_by_id(session, payload, book_id, current_user.sub)
-    record_event(session, user_id=current_user.sub, domain="book", entity_id=book_id, operation="update")
-    session.commit()
-    return response
+    return update_book_by_id(session, payload, book_id, current_user.sub)
 
 
 # Delete book by id, including all associated assets in storage and database records
 @router.delete("/books/{book_id}")
 async def delete_book(book_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
     await delete_book_and_assets(session, book_id, current_user.sub)
-    record_event(session, user_id=current_user.sub, domain="library", entity_id=book_id, operation="delete")
-    session.commit()
     return {"message": "Book deleted"}
 
 
@@ -138,10 +126,7 @@ def pause_plan(
     session: Annotated[Session, Depends(get_session)],
 ):
     """Tạm dừng kế hoạch học tập của sách và giải phóng lịch học."""
-    response = pause_reading_plan(session, book_id, current_user.sub)
-    record_event(session, user_id=current_user.sub, domain="reading_plan", entity_id=book_id, operation="update")
-    session.commit()
-    return response
+    return pause_reading_plan(session, book_id, current_user.sub)
 
 
 @router.post("/books/{book_id}/resume")
@@ -151,10 +136,7 @@ def resume_plan(
     session: Annotated[Session, Depends(get_session)],
 ):
     """Tiếp tục kế hoạch học tập của sách (kiểm tra trùng lịch các slot)."""
-    response = resume_reading_plan(session, book_id, current_user.sub)
-    record_event(session, user_id=current_user.sub, domain="reading_plan", entity_id=book_id, operation="update")
-    session.commit()
-    return response
+    return resume_reading_plan(session, book_id, current_user.sub)
 
 
 @router.get("/reading-plan-slots", response_model=list[ReadingPlanUserSlotResponse])
@@ -205,7 +187,7 @@ def update_plan(
     session: Annotated[Session, Depends(get_session)],
 ):
     """Cập nhật cấu hình kế hoạch học tập (pace, schedule, reminder_time) không ảnh hưởng tới audio."""
-    response = update_reading_plan(
+    return update_reading_plan(
         session,
         book_id,
         current_user.sub,
@@ -213,9 +195,6 @@ def update_plan(
         schedule_config=payload.schedule_config,
         reminder_time=payload.reminder_time,
     )
-    record_event(session, user_id=current_user.sub, domain="reading_plan", entity_id=book_id, operation="update")
-    session.commit()
-    return response
 
 
 @router.post("/books/{shared_book_id}/select", response_model=BookResponse)
@@ -234,16 +213,13 @@ def select_book_from_library(shared_book_id: uuid.UUID, current_user: CurrentUse
         book_modes = {mode.value for mode in rows}
 
         book_data = cloned_book.model_dump()
-        response = {
+        return {
             **book_data,
             "learning_status": "not_started",
             "book_progress_percent": 0,
             "has_full_mode": "full" in book_modes,
             "has_pareto_mode": "pareto" in book_modes,
         }
-        record_event(session, user_id=current_user.sub, domain="library", entity_id=cloned_book.id, operation="create")
-        session.commit()
-        return response
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -258,10 +234,7 @@ def reset_plan(
     Đặt lại kế hoạch học tập của cuốn sách từ đầu.
     Xóa sạch tiến độ học tập cũ của user và sinh lại các buổi học từ bài 1.
     """
-    response = reset_reading_plan(session, book_id, current_user.sub)
-    record_event(session, user_id=current_user.sub, domain="reading_plan", entity_id=book_id, operation="update")
-    session.commit()
-    return response
+    return reset_reading_plan(session, book_id, current_user.sub)
 
 
 @router.get("/books/{book_id}/summary")
@@ -297,8 +270,6 @@ def regenerate_book_ai_summary(
     book.ai_summary_status = SummaryStatus.PENDING.value
     book.ai_summary_error = None
     session.add(book)
-    session.commit()
-    record_event(session, user_id=current_user.sub, domain="book", entity_id=book_id, operation="update")
     session.commit()
 
     generate_book_summary_task.delay(str(book.id))

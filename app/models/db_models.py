@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Any, Optional
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import BigInteger, Boolean, Column, DateTime, ForeignKey, Index, Integer, JSON, Text, UniqueConstraint, func
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, Index, Integer, JSON, Text, UniqueConstraint, func
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlmodel import Field, PrimaryKeyConstraint, Relationship, SQLModel
@@ -49,40 +49,6 @@ class AdminAuditLog(SQLModel, table=True):
     target_id: Optional[uuid.UUID] = Field(default=None, sa_column=Column(UUID(as_uuid=True), index=True))
     metadata_json: Optional[Any] = Field(default=None, sa_column=Column("metadata", JSONB))
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc), sa_column=Column(DateTime(timezone=True), index=True, server_default=func.now(), nullable=False))
-
-
-class UserSyncEvent(SQLModel, table=True):
-    """Durable, user-scoped invalidation event for mobile clients.
-
-    The monotonically increasing id is deliberately the only cursor clients
-    persist.  Payloads stay small: clients reconcile through the canonical
-    resource endpoints instead of trusting an event as a read model.
-    """
-
-    __tablename__ = "user_sync_events"
-
-    event_id: int | None = Field(
-        default=None,
-        sa_column=Column(BigInteger, primary_key=True, autoincrement=True),
-    )
-    # Auth users live in Supabase, not in this database, so this deliberately
-    # remains an indexed UUID rather than a local foreign key.
-    user_id: uuid.UUID = Field(sa_column=Column(UUID(as_uuid=True), nullable=False))
-    domain: str = Field(sa_column=Column(Text, nullable=False))
-    entity_id: str = Field(sa_column=Column(Text, nullable=False))
-    operation: str = Field(sa_column=Column(Text, nullable=False))
-    updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column=Column(DateTime(timezone=True), nullable=False, server_default=func.now()),
-    )
-    created_at: datetime = Field(
-        default_factory=lambda: datetime.now(timezone.utc),
-        sa_column=Column(DateTime(timezone=True), nullable=False, server_default=func.now()),
-    )
-
-    __table_args__ = (
-        Index("ix_user_sync_events_user_event", "user_id", "event_id"),
-    )
 
 
 class Book(SQLModel, table=True):

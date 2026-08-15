@@ -14,7 +14,6 @@ from app.schemas.study_context import (
     StudyContextUpdate,
 )
 from app.services import study_context_service
-from app.services.sync_event_service import record_event
 
 router = APIRouter()
 
@@ -39,41 +38,28 @@ async def get_study_context_documents_api(context_id: uuid.UUID, current_user: C
 
 @router.post("/study-contexts", response_model=StudyContextResponse)
 async def create_study_context_api(payload: StudyContextInput, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
-    response = study_context_service.create_context(session, current_user.sub, payload)
-    record_event(session, user_id=current_user.sub, domain="context", entity_id=response["id"], operation="create")
-    session.commit()
-    return response
+    return study_context_service.create_context(session, current_user.sub, payload)
 
 
 @router.patch("/study-contexts/{context_id}", response_model=StudyContextResponse)
 async def update_study_context_api(context_id: uuid.UUID, payload: StudyContextUpdate, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
-    response = study_context_service.update_context_title(session, current_user.sub, context_id, payload)
-    record_event(session, user_id=current_user.sub, domain="context", entity_id=context_id, operation="update")
-    session.commit()
-    return response
+    return study_context_service.update_context_title(session, current_user.sub, context_id, payload)
 
 
 @router.delete("/study-contexts/{context_id}")
 async def delete_study_context_api(context_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
     study_context_service.delete_context(session, current_user.sub, context_id)
-    record_event(session, user_id=current_user.sub, domain="context", entity_id=context_id, operation="delete")
-    session.commit()
     return {"message": "Study context deleted successfully"}
 
 
 @router.post("/study-contexts/{context_id}/documents", response_model=ContextDocumentResponse)
 async def add_study_context_document_api(context_id: uuid.UUID, payload: StudyContextDocumentInput, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
-    response = study_context_service.add_document_to_context(session, current_user.sub, context_id, payload)
-    record_event(session, user_id=current_user.sub, domain="context", entity_id=context_id, operation="update")
-    session.commit()
-    return response
+    return study_context_service.add_document_to_context(session, current_user.sub, context_id, payload)
 
 
 @router.delete("/study-contexts/{context_id}/documents/{book_id}")
 async def delete_study_context_document_api(context_id: uuid.UUID, book_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
     study_context_service.delete_document_from_context(session, current_user.sub, context_id, book_id)
-    record_event(session, user_id=current_user.sub, domain="context", entity_id=context_id, operation="update")
-    session.commit()
     return {"message": "Context document deleted successfully"}
 
 
@@ -87,7 +73,4 @@ async def get_chat_threads_api(context_id: uuid.UUID, current_user: CurrentUser,
 
 @router.post("/study-contexts/{context_id}/threads", response_model=ChatThreadResponse)
 async def create_chat_thread_api(context_id: uuid.UUID, payload: ChatThreadInput, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
-    response = study_context_service.create_thread(session, current_user.sub, context_id, payload)
-    record_event(session, user_id=current_user.sub, domain="thread", entity_id=response.id, operation="create")
-    session.commit()
-    return response
+    return study_context_service.create_thread(session, current_user.sub, context_id, payload)

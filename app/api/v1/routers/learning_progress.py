@@ -13,7 +13,6 @@ from app.schemas.learning_progress import (
     ManualLearningUnitCompleteRequest,
 )
 from app.services.learning_progress_service import complete_learning_unit_manually, get_book_learning_progress, update_learning_unit_progress
-from app.services.sync_event_service import record_event
 
 router = APIRouter()
 
@@ -26,10 +25,7 @@ def update_learning_unit_progress_endpoint(
     current_user: CurrentUser,
     session: Annotated[Session, Depends(get_session)],
 ):
-    response = update_learning_unit_progress(session, user_id=current_user.sub, book_id=book_id, learning_unit_id=learning_unit_id, payload=payload)
-    record_event(session, user_id=current_user.sub, domain="progress", entity_id=learning_unit_id, operation="update")
-    session.commit()
-    return response
+    return update_learning_unit_progress(session, user_id=current_user.sub, book_id=book_id, learning_unit_id=learning_unit_id, payload=payload)
 
 
 @router.post("/books/{book_id}/learning-units/{learning_unit_id}/complete", response_model=LearningUnitProgressResponse)
@@ -40,10 +36,7 @@ def complete_learning_unit_endpoint(
     current_user: CurrentUser,
     session: Annotated[Session, Depends(get_session)],
 ):
-    response = complete_learning_unit_manually(session, user_id=current_user.sub, book_id=book_id, learning_unit_id=learning_unit_id, mode=payload.mode)
-    record_event(session, user_id=current_user.sub, domain="progress", entity_id=learning_unit_id, operation="update")
-    session.commit()
-    return response
+    return complete_learning_unit_manually(session, user_id=current_user.sub, book_id=book_id, learning_unit_id=learning_unit_id, mode=payload.mode)
 
 
 @router.get("/books/{book_id}/learning-progress", response_model=BookLearningProgressResponse)

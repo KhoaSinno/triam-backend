@@ -8,7 +8,6 @@ from app.api.dependencies.auth import CurrentUser
 from app.db.database import get_session
 from app.schemas.review import ReviewActionResponse, ReviewItemResponse, ReviewListResponse
 from app.services.review_service import complete_review_item, get_review_item_detail, list_review_items, skip_review_item
-from app.services.sync_event_service import record_event
 
 router = APIRouter()
 
@@ -62,15 +61,9 @@ def get_review_endpoint(review_item_id: uuid.UUID, current_user: CurrentUser, se
 
 @router.post("/reviews/{review_item_id}/complete", response_model=ReviewActionResponse)
 def complete_review_endpoint(review_item_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
-    response = complete_review_item(session, user_id=current_user.sub, review_item_id=review_item_id)
-    record_event(session, user_id=current_user.sub, domain="review", entity_id=review_item_id, operation="update")
-    session.commit()
-    return response
+    return complete_review_item(session, user_id=current_user.sub, review_item_id=review_item_id)
 
 
 @router.post("/reviews/{review_item_id}/skip", response_model=ReviewActionResponse)
 def skip_review_endpoint(review_item_id: uuid.UUID, current_user: CurrentUser, session: Annotated[Session, Depends(get_session)]):
-    response = skip_review_item(session, user_id=current_user.sub, review_item_id=review_item_id)
-    record_event(session, user_id=current_user.sub, domain="review", entity_id=review_item_id, operation="update")
-    session.commit()
-    return response
+    return skip_review_item(session, user_id=current_user.sub, review_item_id=review_item_id)
