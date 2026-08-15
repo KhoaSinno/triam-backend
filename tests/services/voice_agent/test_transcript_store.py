@@ -4,7 +4,7 @@ import uuid
 import pytest
 
 from app.services.voice_agent import transcript_store
-from app.services.voice_agent.contracts import LK_TRANSCRIPT_TOPIC
+from app.services.voice_agent.contracts import LK_ASSISTANT_PREVIEW_TOPIC, LK_TRANSCRIPT_TOPIC
 from app.services.voice_agent.transcript_store import VoiceTranscriptStore
 
 
@@ -86,6 +86,36 @@ async def test_assistant_transcript_is_saved_and_published():
     assert data["text"] == "Chào bạn"
     assert data["status"] == "pending"
     assert decode_payload(room, 1)["status"] == "committed"
+
+
+@pytest.mark.asyncio
+async def test_assistant_preview_is_ephemeral_and_uses_its_own_topic():
+    room = FakeRoom()
+    thread_id = uuid.uuid4()
+    store = VoiceTranscriptStore(
+        room=room,
+        thread_id=thread_id,
+        dedupe_window_seconds=3,
+    )
+
+    await store.publish_assistant_preview("turn-1", delta="Xin ")
+    await store.publish_assistant_preview("turn-1", complete=True)
+
+    first = decode_payload(room, 0)
+    last = decode_payload(room, 1)
+    assert room.local_participant.published[0][2] == LK_ASSISTANT_PREVIEW_TOPIC
+    assert first == {
+        "v": 1,
+        "type": "assistant_preview",
+        "id": "turn-1",
+        "thread_id": str(thread_id),
+        "delta": "Xin ",
+        "complete": False,
+        "ts": first["ts"],
+    }
+    assert last["id"] == "turn-1"
+    assert last["delta"] == ""
+    assert last["complete"] is True
 
 
 @pytest.mark.asyncio
