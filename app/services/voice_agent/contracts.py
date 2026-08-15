@@ -5,6 +5,9 @@ from typing import Any, Literal
 LK_CHAT_TOPIC = "lk.chat"
 LK_CONTROL_TOPIC = "lk.control"
 LK_TRANSCRIPT_TOPIC = "lk.transcript"
+# Ephemeral assistant text for the live UI.  This is deliberately separate
+# from lk.transcript: transcript events are persisted conversation items.
+LK_ASSISTANT_PREVIEW_TOPIC = "lk.assistant.preview"
 
 TranscriptRole = Literal["user", "assistant"]
 WebPermissionIntent = Literal["grant", "deny", "unclear", "new_question"]

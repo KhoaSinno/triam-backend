@@ -290,19 +290,27 @@ class ChatTextOutput(voice_io.TextOutput):
     def __init__(
         self,
         room: rtc.Room,
+        transcript_store: VoiceTranscriptStore,
         topic: str = LK_CHAT_TOPIC,
     ) -> None:
         super().__init__(label="ChatTextOutput", next_in_chain=None)
         self._room = room
+        self._transcript_store = transcript_store
         self._topic = topic
         self._buffer: list[str] = []
         self._flush_task: asyncio.Task[None] | None = None
+        self._preview_id: str | None = None
 
     async def capture_text(self, text: str) -> None:
         if not text:
             return
 
         self._buffer.append(text)
+        self._preview_id = self._preview_id or str(uuid.uuid4())
+        await self._transcript_store.publish_assistant_preview(
+            self._preview_id,
+            delta=text,
+        )
 
     def flush(self) -> None:
         if not self._buffer:
@@ -311,6 +319,9 @@ class ChatTextOutput(voice_io.TextOutput):
         message = "".join(self._buffer)
         self._buffer.clear()
         log.info(f"Text output flushed | chars={len(message)} | topic={self._topic}")
+
+        preview_id = self._preview_id
+        self._preview_id = None
 
         async def _publish(topic: str, payload: str) -> None:
             if not self._room.isconnected():
@@ -323,6 +334,12 @@ class ChatTextOutput(voice_io.TextOutput):
                 )
             except Exception as exc:
                 log.info(f"Text output publish failed: {exc}")
+
+            if preview_id:
+                await self._transcript_store.publish_assistant_preview(
+                    preview_id,
+                    complete=True,
+                )
 
         # Flush is sync; schedule async publish.
         self._flush_task = asyncio.create_task(_publish(self._topic, message))
@@ -932,6 +949,36 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
 
     # Note: We use a custom data channel ("lk.chat") for text input instead of relying on room_io.TextInputEvent
 
+    active_text_preview_id: str | None = None
+    active_text_preview_emitted = False
+
+    async def _collect_visible_llm_response(*, chat_ctx: agents_llm.ChatContext) -> agents_llm.CollectedResponse:
+        """Forward safe text-only LLM chunks to the transient UI preview."""
+        nonlocal active_text_preview_emitted
+        text_parts: list[str] = []
+        usage: agents_llm.CompletionUsage | None = None
+        extra: dict[str, Any] = {}
+        stream = chat_llm.chat(chat_ctx=chat_ctx)
+        async with stream:
+            async for chunk in stream:
+                if chunk.delta and chunk.delta.content:
+                    text_parts.append(chunk.delta.content)
+                    if active_text_preview_id:
+                        active_text_preview_emitted = True
+                        await transcript_store.publish_assistant_preview(
+                            active_text_preview_id,
+                            delta=chunk.delta.content,
+                        )
+                if chunk.delta and chunk.delta.extra:
+                    extra.update(chunk.delta.extra)
+                if chunk.usage is not None:
+                    usage = chunk.usage
+        return agents_llm.CollectedResponse(
+            text="".join(text_parts).strip(),
+            usage=usage,
+            extra=extra,
+        )
+
     async def _chat_naive_rag(user_text: str) -> str:
         """Chế độ RAG Naive (toggle TẮT): luôn search sách, không dùng tool web."""
         log.info("[Text Chat] Chế độ Naive RAG (web search TẮT)")
@@ -954,7 +1001,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 role="system",
                 content=("Không tìm thấy thông tin phù hợp trong sách cho câu hỏi này. Hãy nói ngắn gọn rằng nội dung hiện không có trong sách, không tự bịa thông tin ngoài sách."),
             )
-        response = await chat_llm.chat(chat_ctx=temp_ctx).collect()
+        response = await _collect_visible_llm_response(chat_ctx=temp_ctx)
         return response.text
 
     async def _chat_from_grounding_result(result: GroundingResult, user_text: str) -> str:
@@ -971,7 +1018,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 role="system",
                 content=SECTION_TEXT_ANSWER_INSTRUCTIONS.format(section_context=result.section_context or ""),
             )
-            response = await chat_llm.chat(chat_ctx=temp_ctx).collect()
+            response = await _collect_visible_llm_response(chat_ctx=temp_ctx)
             return response.text
         if route == GroundingRoute.WEB_POLICY:
             tracer.record_answer_source(AgentInputMode.TEXT, AgentAnswerSource.POLICY)
@@ -1012,7 +1059,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 role="system",
                 content=policy_result.llm_system_context or "",
             )
-            response = await chat_llm.chat(chat_ctx=temp_ctx).collect()
+            response = await _collect_visible_llm_response(chat_ctx=temp_ctx)
             return response.text
 
         if policy_result.action == AgentPolicyAction.ASK_WEB_PERMISSION:
@@ -1120,7 +1167,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             role="system",
             content=WEB_GRANTED_REPLY_INSTRUCTIONS.format(query=query, web_result=web_result),
         )
-        response = await chat_llm.chat(chat_ctx=temp_ctx).collect()
+        response = await _collect_visible_llm_response(chat_ctx=temp_ctx)
         return response.text
 
     async def _publish_assistant_reply(full_reply: str) -> None:
@@ -1128,6 +1175,16 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         if not full_reply:
             return
 
+        if active_text_preview_id:
+            if not active_text_preview_emitted:
+                await transcript_store.publish_assistant_preview(
+                    active_text_preview_id,
+                    delta=full_reply,
+                )
+            await transcript_store.publish_assistant_preview(
+                active_text_preview_id,
+                complete=True,
+            )
         await transcript_store.save_and_publish_assistant(full_reply)
         try:
             await ctx.room.local_participant.publish_data(
@@ -1142,11 +1199,14 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         _truncate_session_history()
 
     async def handle_data_input(text: str, participant_id: str | None) -> None:
+        nonlocal active_text_preview_id, active_text_preview_emitted
         normalized_text = normalize_transcript_text(text)
         if not normalized_text:
             return
 
         async with text_turn_lock:
+            active_text_preview_id = str(uuid.uuid4())
+            active_text_preview_emitted = False
             tracer.begin_turn(AgentInputMode.TEXT)
             tracer.record_transcript(
                 AgentInputMode.TEXT,
@@ -1695,6 +1755,7 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                         sync_transcription=False,
                         next_in_chain=ChatTextOutput(
                             ctx.room,
+                            transcript_store,
                             topic=LK_CHAT_TOPIC,
                         ),
                     ),

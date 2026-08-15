@@ -9,7 +9,7 @@ from sqlmodel import Session, select
 
 from app.core.logger import log
 from app.models.db_models import ChatMessage
-from app.services.voice_agent.contracts import LK_TRANSCRIPT_TOPIC, TranscriptRole
+from app.services.voice_agent.contracts import LK_ASSISTANT_PREVIEW_TOPIC, LK_TRANSCRIPT_TOPIC, TranscriptRole
 
 MessageSaver = Callable[[str, bool], uuid.UUID | None]
 HistoryLoader = Callable[[int], list[ChatMessage]]
@@ -90,6 +90,42 @@ class VoiceTranscriptStore:
             )
         except Exception as exc:
             log.info(f"Transcript publish failed: {exc}")
+
+    async def publish_assistant_preview(
+        self,
+        preview_id: str,
+        *,
+        delta: str = "",
+        complete: bool = False,
+    ) -> None:
+        """Publish non-persistent assistant text for an in-progress turn.
+
+        The client must never add this payload to its committed timeline.  It
+        exists solely to make long responses readable while generation/TTS is
+        still in progress.
+        """
+        if not preview_id or not self._room.isconnected():
+            return
+        if not delta and not complete:
+            return
+
+        payload = {
+            "v": 1,
+            "type": "assistant_preview",
+            "id": preview_id,
+            "thread_id": str(self._thread_id) if self._thread_id else None,
+            "delta": delta,
+            "complete": complete,
+            "ts": datetime.now(timezone.utc).isoformat(),
+        }
+        try:
+            await self._room.local_participant.publish_data(
+                json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+                reliable=True,
+                topic=LK_ASSISTANT_PREVIEW_TOPIC,
+            )
+        except Exception as exc:
+            log.info(f"Assistant preview publish failed: {exc}")
 
     async def save_and_publish_user(self, text: str) -> bool:
         normalized = normalize_transcript_text(text)
