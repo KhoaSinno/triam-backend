@@ -88,9 +88,9 @@ class AgentTurnTracer:
         char_count: int,
         language: str | None = None,
         final: bool = True,
-    ) -> None:
+    ) -> str | None:
         if not self.enabled or not final:
-            return
+            return None
 
         trace = self._active.get(input_mode)
         late_update = False
@@ -105,7 +105,7 @@ class AgentTurnTracer:
             self.ensure_turn(input_mode)
             trace = self._active.get(input_mode)
         if trace is None:
-            return
+            return None
 
         now_monotonic = time.monotonic()
         first_final_for_trace = trace.transcript_final_monotonic is None
@@ -127,6 +127,11 @@ class AgentTurnTracer:
         if late_update:
             trace.correlation_quality = "late_transcript_last_completed_turn"
             self._emit_safe("late_transcript", self._summary(trace))
+        return trace.trace_id
+
+    def active_trace_id(self, input_mode: AgentInputMode) -> str | None:
+        trace = self._active.get(input_mode)
+        return trace.trace_id if trace is not None else None
 
     def record_tool(self, input_mode: AgentInputMode, tool_name: str) -> None:
         trace = self._get_or_begin(input_mode)

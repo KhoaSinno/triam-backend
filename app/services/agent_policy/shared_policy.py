@@ -6,7 +6,7 @@ from collections.abc import Awaitable, Callable
 from app.core.logger import log
 from app.services.agent_grounding import GroundingResult, GroundingRoute, GroundingRouter
 from app.services.agent_grounding.response_renderer import format_grounding_tool_result
-from app.services.agent_observability import AgentAnswerSource, AgentTurnTracer
+from app.services.agent_observability import AgentAnswerSource, AgentTurnTracer, LocalEvaluationCapture
 from app.services.agent_policy.contracts import AgentPolicyAction, AgentPolicyRequest, AgentPolicyResult
 from app.services.agent_policy.renderers import build_rag_text_context, build_section_text_context
 from app.services.voice_agent.contracts import VoiceRagResult
@@ -29,11 +29,13 @@ class SharedAgentPolicy:
         document_ids: list[str],
         grounding_router: GroundingRouter | None,
         tracer: AgentTurnTracer,
+        local_eval_capture: LocalEvaluationCapture | None = None,
         search_book_context: SearchBookContext = search_voice_book_context,
     ) -> None:
         self.document_ids = document_ids
         self.grounding_router = grounding_router
         self.tracer = tracer
+        self.local_eval_capture = local_eval_capture
         self.search_book_context = search_book_context
 
     async def resolve(self, request: AgentPolicyRequest) -> AgentPolicyResult:
@@ -160,6 +162,12 @@ class SharedAgentPolicy:
         if rag_result.found:
             self.tracer.record_answer_source(request.input_mode, AgentAnswerSource.BOOK_RAG)
             rendered_context = render_rag_context(rag_result)
+            if self.local_eval_capture is not None:
+                self.local_eval_capture.record_rendered_rag_context(
+                    trace_id=self.tracer.active_trace_id(request.input_mode),
+                    query=request.query,
+                    context_text=rendered_context.text,
+                )
             self.tracer.record_rag_context(
                 request.input_mode,
                 selected_count=rendered_context.selected_count,

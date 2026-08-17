@@ -155,6 +155,11 @@ class Settings(BaseSettings):
     AGENT_TRACE_ENABLED: bool = True
     AGENT_TRACE_SCORE_PRECISION: int = 4
     AGENT_TRACE_LATE_TRANSCRIPT_WINDOW_SECONDS: float = 15.0
+    # Explicitly opt-in local artifact capture for manual RAG/voice evaluation.
+    # This stores transcript, assistant text, and rendered RAG context; keep false outside local testing.
+    AGENT_EVAL_CAPTURE_ENABLED: bool = False
+    AGENT_EVAL_CAPTURE_RUN_ID: str = ""
+    AGENT_EVAL_CAPTURE_DIR: str = "logs/ragas_eval/runs"
     AGENT_GROUNDING_ROUTER_ENABLED: bool = True
     AGENT_SHARED_POLICY_ENABLED: bool = True
     AGENT_INTENT_CLASSIFIER_MODEL: str = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
