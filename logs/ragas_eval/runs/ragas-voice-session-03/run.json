@@ -1,8 +1,8 @@
 {
   "schema_version": 1,
   "run_id": "ragas-voice-session-03",
-  "created_at": "2026-08-17T15:54:29.610095+00:00",
+  "created_at": "2026-08-17T16:23:35.270492+00:00",
   "thread_id": "1a1dc4b2-d8fd-4dc9-9b43-32b62172765e",
-  "room_name": "triam_1a1dc4b2_d1eed0",
+  "room_name": "triam_1a1dc4b2_a21d5a",
   "purpose": "local_manual_evaluation_only"
 }
