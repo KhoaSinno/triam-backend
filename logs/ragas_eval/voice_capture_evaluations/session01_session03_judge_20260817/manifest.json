@@ -1,0 +1,40 @@
+{
+  "created_at": "2026-08-17T23:34:03.277814",
+  "judge_model": "gemini-3.5-flash-lite",
+  "run_directories": [
+    "logs\\ragas_eval\\runs\\ragas-voice-session-01",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-03"
+  ],
+  "reference_latex": "W:\\WorkSpace_IT\\_CAPSTON_PROJECT\\2022DoAnTN_KhoaDat\\noidung\\phuluc\\pl_kich_ban_ragas.tex",
+  "reference_latex_sha256": "b8043d87492e1210bfd7959c94b5e061b66012d1871adbeabfca3b48f32169c6",
+  "source_turn_sha256": {
+    "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\040b3eea-2ad1-4b24-b0d7-6a2470d25154.json": "0d95c2ea73b8995e9346e711326c9a1e75fe1e2f767ae5c111b5e2bc12d9d712",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\23dbcac7-2eda-4b1c-9747-4b7fa7661b2b.json": "986c3a30b41df35c9ed25dadc5a59aac7c020199dfc91cd63bef8a0d86a997b4",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\66e67c97-7b9f-4dd5-ab2f-5aa6fe6f8753.json": "7fd5128288f801fe5405d522ddf87eb282ae15e7a291463684d0d3225964887c",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\a0a82d88-9bcc-44fc-90bc-d9d89e9a56e4.json": "c076ebb79b71eab41c4b0c0eded2a3f0e2073af66048bd6d725d0a094838f9ff",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\a9e5cc9b-a0d3-406d-86e4-54e903e525a5.json": "1eca17922774214ccf94c91a7440d49d1af9b38920b2678b2bdd58e510414f29",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\b67032e3-6b87-4d69-adb6-369b7d592ea7.json": "e36dc1dd7657a04ad3dab243f86296f8795b17daedffa9d454e77c9e84a808c2",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\c5996d3a-f55f-4f32-9b84-58c50254e309.json": "6dc810f330f7a219701f33847a7b359e61ef01f2f891ccf3ca01bbbea480854f",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\e00fc9a2-b047-4c5e-b045-c518b6604bf8.json": "ea2b0b22f47b720bd5ee4a32ab44d5de048c5767eaf7634277eea601dabca70c",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\fce30471-310d-42ab-a03c-3f2e67fe5b85.json": "736b4c373e5b73d133dcc0ffce3ced3512eadcdd9d362759998f402b2389d07e",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\0657d7ae-c566-41db-8b41-7e759b46fff2.json": "1eb6bf2e0878ca6c658de4ea64fb5fb7b637953d1f86e8f169b8743536818a79",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\12ad68b0-f986-46e3-9c86-181e3400c182.json": "175e06642e49b18283c3d078958de2483f034e9828b0a2cbf3dbd4d80d95ed07",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\1a886dec-137a-4fcb-9461-9b0eef05365d.json": "9f1b3e34cf5d1cde473dee9e37865e00ab838414798a367be411bc89a4b35322",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\1d747af6-0962-4ad3-97ce-615300c27af7.json": "913cecb0f5513df1bf70ee04b3d57794117b3db536436775f7a02448a94c3408",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\2607b51c-47aa-40ee-85e0-bd2f19227dd0.json": "87f42aeb1c485b73a491f1f6e67e81c590066743c3e201b7e1e60cb8a8bcb565",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\4bb4017c-8e80-438b-8407-d1160215f13b.json": "403599a80dcbe9fbdc343a91b91d942d4d46be8c6e1ffc4ece7f921eb44f532f",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\62223dca-d1da-48aa-857d-25dcf06dc71e.json": "e32dfb001318211a968a573b7614e63467d2a6142dbdfa58ba6204bb88b8c0bc",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\adac76f1-894e-42a8-a9d0-cb70945046d6.json": "66088821f17cf9d20893558951576523a8341c7334178308256413c8fec1eddf",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\c5818d90-f351-4fd3-8eee-acca206531e9.json": "1de5119bc081e6993ae831366ffbb7bfc78a5515f368a05ae54ca20fd30364fe",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\d14ccc65-83df-4a31-8d45-107e455d8313.json": "bccc99a7220a352300c4bcd3ab4633f87f3aecdf08c164bd0f8b5e6125a50e57",
+    "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\e09c4da9-c87f-448a-bad2-b35ecc6466e0.json": "8a8b3952de6fb87ec2de8f82d568b29c6f8d5cdc8830b18707cb5b8017aad56b"
+  },
+  "eligible_cases": 15,
+  "skipped_cases": {
+    "answer_source_policy": 1,
+    "answer_source_book_metadata": 1,
+    "not_accepted": 1,
+    "trace_error": 1,
+    "answer_source_unknown": 1
+  }
+}
