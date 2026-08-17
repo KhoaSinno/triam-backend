@@ -30,6 +30,7 @@ DEFAULT_REFERENCE_LATEX = (
     PROJECT_ROOT.parent / "2022DoAnTN_KhoaDat" / "noidung" / "phuluc" / "pl_kich_ban_ragas.tex"
 )
 DEFAULT_OUTPUT_ROOT = PROJECT_ROOT / "logs" / "ragas_eval" / "voice_capture_evaluations"
+DEFAULT_CASE_SCOPE_MANIFEST = PROJECT_ROOT / "tests" / "fixtures" / "agent_eval" / "voice_capture_case_scopes.json"
 JUDGE_MODEL = "gemini-3.5-flash-lite"
 
 
@@ -72,6 +73,23 @@ def _sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def load_case_scopes(path: Path) -> dict[str, dict[str, str]]:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    cases = payload.get("cases") if isinstance(payload, dict) else None
+    if not isinstance(cases, dict):
+        raise ValueError("invalid_case_scope_manifest")
+    scopes: dict[str, dict[str, str]] = {}
+    for case_id, value in cases.items():
+        if not isinstance(value, dict):
+            raise ValueError(f"invalid_case_scope:{case_id}")
+        scope = str(value.get("scope") or "").strip()
+        reason = str(value.get("reason") or "").strip()
+        if not scope or not reason:
+            raise ValueError(f"missing_case_scope_fields:{case_id}")
+        scopes[str(case_id)] = {"scope": scope, "reason": reason}
+    return scopes
+
+
 def build_verified_case(
     payload: dict[str, Any],
     *,
@@ -79,6 +97,7 @@ def build_verified_case(
     run_dir: Path,
     references: dict[int, str],
     seen_case_ids: set[str],
+    case_scopes: dict[str, dict[str, str]],
 ) -> tuple[dict[str, Any] | None, str]:
     trace = payload.get("trace") if isinstance(payload.get("trace"), dict) else {}
     user = payload.get("user") if isinstance(payload.get("user"), dict) else {}
@@ -88,6 +107,7 @@ def build_verified_case(
     contexts = split_rendered_context(retrieved.get("rendered_context"))
     question_number = case_number(case_id)
     reference = references.get(question_number) if question_number is not None else None
+    scope = case_scopes.get(case_id)
     checks = (
         (payload.get("evaluation_status") != "accepted", "not_accepted"),
         (trace.get("answer_source") != "book_rag", f"answer_source_{trace.get('answer_source') or 'missing'}"),
@@ -98,6 +118,11 @@ def build_verified_case(
         (not contexts, "missing_rendered_rag_context"),
         (not reference, "missing_reference_for_case_id"),
         (case_id in seen_case_ids, "duplicate_case_id"),
+        (scope is None, "missing_case_scope"),
+        (
+            scope is not None and scope["scope"] != "semantic_retrieval_single_turn",
+            f"out_of_scope_{scope['scope']}" if scope is not None else "missing_case_scope",
+        ),
     )
     reason = next((message for failed, message in checks if failed), "")
     if reason:
@@ -112,6 +137,8 @@ def build_verified_case(
             "reference": reference,
             "contexts": contexts,
             "evaluation_group": "rag_retrieval_verified",
+            "evaluation_scope": scope["scope"] if scope else None,
+            "selection_reason": scope["reason"] if scope else None,
             "retrieval_metrics_eligible": True,
             "source_path": str(path),
         },
@@ -119,7 +146,11 @@ def build_verified_case(
     )
 
 
-def load_verified_cases(run_dirs: list[Path], references: dict[int, str]) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
+def load_verified_cases(
+    run_dirs: list[Path],
+    references: dict[int, str],
+    case_scopes: dict[str, dict[str, str]],
+) -> tuple[list[dict[str, Any]], list[dict[str, str]]]:
     cases: list[dict[str, Any]] = []
     skipped: list[dict[str, str]] = []
     seen_case_ids: set[str] = set()
@@ -132,6 +163,7 @@ def load_verified_cases(run_dirs: list[Path], references: dict[int, str]) -> tup
                 run_dir=run_dir,
                 references=references,
                 seen_case_ids=seen_case_ids,
+                case_scopes=case_scopes,
             )
             if case is None:
                 skipped.append({"path": str(path), "case_id": str(payload.get("case_id") or ""), "reason": reason})
@@ -310,15 +342,23 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Evaluate verified RAG voice-capture turns with LLM-as-a-Judge.")
     parser.add_argument("--run-dir", type=Path, action="append", required=True, help="Capture run directory; repeat for more runs.")
     parser.add_argument("--reference-latex", type=Path, default=DEFAULT_REFERENCE_LATEX)
+    parser.add_argument("--case-scope-manifest", type=Path, default=DEFAULT_CASE_SCOPE_MANIFEST)
     parser.add_argument("--repeat", type=int, default=1, help="Number of complete judge repetitions.")
     parser.add_argument("--output-dir", type=Path, default=None)
+    parser.add_argument(
+        "--reuse-results-dir",
+        type=Path,
+        default=None,
+        help="Recompute a scoped report from prior judge_rows_run_*.json without API calls.",
+    )
     parser.add_argument("--dry-run", action="store_true", help="Validate and write the frozen dataset without API calls.")
     return parser.parse_args()
 
 
 async def main_async(args: argparse.Namespace) -> int:
     references = load_references_from_latex(args.reference_latex)
-    cases, skipped = load_verified_cases(args.run_dir, references)
+    case_scopes = load_case_scopes(args.case_scope_manifest)
+    cases, skipped = load_verified_cases(args.run_dir, references, case_scopes)
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     output_dir = args.output_dir or DEFAULT_OUTPUT_ROOT / timestamp
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -332,6 +372,8 @@ async def main_async(args: argparse.Namespace) -> int:
             "run_directories": [str(path) for path in args.run_dir],
             "reference_latex": str(args.reference_latex),
             "reference_latex_sha256": _sha256(args.reference_latex),
+            "case_scope_manifest": str(args.case_scope_manifest),
+            "case_scope_manifest_sha256": _sha256(args.case_scope_manifest),
             "source_turn_sha256": {
                 str(path): _sha256(path)
                 for run_dir in args.run_dir
@@ -347,6 +389,33 @@ async def main_async(args: argparse.Namespace) -> int:
         return 0
     if not cases:
         raise ValueError("No verified RAG cases available for judge evaluation.")
+
+    if args.reuse_results_dir is not None:
+        eligible_case_ids = {str(case["query_id"]) for case in cases}
+        source_rows = sorted(args.reuse_results_dir.glob("judge_rows_run_*.json"))
+        if not source_rows:
+            raise ValueError("No prior judge_rows_run_*.json files found for reuse.")
+        all_summaries: list[dict[str, Any]] = []
+        for source_path in source_rows:
+            rows = json.loads(source_path.read_text(encoding="utf-8"))
+            if not isinstance(rows, list):
+                raise ValueError(f"invalid_prior_judge_rows:{source_path.name}")
+            scoped_rows = [row for row in rows if isinstance(row, dict) and str(row.get("query_id")) in eligible_case_ids]
+            if len(scoped_rows) != len(eligible_case_ids):
+                raise ValueError(f"missing_prior_judge_rows:{source_path.name}")
+            run_number = re.search(r"run_(\d+)$", source_path.stem)
+            label = run_number.group(1) if run_number else str(len(all_summaries) + 1)
+            summary = metric_summary(scoped_rows)
+            write_json(output_dir / f"judge_rows_run_{label}.json", scoped_rows)
+            write_json(output_dir / f"judge_summary_run_{label}.json", summary)
+            all_summaries.append(summary)
+        write_json(output_dir / "judge_summaries.json", all_summaries)
+        median_summary = median_run_summary(all_summaries)
+        write_json(output_dir / "judge_median_summary.json", median_summary)
+        write_json(output_dir / "reuse_source.json", {"source_results_dir": str(args.reuse_results_dir)})
+        print(f"Reused {len(all_summaries)} prior judge runs without API calls.")
+        print(f"Median of run means: {json.dumps(median_summary, ensure_ascii=False)}")
+        return 0
 
     load_dotenv(override=True)
     client = AsyncOpenAI(api_key=os.environ["GEMINI_API_KEY"], base_url=os.environ["GEMINI_BASE_URL"])

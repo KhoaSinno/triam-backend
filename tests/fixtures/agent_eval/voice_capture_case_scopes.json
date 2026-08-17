@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "selection_rule": "Only factual, single-turn semantic book questions are eligible for RAG retrieval metrics. Scope is assigned from the scenario intent before metric values are considered.",
+  "cases": {
+    "S1-Q02": {
+      "scope": "multi_span_enumeration",
+      "reason": "Requires an exhaustive character list assembled from multiple parts of the book."
+    },
+    "S1-Q03": {
+      "scope": "section_routing",
+      "reason": "Explicit chapter request; evaluate deterministic section routing rather than semantic retrieval."
+    },
+    "S1-Q04": {
+      "scope": "clarification",
+      "reason": "The reference behavior is to request clarification."
+    },
+    "S1-Q07": {
+      "scope": "semantic_retrieval_single_turn",
+      "reason": "Factual book-event question answerable from retrieved book passages."
+    },
+    "S1-Q12": {
+      "scope": "semantic_retrieval_single_turn",
+      "reason": "Factual character-and-event question answerable from retrieved book passages."
+    },
+    "S1-Q13": {
+      "scope": "subjective_interpretation",
+      "reason": "Asks for a subjective judgment rather than a stable factual reference."
+    },
+    "S1-Q18": {
+      "scope": "memory_followup",
+      "reason": "Uses 'câu chuyện này' and depends on earlier session context."
+    },
+    "S3-Q41": {
+      "scope": "context_metadata",
+      "reason": "Confirms the active learning context rather than retrieving book evidence."
+    },
+    "S3-Q42": {
+      "scope": "semantic_retrieval_single_turn",
+      "reason": "Factual conceptual question answerable from retrieved book passages."
+    },
+    "S3-Q43": {
+      "scope": "memory_followup",
+      "reason": "Pronoun-only follow-up depends on the preceding turn."
+    },
+    "S3-Q46": {
+      "scope": "semantic_retrieval_single_turn",
+      "reason": "Factual comparison of book concepts answerable from retrieved passages."
+    },
+    "S3-Q48": {
+      "scope": "advisory_synthesis",
+      "reason": "Personal advisory statement requiring multi-turn interpretation."
+    },
+    "S3-Q52": {
+      "scope": "semantic_retrieval_single_turn",
+      "reason": "Factual definition question answerable from retrieved book passages."
+    },
+    "S3-Q53": {
+      "scope": "semantic_retrieval_single_turn",
+      "reason": "Factual tax-and-corporation concept question answerable from retrieved book passages."
+    },
+    "S3-Q58": {
+      "scope": "advisory_synthesis",
+      "reason": "Broad personal-development synthesis rather than one factual retrieval target."
+    }
+  }
+}

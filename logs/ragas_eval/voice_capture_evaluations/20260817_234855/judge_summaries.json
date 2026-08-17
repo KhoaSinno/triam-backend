@@ -1,0 +1,53 @@
+[
+  {
+    "faithfulness": {
+      "mean": 0.7833,
+      "evaluated": 15,
+      "judge_errors": 0
+    },
+    "context_recall": {
+      "mean": 0.3667,
+      "evaluated": 15,
+      "judge_errors": 0
+    },
+    "context_precision": {
+      "mean": 0.5556,
+      "evaluated": 15,
+      "judge_errors": 0
+    }
+  },
+  {
+    "faithfulness": {
+      "mean": 0.8422,
+      "evaluated": 15,
+      "judge_errors": 0
+    },
+    "context_recall": {
+      "mean": 0.3667,
+      "evaluated": 15,
+      "judge_errors": 0
+    },
+    "context_precision": {
+      "mean": 0.5556,
+      "evaluated": 15,
+      "judge_errors": 0
+    }
+  },
+  {
+    "faithfulness": {
+      "mean": 0.8222,
+      "evaluated": 15,
+      "judge_errors": 0
+    },
+    "context_recall": {
+      "mean": 0.3667,
+      "evaluated": 15,
+      "judge_errors": 0
+    },
+    "context_precision": {
+      "mean": 0.6222,
+      "evaluated": 15,
+      "judge_errors": 0
+    }
+  }
+]

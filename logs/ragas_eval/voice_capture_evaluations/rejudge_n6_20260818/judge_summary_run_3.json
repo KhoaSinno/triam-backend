@@ -1,0 +1,17 @@
+{
+  "faithfulness": {
+    "mean": 0.8333,
+    "evaluated": 6,
+    "judge_errors": 0
+  },
+  "context_recall": {
+    "mean": 0.5,
+    "evaluated": 6,
+    "judge_errors": 0
+  },
+  "context_precision": {
+    "mean": 0.6528,
+    "evaluated": 6,
+    "judge_errors": 0
+  }
+}

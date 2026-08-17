@@ -32,6 +32,12 @@ def test_verified_voice_case_requires_accepted_book_rag_with_rendered_context(tm
         run_dir=tmp_path,
         references={2: "George và Lennie là nhân vật chính."},
         seen_case_ids=set(),
+        case_scopes={
+            "S1-Q02": {
+                "scope": "semantic_retrieval_single_turn",
+                "reason": "Factual semantic retrieval case.",
+            }
+        },
     )
 
     assert reason == ""

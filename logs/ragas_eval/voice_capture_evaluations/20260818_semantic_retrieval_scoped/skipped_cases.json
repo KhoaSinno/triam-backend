@@ -1,0 +1,72 @@
+[
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\040b3eea-2ad1-4b24-b0d7-6a2470d25154.json",
+    "case_id": "S1-Q02",
+    "reason": "out_of_scope_multi_span_enumeration"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\23dbcac7-2eda-4b1c-9747-4b7fa7661b2b.json",
+    "case_id": "S1-Q05",
+    "reason": "answer_source_policy"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\66e67c97-7b9f-4dd5-ab2f-5aa6fe6f8753.json",
+    "case_id": "S1-Q01",
+    "reason": "answer_source_book_metadata"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\b67032e3-6b87-4d69-adb6-369b7d592ea7.json",
+    "case_id": "S1-Q04",
+    "reason": "out_of_scope_clarification"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\c5996d3a-f55f-4f32-9b84-58c50254e309.json",
+    "case_id": "S1-Q13",
+    "reason": "out_of_scope_subjective_interpretation"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\e00fc9a2-b047-4c5e-b045-c518b6604bf8.json",
+    "case_id": "S1-Q03",
+    "reason": "out_of_scope_section_routing"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\fce30471-310d-42ab-a03c-3f2e67fe5b85.json",
+    "case_id": "S1-Q18",
+    "reason": "out_of_scope_memory_followup"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\0657d7ae-c566-41db-8b41-7e759b46fff2.json",
+    "case_id": "",
+    "reason": "not_accepted"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\12ad68b0-f986-46e3-9c86-181e3400c182.json",
+    "case_id": "S3-Q49",
+    "reason": "trace_error"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\1a886dec-137a-4fcb-9461-9b0eef05365d.json",
+    "case_id": "S3-Q47",
+    "reason": "answer_source_unknown"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\1d747af6-0962-4ad3-97ce-615300c27af7.json",
+    "case_id": "S3-Q58",
+    "reason": "out_of_scope_advisory_synthesis"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\4bb4017c-8e80-438b-8407-d1160215f13b.json",
+    "case_id": "S3-Q43",
+    "reason": "out_of_scope_memory_followup"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\62223dca-d1da-48aa-857d-25dcf06dc71e.json",
+    "case_id": "S3-Q41",
+    "reason": "out_of_scope_context_metadata"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\d14ccc65-83df-4a31-8d45-107e455d8313.json",
+    "case_id": "S3-Q48",
+    "reason": "out_of_scope_advisory_synthesis"
+  }
+]
