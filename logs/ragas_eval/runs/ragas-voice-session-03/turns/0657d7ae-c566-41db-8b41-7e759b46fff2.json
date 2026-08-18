@@ -4,8 +4,8 @@
   "trace_id": "0657d7ae-c566-41db-8b41-7e759b46fff2",
   "thread_id": "1a1dc4b2-d8fd-4dc9-9b43-32b62172765e",
   "room_name": "triam_1a1dc4b2_d1eed0",
-  "evaluation_status": "unreviewed",
-  "case_id": null,
+  "evaluation_status": "accepted",
+  "case_id": "S3-Q44",
   "trace": {
     "trace_id": "0657d7ae-c566-41db-8b41-7e759b46fff2",
     "thread_id": "1a1dc4b2-d8fd-4dc9-9b43-32b62172765e",
