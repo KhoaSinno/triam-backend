@@ -37,7 +37,7 @@ from app.core.logger import log
 from app.repositories.agent_grounding_repo import load_grounding_scope, load_scoped_section_texts
 from app.services.agent_grounding import GroundingResult, GroundingRoute, GroundingRouter
 from app.services.agent_grounding.response_renderer import format_grounding_tool_result
-from app.services.agent_observability import AgentAnswerSource, AgentInputMode, AgentTurnTracer
+from app.services.agent_observability import AgentAnswerSource, AgentInputMode, AgentTurnTracer, LocalEvaluationCapture
 from app.services.agent_policy import AgentPolicyAction, AgentPolicyRequest, SharedAgentPolicy, render_text_direct_message, render_voice_tool_result
 from app.services.voice_agent.contracts import LK_CHAT_TOPIC, LK_CONTROL_TOPIC, VoiceJobMetadata
 from app.services.voice_agent.query_guard import VoiceQueryGuardConfig, VoiceQueryGuardResult, guard_voice_book_query
@@ -351,6 +351,7 @@ class TriamAssistant(Agent):
         document_ids: list[str],
         web_search_policy: WebSearchPermissionPolicy,
         tracer: AgentTurnTracer,
+        local_eval_capture: LocalEvaluationCapture | None = None,
         grounding_router: GroundingRouter | None = None,
         voice_turn_state: VoiceTurnState | None = None,
         shared_policy: SharedAgentPolicy | None = None,
@@ -377,6 +378,7 @@ class TriamAssistant(Agent):
         self.document_ids = document_ids
         self.web_search_policy = web_search_policy
         self.tracer = tracer
+        self.local_eval_capture = local_eval_capture
         self.grounding_router = grounding_router
         self.voice_turn_state = voice_turn_state or VoiceTurnState()
         self.shared_policy = shared_policy
@@ -641,6 +643,12 @@ class TriamAssistant(Agent):
             if input_mode == AgentInputMode.VOICE:
                 self.voice_turn_state.clear_pending_clarification()
             rendered_context = render_rag_context(result)
+            if self.local_eval_capture is not None:
+                self.local_eval_capture.record_rendered_rag_context(
+                    trace_id=self.tracer.active_trace_id(input_mode),
+                    query=query,
+                    context_text=rendered_context.text,
+                )
             self.tracer.record_rag_context(
                 input_mode,
                 selected_count=rendered_context.selected_count,
@@ -805,12 +813,20 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         grant_ttl_seconds=settings.VOICE_AGENT_WEB_PERMISSION_TTL_SECONDS,
         implicit_grant_window_seconds=settings.VOICE_AGENT_WEB_IMPLICIT_GRANT_WINDOW_SECONDS,
     )
+    local_eval_capture = LocalEvaluationCapture(
+        enabled=settings.AGENT_EVAL_CAPTURE_ENABLED,
+        run_id=settings.AGENT_EVAL_CAPTURE_RUN_ID,
+        root_dir=settings.AGENT_EVAL_CAPTURE_DIR,
+        thread_id=str(thread_uuid) if thread_uuid else None,
+        room_name=ctx.room.name,
+    )
     tracer = AgentTurnTracer(
         enabled=settings.AGENT_TRACE_ENABLED,
         thread_id=str(thread_uuid) if thread_uuid else None,
         room_name=ctx.room.name,
         score_precision=settings.AGENT_TRACE_SCORE_PRECISION,
         late_transcript_window_seconds=settings.AGENT_TRACE_LATE_TRANSCRIPT_WINDOW_SECONDS,
+        emitter=local_eval_capture.emit_trace if local_eval_capture.enabled else None,
     )
 
     grounding_scope = None
@@ -856,11 +872,13 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
         document_ids=document_ids,
         grounding_router=grounding_router,
         tracer=tracer,
+        local_eval_capture=local_eval_capture,
     )
     agent_instance = TriamAssistant(
         document_ids=document_ids,
         web_search_policy=web_search_policy,
         tracer=tracer,
+        local_eval_capture=local_eval_capture,
         grounding_router=grounding_router,
         voice_turn_state=voice_turn_state,
         shared_policy=shared_policy,
@@ -1388,9 +1406,15 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 transcript,
                 str(language) if language else None,
             )
-            tracer.record_transcript(
+            trace_id = tracer.record_transcript(
                 AgentInputMode.VOICE,
                 char_count=len(transcript),
+                language=str(language) if language else None,
+            )
+            local_eval_capture.record_user_text(
+                trace_id=trace_id,
+                text=transcript,
+                source="final_transcript",
                 language=str(language) if language else None,
             )
             _record_web_permission_reply(transcript)
@@ -1412,8 +1436,13 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
             return
 
         if item.role == "user":
-            tracer.ensure_turn(AgentInputMode.VOICE)
+            trace_id = tracer.ensure_turn(AgentInputMode.VOICE)
             log.info(f"User voice speech saved | text='{text}' | thread_id={thread_uuid}")
+            local_eval_capture.record_user_text(
+                trace_id=trace_id,
+                text=text,
+                source="committed_user_item",
+            )
             voice_turn_state.record_committed_user_text(text)
             _record_web_permission_reply(text)
             asyncio.create_task(transcript_store.save_and_publish_user(text))
@@ -1426,6 +1455,10 @@ async def entrypoint(ctx: JobContext):  # noqa: C901
                 return
             watchdog.record_assistant_committed()
             tracer.record_assistant(AgentInputMode.VOICE, char_count=len(text))
+            local_eval_capture.record_assistant_text(
+                trace_id=tracer.active_trace_id(AgentInputMode.VOICE),
+                text=text,
+            )
             tracer.complete_turn(AgentInputMode.VOICE)
             log.info(f"Assistant voice speech saved | text='{text}' | thread_id={thread_uuid}")
             asyncio.create_task(transcript_store.save_and_publish_assistant(text, already_claimed=True))

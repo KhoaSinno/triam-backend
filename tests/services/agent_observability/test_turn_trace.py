@@ -74,6 +74,16 @@ def test_trace_records_book_tool_and_final_transcript_relative_timing_without_ra
     assert [event for event, _ in emitted].count("book_grounding_tool_started") == 1
 
 
+def test_record_transcript_returns_the_active_trace_id():
+    tracer = AgentTurnTracer(enabled=True, thread_id=None, room_name=None)
+
+    trace_id = tracer.begin_turn(AgentInputMode.VOICE)
+    recorded_trace_id = tracer.record_transcript(AgentInputMode.VOICE, char_count=18, language="vi")
+
+    assert recorded_trace_id == trace_id
+    assert tracer.active_trace_id(AgentInputMode.VOICE) == trace_id
+
+
 def test_trace_records_final_transcript_present_before_book_tool():
     tracer = AgentTurnTracer(enabled=True, thread_id=None, room_name=None)
 

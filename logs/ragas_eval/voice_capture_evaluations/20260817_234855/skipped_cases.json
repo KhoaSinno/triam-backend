@@ -1,0 +1,27 @@
+[
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\23dbcac7-2eda-4b1c-9747-4b7fa7661b2b.json",
+    "case_id": "S1-Q05",
+    "reason": "answer_source_policy"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\66e67c97-7b9f-4dd5-ab2f-5aa6fe6f8753.json",
+    "case_id": "S1-Q01",
+    "reason": "answer_source_book_metadata"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\0657d7ae-c566-41db-8b41-7e759b46fff2.json",
+    "case_id": "",
+    "reason": "not_accepted"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\12ad68b0-f986-46e3-9c86-181e3400c182.json",
+    "case_id": "S3-Q49",
+    "reason": "trace_error"
+  },
+  {
+    "path": "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\1a886dec-137a-4fcb-9461-9b0eef05365d.json",
+    "case_id": "S3-Q47",
+    "reason": "answer_source_unknown"
+  }
+]

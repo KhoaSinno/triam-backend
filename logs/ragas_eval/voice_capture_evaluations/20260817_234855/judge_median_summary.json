@@ -1,0 +1,35 @@
+{
+  "faithfulness": {
+    "median_of_run_means": 0.8222,
+    "run_means": [
+      0.7833,
+      0.8422,
+      0.8222
+    ],
+    "min_run_mean": 0.7833,
+    "max_run_mean": 0.8422,
+    "completed_runs": 3
+  },
+  "context_recall": {
+    "median_of_run_means": 0.3667,
+    "run_means": [
+      0.3667,
+      0.3667,
+      0.3667
+    ],
+    "min_run_mean": 0.3667,
+    "max_run_mean": 0.3667,
+    "completed_runs": 3
+  },
+  "context_precision": {
+    "median_of_run_means": 0.5556,
+    "run_means": [
+      0.5556,
+      0.5556,
+      0.6222
+    ],
+    "min_run_mean": 0.5556,
+    "max_run_mean": 0.6222,
+    "completed_runs": 3
+  }
+}

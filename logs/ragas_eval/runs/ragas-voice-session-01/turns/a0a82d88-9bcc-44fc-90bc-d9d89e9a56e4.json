@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "run_id": "ragas-voice-session-01",
+  "trace_id": "a0a82d88-9bcc-44fc-90bc-d9d89e9a56e4",
+  "thread_id": "9dbc454d-8ef5-44f2-b92b-1b4200940e20",
+  "room_name": "triam_9dbc454d_cf80f6",
+  "evaluation_status": "accepted",
+  "case_id": "S1-Q07",
+  "trace": {
+    "trace_id": "a0a82d88-9bcc-44fc-90bc-d9d89e9a56e4",
+    "thread_id": "9dbc454d-8ef5-44f2-b92b-1b4200940e20",
+    "room_name": "triam_9dbc454d_cf80f6",
+    "input_mode": "voice",
+    "started_at": "2026-08-17T14:55:25.018371+00:00",
+    "completed_at": "2026-08-17T14:55:43.777137+00:00",
+    "transcript_final_seen": true,
+    "transcript_char_count": 58,
+    "detected_language": null,
+    "detected_intent": "book_semantic_question",
+    "grounding_route": "book_rag",
+    "grounding_reason_code": "semantic_rag_fallback",
+    "resolved_book_ids": [],
+    "resolved_section_ids": [],
+    "retrieval_method": "cohere-rerank-v2",
+    "retrieval_result_count": 8,
+    "retrieval_chunk_ids": [
+      "17105",
+      "17070",
+      "17107",
+      "17083",
+      "17085",
+      "17074",
+      "17092",
+      "17075"
+    ],
+    "retrieval_learning_unit_ids": [],
+    "retrieval_section_ids": [
+      "cf26656e-ad22-4cee-9959-0c1e82147a63",
+      "c7e92756-5822-4084-a8a0-0d9bef56235d",
+      "a36264f0-2a73-4003-a662-18b6cabcaccb",
+      "aaf2311a-4507-433a-a3f4-eeb0da83bcf5"
+    ],
+    "retrieval_scores": [
+      0.7041,
+      0.4829,
+      0.3884,
+      0.242,
+      0.2182,
+      0.1351,
+      0.0842,
+      0.0084
+    ],
+    "rag_candidate_count": 8,
+    "rag_context_selected_count": 3,
+    "rag_context_char_count": 8015,
+    "rag_context_budget_mode": "default",
+    "asr_final_status_at_book_tool": "final_seen",
+    "asr_final_before_book_tool_ms": 858,
+    "book_tool_before_asr_final_ms": null,
+    "tool_names": [
+      "search_book_knowledge"
+    ],
+    "query_guard_reason_code": "valid_transcript_snapshot_available",
+    "query_guard_mode": "transcript_snapshot",
+    "query_guard_overlap_ratio": null,
+    "query_guard_important_overlap_ratio": null,
+    "answer_source": "book_rag",
+    "assistant_char_count": 223,
+    "stage_latency_ms": {
+      "asr_final_to_reply_request": 12,
+      "query_guard": 0,
+      "grounding_total": 21,
+      "retrieval": 2375,
+      "tool_total": 2408,
+      "tool_reply_watchdog_grace": 8000,
+      "turn_total": 18764
+    },
+    "error_code": null,
+    "tool_reply_watchdog_scheduled": true,
+    "tool_reply_watchdog_fired": null,
+    "tool_reply_watchdog_tool_names": [
+      "search_book_knowledge"
+    ],
+    "tool_reply_watchdog_reason": "cancelled_agent_started_speaking",
+    "tool_result_to_speech_ms": 1469,
+    "forced_reply_reason": null,
+    "realtime_rate_limit_update_count": 2,
+    "realtime_token_limit": 40000,
+    "realtime_token_remaining": 7829,
+    "realtime_token_reset_seconds": 48.256,
+    "realtime_request_limit": null,
+    "realtime_request_remaining": null,
+    "realtime_request_reset_seconds": null,
+    "realtime_response_ids": [
+      "resp_EDt2C4395d4ALGcWtghJO",
+      "resp_EDt2G9KZWxjKpvJZgjdmy"
+    ],
+    "realtime_response_count": 2,
+    "realtime_input_tokens": 33643,
+    "realtime_input_text_tokens": 33243,
+    "realtime_input_audio_tokens": 400,
+    "realtime_input_cached_tokens": 31040,
+    "realtime_output_tokens": 452,
+    "realtime_output_text_tokens": 172,
+    "realtime_output_audio_tokens": 280,
+    "realtime_total_tokens": 34095,
+    "realtime_last_response_duration_ms": 2591,
+    "realtime_last_response_ttft_ms": 832,
+    "realtime_last_response_cancelled": false,
+    "realtime_error_code": null,
+    "realtime_error_type": null,
+    "realtime_error_message_chars": 0,
+    "correlation_quality": "session_active_turn"
+  },
+  "trace_event": "turn_completed",
+  "user": {
+    "text": "Curley tấn công Lenny đúng không? Tấn công bằng vũ khí không?",
+    "source": "committed_user_item",
+    "language": null,
+    "captured_at": "2026-08-17T14:55:25.023389+00:00"
+  },
+  "retrieved_context": {
+    "query_sent_to_retrieval": "Curley tấn công Lennie có dùng vũ khí không trong cuối truyện Of Mice and Men",
+    "rendered_context": "BOOK_CONTEXT_FOUND:\n--- Source 1 (Section: 3, Section ID: ...147a63, Chunk: 12) ---\n[3]\nGeorge said wonderingly, “S’pose they was a carnival or a circus come to town, or a ball game, or any damn thing.” Old Candy nodded in appreciation of the idea. “We’d just go to her,” George said. “We wouldn’t ask nobody if we could. Jus’ say, ‘We’ll go to her,’ an’ we would. Jus’ milk the cow and sling some grain to the chickens an’ go to her.” “An’ put some grass to the rabbits,” Lennie broke in. “I wouldn’t never forget to feed them. When we gon’ta do it, George?” “In one month. Right squack in one month. Know what I’m gon’ta do? I’m gon’ta write to them old people that owns the place that we’ll take it.\nAn’ Candy’ll send a hunderd dollars to bind her.” “Sure will,” said Candy. “They got a good stove there?” “Sure, got a nice stove, burns coal or wood.” “I’m gonna take my pup,” said Lennie. “I bet by Christ he likes it there, by Jesus.” Voices were approaching from outside. George said quickly, “Don’t tell nobody about it. Jus’ us three an’ nobody else. They li’ble to can us so we can’t make no stake. Jus’ go on like we was gonna buck barley the rest of our lives, then all of a sudden some day we’ll go get our pay an’ scram outa here.” Lennie and Candy nodded, and they were grinning with delight. “Don’t tell nobody,” Lennie said to himself.\nCandy said, “George.” “Huh?” “I ought to of shot that dog myself, George. I shouldn’t ought to of let no stranger shoot my dog.” The door opened. Slim came in, followed by Curley and Carlson and Whit.\nSlim’s hands were black with tar and he was scowling. Curley hung close to his elbow.\nCurley said, “Well, I didn’t mean nothing, Slim. I just ast you.” Slim said, “Well, you been askin’ me too often. I’m gettin’ God damn sick of it. If you can’t look after your own God damn wife, what you expect me to do about it? You lay offa me.” “I’m jus’ tryin’ to tell you I didn’t mean nothing,” said Curley. “I jus’ thought you might of saw her.” “Why’n’t you tell her to stay the hell home where she belongs?” said Carlson. “You let her hang around bunk houses and pretty soon you’re gonna have som’pin on your hands and you won’t be able to do nothing about it.” Curley whirled on Carlson. “You keep outta this les’ you wanta step outside.” Carlson laughed. “You God damn punk,” he said. “You tried to throw a scare into Slim, an’ you couldn’t make it stick. Slim throwed a scare inta you. You’re yella as a frog belly. I don’t care if you’re the best welter in the country. You come for me, an’ I’ll kick your God damn head off.” Candy joined the attack with joy. “Glove fulla vaseline,” he said disgustedly. Curley glared at him. His eyes slipped on past and lighted on Lennie; and Lennie was still smiling with delight at the memory of the ranch.\nCurley stepped over to Lennie like a terrier. “What the hell you laughin’ at?” Lennie looked blankly at him. “Huh?” Then Curley’s rage exploded. “Come on, ya big bastard. Get up on your feet. No big son–of–a–bitch is gonna laugh at me. I’ll show ya who’s yella.” Lennie looked helplessly at George, and then he got up and tried to retreat. Curley was balanced and poised. He slashed at Lennie with his left, and then smashed down his nose with a right. Lennie gave a cry of terror. Blood welled from his nose. “George,” he cried. “Make ’um let me alone, George.” He backed until he was against the wall, and Curley followed, slugging him in the face. Lennie’s hands remained at his sides; he was too frightened to defend himself.\n\n--- Source 2 (Section: 2, Section ID: ...56235d, Chunk: 6) ---\n[2]\n“Look, Lennie! This here ain’t no set up. I’m scared. You gonna have trouble with that Curley guy. I seen that kind before. He was kinda feelin’ you out. He figures he’s got you scared and he’s gonna take a sock at you the first chance he gets.” Lennie’s eyes were frightened. “I don’t want no trouble,” he said plaintively. “Don’t let him sock me, George.” George got up and went over to Lennie’s bunk and sat down on it. “I hate that kinda bastard,” he said. “I seen plenty of ’em. Like the old guy says, Curley don’t take no chances. He always wins.” He thought for a moment. “If he tangles with you, Lennie, we’re gonna get the can. Don’t make no mistake about that. He’s the boss’s son. Look, Lennie. You try to keep away from him, will you? Don’t never speak to him. If he comes in here you move clear to the other side of the room. Will you do that, Lennie?” “I don’t want no trouble,” Lennie mourned. “I never done nothing to him.” “Well, that won’t do you no good if Curley wants to plug himself up for a fighter. Just don’t have nothing to do with him. Will you remember?” “Sure, George. I ain’t gonna say a word.” The sound of the approaching grain teams was louder, thud of big hooves on hard ground, drag of brakes and the jingle of trace chains. Men were calling back and forth from the teams. George, sitting on the bunk beside Lennie, frowned as he thought. Lennie asked timidly, “You ain’t mad, George?” “I ain’t mad at you. I’m mad at this here Curley bastard. I hoped we was gonna get a little stake together—maybe a hundred dollars.” His tone grew decisive. “You keep away from Curley, Lennie.” “Sure I will, George. I won’t say a word.” “Don’t let him pull you in—but—if the son–of–a–bitch socks you—let ’im have it.” “Let ’im have what, George?” “Never mind, never mind. I’ll tell you when. I hate that kind of a guy.\nLook, Lennie, if you get in any kind of trouble, you remember what I told you to do?” Lennie raised up on his elbow. His face contorted with thought. Then his eyes moved sadly to George’s face. “If I get in any trouble, you ain’t gonna let me tend the rabbits.” “That’s not what I meant. You remember where we slep’ last night? Down by the river?” “Yeah, I remember. Oh, sure I remember! I go there an’ hide in the brush.” “Hide till I come for you. Don’t let nobody see you. Hide in the brush by the river. Say that over.” “Hide in the brush by the river, down in the brush by the river.” “If you get in trouble.” “If I get in trouble.” A brake screeched outside. A call came, “Stable—Buck. Oh! Sta–able Buck.” George said, “Say it over to yourself, Lennie, so you won’t forget it.” Both men glanced up, for the rectangle of sunshine in the doorway was cut off. A girl was standing there looking in. She had full, rouged lips and wide–spaced eyes, heavily made up. Her fingernails were red. Her hair hung in little rolled clusters, like sausages. She wore a cotton house dress and red mules, on the insteps of which were little bouquets of red ostrich feathers. “I’m lookin’ for Curley,” she said. Her voice had a nasal, brittle quality.\nGeorge looked away from her and then back. “He was in here a minute ago, but he went.” “Oh!” She put her hands behind her back and leaned against the door frame so that her body was thrown forward. “You’re the new fellas that just come, ain’t ya?” “Yeah.” Lennie’s eyes moved down over her body, and though she did not seem to be looking at Lennie she bridled a little. She looked at her fingernails. “Sometimes Curley’s in here,” she explained.\n\n--- Source 3 (Section: 3, Section ID: ...147a63, Chunk: 14) ---\n[3]\nBuggy wheels sounded outside. Slim helped Curley up. “Come on now.\nCarlson’s gonna take you to a doctor.” He helped Curley out the door.\nThe sound of wheels drew away. In a moment Slim came back into the bunk house. He looked at Lennie, still crouched fearfully against the wall.\n“Le’s see your hands,” he asked.\nLennie stuck out his hands.\n“Christ awmighty, I hate to have you mad at me,” Slim said.\nGeorge broke in, “Lennie was jus’ scairt,” he explained. “He didn’t know what to do. I told you nobody ought never to fight him. No, I guess it was Candy I told.” Candy nodded solemnly. “That’s jus’ what you done,” he said. “Right this morning when Curley first lit intil your fren’, you says. ‘He better not fool with Lennie if he knows what’s good for ’um.’ That’s jus’ what you says to me.” George turned to Lennie. “It ain’t your fault,” he said. “You don’t need to be scairt no more. You done jus’ what I tol’ you to. Maybe you better go in the wash room an’ clean up your face. You look like hell.” Lennie smiled with h\n...[truncated]",
+    "captured_at": "2026-08-17T14:55:28.282977+00:00"
+  },
+  "assistant": {
+    "text": "Đúng vậy, Curley đã lao lên đánh Lennie. Nhưng hắn không dùng vũ khí, hắn dùng tay để đấm, tấn công trực tiếp vào Lennie, vì hắn bực và ghen khi thấy Lennie cười. Lennie lúc đó quá sợ, không biết phải làm gì để bảo vệ mình.",
+    "source": "committed_assistant",
+    "language": null,
+    "captured_at": "2026-08-17T14:55:43.775824+00:00"
+  }
+}

@@ -1,0 +1,134 @@
+[
+  {
+    "query_id": "S1-Q07",
+    "run_id": "ragas-voice-session-01",
+    "trace_id": "a0a82d88-9bcc-44fc-90bc-d9d89e9a56e4",
+    "source_path": "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\a0a82d88-9bcc-44fc-90bc-d9d89e9a56e4.json",
+    "faithfulness": 1.0,
+    "faithfulness_status": "scored",
+    "context_precision": 0.8333333333333333,
+    "context_precision_status": "scored",
+    "context_recall": 0.5,
+    "context_recall_claims": [
+      {
+        "claim": "Ban đầu Lennie không chống cự.",
+        "is_supported": true
+      },
+      {
+        "claim": "Khi George bảo ra tay, Lennie bóp nát bàn tay phải của Curley.",
+        "is_supported": false
+      }
+    ],
+    "context_recall_status": "scored"
+  },
+  {
+    "query_id": "S1-Q12",
+    "run_id": "ragas-voice-session-01",
+    "trace_id": "a9e5cc9b-a0d3-406d-86e4-54e903e525a5",
+    "source_path": "logs\\ragas_eval\\runs\\ragas-voice-session-01\\turns\\a9e5cc9b-a0d3-406d-86e4-54e903e525a5.json",
+    "faithfulness": 1.0,
+    "faithfulness_status": "scored",
+    "context_precision": 1.0,
+    "context_precision_status": "scored",
+    "context_recall": 0.5,
+    "context_recall_claims": [
+      {
+        "claim": "Có vài nhân vật yêu thích động vật như Lennie",
+        "is_supported": true
+      },
+      {
+        "claim": "Nhân vật Candy gắn liền với con chó già",
+        "is_supported": false
+      }
+    ],
+    "context_recall_status": "scored"
+  },
+  {
+    "query_id": "S3-Q52",
+    "run_id": "ragas-voice-session-03",
+    "trace_id": "2607b51c-47aa-40ee-85e0-bd2f19227dd0",
+    "source_path": "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\2607b51c-47aa-40ee-85e0-bd2f19227dd0.json",
+    "faithfulness": 1.0,
+    "faithfulness_status": "scored",
+    "context_precision": 1.0,
+    "context_precision_status": "scored",
+    "context_recall": 1.0,
+    "context_recall_claims": [
+      {
+        "claim": "Rat Race là vòng lặp đi làm, kiếm tiền, chi tiêu, hết tiền rồi tiếp tục đi làm.",
+        "is_supported": true
+      },
+      {
+        "claim": "Cách thoát khỏi Rat Race là mua tài sản sinh ra dòng tiền.",
+        "is_supported": true
+      }
+    ],
+    "context_recall_status": "scored"
+  },
+  {
+    "query_id": "S3-Q46",
+    "run_id": "ragas-voice-session-03",
+    "trace_id": "adac76f1-894e-42a8-a9d0-cb70945046d6",
+    "source_path": "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\adac76f1-894e-42a8-a9d0-cb70945046d6.json",
+    "faithfulness": 0.0,
+    "faithfulness_status": "scored",
+    "context_precision": 0.5833333333333333,
+    "context_precision_status": "scored",
+    "context_recall": 1.0,
+    "context_recall_claims": [
+      {
+        "claim": "Cha nghèo đại diện cho tư duy làm công ăn lương an toàn.",
+        "is_supported": true
+      },
+      {
+        "claim": "Cha giàu đại diện cho tư duy làm chủ và đầu tư tài sản.",
+        "is_supported": true
+      }
+    ],
+    "context_recall_status": "scored"
+  },
+  {
+    "query_id": "S3-Q53",
+    "run_id": "ragas-voice-session-03",
+    "trace_id": "c5818d90-f351-4fd3-8eee-acca206531e9",
+    "source_path": "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\c5818d90-f351-4fd3-8eee-acca206531e9.json",
+    "faithfulness": 1.0,
+    "faithfulness_status": "scored",
+    "context_precision": 0.0,
+    "context_precision_status": "scored",
+    "context_recall": 0.0,
+    "context_recall_claims": [
+      {
+        "claim": "Công ty kiếm tiền trước rồi mới chi tiêu chi phí hợp lý và sau đó mới nộp thuế",
+        "is_supported": false
+      },
+      {
+        "claim": "Cá nhân phải nộp thuế trước rồi mới chi tiêu",
+        "is_supported": false
+      }
+    ],
+    "context_recall_status": "scored"
+  },
+  {
+    "query_id": "S3-Q42",
+    "run_id": "ragas-voice-session-03",
+    "trace_id": "e09c4da9-c87f-448a-bad2-b35ecc6466e0",
+    "source_path": "logs\\ragas_eval\\runs\\ragas-voice-session-03\\turns\\e09c4da9-c87f-448a-bad2-b35ecc6466e0.json",
+    "faithfulness": 1.0,
+    "faithfulness_status": "scored",
+    "context_precision": 0.5,
+    "context_precision_status": "scored",
+    "context_recall": 0.5,
+    "context_recall_claims": [
+      {
+        "claim": "Theo Kiyosaki, nhà ở tiêu tiền bảo trì/thế chấp nên là tiêu sản",
+        "is_supported": false
+      },
+      {
+        "claim": "Quan điểm truyền thống coi nhà ở là tài sản",
+        "is_supported": true
+      }
+    ],
+    "context_recall_status": "scored"
+  }
+]
