@@ -31,6 +31,23 @@ Long-form learning is easy to interrupt: learners must divide material themselve
 - Schedules study sessions, records completion, and creates spaced-repetition reviews.
 - Supports single- and multi-document chat/voice contexts, using source-grounded RAG with explicit consent before web search.
 
+## Core product experience
+
+| Document ingestion and planning | Audiobook player | Realtime voice assistant |
+| :---: | :---: | :---: |
+| <img src="assets/ui-document-ingestion.png" alt="Document analysis and learning-plan setup screen" width="220" /> | <img src="assets/ui-audiobook-player.png" alt="TRIAM audiobook player screen" width="220" /> | <img src="assets/ui-voice-assistant.png" alt="TRIAM realtime voice assistant screen" width="220" /> |
+| Upload a structured document, inspect its extracted outline, and configure how it will be studied. | Play learning-unit audio, resume precisely, select chapters, and adjust playback controls. | Start a LiveKit-backed conversation without leaving the listening experience. |
+
+These screenshots are exported from the core UI figures used in the TRIAM thesis.
+
+### Agent conversation
+
+<p align="center">
+  <img src="assets/ui-agent-conversation.png" alt="TRIAM agent conversation transcript in a multi-book study context" width="360" />
+  <br />
+  <em>A persisted, multi-book agent conversation with transcript, contextual answers, and voice controls.</em>
+</p>
+
 ## Engineering highlights
 
 | Capability | TRIAM implementation |
