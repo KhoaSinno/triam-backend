@@ -45,49 +45,13 @@ Long-form learning is easy to interrupt: learners must divide material themselve
 
 ## System architecture
 
-```mermaid
-flowchart LR
-    Client[Flutter client / API consumer]
+<p align="center">
+  <img src="assets/system-architecture.png" alt="TRIAM system architecture" width="900" />
+  <br />
+  <em>TRIAM system architecture: mobile client, admin portal, LiveKit transport, server runtime, Supabase data layer, and external AI services.</em>
+</p>
 
-    subgraph Runtime[Docker runtime]
-        API[FastAPI API]
-        Worker[Celery document worker]
-        Notify[Celery Beat + notification worker]
-        Agent[LiveKit realtime agent]
-    end
-
-    subgraph Data[Managed data]
-        DB[(Supabase Postgres + pgvector)]
-        Storage[(Supabase Storage)]
-        Redis[(Redis broker)]
-    end
-
-    subgraph AI[AI and communication providers]
-        LLM[LLM providers]
-        TTS[TTS providers]
-        LK[LiveKit Cloud]
-        Search[Tavily web search]
-        FCM[Firebase Cloud Messaging]
-    end
-
-    Client -->|REST + Bearer JWT| API
-    Client -->|LiveKit SDK| LK
-    API --> DB
-    API --> Storage
-    API -->|enqueue jobs| Redis
-    Redis --> Worker
-    Redis --> Notify
-    Worker --> DB
-    Worker --> Storage
-    Worker --> LLM
-    Worker --> TTS
-    Notify --> DB
-    Notify --> FCM
-    Agent <-->|room events| LK
-    Agent --> DB
-    Agent --> LLM
-    Agent --> Search
-```
+The diagram is exported from the system-architecture figure in the TRIAM thesis (`c4_01_so_do_tong_quan.tex`).
 
 ### Learning-content pipeline
 
@@ -112,7 +76,7 @@ sequenceDiagram
     API-->>App: book_id, job_id, progress = 0
 
     Queue->>Worker: Deliver job
-    Worker->>DB: processing; plan learning units and budgets
+    Worker->>DB: processing, learning-unit planning, and budget estimation
     Worker->>AI: Normalize speech, generate audio, build embeddings
     Worker->>DB: Save segments, progress, and unit state
     Worker-->>DB: partial_ready after the first learning unit
