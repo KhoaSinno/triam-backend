@@ -1,6 +1,7 @@
 import json
 import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
+
 import pytest
 from pydantic import ValidationError
 from sqlmodel import Session, SQLModel, create_engine
@@ -89,6 +90,7 @@ async def test_generate_ai_book_summary_service_success(db_session: Session):
         assert book.ai_summary_status == SummaryStatus.COMPLETED.value
         assert book.ai_summary["estimated_read_minutes"] == 120
         assert book.ai_summary_error is None
+        assert "temperature" not in mock_client.chat.completions.create.await_args.kwargs
 
 
 @pytest.mark.asyncio

@@ -194,7 +194,6 @@ async def _call_pareto_llm(cards: list[SectionCard]) -> ParetoPlannerPayload:
                 {"role": "system", "content": PARETO_PLANNER_SYSTEM_PROMPT},
                 {"role": "user", "content": _prompt_user_content(cards)},
             ],
-            temperature=0.1,
             response_format=ParetoPlannerPayload,
         )
     message = response.choices[0].message

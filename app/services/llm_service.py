@@ -238,7 +238,6 @@ async def _call_normalize_llm(text: str, mode: str, *, context_hint: str | None 
                         {"role": "system", "content": mode_prompt},
                         {"role": "user", "content": user_content},
                     ],
-                    temperature=0.2,
                     response_format=NormalizedUnitPayload,
                 )
                 message = response.choices[0].message

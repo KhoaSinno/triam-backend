@@ -35,6 +35,17 @@ def test_console_ids_are_configurable_for_local_full_voice_test():
     assert clean_settings.VOICE_AGENT_CONSOLE_THREAD_ID
 
 
+def test_gemini_37_flash_is_the_default_for_project_gemini_workloads():
+    clean_settings = build_settings()
+
+    assert clean_settings.GEMINI_MODEL_LLM == "gemini-3.7-flash"
+    assert clean_settings.PARETO_PLANNER_MODEL == "gemini-3.7-flash"
+
+    env_example = Path(".env.example").read_text(encoding="utf-8")
+    assert "PARETO_PLANNER_MODEL=gemini-3.7-flash" in env_example
+    assert "gemini-3.6-flash" not in env_example
+
+
 def test_realtime_session_budget_is_disabled_by_default():
     clean_settings = build_settings()
 
