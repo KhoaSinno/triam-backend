@@ -8,16 +8,40 @@ app_file: Dockerfile
 pinned: false
 ---
 
-# TRIAM Backend
+<p align="center">
+  <img src="assets/triam-logo.png" alt="TRIAM logo" width="132" />
+</p>
 
-**TRIAM** is the backend for an AI-powered audiobook learning platform. It turns structured documents into learning plans and replayable audio, tracks progress down to individual audio segments, schedules study and spaced-review reminders, and provides a realtime voice assistant whose answers are grounded in the learner's books.
-
-This repository contains the API, background-processing, data, and realtime-agent layers. The Flutter client is maintained separately.
+# <p align="center">TRIAM Backend</p>
 
 <p align="center">
-  <img src="assets/video-demo-qr.png" alt="QR code for the TRIAM video demo" width="260" />
+  <strong>An AI-powered audiobook learning platform backend.</strong><br />
+  <em>Transforms structured books into learning plans, replayable audio, and source-grounded realtime study conversations.</em>
+</p>
+
+<p align="center">
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.12-3776AB?style=for-the-badge&logo=python&logoColor=white" alt="Python 3.12" /></a>
+  <a href="https://fastapi.tiangolo.com/"><img src="https://img.shields.io/badge/API-FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white" alt="FastAPI" /></a>
+  <a href="https://www.postgresql.org/"><img src="https://img.shields.io/badge/Data-PostgreSQL_%2B_pgvector-4169E1?style=for-the-badge&logo=postgresql&logoColor=white" alt="PostgreSQL and pgvector" /></a>
+  <a href="https://docs.celeryq.dev/"><img src="https://img.shields.io/badge/Jobs-Celery_%2B_Redis-37814A?style=for-the-badge&logo=celery&logoColor=white" alt="Celery and Redis" /></a>
+  <a href="https://livekit.io/"><img src="https://img.shields.io/badge/Realtime-LiveKit-FF6B6B?style=for-the-badge&logo=livekit&logoColor=white" alt="LiveKit" /></a>
+</p>
+
+<p align="center">
+  <a href="#local-setup"><strong>Get started</strong></a>
+  · <a href="#api-groups">API</a>
+  · <a href="#system-architecture">Architecture</a>
+  · <a href="#deployment">Deployment</a>
+</p>
+
+TRIAM turns structured documents into learning plans and replayable audio, tracks progress down to individual audio segments, schedules study and spaced-review reminders, and provides a realtime voice assistant grounded in the learner's books. This repository contains the API, background-processing, data, and realtime-agent layers; the Flutter client is maintained separately.
+
+<p align="center">
+  <a href="https://www.youtube.com/playlist?list=PLXJhnJ6vaUxM">
+    <img src="assets/video-demo-qr.png" alt="Open the TRIAM video demo playlist on YouTube" width="180" />
+  </a>
   <br />
-  <em>Scan to watch the TRIAM video demo.</em>
+  <em>Scan the QR code or <a href="https://www.youtube.com/playlist?list=PLXJhnJ6vaUxM">watch the TRIAM video demo playlist on YouTube</a>.</em>
 </p>
 
 ## Product value
